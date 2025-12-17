@@ -1,0 +1,126 @@
+.plan-card {
+  background: #fff;
+  border-radius: 15px;
+  padding: 40px 25px;
+  text-align: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  position: relative;
+  height: 34rem;
+}
+
+.plan-card:hover {
+  transform: translateY(-10px) scale(1.03);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.plan-title {
+  font-size: 1.3rem;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+
+.plan-price {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+
+.plan-price small {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: normal;
+  color: #666;
+}
+
+.plan-desc {
+  margin-bottom: 25px;
+  font-size: 0.95rem;
+  color: #555;
+}
+
+.plan-btn {
+  border: none;
+  padding: 12px 25px;
+  border-radius: 25px;
+  font-weight: bold;
+  color: #fff;
+  width: 100%;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+/* Different colors for each plan */
+.plan-hours {
+  border-top: 5px solid #f4b400; /* yellow */
+}
+.plan-hours .plan-btn {
+  background: #f4b400;
+}
+.plan-hours .plan-btn:hover {
+  background: #d9a100;
+}
+
+.plan-days {
+  border-top: 5px solid #34a853; /* green */
+}
+.plan-days .plan-btn {
+  background: #34a853;
+}
+.plan-days .plan-btn:hover {
+  background: #2c8f46;
+}
+
+.plan-months {
+  border-top: 5px solid #00acc1; /* teal */
+}
+.plan-months .plan-btn {
+  background: #00acc1;
+}
+.plan-months .plan-btn:hover {
+  background: #0091a6;
+}
+
+.plan-years {
+  border-top: 5px solid #1a73e8; /* blue */
+}
+.plan-years .plan-btn {
+  background: #1a73e8;
+}
+.plan-years .plan-btn:hover {
+  background: #1669c1;
+}
+
+.plan-default {
+  border-top: 5px solid #999;
+}
+.plan-default .plan-btn {
+  background: #999;
+}
+.plan-default .plan-btn:hover {
+  background: #777;
+}
+
+.plan-features {
+  text-align: left;
+  margin: 20px 0;
+  padding-left: 20px;
+  list-style: none;
+}
+
+.plan-features li {
+  margin-bottom: 10px;
+  position: relative;
+  padding-left: 25px;
+  font-size: 0.95rem;
+  color: #444;
+}
+
+.plan-features li::before {
+  content: "✔";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: #34a853; // green checkmark
+  font-weight: bold;
+}

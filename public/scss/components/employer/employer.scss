@@ -1,0 +1,18 @@
+.placeholder-black {
+  color: black;
+}
+
+.placeholder-gray {
+  color: #999999;
+}
+
+// Keep your placeholder styles for when input is empty
+.placeholder-black::placeholder {
+  color: black;
+  opacity: 1;
+}
+
+.placeholder-gray::placeholder {
+  color: #999999;
+  opacity: 1;
+}
