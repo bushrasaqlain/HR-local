@@ -8,7 +8,7 @@ export default function DashboardHeaderPage() {
   const [activeTab, setActiveTab] = useState("country"); // 👈 default City
 
   return (
-    <div className="page-wrapper dashboard">
+    <>
       <span className="header-span"></span>
 
       <Seo pageTitle="Admin Dashboard" />
@@ -21,6 +21,6 @@ export default function DashboardHeaderPage() {
       <DashboardArea
         activeTab={activeTab}   // 👈 pass it
       />
-    </div>
+    </>
   );
 }
