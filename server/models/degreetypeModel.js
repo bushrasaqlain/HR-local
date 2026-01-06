@@ -136,42 +136,56 @@ const editDegreeType = (req, res) => {
     });
 }
 
-const getAllDegreeTypes = ({ page, limit, name, search, status }, callback) => {
-    // ✅ convert strings to integers
-    const pageNum = parseInt(page, 10) || 1;
-    const limitNum = parseInt(limit, 10) || 15;
-    const offset = (pageNum - 1) * limitNum;
+const getAllDegreeTypes = (
+  { page = 1, limit = 15, name = "name", search = "", status = "active" },
+  callback
+) => {
+  // ✅ convert strings to integers
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = parseInt(limit, 10) || 15;
+  const offset = (pageNum - 1) * limitNum;
 
-    const query = `
-    SELECT * FROM degreetypes 
-    WHERE status = ? AND ${name} LIKE ? 
+  let condition = "";
+  const values = [];
+
+  // Status filter
+  if (status !== "all") {
+    condition += " AND status = ?";
+    values.push(status);
+  }
+
+  // Search filter
+  if (search) {
+    condition += ` AND ${name} LIKE ?`;
+    values.push(`%${search}%`);
+  }
+
+  const query = `
+    SELECT * FROM degreetypes
+    WHERE 1=1 ${condition}
     ORDER BY id DESC
     LIMIT ? OFFSET ?
   `;
+  values.push(limitNum, offset);
 
-    const values = [status, `%${search}%`, limitNum, offset];
+  const countQuery = `SELECT COUNT(*) AS total FROM degreetypes WHERE 1=1 ${condition}`;
 
-    connection.query(query, values, (err, results) => {
-        if (err) return callback(err);
+  connection.query(query, values, (err, results) => {
+    if (err) return callback(err);
 
-        const countQuery = `
-      SELECT COUNT(*) AS total 
-      FROM degreetypes 
-      WHERE status = ? AND ${name} LIKE ?
-    `;
+    connection.query(countQuery, values.slice(0, -2), (err2, countResult) => {
+      if (err2) return callback(err2);
 
-        connection.query(countQuery, [status, `%${search}%`], (err2, countResult) => {
-            if (err2) return callback(err2);
-
-            callback(null, {
-                total: countResult[0].total,
-                page: pageNum,
-                limit: limitNum,
-                degreetypes: results,
-            });
-        });
+      callback(null, {
+        total: countResult[0].total,
+        page: pageNum,
+        limit: limitNum,
+        degreetypes: results,
+      });
     });
+  });
 };
+
 
 
 const deleteDegreeType = (req, res) => {

@@ -24,7 +24,6 @@ const education = require('./routes/Education')
 const projects = require("./routes/Projects");
 const certificateAwards = require("./routes/CertificateAward");
 const jobs = require("./routes/CandidateJobs")
-const applications = require("./routes/CVs")
 const messages = require("./routes/messages");
 
 // const singlejob = require("./routes/singlejobdata")
@@ -38,32 +37,31 @@ app.use('/', education )
 app.use('/', projects)
 app.use('/', certificateAwards)
 app.use('/',jobs)
-app.use('/applications', applications)
+
 app.use('/', messages)
 
 
 // Require your route files
-const companyRoute = require("./routes/employercompanyinfo");
 
-const companylogo = require("./routes/getemployerdata");
+
+// const companylogo = require("./routes/getemployerdata");
 const delete_employer_data= require("./routes/deleteemplyerdata");
 const company_name = require("./routes/comapnyname");
 
 const company_update = require("./routes/updatecompanyinfo")
 
 const dbAdminHistory = require("./routes/dbAdminHistory");
-const history = require("./routes/history");
 
 // const singlejob = require("./routes/singlejobdata")
 // Use your routes
-app.use("/company-info", companyRoute);
-app.use("/", companylogo);
+
+// app.use("/", companylogo);
 app.use("/", delete_employer_data);
 app.use("/", company_name);
 app.use("/", company_update );
 
 app.use("/", dbAdminHistory);
-app.use("/", history);
+
 
 
 const accountRoutes = require("./routes/accountRoutes");
@@ -78,14 +76,18 @@ const degree=require("./routes/degreetypeRoutes");
 const degreefields=require("./routes/degreeFieldRoutes");
 const business_entity_type=require("./routes/businessentitytypeRoutes");
 const district=require("./routes/districtRoutes");
-
+const candidate = require("./routes/candidateRoutes");
+const companyRoute = require("./routes/companyRoutes");
+const history = require("./routes/historyRoutes");
+const applicantRoute=require("./routes/applicantRoutes")
 const packages= require("./routes/packagesRoutes");
 const cart= require("./routes/cartRoutes");
 
-const candidate = require("./routes/candidateRoutes");
-
 app.use("/", accountRoutes);
-
+app.use("/company-info", companyRoute);
+app.use("/",applicantRoute)
+app.use("/candidateProfile",candidate );
+app.use("/", history);
 
 app.use("/",countries);
 app.use("/",district);
@@ -99,9 +101,10 @@ app.use("/",profession);
 app.use("/",business_entity_type);
 app.use ("/",currency);
 
+
 app.use("/packages", packages);
 app.use("/", cart);
 
-app.use("/candidateProfile",candidate )
+
 
 module.exports = app;

@@ -2,7 +2,7 @@ const connection = require("../connection");
 const logAudit = require("../utils/auditLogger");
 
 const createCountriesTable = () => {
-const createTableQuery = `
+    const createTableQuery = `
   CREATE TABLE IF NOT EXISTS countries (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -12,13 +12,13 @@ const createTableQuery = `
   )
 `;
 
-// Execute the query to create the table
-connection.query(createTableQuery, function (err, results, fields) {
-  if (err) {
-    return console.error(err.message);
-  }
-  console.log('✅Countries Table created successfully');
-});
+    // Execute the query to create the table
+    connection.query(createTableQuery, function (err, results, fields) {
+        if (err) {
+            return console.error(err.message);
+        }
+        console.log('✅Countries Table created successfully');
+    });
 }
 
 const addCountry = (req, res) => {
@@ -148,77 +148,108 @@ const editCountry = (req, res) => {
 };
 
 const getAllCountries = (
-    { page = 1, limit = 10, search = "", name = "name", status = "active" },
+    { page = 1, limit = 10, search = "", name = "name", status = "all" },
     callback
 ) => {
     const offset = (page - 1) * limit;
 
-    // ✅ Validate the "name" input to prevent SQL injection
+    // ✅ Prevent SQL injection
     const allowedColumns = ["name", "created_at", "updated_at"];
     if (!allowedColumns.includes(name)) name = "name";
 
+    let whereConditions = [];
+    let values = [];
+
+    // ✅ Status filter ONLY if not "all"
+    if (status && status !== "all") {
+        whereConditions.push("status = ?");
+        values.push(status);
+    }
+
+    // ✅ Search filter
+    if (search) {
+        if (name === "created_at" || name === "updated_at") {
+            whereConditions.push(`DATE(${name}) = ?`);
+            values.push(search);
+        } else {
+            whereConditions.push(`${name} LIKE ?`);
+            values.push(`%${search}%`);
+        }
+    }
+
+    const whereClause =
+        whereConditions.length > 0
+            ? `WHERE ${whereConditions.join(" AND ")}`
+            : "";
+
     const query = `
-    SELECT * FROM countries
-    WHERE status = ? AND ${name} LIKE ?
+    SELECT *
+    FROM countries
+    ${whereClause}
     ORDER BY id DESC
     LIMIT ? OFFSET ?
   `;
 
-    connection.query(query, [status, `%${search}%`, Number(limit), Number(offset)], (err, results) => {
+    const queryValues = [...values, Number(limit), Number(offset)];
+
+    connection.query(query, queryValues, (err, results) => {
         if (err) {
             console.error("❌ Error fetching countries:", err.sqlMessage);
             return callback(err);
         }
 
-        connection.query(
-            `SELECT COUNT(*) AS total FROM countries WHERE status = ? AND ${name} LIKE ?`,
-            [status, `%${search}%`],
-            (err2, countResult) => {
-                if (err2) {
-                    console.error("❌ Error counting countries:", err2.sqlMessage);
-                    return callback(err2);
-                }
+        const countQuery = `
+      SELECT COUNT(*) AS total
+      FROM countries
+      ${whereClause}
+    `;
 
-                callback(null, {
-                    total: countResult[0].total,
-                    page,
-                    limit,
-                    countries: results,
-                });
+        connection.query(countQuery, values, (err2, countResult) => {
+            if (err2) {
+                console.error("❌ Error counting countries:", err2.sqlMessage);
+                return callback(err2);
             }
-        );
+
+            callback(null, {
+                total: countResult[0].total,
+                page,
+                limit,
+                countries: results,
+            });
+        });
     });
 };
 
+
 const deleteCountry = (req, res) => {
-const { id } = req.params;
-  const userId = req.user.userId;
+    const { id } = req.params;
+    const userId = req.user.userId;
 
-  const checkQuery = "SELECT * FROM countries WHERE id = ?";
-  connection.query(checkQuery, [id], (err, results) => {
-    if (err) return res.status(500).json({ error: "Database error" });
-    if (results.length === 0) return res.status(404).json({ error: "Country not found" });
+    const checkQuery = "SELECT * FROM countries WHERE id = ?";
+    connection.query(checkQuery, [id], (err, results) => {
+        if (err) return res.status(500).json({ error: "Database error" });
+        if (results.length === 0) return res.status(404).json({ error: "Country not found" });
 
-    const currentCountry = results[0];
-    const newStatus = currentCountry.status === "active" ? "inactive" : "active";
+        const currentCountry = results[0];
+        const newStatus = currentCountry.status === "active" ? "inactive" : "active";
 
-    const updateQuery = "UPDATE countries SET status = ? WHERE id = ?";
-    connection.query(updateQuery, [newStatus, id], (err2) => {
-      if (err2) return res.status(500).json({ error: "Database error" });
+        const updateQuery = "UPDATE countries SET status = ? WHERE id = ?";
+        connection.query(updateQuery, [newStatus, id], (err2) => {
+            if (err2) return res.status(500).json({ error: "Database error" });
 
-      // 🔥 Audit log: ACTIVE / INACTIVE
-      logAudit({
-        tableName: "dbadminhistory",
-        entityType: "country",
-        entityId: id,
-        action: newStatus.toUpperCase(), // "ACTIVE" or "INACTIVE"
-        data: { name: currentCountry.name, status: newStatus },
-        changedBy: userId,
-      });
+            // 🔥 Audit log: ACTIVE / INACTIVE
+            logAudit({
+                tableName: "dbadminhistory",
+                entityType: "country",
+                entityId: id,
+                action: newStatus.toUpperCase(), // "ACTIVE" or "INACTIVE"
+                data: { name: currentCountry.name, status: newStatus },
+                changedBy: userId,
+            });
 
-      res.status(200).json({ message: `Country status updated to ${newStatus}` });
+            res.status(200).json({ message: `Country status updated to ${newStatus}` });
+        });
     });
-  });
 }
 
 module.exports = {

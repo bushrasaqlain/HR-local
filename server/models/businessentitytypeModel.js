@@ -105,27 +105,38 @@ const getAllbusinessentitytype = (
   callback
 ) => {
   // Ensure numbers
-  page = parseInt(page, 10);
-  limit = parseInt(limit, 10);
+  page = parseInt(page, 10) || 1;
+  limit = parseInt(limit, 10) || 15;
   const offset = (page - 1) * limit;
+
+  let condition = "";
+  const values = [];
+
+  // Status filter
+  if (status !== "all") {
+    condition += " AND status = ?";
+    values.push(status);
+  }
+
+  // Search filter
+  if (search) {
+    condition += ` AND ${name} LIKE ?`;
+    values.push(`%${search}%`);
+  }
 
   const query = `
     SELECT * FROM business_entity_type
-    WHERE status = ? AND ${name} LIKE ?
+    WHERE 1=1 ${condition}
     ORDER BY id DESC
     LIMIT ? OFFSET ?
   `;
-  const values = [status, `%${search}%`, limit, offset];
+  values.push(limit, offset);
 
   connection.query(query, values, (err, results) => {
     if (err) return callback(err);
 
-    const countQuery = `
-      SELECT COUNT(*) AS total 
-      FROM business_entity_type 
-      WHERE status = ? AND ${name} LIKE ?
-    `;
-    connection.query(countQuery, [status, `%${search}%`], (err2, countResult) => {
+    const countQuery = `SELECT COUNT(*) AS total FROM business_entity_type WHERE 1=1 ${condition}`;
+    connection.query(countQuery, values.slice(0, -2), (err2, countResult) => {
       if (err2) return callback(err2);
 
       callback(null, {
@@ -137,6 +148,8 @@ const getAllbusinessentitytype = (
     });
   });
 };
+
+
 
 
   const deletebusinessentitytype = (req, res) => {

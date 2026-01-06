@@ -157,12 +157,14 @@ const editDistrict = (req, res) => {
 }
 
 const getAllDistricts = (req, res) => {
- const page = parseInt(req.query.page) || 1;
+  const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 15;
   const offset = (page - 1) * limit;
   const name = req.query.name || "name";
   const search = req.query.search || "";
-  const countryId = req.query.country_id ? parseInt(req.query.country_id) : null;
+  const countryId = req.query.country_id
+    ? parseInt(req.query.country_id)
+    : null;
   const status = req.query.status || "active";
 
   // ✅ whitelist to avoid SQL injection
@@ -171,25 +173,34 @@ const getAllDistricts = (req, res) => {
     return res.status(400).json({ error: "Invalid column name" });
   }
 
-  let filterColumn = name === "country" ? "c.name" : "d.name";
+  const filterColumn = name === "country" ? "c.name" : "d.name";
 
   let query = `
-    SELECT d.*, c.name as country_name 
+    SELECT d.*, c.name AS country_name
     FROM districts d
     JOIN countries c ON d.country_id = c.id
-    WHERE d.status = ? AND ${filterColumn} LIKE ?
+    WHERE ${filterColumn} LIKE ?
   `;
 
   let countQuery = `
-    SELECT COUNT(*) AS total 
+    SELECT COUNT(*) AS total
     FROM districts d
     JOIN countries c ON d.country_id = c.id
-    WHERE d.status = ? AND ${filterColumn} LIKE ?
+    WHERE ${filterColumn} LIKE ?
   `;
 
-  let queryValues = [status, `%${search}%`];
-  let countValues = [status, `%${search}%`];
+  let queryValues = [`%${search}%`];
+  let countValues = [`%${search}%`];
 
+  // ✅ Apply status filter only if not "all"
+  if (status !== "all") {
+    query += ` AND d.status = ?`;
+    countQuery += ` AND d.status = ?`;
+    queryValues.push(status);
+    countValues.push(status);
+  }
+
+  // ✅ Country filter
   if (countryId) {
     query += ` AND d.country_id = ?`;
     countQuery += ` AND d.country_id = ?`;
@@ -197,7 +208,7 @@ const getAllDistricts = (req, res) => {
     countValues.push(countryId);
   }
 
-  // ✅ LIMIT comes at the end
+  // ✅ Pagination
   query += ` ORDER BY d.id DESC LIMIT ? OFFSET ?`;
   queryValues.push(limit, offset);
 
@@ -221,7 +232,8 @@ const getAllDistricts = (req, res) => {
       });
     });
   });
-}
+};
+
 
 const deleteDistrict = (req, res) => {
   const { id } = req.params;

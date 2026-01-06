@@ -7,7 +7,7 @@ const SearchForm3 = () => {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    router.push("/job-list/job-list-v5"); // navigate programmatically
+    router.push("/joblist"); // navigate programmatically
   };
 
   return (

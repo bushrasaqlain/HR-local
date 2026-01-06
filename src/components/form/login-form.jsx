@@ -1,222 +1,188 @@
 "use client";
 
 import Link from "next/link";
-import LoginWithSocial from "./LoginWithSocial";
-import React, { useState, useEffect } from "react"; // Import useEffect
-import axios from "axios";
-
+import React, { Component } from "react";
+import { connect } from "react-redux";
+import { withRouter } from "next/router";
 import { toast } from "react-toastify";
+
+import {
+  Form,
+  FormGroup,
+  Label,
+  Input,
+  Button,
+  InputGroup,
+  InputGroupText,
+  Alert,
+} from "reactstrap";
+
 import api from "../lib/api.jsx";
-import { useDispatch, useSelector } from "react-redux";
 import { setUser } from "../../redux/features/user/userSlice.js";
-import { useRouter } from "next/router";
 
-const FormContent = () => {
-  const dispatch = useDispatch();
-  const [showPassword, setShowPassword] = useState(false);
-  const togglePasswordVisibility = () => {
-    setShowPassword((prev) => !prev);
+class FormContent extends Component {
+  constructor(props) {
+    super(props);
+
+    this.state = {
+      showPassword: false,
+      loginError: "",
+      values: {
+        email: "",
+        password: "",
+      },
+      errors: {
+        email: "",
+        password: "",
+      },
+    };
+  }
+
+  togglePasswordVisibility = () => {
+    this.setState((prevState) => ({
+      showPassword: !prevState.showPassword,
+    }));
   };
-  const [values, setValues] = useState({
-    email: "",
-    password: "",
-  });
-  const [errors, setErrors] = useState({
-    name: "",
-    password: "",
-  });
-  const [loginError, setLoginError] = useState("");
-  const [rememberMe, setRememberMe] = useState(false); // Step 1: State for Remember Me
-  const router = useRouter();
 
-  // Step 2: Handle Remember Me Checkbox
-  const handleRememberMeChange = (event) => {
-    setRememberMe(event.target.checked);
-  };
+  handleInputChange = (e) => {
+    const { name, value } = e.target;
+    this.setState((prevState) => ({
+      errors: { ...prevState.errors, [name]: "" },
+      loginError: "",
+    }));
 
-  const handleInputChange = (event) => {
-    const { name, value } = event.target;
-    setErrors((prev) => ({ ...prev, [name]: "" }));
-    setLoginError("");
-
-    if (name === "email") {
-      if (/\s/.test(value)) {
-        setErrors((prev) => ({
-          ...prev,
-          name: "Email cannot contain white spaces",
-        }));
-      } else {
-        setValues((prev) => ({ ...prev, [name]: value }));
-      }
-    } else if (name === "password") {
-      if (/\s/.test(value)) {
-        setErrors((prev) => ({
-          ...prev,
-          password: "Password cannot contain white spaces",
-        }));
-      } else {
-        setValues((prev) => ({ ...prev, [name]: value }));
-      }
-    } else {
-      console.error(`Invalid input field: ${name}`);
+    if (/\s/.test(value)) {
+      this.setState((prevState) => ({
+        errors: {
+          ...prevState.errors,
+          [name]:
+            name === "email"
+              ? "Email cannot contain white spaces"
+              : "Password cannot contain white spaces",
+        },
+      }));
+      return;
     }
+
+    this.setState((prevState) => ({
+      values: { ...prevState.values, [name]: value },
+    }));
   };
 
-  // Step 3: LocalStorage for Remember Me
-  const handlesubmit = async (event) => {
-    event.preventDefault();
+  handleSubmit = async (e) => {
+    e.preventDefault();
+    const { values } = this.state;
+    const { dispatch, router } = this.props;
+
+    const newErrors = {};
+    if (!values.email) newErrors.email = "Email is required";
+    if (!values.password) {
+      newErrors.password = "Password is required";
+    } else if (values.password.length < 8) {
+      newErrors.password = "Password must be at least 8 characters";
+    }
+
+    this.setState({ errors: newErrors });
+    if (Object.keys(newErrors).length > 0) return;
+
     try {
-      const newErrors = {};
-
-      if (!values.email || values.email.trim() === "") {
-        newErrors.email = "Email is required";
-      }
-      if (!values.password || values.password.trim() === "") {
-        newErrors.password = "Password is required";
-      } else if (values.password.length < 8) {
-        newErrors.password = "Password must be at least 8 characters long";
-      }
-
-      setErrors(newErrors);
-
-      if (Object.keys(newErrors).length > 0) {
-        return;
-      }
-
       const res = await api.post("/login", values);
-      // const { companyId, userType, userId } = res.data; // Ensure userId is retrieved from response
 
-      // if user is inActive
       if (!res.data.success) {
-        setLoginError("Admin has not Active you yet, Please wait!");
+        this.setState({ loginError: "Admin has not activated you yet. Please wait!" });
         return;
       }
       sessionStorage.setItem("token", res.data.token);
+      const userRes = await api.get("/api/me");
+      dispatch(setUser(userRes.data));
+      sessionStorage.setItem("userId", userRes.data.userId);
+      sessionStorage.setItem("accountType", userRes.data.accountType);
+      sessionStorage.setItem("username", userRes.data.username);
       toast.success("Login successfully!");
-
-      const userData = await api.get("/api/me");
-      const data = userData.data;
-      // dispatch add the data in the redux store.
-      dispatch(setUser(data));
-
-      // localStorage.setItem('companyId', companyId);
-
-      // Store userId in localStorage
-      // localStorage.setItem('userId', userId);
-      if (data.accountType === "db_admin") {
-        router.push("/dashboard-header");
-      } else if (data.accountType === "reg_admin") {
-        router.push(`/registration-admin-dashboard/employer/`);
-      } else if (
-        data.accountType === "candidate" ||
-        data.accountType === "employer"
-      ) {
-        router.push(`/${data.accountType}s-dashboard/dashboard/`);
-      }
-
-      // Step 4: Store Remember Me state in localStorage
-      // if (rememberMe) {
-      //   localStorage.setItem('rememberMe', 'true');
-      // } else {
-      //   localStorage.removeItem('rememberMe');
-      // }
+      router.push("/dashboard-header");
     } catch (err) {
-      console.log(err);
-      setLoginError("Invalid email or password, please try again.");
+      this.setState({ loginError: "Invalid email or password, please try again." });
     }
   };
 
-  // Step 5: Restore Remember Me State
-  // useEffect(() => {
-  //   const rememberMeStored = localStorage.getItem('rememberMe') === 'true';
-  //   if (rememberMeStored !== null) {
-  //     setRememberMe(rememberMeStored);
-  //   }
-  // }, []);
+  render() {
+    const { values, errors, showPassword, loginError } = this.state;
 
-  return (
-    <div className="form-inner">
-      <h3>Login to Superio</h3>
+    return (
+      <div className="form-inner">
+        <h3 className="text-center mb-4">Login to Superio</h3>
 
-      <form method="post" onSubmit={handlesubmit}>
-        {loginError && (
-          <div className="alert alert-danger" role="alert">
-            {loginError}
-          </div>
-        )}
+        <Form onSubmit={this.handleSubmit}>
+          {loginError && <Alert color="danger">{loginError}</Alert>}
 
-        <div className="form-group">
-          <label>Email</label>
-          <input
-            type="text"
-            name="email"
-            placeholder="Email"
-            onChange={handleInputChange}
-          />
-          {errors.email && (
-            <div className="error-message text-danger">{errors.email}</div>
-          )}
-        </div>
-
-        <div className="form-group">
-          <label>Password</label>
-          <div className="input-group">
-            <input
-              type={showPassword ? "text" : "password"}
-              name="password"
-              placeholder="Password"
-              onChange={handleInputChange}
+          {/* Email */}
+          <FormGroup>
+            <Label>Email</Label>
+            <Input
+              type="email"
+              name="email"
+              placeholder="Email"
+              value={values.email}
+              onChange={this.handleInputChange}
             />
-            <button
-              className="btn btn-light eye-icon align-items-stretch "
-              onClick={() => togglePasswordVisibility("password")}
-              type="button"
-            >
-              <i
-                className={`las ${showPassword ? "la-eye" : "la-eye-slash"}`}
-              ></i>
-            </button>
-          </div>
-          {errors.password && (
-            <div className="error-message text-danger">{errors.password}</div>
-          )}
-        </div>
+            {errors.email && <small className="text-danger">{errors.email}</small>}
+          </FormGroup>
 
-        <div className="form-group">
-          <div className="field-outer d-flex justify-end">
-            <a href="#" className="pwd">
+          {/* Password */}
+          <FormGroup>
+            <Label>Password</Label>
+            <InputGroup>
+              <Input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                placeholder="Password"
+                value={values.password}
+                onChange={this.handleInputChange}
+              />
+              <InputGroupText role="button" onClick={this.togglePasswordVisibility}>
+                <i className={`las ${showPassword ? "la-eye" : "la-eye-slash"}`} />
+              </InputGroupText>
+            </InputGroup>
+            {errors.password && <small className="text-danger">{errors.password}</small>}
+          </FormGroup>
+
+          {/* Forgot Password */}
+          <FormGroup className="text-end">
+            <Link href="/forgot-password" className="pwd">
               Forgot password?
-            </a>
+            </Link>
+          </FormGroup>
+
+          {/* Submit */}
+          <FormGroup>
+            <Button
+              color="primary"
+              className="w-100 theme-btn btn-style-one"
+              type="submit"
+            >
+              Log In
+            </Button>
+          </FormGroup>
+        </Form>
+
+        {/* Bottom */}
+        <div className="bottom-box text-center mt-4">
+          <div className="text mb-2">
+            Don&apos;t have an account?{" "}
+            <Link href="/register">
+              <span className="signup">Signup</span>
+            </Link>
           </div>
-        </div>
 
-        <div className="form-group">
-          <button
-            className="theme-btn btn-style-one"
-            type="submit"
-            name="log-in"
-          >
-            Log In
-          </button>
-        </div>
-      </form>
+          <div className="divider my-3">
+            <span>or</span>
+          </div>
 
-      <div className="bottom-box">
-        <div className="text">
-          Don't have an account?{" "}
-          <Link href="/register">
-            <span className="call-modal signup">Signup</span>
-          </Link>
+       
         </div>
-
-        <div className="divider">
-          <span>or</span>
-        </div>
-
-        {/* <LoginWithSocial /> */}
       </div>
-    </div>
-  );
-};
+    );
+  }
+}
 
-export default FormContent;
+export default connect()(withRouter(FormContent));

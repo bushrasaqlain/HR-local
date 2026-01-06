@@ -1,6 +1,9 @@
+"use client";
+import React from "react";
+import { Container, Row, Col } from "reactstrap";
+
 import Partner from "./Partner";
 import Funfact from "./Funfact";
-import ImgBox from "./ImgBox";
 import IntroDescriptions from "./IntroDescriptions";
 import CallToAction2 from "./CallToAction2";
 import Testimonial2 from "./Testimonial2";
@@ -11,85 +14,96 @@ const index = () => {
   return (
     <>
       {/* <Breadcrumb title="About Us" meta="About Us" /> */}
-      {/* <!--End Page Title--> */}
 
-      <section className="about-section-three">
-        <div className="auto-container">
-          <ImgBox />
+      {/* About Section */}
+      <section className="about-section-three py-5">
+        <Container>
+        
 
-          {/* <!-- Fun Fact Section --> */}
-          <div className="fun-fact-section">
-            <div className="row">
-              <Funfact />
-            </div>
-          </div>
-          {/* <!-- Fun Fact Section --> */}
+          {/* Fun Fact Section */}
+          <Row className="fun-fact-section mt-4">
+            <Funfact />
+          </Row>
 
-          <IntroDescriptions />
-        </div>
+          <Row className="mt-4">
+            <Col>
+              <IntroDescriptions />
+            </Col>
+          </Row>
+        </Container>
       </section>
-      {/* <!-- End About Section Three --> */}
+      {/* End About Section */}
 
+      {/* Call To Action */}
       <CallToAction2 />
-      {/* <!-- End CallToAction2 --> */}
+      {/* End CallToAction2 */}
 
-      <section className="testimonial-section-two">
-        <div className="container-fluid">
-          <div className="testimonial-left">
-            <img src="/images/resource/testimonial-left.png" alt="testimonial" />
-          </div>
-          {/* End left img group */}
+      {/* Testimonial Section */}
+      <section className="testimonial-section-two py-5">
+        <Container fluid>
+          <Row>
+            <Col xs={12} md={6} className="testimonial-left">
+              <img
+                src="/images/resource/testimonial-left.png"
+                alt="testimonial"
+                className="img-fluid"
+              />
+            </Col>
+            <Col xs={12} md={6} className="testimonial-right">
+              <img
+                src="/images/resource/testimonial-right.png"
+                alt="testimonial"
+                className="img-fluid"
+              />
+            </Col>
+          </Row>
 
-          <div className="testimonial-right">
-            <img
-              src="/images/resource/testimonial-right.png"
-              alt="testimonial"
-            />
-          </div>
-          {/* End right img group */}
+          <Row className="text-center mt-4">
+            <Col>
+              <h2>Testimonials From Our Customers</h2>
+              <p>Lorem ipsum dolor sit amet elit, sed do eiusmod tempor</p>
+            </Col>
+          </Row>
 
-          <div className="sec-title text-center">
-            <h2>Testimonials From Our Customers</h2>
-            <div className="text">
-              Lorem ipsum dolor sit amet elit, sed do eiusmod tempor
-            </div>
-          </div>
-          {/* <!-- Sec Title --> */}
-
-          <div className="carousel-outer" data-aos="fade-up">
-            <div className="testimonial-carousel">
+          <Row className="carousel-outer mt-3" data-aos="fade-up">
+            <Col>
               <Testimonial2 />
-            </div>
-            {/* <!-- Testimonial Carousel --> */}
-          </div>
-        </div>
+            </Col>
+          </Row>
+        </Container>
       </section>
-      {/* <!-- End Testimonial Section --> */}
+      {/* End Testimonial Section */}
 
-      <section className="work-section style-two">
-        <div className="auto-container">
-          <div className="sec-title text-center">
-            <h2>How It Works?</h2>
-            <div className="text">Job for anyone, anywhere</div>
-          </div>
-          {/* End sec-title */}
+      {/* Work Section */}
+      <section className="work-section style-two py-5">
+        <Container>
+          <Row className="text-center mb-4">
+            <Col>
+              <h2>How It Works?</h2>
+              <p>Job for anyone, anywhere</p>
+            </Col>
+          </Row>
 
-          <div className="row" data-aos="fade-up">
+          <Row data-aos="fade-up">
             <Block1 />
-          </div>
-        </div>
+          </Row>
+        </Container>
       </section>
-      {/* <!-- End Work Section --> */}
+      {/* End Work Section */}
 
-      <section className="clients-section">
-        <div className="sponsors-outer" data-aos="fade">
-          {/* <!--Sponsors Carousel--> */}
-          <ul className="sponsors-carousel">
-            <Partner />
-          </ul>
-        </div>
+      {/* Clients Section */}
+      <section className="clients-section py-5">
+        <Container>
+          <Row className="justify-content-center" data-aos="fade">
+            <Col>
+              <ul className="sponsors-carousel list-unstyled d-flex flex-wrap justify-content-center">
+                <Partner />
+              </ul>
+            </Col>
+          </Row>
+        </Container>
       </section>
-      {/* <!-- End Clients Section--> */}
+      {/* End Clients Section */}
     </>
   );
 };

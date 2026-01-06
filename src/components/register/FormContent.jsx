@@ -1,397 +1,184 @@
-"use client"
+"use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
+import { Form, FormGroup, Label, Input, Button, FormFeedback, Alert, InputGroup } from "reactstrap";
 import axios from "axios";
-import { useRouter } from "next/navigation";
 
 const FormContent = ({ setShowNext, setUserId }) => {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL + "account";
-
-  const togglePasswordVisibility = (field) => {
-    if (field === "password") {
-      setShowPassword((prev) => !prev);
-    } else if (field === "confirmPassword") {
-      setShowConfirmPassword((prev) => !prev);
-    }
-  };
-
+  const [accountType, setAccountType] = useState("candidate");
   const [values, setValues] = useState({
     username: "",
     email: "",
     password: "",
     confirmPassword: "",
-    accountType: "candidate",
   });
-
+  const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
-  const [errors, setErrors] = useState({
-    username: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL + "account";
 
-  const router = useRouter();
+  const togglePassword = (field) => {
+    if (field === "password") setShowPassword(!showPassword);
+    if (field === "confirmPassword") setShowConfirmPassword(!showConfirmPassword);
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setValues((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, [name]: "" }));
+
+    if (name === "username" && !/^[A-Za-z0-9\s]+$/.test(value)) {
+      setErrors((prev) => ({
+        ...prev,
+        username: "Username can only contain letters and numbers",
+      }));
+    }
+  };
 
   const checkEmailExists = async (email) => {
     try {
-      const response = await axios.get(
-        `${apiBaseUrl}/email?email=${email}`
-      );
-      return response.data.exists; // Assuming the response has an 'exists' field
-    } catch (error) {
-      console.error("Error checking email existence:", error);
-      return false; // Return false in case of an error or no response
+      const res = await axios.get(`${apiBaseUrl}/email?email=${email}`);
+      return res.data.exists;
+    } catch {
+      return false;
     }
   };
 
-  // const checkNameExists = async (name) => {
-  //   try {
-  //     const response = await axios.get(
-  //       `${apiBaseUrl}/name?name=${name}`,
-  //     );
-  //     return response.data.exists; // Assuming the response has an 'exists' field
-  //   } catch (error) {
-  //     console.error("Error checking email existence:", error);
-  //     return false; // Return false in case of an error or no response
-  //   }
-  // };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const validationErrors = {};
 
-  const handleAccountType = (type) => {
-    setValues((prev) => ({ ...prev, accountType: type }))
-  }
+    if (!values.username.trim()) validationErrors.username = "Username is required";
+    if (!values.email.trim()) validationErrors.email = "Email is required";
+    if (!values.password.trim()) validationErrors.password = "Password is required";
+    if (values.password.length < 8) validationErrors.password = "Password must be at least 8 characters";
+    if (values.password !== values.confirmPassword) validationErrors.confirmPassword = "Passwords do not match";
 
-  const handleInputChange = (event) => {
-    const { name, value } = event.target;
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) return;
 
-    // Update the state with the new value
-    setValues((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-
-    // Clear the corresponding error when the user starts typing in the field
-    setErrors((prev) => ({ ...prev, [name]: "" }));
-
-    if (name === "username" && !/^[A-Za-z\s]+$/.test(value)) {
-      // If username contains anything other than letters, set an error
-      setErrors((prev) => ({
-        ...prev,
-        username: "Username can only contain letters (no numbers or special characters)",
-      }));
-    } else {
-      // If valid, clear the error
-      setErrors((prev) => ({ ...prev, username: "" }));
-    }
-
-
-  };
-
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-
-    const formData = new FormData();
-    formData.append("username", values.username);
-
-    formData.append("email", values.email);
-    formData.append("password", values.password);
-    formData.append("confirmPassword", values.confirmPassword);
-    formData.append("accountType", values.accountType);
-    formData.append("isActive", "InActive");
-
-    let emailExists = false;
-    try {
-      emailExists = await checkEmailExists(values.email);
-    } catch (err) {
-      // ignore the error and continue if API returned 404 or failed
-      emailExists = false;
-    }
-
+    const emailExists = await checkEmailExists(values.email);
     if (emailExists) {
-      setErrors((prev) => ({
-        ...prev,
-        email: "Email already exists in the database. Please use a different email."
-      }));
-      return; // Stop form submission
-    }
-
-    // let NameExists = false;
-    // try {
-    //     NameExists = await checkNameExists(values.username);
-    // } catch (err) {
-    //   NameExists = false; // ignore the error and continue if API returned 404 or failed
-    // }
-    //     if (NameExists) {
-    //       // If the username exists, set an error message and prevent form submission
-    //       setErrors((prev) => ({
-    //         ...prev,
-    //         username: "Username already exists. Please use a different username.",
-    //       }));
-    //       return; // Stop form submission
-    //     }
-
-    const newErrors = {};
-
-    if (!values.username || values.username.trim() === "") {
-      newErrors.username = "Username is required";
-    }
-    // if (!values.full_name || values.full_name.trim() === "") {
-    //   newErrors.full_name = "Full Name is required";
-    // }
-
-    // if (!values.logo || !values.logo.name) {
-    //   newErrors.logo = "Company Logo is required";
-    // }
-
-    if (!values.email || values.email.trim() === "") {
-      newErrors.email = "Email is required";
-    }
-
-    if (!values.password || values.password.trim() === "") {
-      newErrors.password = "Password is required";
-    } else if (values.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters long";
-    }
-
-    if (!values.confirmPassword || values.confirmPassword.trim() === "") {
-      newErrors.confirmPassword = "Confirm password is required";
-    } else if (values.password !== values.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match";
-    }
-
-    if (!values.accountType) {
-      newErrors.accountType = "Account type is required";
-    }
-
-    // Update the state with errors
-    setErrors(newErrors);
-
-    // If there are any errors, stop form submission
-    if (Object.keys(newErrors).length > 0) {
+      setErrors({ ...validationErrors, email: "Email already exists" });
       return;
     }
 
-
-
     try {
-      const res = await axios.post(`${apiBaseUrl}`, formData);
+      const formData = new FormData();
+      formData.append("username", values.username);
+      formData.append("email", values.email);
+      formData.append("password", values.password);
+      formData.append("confirmPassword", values.confirmPassword);
+      formData.append("accountType", accountType);
+      formData.append("isActive", "InActive");
+
+      const res = await axios.post(apiBaseUrl, formData);
       if (res.status === 201) {
-     
         setUserId(res.data.insertId);
-        // setSuccessMessage("Registration process is completed successfully!");
-
-        // Scroll to the success message after registration
-        scrollToSuccessMessage();
-
-        // Reset form fields after successful registration
-        setValues({
-          username: "",
-          // full_name: "",
-          email: "",
-          password: "",
-          confirmPassword: "",
-          accountType: "candidate",
-        });
+        setSuccessMessage("Registration successful!");
         setShowNext(true);
-        setErrors({});
-        //logoHandler(null);
-      } else {
-        setSuccessMessage("Error: unable to register the user, try again.");
       }
     } catch (err) {
-      console.err(err);
+      console.error(err);
+      setSuccessMessage("Registration failed. Try again.");
     }
   };
-
-  const formRef = useRef(null);
-  const successMessageRef = useRef(null);
-
-  const scrollToSuccessMessage = () => {
-    if (successMessageRef.current) {
-      window.scrollTo({
-        top: successMessageRef.current.offsetTop,
-        behavior: 'smooth',
-      });
-    } else if (formRef.current) {
-      window.scrollTo({
-        top: formRef.current.offsetTop,
-        behavior: 'smooth',
-      });
-    }
-  };
-
-  useEffect(() => {
-    if (successMessage) {
-      scrollToSuccessMessage();
-      setShowNext(true);
-    }
-  }, [successMessage]);
-
-  const inputStyles = {
-    height: '3.5rem',
-    position: 'relative',
-    width: '100%',
-    display: 'block',
-    lineHeight: '30px',
-    padding: '15px 20px',
-    fontSize: '15px',
-    color: '#696969',
-    backgroundColor: '#f0f5f7',
-    border: '1px solid #f0f5f7',
-    WebkitBoxSizing: 'border',
-
-    boxSizing: 'border-box',
-    borderRadius: '8px',
-  };
-
 
   return (
     <div>
-      {successMessage && (
-        <div ref={successMessageRef}>
-          <div className="alert alert-info" role="alert">
-            {successMessage}
-          </div>
-        </div>
-      )}
-        <form method="post" action="add-parcel.html" onSubmit={handleSubmit} encType="multipart/form-data" ref={formRef}>
-
-        <div className="form-group d-flex">
-          <button
-            type="button"
-            className={`theme-btn btn-style-four ${values.accountType === "candidate" ? "btn-style-afterclick" : ""}`}
-            onClick={() => handleAccountType("candidate")}
+      {successMessage && <Alert variant="success">{successMessage}</Alert>}
+      <Form onSubmit={handleSubmit}>
+        <div className="d-flex mb-3">
+          <Button
+            variant={accountType === "candidate" ? "primary" : "outline-secondary"}
+            className="me-2 w-50"
+            onClick={() => setAccountType("candidate")}
           >
-            <i className="la la-user"></i> Candidate
-          </button>
-
-          <button
-            type="button"
-            className={`theme-btn btn-style-four ${values.accountType === "employer" ? "btn-style-afterclick" : ""}`}
-            onClick={() => handleAccountType("employer")}
+            Candidate
+          </Button>
+          <Button
+            variant={accountType === "employer" ? "primary" : "outline-secondary"}
+            className="w-50"
+            onClick={() => setAccountType("employer")}
           >
-            <i className="la la-briefcase"></i> Employer
-          </button>
+            Employer
+          </Button>
         </div>
-        <div className="form-group">
-          <label>Username</label>
-          <input
+
+        <FormGroup className="mb-3">
+          <Label>Username</Label>
+          <Input
             type="text"
+            placeholder="Enter username"
             name="username"
-            placeholder="Enter Username"
-            onChange={handleInputChange}
-            value={values.username} // Add this line to ensure the input value is controlled
+            value={values.username}
+            onChange={handleChange}
+            invalid={!!errors.username}
           />
+          {errors.username && <FormFeedback>{errors.username}</FormFeedback>}
+        </FormGroup>
 
-          {/* Display error message if present */}
-          {errors.username && (
-            <div className="error-message text-danger">{errors.username}</div>
-          )}
-        </div>
-        {/* <div className="form-group">
-          <label>Full Name</label>
-          <input
-            type="text"
-            name="full_name"
-            placeholder="Enter Full Name"
-            onChange={handleInputChange}
-            value={values.full_name} // Add this line to ensure the input value is controlled
-          />
-          {errors.full_name && (
-            <div className="error-message text-danger">{errors.full_name}</div>
-          )}
-        </div>
-        <div className="form-group">
-          <label>Image </label>
-          <input
-            className="form-control"
-            style={inputStyles}
-            type="file"
-            name="logo"
-            id="upload"
-            multiple={false}
-            accept=".jpg,.jpeg,.png"
-            onChange={(e) => logoHandler(e.target.files[0])}
-          />
-          {errors.logo && (
-            <div className="error-message text-danger">{errors.logo}</div>
-          )}
-        </div> */}
-
-        <div className="form-group">
-          <label>Email Address</label>
-          <input
+        <FormGroup className="mb-3">
+          <Label>Email Address</Label>
+          <Input
             type="email"
-            name="email"
             placeholder="Enter Email"
-            onChange={handleInputChange}
-            value={values.email} // Add this line to ensure the input value is controlled
+            name="email"
+            value={values.email}
+            onChange={handleChange}
+            invalid={!!errors.email}
           />
-          {errors.email && (
-            <div className="error-message text-danger">{errors.email}</div>
-          )}
-        </div>
-        <div className="form-group">
-          <label>Password</label>
-          <div className="input-group">
-            <input
+          {errors.email && <FormFeedback>{errors.email}</FormFeedback>}
+        </FormGroup>
+
+        <FormGroup className="mb-3">
+          <Label>Password</Label>
+          <InputGroup>
+            <Input
               type={showPassword ? "text" : "password"}
-              name="password"
               placeholder="Password"
-              onChange={handleInputChange}
-              value={values.password} // Add this line to ensure the input value is controlled
+              name="password"
+              value={values.password}
+              onChange={handleChange}
+              invalid={!!errors.password} // use invalid instead of isInvalid
             />
-            <button
-              className="btn btn-light eye-icon align-items-stretch "
-              onClick={() => togglePasswordVisibility("password")}
-              type="button"
+            <Button
+              color="secondary"
+              outline
+              onClick={() => togglePassword("password")}
             >
-              <i
-                className={`las ${showPassword ? "la-eye" : "la-eye-slash"}`}
-              ></i>
-            </button>
-          </div>
-          {errors.password && (
-            <div className="error-message text-danger">{errors.password}</div>
-          )}
-        </div>
+              {showPassword ? "Hide" : "Show"}
+            </Button>
+            {errors.password && <FormFeedback>{errors.password}</FormFeedback>}
+          </InputGroup>
+        </FormGroup>
 
-        <div className="form-group">
-          <label>Confirm Password</label>
-          <div className="input-group">
-            <input
+        <FormGroup className="mb-3">
+          <Label>Confirm Password</Label>
+          <InputGroup>
+            <Input
               type={showConfirmPassword ? "text" : "password"}
-              name="confirmPassword"
               placeholder="Confirm Password"
-              onChange={handleInputChange}
-              value={values.confirmPassword} // Add this line to ensure the input value is controlled
+              name="confirmPassword"
+              value={values.confirmPassword}
+              onChange={handleChange}
+              invalid={!!errors.confirmPassword} // use invalid instead of isInvalid
             />
-            <button
-              className="btn btn-light eye-icon align-items-stretch "
-              onClick={() => togglePasswordVisibility("confirmPassword")}
-              type="button"
+            <Button
+              color="secondary"
+              outline
+              onClick={() => togglePassword("confirmPassword")}
             >
-              <i
-                className={`las ${showConfirmPassword ? "la-eye" : "la-eye-slash"}`}
-              ></i>
-            </button>
-          </div>
-          {errors.confirmPassword && (
-            <div className="error-message text-danger">
-              {errors.confirmPassword}
-            </div>
-          )}
-        </div>
+              {showConfirmPassword ? "Hide" : "Show"}
+            </Button>
+            {errors.confirmPassword && <FormFeedback>{errors.confirmPassword}</FormFeedback>}
+          </InputGroup>
+        </FormGroup>
 
-        <div className="form-group">
-          <button className="theme-btn btn-style-one" type="submit">
-            Register
-          </button>
-        </div>
-      </form>
+
+        <Button type="submit" className="w-100" variant="success">Register</Button>
+      </Form>
     </div>
   );
 };
