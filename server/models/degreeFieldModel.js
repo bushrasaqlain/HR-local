@@ -149,49 +149,62 @@ const getAllDegreeFields = ({ page = 1, limit = 15, name = "name", search = "", 
   });
 };
 
-const editDegreeField = (id, degreeFieldData, callback) => {
-    const { name, t_id } = req.body;
-    const userId = req.user.userId;
-
-    if (!name) return res.status(400).json({ error: "Name is required" });
+const editDegreeField = (id, data, userId, callback) => {
+    const { name } = data;
 
     const checkQuery = "SELECT * FROM degreefields WHERE id = ?";
+
     connection.query(checkQuery, [id], (err, results) => {
-        if (err) return res.status(500).json({ error: "Database error" });
-        if (results.length === 0) return res.status(404).json({ error: "Degree field not found" });
+        if (err) {
+            return callback({ status: 500, message: "Database error" });
+        }
+
+        if (results.length === 0) {
+            return callback({ status: 404, message: "Degree field not found" });
+        }
 
         const updateQuery =
-            "UPDATE degreefields SET name = ?, degree_type_id = ? WHERE id = ?";
-        connection.query(updateQuery, [name, t_id, id], (err2) => {
-            if (err2) return res.status(500).json({ error: "Database error" });
+            "UPDATE degreefields SET name = ? WHERE id = ?";
+
+        connection.query(updateQuery, [name, id], (err2) => {
+            if (err2) {
+                return callback({ status: 500, message: "Database error" });
+            }
 
             logAudit({
                 tableName: "dbadminhistory",
                 entityType: "degreefield",
                 entityId: id,
                 action: "UPDATED",
-                data: { name, degree_type_id: t_id, status: results[0].status },
+                data: {
+                    name,
+                    status: results[0].status,
+                },
                 changedBy: userId,
             });
 
-            res.status(200).json({ message: "Degree field updated successfully" });
+            return callback(null, {
+                message: "Degree field updated successfully",
+            });
         });
     });
-}
-const deleteDegreeField = (id, callback) => {
-    const userId = req.user.userId;
+};
 
+module.exports = { editDegreeField };
+
+const deleteDegreeField = (id, userId, callback) => {
     const checkQuery = "SELECT * FROM degreefields WHERE id = ?";
     connection.query(checkQuery, [id], (err, results) => {
-        if (err) return res.status(500).json({ error: "Database error" });
-        if (results.length === 0) return res.status(404).json({ error: "Degree field not found" });
+        if (err) return callback({ status: 500, message: "Database error" });
+
+        if (results.length === 0) return callback({ status: 404, message: "Degree field not found" });
 
         const current = results[0];
         const newStatus = current.status === "active" ? "inactive" : "active";
 
         const updateQuery = "UPDATE degreefields SET status = ? WHERE id = ?";
         connection.query(updateQuery, [newStatus, id], (err2) => {
-            if (err2) return res.status(500).json({ error: "Database error" });
+            if (err2) return callback({ status: 500, message: "Database error" });
 
             logAudit({
                 tableName: "dbadminhistory",
@@ -202,10 +215,14 @@ const deleteDegreeField = (id, callback) => {
                 changedBy: userId,
             });
 
-            res.status(200).json({ message: `Degree field status updated to ${newStatus}` });
+            callback(null, {
+    status: newStatus,
+    message: `Degree field ${newStatus} successfully`,
+});
         });
     });
-}
+};
+
 
 module.exports = {
     createDegreeFieldsTable,

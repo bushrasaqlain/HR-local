@@ -10,10 +10,7 @@ const storage = multer.memoryStorage(); // Use memory storage for handling base6
 const logo = multer({
   storage: storage, limits: { fileSize: 100 * 1024 * 1024 },
 });
-<<<<<<< HEAD
-=======
 
->>>>>>> 8d4be4f367a89ce75fd16dfb3190f806aa037e14
 const companyController=require('../controller/companyController')
 
 router.get("/getcompanybyid/:userId", companyController.getcompanybyid);
