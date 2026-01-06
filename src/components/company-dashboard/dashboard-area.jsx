@@ -1,5 +1,5 @@
 "use client";
-
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useSelector } from "react-redux";
@@ -16,7 +16,7 @@ import WidgetContentBox from "./shortlisted-resumes/WidgetContentBox.jsx";
 const CompanyDashboardArea = ({ activeTab }) => {
     const router = useRouter();
     const [userInfo, setUserInfo] = useState({ userId: null, token: null });
-
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
     useEffect(() => {
         if (typeof window !== "undefined") {
             const userId = sessionStorage.getItem("userId");
@@ -32,35 +32,35 @@ const CompanyDashboardArea = ({ activeTab }) => {
 
 
     const [hasActivePackage, setHasActivePackage] = useState(false);
-    // useEffect(() => {
-    //     const fetchUserPackageStatus = async () => {
-    //         try {
-    //             if (!userId) {
-    //                 console.error('User ID is undefined.');
-    //                 return;
-    //             }
+    useEffect(() => {
+        const fetchUserPackageStatus = async () => {
+            try {
+                if (!userInfo.userId) {
+                    console.error('User ID is undefined.');
+                    return;
+                }
 
-    //             const response = await fetch(`http://localhost:8080/checkUserPackageStatus/${userId}`);
-    //             if (!response.ok) {
-    //                 console.error(`Error: ${response.status} - ${response.statusText}`);
-    //                 return;
-    //             }
+                const response = await fetch(`${apiBaseUrl}packages//checkCompanyPackageStatus/${userInfo.userId}`);
+                if (!response.ok) {
+                    console.error(`Error: ${response.status} - ${response.statusText}`);
+                    return;
+                }
 
-    //             const data = await response.json();
-    //             console.log('API Response:', data);
+                const data = await response.json();
+                console.log('API Response:', data);
 
-    //             // Assuming 'data.packageStatus' is the correct property
-    //             setHasActivePackage(data.packageStatus === "active");
-    //         } catch (error) {
-    //             console.error('Error checking user package status:', error);
-    //         }
-    //     };
+                // Assuming 'data.packageStatus' is the correct property
+                setHasActivePackage(data.packageStatus === "active");
+            } catch (error) {
+                console.error('Error checking user package status:', error);
+            }
+        };
 
-    //     // Check if userId is available before making the API call
-    //     if (userId) {
-    //         fetchUserPackageStatus();
-    //     }
-    // }, [userId]);
+        // Check if userId is available before making the API call
+        if (userInfo.userId) {
+            fetchUserPackageStatus();
+        }
+    }, [userInfo.userId]);
 
 
     if (!userInfo.userId) return <div>Loading dashboard…</div>;
@@ -80,21 +80,22 @@ const CompanyDashboardArea = ({ activeTab }) => {
             // case "chatBox":
             //     return <ChatBox />;
 
-            // case "postJob":
-            //     return hasActivePackage ? (
-            //         <PostJob userId={userId} />
-            //     ) : (
-            //         <h6 className="text-danger">
-            //             Subscribe to a package before posting the job. Click on{" "}
-            //             <Link
-            //                 href={`/employers-dashboard/pricing/${userId}`}
-            //                 className="proceed-btn"
-            //             >
-            //                 <u>Job Packages</u>
-            //             </Link>
-            //             {" "}to subscribe.
-            //         </h6>
-            //     );
+            case "postJob":
+                return <PostJob/>
+                // return hasActivePackage ? (
+                //     <PostJob />
+                // ) : (
+                //     <h6 className="text-danger">
+                //         Subscribe to a package before posting the job. Click on{" "}
+                //         <Link
+                //             href={`/pricing`}
+                //             className="proceed-btn"
+                //         >
+                //             <u>Job Packages</u>
+                //         </Link>
+                //         {" "}to subscribe.
+                //     </h6>
+                // );
 
             // case "WidgetContentBox":
             //     return <WidgetContentBox />

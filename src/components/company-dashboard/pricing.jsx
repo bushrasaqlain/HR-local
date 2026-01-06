@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 
-const Pricing = ({ userId }) => {
+const Pricing = () => {
+   const userId = sessionStorage.getItem("userId");
   const [pricingContent, setPricingContent] = useState([]);
 
   const [successMessage, setSuccessMessage] = useState(null);

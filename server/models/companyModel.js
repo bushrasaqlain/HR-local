@@ -5,7 +5,7 @@ const connection = require("../connection");
 const logAudit = require("../utils/auditLogger");
 const createCompanyInfoTable = () => {
   const createCompanyInfoTableQuery = `
-CREATE TABLE IF NOT EXISTS company_info (
+  CREATE TABLE IF NOT EXISTS company_info (
   id INT AUTO_INCREMENT PRIMARY KEY,
   account_id INT UNIQUE,
   company_name VARCHAR(50) NOT NULL,
@@ -310,57 +310,7 @@ const updateCompanySatus = (id, status, res) => {
   });
 };
 
-const getAllJobs = (req, res) => {
-  const userId = req.params.userId;
-  console.log(userId)
 
-  // Fetch job posts for the given userId
-  const jobPostsQuery = `
-    SELECT 
-      id,
-      account_id,
-      job_title,
-      job_description,
-      skill_ids,
-      time_from,
-      time_to,
-      job_type_id,
-      min_salary,
-      max_salary,
-      currency_id,
-      min_experience,
-      max_experience,
-      profession_id,
-      degree_id,
-      no_of_positions,
-      industry,
-      package_id,
-      country_id,
-      district_id,
-      city_id,
-      application_deadline,
-      created_at,
-      updated_at,
-      status
-    FROM job_posts
-    WHERE account_id = ?
-  `;
-
-  connection.query(jobPostsQuery, [userId], (err, results) => {
-    if (err) {
-      console.error('Error fetching job posts:', err);
-      return res.status(500).json({ error: 'Internal Server Error' });
-    }
-
-    // Optionally, you can transform skill_ids from string to array
-    const transformedResults = results.map(job => ({
-      ...job,
-      skill_ids: job.skill_ids ? JSON.parse(job.skill_ids) : [],
-    }));
-console.log("job",transformedResults)
-    res.status(200).json(transformedResults);
-  });
-};
 
 module.exports = {
   createCompanyInfoTable,
@@ -368,7 +318,4 @@ module.exports = {
   updateCompanyinfo,
   getcompanybyid,
   updateCompanySatus,
-  getAllJobs,
- 
- 
 };

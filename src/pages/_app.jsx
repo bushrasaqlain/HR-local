@@ -7,7 +7,7 @@ import { store } from "../redux/store";
 // import "bootstrap-icons/font/bootstrap-icons.css";
 import "../styles/index.scss";
 import "bootstrap/dist/css/bootstrap.min.css";
-
+import '../../public/scss/components/employer/pricing.scss';
 if (typeof window !== "undefined") {
   require("bootstrap/dist/js/bootstrap");
 }

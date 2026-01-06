@@ -39,7 +39,7 @@ export const dbadminmenuitem = [
   { key: "currency", label: "Currency" },
   { key: "businessentitytypes", label: "Business Entity" },
   { key: "jobtypes", label: "Job Types" },
-    { key: "packages", label: "Packages" },
+  { key: "packages", label: "Packages" },
 ];
 export const regadminmenuitem = [
   { key: "company", label: "Comapany List" },
@@ -49,8 +49,10 @@ export const regadminmenuitem = [
 
 export const companymenuitem = [
   { key: "companyProfile", label: "Profile" },
-  { key: "allApplicants", label: "All Applicants" },
+  { key: "postJob", label: "Post Job" },
   { key: "jobList", label: "Job List" },
+  { key: "allApplicants", label: "All Applicants" },
+
   // { key: "postJob", label: "Job Post" },
   // { key: "WidgetContentBox", label: "ShortList Candidates" },
   // { key: "packagesList", label: "Packages List" },
