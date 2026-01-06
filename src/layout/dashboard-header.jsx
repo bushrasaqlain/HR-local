@@ -1,6 +1,7 @@
 "use client";
 
 import React, { Component } from "react";
+import React, { Component } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { withRouter } from "next/navigation";
@@ -17,175 +18,82 @@ import {
 } from "reactstrap";
 import { useRouter } from "next/router";
 import admindropdwonData from "./userdropdownitem";
-import { dbadminmenuitem, regadminmenuitem, companymenuitem } from "./menuitem";
-import DBAdminDashboardArea from "../components/dbadmin-dashboard/dashboard-area";
-import RegAdminDashboardArea from "../components/regadmin-dashboard/dashboard-area";
-import CompanyDashboardArea from "../components/company-dashboard/dashboard-area";
-import DashboardFooter from "./dashboard-footer";
 
-class DashboardHeader extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      navbar: false,
-      userDropdownOpen: false,
-      menuDropdownOpen: false,
-      activeTab: null,
-      userInfo: { userId: null, username: "User", accountType: null },
-    };
-  }
+const DashboardHeader = ({ activeTab, setActiveTab }) => {
+  const [navbar, setNavbar] = useState(false);
+  const [menuDropdownOpen, setMenuDropdownOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const { username, userId } = useSelector((state) => state.user);
+  const router = useRouter();
 
-  componentDidMount() {
-    const userId = sessionStorage.getItem("userId");
-    const username = sessionStorage.getItem("username") || "User";
-    const accountType = sessionStorage.getItem("accountType");
+  const menuItems = [
+    { key: "country", label: "Country", icon: "la-flag" },
+    { key: "district", label: "District", icon: "la-map" },
+    { key: "city", label: "City", icon: "la-city" },
+    { key: "profession", label: "Profession", icon: "la-briefcase" },
+    { key: "skills", label: "Skills", icon: "la-tools" },
+    { key: "degree", label: "Degree", icon: "la-graduation-cap" },
+    { key: "degreefields", label: "Degree Fields", icon: "la-book" },
+    { key: "currency", label: "Currency", icon: "la-money" },
+    { key: "businessentitytypes", label: "Business Entity", icon: "la-building" },
+    { key: "jobtypes", label: "Job Types", icon: "la-clipboard-list" },
+  ];
 
-    this.setState(
-      {
-        userInfo: { userId, username, accountType },
-      },
-      () => {
-        if (accountType && !this.state.activeTab) {
-          if (accountType === "db_admin")
-            this.setState({ activeTab: "country" });
-          else if (accountType === "reg_admin")
-            this.setState({ activeTab: "company" });
-          else if (accountType === "employer")
-            this.setState({ activeTab: "companyProfile" });
-        }
-      }
-    );
+  const changeBackground = () => setNavbar(window.scrollY >= 10);
 
-    window.addEventListener("scroll", this.changeBackground);
-  }
+  useEffect(() => {
+    window.addEventListener("scroll", changeBackground);
+    return () => window.removeEventListener("scroll", changeBackground);
+  }, []);
 
-  componentWillUnmount() {
-    window.removeEventListener("scroll", this.changeBackground);
-  }
-
-  changeBackground = () => {
-    this.setState({ navbar: window.scrollY >= 10 });
+  const handleUserActionClick = (item) => {
+    if (item.name === "Logout") router.push("/");
+    else if (item.name === "Change Password") console.log("Show change password form");
+    setUserDropdownOpen(false);
   };
 
-  toggleUserDropdown = () => {
-    this.setState({ userDropdownOpen: !this.state.userDropdownOpen });
-  };
+  return (
+   <header
+  className={`w-100 shadow-sm ${navbar ? "fixed-top bg-primary" : "bg-primary"}`}
+>
+  <div className="container-fluid px-4 py-2 d-flex align-items-center justify-content-between">
+    
+    {/* Left */}
+    <div className="d-flex align-items-center gap-3">
+      <Link href="/">
+        <Image width={154} height={50} src="/images/logo.svg" alt="brand" />
+      </Link>
 
-  toggleMenuDropdown = () => {
-    this.setState({ menuDropdownOpen: !this.state.menuDropdownOpen });
-  };
-
-  handleUserActionClick = (item) => {
-    if (item.tabKey === "logout") {
-      window.location.href = "/";
-    } else {
-      this.setState({ activeTab: item.tabKey });
-    }
-    this.setState({ userDropdownOpen: false });
-  };
-
-  render() {
-    const { navbar, userDropdownOpen, menuDropdownOpen, activeTab, userInfo } =
-      this.state;
-    const { accountType, username, userId } = userInfo;
-
-    if (!accountType) {
-      return (
-        <div
-          className="d-flex justify-content-center align-items-center"
-          style={{ height: "100vh" }}
+      {/* Menu Dropdown */}
+      <div className="dropdown">
+      
+        <li
+          className="nav-item d-flex align-items-center gap-2"
+          onClick={() => setMenuDropdownOpen(!menuDropdownOpen)}
         >
-          Loading...
-        </div>
-      );
-    }
+          <i className="las la-bars fs-4"></i>
+          Menu
+        </li>
 
-    return (
-      <>
-        <Navbar color="dark" dark expand="md" fixed="top" className="shadow-sm">
-          <div className="container-fluid d-flex align-items-center justify-content-between py-2">
-            {/* Left: Logo & Menu */}
-            <div className="d-flex align-items-center gap-3">
-              <NavbarBrand href="/">
-                <Image
-                  width={154}
-                  height={50}
-                  src="/images/logo-2.svg"
-                  alt="brand"
-                />
-              </NavbarBrand>
-
-              {/* DB Admin Dropdown */}
-              {accountType === "db_admin" && (
-                <Dropdown
-                  isOpen={menuDropdownOpen}
-                  toggle={this.toggleMenuDropdown}
-                >
-                  <DropdownToggle
-                    caret
-                    color="dark"
-                    className="fw-bold"
-                    style={{
-                      fontSize: "20px",
-                      fontFamily: "Times New Roman",
-                      width: "150px",
-                    }}
-                  >
-                    DataBase
-                  </DropdownToggle>
-                  <DropdownMenu>
-                    {dbadminmenuitem.map((item) => (
-                      <DropdownItem
-                        key={item.key}
-                        style={{
-                          backgroundColor:
-                            this.state.activeTab === item.key
-                              ? "#030405ff"
-                              : "transparent",
-                          color:
-                            this.state.activeTab === item.key ? "#fff" : "#000",
-                        }}
-                        onClick={() => {
-                          this.setState({
-                            activeTab: item.key,
-                            menuDropdownOpen: false,
-                          });
-                        }}
-                      >
-                        <i className={`las ${item.icon} me-2`}></i>
-                        {item.label}
-                      </DropdownItem>
-                    ))}
-                  </DropdownMenu>
-                </Dropdown>
-              )}
-
-              {/* Reg Admin / Employer Menu */}
-              {(accountType === "reg_admin" || accountType === "employer") && (
-                <Nav className="d-flex gap-2">
-                  {(accountType === "reg_admin"
-                    ? regadminmenuitem
-                    : companymenuitem
-                  ).map((item) => (
-                    <NavItem key={item.key}>
-                      <Button
-                        color="dark"
-                        outline
-                        className={`text-white ${
-                          activeTab === item.key
-                            ? "border-bottom border-white"
-                            : ""
-                        }`}
-                        onClick={() => this.setState({ activeTab: item.key })}
-                      >
-                        <i className={`las ${item.icon} me-1`}></i>
-                        {item.label}
-                      </Button>
-                    </NavItem>
-                  ))}
-                </Nav>
-              )}
-            </div>
+        {menuDropdownOpen && (
+          <div className="dropdown-menu shadow mt-2 show">
+            {menuItems.map((item) => (
+              <button
+                key={item.key}
+                className={`dropdown-item ${activeTab === item.key ? "active" : ""}`}
+                onClick={() => {
+                  setActiveTab(item.key);
+                  setMenuDropdownOpen(false);
+                }}
+              >
+                <i className={`las ${item.icon} me-2`}></i>
+                {item.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
 
             {/* Right: User Dropdown */}
             <div className="d-flex align-items-center gap-3 position-relative">
@@ -193,45 +101,30 @@ class DashboardHeader extends Component {
                 Welcome <strong>{username || "Admin"}</strong>
               </span>
 
-              <Dropdown
-                isOpen={userDropdownOpen}
-                toggle={this.toggleUserDropdown}
-              >
-                <DropdownToggle tag="span">
-                  <i className="las la-user-circle fs-2 text-white cursor-pointer"></i>
-                </DropdownToggle>
-                <DropdownMenu end>
-                  {admindropdwonData(userId).map((item) => (
-                    <DropdownItem
-                      key={item.id}
-                      onClick={() => this.handleUserActionClick(item)}
-                    >
-                      <i className={`la ${item.icon} me-2`}></i>
-                      {item.name}
-                    </DropdownItem>
-                  ))}
-                </DropdownMenu>
-              </Dropdown>
-            </div>
-          </div>
-        </Navbar>
+      <i
+        className="las la-user-circle fs-2 text-white cursor-pointer"
+        onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+      ></i>
 
-        {/* Dashboard content */}
-        {accountType === "db_admin" && (
-          <DBAdminDashboardArea activeTab={activeTab} />
-        )}
-        {accountType === "reg_admin" && (
-          <RegAdminDashboardArea activeTab={activeTab} />
-        )}
-        {accountType === "employer" && (
-          <CompanyDashboardArea activeTab={activeTab} />
-        )}
+      {userDropdownOpen && (
+        <div className="dropdown-menu dropdown-menu-end shadow mt-2 show">
+          {admindropdwonData(userId).map((item) => (
+            <button
+              key={item.id}
+              className="dropdown-item"
+              onClick={() => handleUserActionClick(item)}
+            >
+              <i className={`la ${item.icon} me-2`}></i>
+              {item.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+</header>
 
-        <DashboardFooter />
-      </>
-    );
-  }
-}
+  );
+};
 
-// Use withRouter HOC to get router inside class component
 export default DashboardHeader;

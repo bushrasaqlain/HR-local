@@ -16,11 +16,11 @@ const updateCompanySatus = (req,res)=>{
 const getAllJobs=(req,res)=>{
   companyModel.getAllJobs(req,res);
 }
+
 module.exports = {
   getAllCompanies,
   updateCompanyinfo,
   getcompanybyid,
   updateCompanySatus,
-  getAllJobs
-  
+  getAllJobs,
 };

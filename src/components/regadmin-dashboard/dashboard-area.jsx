@@ -6,6 +6,7 @@ import { useEffect,useState } from "react";
 import { useRouter } from "next/router";
 import { useSelector } from "react-redux";
 import ChangePasswordForm from "../form/changepassword/changepasswordform.jsx"
+import Packages from "./packages.jsx";
 const RegAdminDashboardArea = ({ activeTab }) => {
    const router = useRouter();
 const [userInfo, setUserInfo] = useState({ userId: null, token:null });
@@ -30,6 +31,8 @@ useEffect(() => {
         return <Candidate />;
          case "changepassword":
       return <ChangePasswordForm />;
+       case "packages":
+      return <Packages />;
         default:
           return <CompanyData />
     }

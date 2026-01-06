@@ -14,6 +14,7 @@ router.put("/:id", authMiddleware, checkRole("db_admin"),packageController.editP
 
 router.delete("/deletepackage/:id", authMiddleware, checkRole("db_admin"),packageController.deletePackage);
 
+router.get("/getPackagebyCompany",packageController.getPackagebyCompany)
 
-
+router.put("/updatestatus/:id/:status",packageController.updatePackaeStatus)
 module.exports = router;

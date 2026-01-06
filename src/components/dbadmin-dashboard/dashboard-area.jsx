@@ -14,6 +14,7 @@ import ChangePasswordForm from "../form/changepassword/changepasswordform.jsx"
 import { useEffect,useState } from "react";
 import { useRouter } from "next/router";
 import { useSelector } from "react-redux";
+import Packages from "./packages.jsx";
 
 const DashboardArea = ({ activeTab }) => {
   // ✅ Receive as prop
@@ -54,6 +55,8 @@ useEffect(() => {
         return <BusinessEntityTypes />;
       case "jobtypes":
         return <Jobtype />;
+         case "packages":
+        return <Packages />;
          case "changepassword":
       return <ChangePasswordForm />;
       default:

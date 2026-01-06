@@ -74,6 +74,8 @@ const dbAdminHistory = require("./routes/dbAdminHistory");
 // Use your routes
 
 // app.use("/", companylogo);
+
+// app.use("/", companylogo);
 app.use("/", delete_employer_data);
 app.use("/", company_name);
 app.use("/", company_update);

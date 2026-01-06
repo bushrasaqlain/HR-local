@@ -269,28 +269,7 @@ class Country extends Component {
                   <Table className="table-responsive align-middle default-table manage-job-table p-2 w-100 table table-striped custom-table">
                     <thead className="align-middle">
                       <tr>
-                         <th
-                          className="text-center"
-                          style={{ borderBottom: "1px solid #ccc" }}
-                        >
-                          <div className="d-flex flex-column align-items-center gap-1">
-                            <small
-                              className="text-dark fw-bold"
-                              style={{ fontSize: "1rem" }}
-                            >
-                              District Name
-                            </small>
-                            <input
-                              type="text"
-                              name="name"
-                              id="name"
-                              className="form-control rounded-4 text-center"
-                              placeholder="Search by name"
-                              onChange={this.handleSearch}
-                              style={{ maxWidth: "180px", borderColor: "#ccc" }}
-                            />
-                          </div>
-                        </th>
+                       
                         <th
                           className="text-center"
                           style={{ borderBottom: "1px solid #ccc" }}

@@ -39,10 +39,12 @@ export const dbadminmenuitem = [
   { key: "currency", label: "Currency" },
   { key: "businessentitytypes", label: "Business Entity" },
   { key: "jobtypes", label: "Job Types" },
+    { key: "packages", label: "Packages" },
 ];
 export const regadminmenuitem = [
   { key: "company", label: "Comapany List" },
   { key: "candidate", label: "Candidates List" },
+  { key: "packages", label: "Packages List" },
 ]
 
 export const companymenuitem = [
