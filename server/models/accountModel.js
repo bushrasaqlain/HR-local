@@ -86,20 +86,21 @@ const getUserName = (userId, callback) => {
 };
 
 const register = (req, res) => {
-    const { accountType, email, password, isActive, username } = req.body;
-    try {
-
-        let sql;
-        let values;
-        // If account type is candidate or admin, include only specific fields
-        sql = "INSERT INTO account (`username`, `email`, `password`, `isActive`, `accountType`) VALUES (?)";
-        values = [
-            req.body.username,
-            req.body.email,
-            req.body.password,
-            req.body.isActive,
-            req.body.accountType
-        ];
+  console.log("REQ BODY:", req.body);
+  const { accountType, email, password, isActive, username } = req.body;
+  try {
+    let sql;
+    let values;
+    // If account type is candidate or admin, include only specific fields
+    sql =
+      "INSERT INTO account (`username`, `email`, `password`, `isActive`, `accountType`) VALUES (?)";
+    values = [
+      req.body.username,
+      req.body.email,
+      req.body.password,
+      req.body.isActive,
+      req.body.accountType,
+    ];
 
         connection.query(sql, [values], (err, data) => {
             if (err) {
