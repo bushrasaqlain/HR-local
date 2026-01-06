@@ -70,6 +70,7 @@
     "react-slick": "^0.29.0",
     "react-tabs": "^6.0.0",
     "react-toastify": "^11.0.5",
+    "reactstrap": "^9.2.3",
     "sass": "^1.56.1",
     "sharp": "^0.34.5",
     "slick-carousel": "^1.8.1",

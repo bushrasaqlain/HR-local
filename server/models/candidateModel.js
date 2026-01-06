@@ -122,6 +122,112 @@ const createsaveJobsTableQuery = () => {
   });
 }
 
+const getAllCandidates = (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 15;
+  const offset = (page - 1) * limit;
+  const search = req.query.search || "";
+  const status = req.query.status || "";
+
+  // Map client-provided column names -> actual DB columns
+  const columnMap = {
+    name: "a.username",
+    email: "a.email",
+    phone: "c.phone",
+    // company_name: "c.company_name",
+    created_at: "a.created_at", // choose one table explicitly
+    isActive: "a.isActive"
+  };
+
+  const searchColumn = columnMap[req.query.name] || "a.email"; // fallback
+
+  const query = `
+    SELECT a.*, 
+           c.account_id, 
+           c.id as candidate_id,
+           c.phone,date_of_birth,
+           c.gender,
+           c.marital_status,
+           c.total_experience,
+           c.license_type,
+           c.license_number,
+           ctry.name AS country_name, 
+           d.name AS district_name, 
+           city.name AS city_name,
+           c.address
+    FROM account a
+    LEFT JOIN candidate_info c ON a.id = c.account_id
+    LEFT JOIN countries ctry ON c.country = ctry.id
+    LEFT JOIN districts d ON c.district = d.id
+    LEFT JOIN cities city ON c.city = city.id
+    WHERE a.accountType = 'candidate'
+      ${status ? "AND a.isActive = ?" : ""}
+      AND ${searchColumn} LIKE ?
+    ORDER BY a.id DESC
+    LIMIT ? OFFSET ?
+  `;
+
+  const queryParams = [];
+  if (status) queryParams.push(status);
+  queryParams.push(`%${search}%`, limit, offset);
+
+  connection.query(query, queryParams, (err, results) => {
+    if (err) {
+      console.error("❌ Error fetching employers:", err.sqlMessage);
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    // Count query
+    const countQuery = `
+  SELECT COUNT(*) AS total
+  FROM account a
+  LEFT JOIN candidate_info c ON a.id = c.account_id
+  WHERE a.accountType = 'candidate'
+    ${status ? "AND a.isActive = ?" : ""}
+    AND ${searchColumn} LIKE ?
+`;
+
+
+    const countParams = [];
+    if (status) countParams.push(status);
+    countParams.push(`%${search}%`);
+
+    connection.query(countQuery, countParams, (err2, countResult) => {
+      if (err2) {
+        console.error("❌ Error fetching count:", err2.sqlMessage);
+        return res.status(500).json({ error: "Database error" });
+      }
+
+      res.status(200).json({
+        total: countResult[0].total,
+        page,
+        limit,
+        candidate: results,
+      });
+    });
+  });
+}
+
+const updateStatus = (id, status, res) => {
+  if (!id || !status) {
+    return res.status(400).json({ success: false, message: "Missing id or status" });
+  }
+
+  const query = `UPDATE account SET isActive = ? WHERE id = ?`;
+
+  connection.query(query, [status, id], (err, result) => {
+    if (err) {
+      console.error("Update company status error:", err);
+      return res.status(500).json({ success: false, message: "Server error" });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Company not found" });
+    }
+
+    return res.status(200).json({ success: true, message: `Company status updated to ${status}` });
+  });
+}
 
 
 
@@ -145,8 +251,8 @@ const addAvailaibility = (req, res) => {
     res.json({ success: true, message: "Availability data saved successfully" });
   });
 }
-const addCandidateInfo = async(req, res) => {
- try {
+const addCandidateInfo = async (req, res) => {
+  try {
     const accountId = parseInt(req.body.account_id);
 
     const {
@@ -725,6 +831,8 @@ const getCandidateInfobyAccountType = (req, res) => {
   });
 }
 module.exports = {
+  getAllCandidates,
+  updateStatus,
   createCandidateTable,
   createCandidatePreferredCitiesTable,
   createCandidateSpecialityTable,
@@ -738,5 +846,5 @@ module.exports = {
   getCandidateLogobyId,
   getCandidateFullProfilebyId,
   getCandidateInfobyAccountType,
-  
+
 };

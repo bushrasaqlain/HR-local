@@ -333,3 +333,8 @@ textarea::-ms-input-placeholder {
     font-weight: bold;
   }
 }
+.dropdown-item.active,
+.dropdown-item:active {
+  background-color: #08090a; /* your color */
+  color: #fff;
+}

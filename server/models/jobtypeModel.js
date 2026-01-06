@@ -105,55 +105,62 @@ const addJobType = (req, res) => {
     }
 }
 
-const getAllJobTypes = ({ page, limit, name, search, status }, callback) => {
+const getAllJobTypes = (
+  { page = 1, limit = 15, name = "name", search = "", status = "active" },
+  callback
+) => {
   const pageNum = parseInt(page, 10) || 1;
   const limitNum = parseInt(limit, 10) || 15;
   const offset = (pageNum - 1) * limitNum;
 
-  const limitNumInt = Number(limitNum);
-  const offsetInt = Number(offset);
-
+  // Validate column for filtering
   const validColumns = ["name", "created_at", "updated_at"];
   if (!validColumns.includes(name)) name = "name";
 
   let condition = "";
-  const values = [status];
+  const values = [];
 
+  // Status filter
+  if (status !== "all") {
+    condition += " AND status = ?";
+    values.push(status);
+  }
+
+  // Search / Date filter
   if (name === "name" && search) {
-    condition = " AND name LIKE ?";
+    condition += " AND name LIKE ?";
     values.push(`%${search}%`);
   } else if ((name === "created_at" || name === "updated_at") && search) {
-    condition = ` AND DATE(${name}) = ?`;
+    condition += ` AND DATE(${name}) = ?`;
     values.push(search);
   }
 
   const query = `
     SELECT * FROM jobtypes
-    WHERE status = ? ${condition}
+    WHERE 1=1 ${condition}
     ORDER BY id DESC
-    LIMIT ${limitNumInt} OFFSET ${offsetInt}
+    LIMIT ? OFFSET ?
   `;
+  values.push(limitNum, offset);
 
-  const countQuery = `
-    SELECT COUNT(*) AS total FROM jobtypes
-    WHERE status = ? ${condition}
-  `;
+  const countQuery = `SELECT COUNT(*) AS total FROM jobtypes WHERE 1=1 ${condition}`;
 
   connection.query(query, values, (err, results) => {
     if (err) return callback(err);
 
-    connection.query(countQuery, values, (err2, countResult) => {
+    connection.query(countQuery, values.slice(0, -2), (err2, countResult) => {
       if (err2) return callback(err2);
 
       callback(null, {
         total: countResult[0].total,
         page: pageNum,
-        limit: limitNumInt,
+        limit: limitNum,
         jobtypes: results,
       });
     });
   });
 };
+
 
 
 

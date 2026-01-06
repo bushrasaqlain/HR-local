@@ -26,12 +26,14 @@ class Country extends Component {
       inputValue: "",
       editId: null,
       deleteId: null,
+      deleteStatus: null,
       showDeleteConfirm: false,
       showHistoryModal: false,
       history: [],
       currentPage: 1,
       totalCountries: 0,
-      isActive: "active",
+      isActive: "all",
+
     };
 
     this.itemsPerPage = 50;
@@ -68,6 +70,7 @@ class Country extends Component {
       console.error("Error fetching countries:", error);
     }
   };
+
   formatDate = (dateStr) => {
     if (!dateStr) return "";
 
@@ -130,10 +133,13 @@ class Country extends Component {
     }
   };
 
-  confirmDelete = (id) => {
-    this.setState({ deleteId: id, showDeleteConfirm: true });
+  confirmDelete = (id, status) => {
+    this.setState({
+      deleteId: id,
+      deleteStatus: status, // ✅ actual row status
+      showDeleteConfirm: true,
+    });
   };
-
   handleDelete = async () => {
     const { deleteId, isActive } = this.state;
     try {
@@ -204,6 +210,7 @@ class Country extends Component {
       history,
       currentPage,
       totalCountries,
+      deleteStatus,
       isActive,
       editId,
     } = this.state;
@@ -247,10 +254,12 @@ class Country extends Component {
                   value={isActive}
                   onChange={(e) => this.setState({ isActive: e.target.value })}
                 >
-                  {/* <option value="all">All</option> */}
+                  <option value="all">All</option>
                   <option value="active">Active</option>
-                  <option value="inactive">In Active</option>
+                  <option value="inactive">Inactive</option>
                 </select>
+
+
               </div>
             </div>
 
@@ -260,6 +269,28 @@ class Country extends Component {
                   <Table className="table-responsive align-middle default-table manage-job-table p-2 w-100 table table-striped custom-table">
                     <thead className="align-middle">
                       <tr>
+                         <th
+                          className="text-center"
+                          style={{ borderBottom: "1px solid #ccc" }}
+                        >
+                          <div className="d-flex flex-column align-items-center gap-1">
+                            <small
+                              className="text-dark fw-bold"
+                              style={{ fontSize: "1rem" }}
+                            >
+                              District Name
+                            </small>
+                            <input
+                              type="text"
+                              name="name"
+                              id="name"
+                              className="form-control rounded-4 text-center"
+                              placeholder="Search by name"
+                              onChange={this.handleSearch}
+                              style={{ maxWidth: "180px", borderColor: "#ccc" }}
+                            />
+                          </div>
+                        </th>
                         <th
                           className="text-center"
                           style={{ borderBottom: "1px solid #ccc" }}
@@ -326,7 +357,27 @@ class Country extends Component {
                             />
                           </div>
                         </th>
-
+                        <th
+                          className="text-center"
+                          style={{ borderBottom: "1px solid #ccc" }}
+                        >
+                          <div className="d-flex flex-column align-items-center gap-1">
+                            <small
+                              className="text-dark fw-bold"
+                              style={{ fontSize: "1rem" }}
+                            >
+                              Status
+                            </small>
+                            <input
+                              type="text"
+                              name="status"
+                              id="status"
+                              className="form-control rounded-4 text-center"
+                              onChange={this.handleSearch}
+                              style={{ borderColor: "#ccc" }}
+                            />
+                          </div>
+                        </th>
                         <th
                           className="text-center text-dark fw-bold"
                           style={{
@@ -349,27 +400,33 @@ class Country extends Component {
                           <td className="text-center">
                             {this.formatDate(item.updated_at)}
                           </td>
+                          <td className="text-center">
+                            {item.status}
+                          </td>
 
                           <td className="status text-center">
-                            <button onClick={() => this.toggleForm(item)}>
-                              <span className="la la-pencil"></span>
-                            </button>
+                            <div className="d-flex justify-content-center align-items-center gap-3">
+                              <button onClick={() => this.toggleForm(item)} className="icon-btn">
+                                <span className="la la-pencil"></span>
+                              </button>
 
-                            <button
-                              onClick={() => this.confirmDelete(item.id)}
-                              className="mx-3"
-                            >
-                              {item.status === "active" ? (
-                                <span className="la la-times-circle text-danger"></span>
-                              ) : (
-                                <span className="la la-check-circle text-success"></span>
-                              )}
-                            </button>
+                              <button
+                                onClick={() => this.confirmDelete(item.id, item.status)}
+                                className="icon-btn"
+                              >
+                                {item.status === "active" ? (
+                                  <span className="la la-times-circle text-danger"></span>
+                                ) : (
+                                  <span className="la la-check-circle text-success"></span>
+                                )}
+                              </button>
 
-                            <button onClick={() => this.toggleHistory(item)}>
-                              <span className="la la-history"></span>
-                            </button>
+                              <button onClick={() => this.toggleHistory(item)} className="icon-btn">
+                                <span className="la la-history"></span>
+                              </button>
+                            </div>
                           </td>
+
                         </tr>
                       ))}
                     </tbody>
@@ -416,24 +473,36 @@ class Country extends Component {
 
           {/* Delete Confirmation */}
           <Modal show={showDeleteConfirm} onHide={this.cancelDelete} centered>
-            <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
-              <Modal.Title style={{ fontSize: "1rem", marginBottom: 0 }}>
-                Confirm {isActive === "active" ? "Inactivate" : "Activate"}
+            <Modal.Header closeButton>
+              <Modal.Title style={{ fontSize: "1rem", fontWeight: 600 }}>
+                Confirm {deleteStatus === "active" ? "Inactivate" : "Activate"}
               </Modal.Title>
             </Modal.Header>
 
-            <Modal.Body
-              style={{ paddingTop: "0.5rem", paddingBottom: "0.75rem" }}
-            >
-              Are you sure you want to {isActive} this Country?
+            <Modal.Body className="text-center py-3">
+              <p style={{ marginBottom: 0 }}>
+                Are you sure you want to{" "}
+                <strong>
+                  {deleteStatus === "active" ? "inactivate" : "activate"}
+                </strong>{" "}
+                this Country?
+              </p>
             </Modal.Body>
 
-            <Modal.Footer style={{ paddingTop: "0.5rem" }}>
-              <Button variant="danger" onClick={this.handleDelete}>
-                {isActive === "active" ? "Inactivate" : "Activate"}
+            <Modal.Footer className="d-flex justify-content-end gap-2">
+              <Button variant="secondary" onClick={this.cancelDelete}>
+                Cancel
+              </Button>
+
+              <Button
+                variant={deleteStatus === "active" ? "danger" : "success"}
+                onClick={this.handleDelete}
+              >
+                {deleteStatus === "active" ? "Inactivate" : "Activate"}
               </Button>
             </Modal.Footer>
           </Modal>
+
 
           {/* History Modal */}
           <Modal
@@ -466,10 +535,10 @@ class Country extends Component {
                         item.action === "ADDED"
                           ? "green"
                           : item.action === "UPDATED"
-                          ? "purple"
-                          : item.action === "ACTIVE"
-                          ? "teal"
-                          : "red",
+                            ? "purple"
+                            : item.action === "ACTIVE"
+                              ? "teal"
+                              : "red",
                       fontWeight: "bold",
                     }}
                   >

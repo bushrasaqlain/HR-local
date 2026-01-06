@@ -23,13 +23,14 @@ class City extends Component {
       showModal: false,
       inputValue: "",
       editId: null,
+      deleteStatus: null,
       deleteId: null,
       showDeleteConfirm: false,
       showHistoryModal: false,
       history: [],
       currentPage: 1,
       totalCities: 0,
-      isActive: "active",
+      isActive: "all",
       selectedDistrict: null,
       postalcode: "",
     };
@@ -176,10 +177,13 @@ class City extends Component {
     }
   };
 
-  confirmDelete = (id) => {
-    this.setState({ deleteId: id, showDeleteConfirm: true });
+  confirmDelete = (id, status) => {
+    this.setState({
+      deleteId: id,
+      deleteStatus: status, // ✅ actual row status
+      showDeleteConfirm: true,
+    });
   };
-
   handleDelete = async () => {
     const { deleteId, isActive } = this.state;
     try {
@@ -266,6 +270,7 @@ class City extends Component {
       isActive,
       history,
       editId,
+      deleteStatus,
       selectedDistrict,
     } = this.state;
     const totalPages = Math.ceil(totalCities / this.itemsPerPage);
@@ -308,9 +313,9 @@ class City extends Component {
                   value={isActive}
                   onChange={(e) => this.setState({ isActive: e.target.value })}
                 >
-                  {/* <option value="all">All</option> */}
+                  <option value="all">All</option>
                   <option value="active">Active</option>
-                  <option value="inactive">In Active</option>
+                  <option value="inactive">Inactive</option>
                 </select>
               </div>
             </div>
@@ -421,10 +426,31 @@ class City extends Component {
                             >
                               Updated
                             </small>
-                            <input
+                             <input
                               type="date"
-                              name="updated_at"
-                              id="updated_at"
+                              name="created_at"
+                              id="created_at"
+                              className="form-control rounded-4 text-center"
+                              onChange={this.handleSearch}
+                              style={{ borderColor: "#ccc" }}
+                            />
+                          </div>
+                        </th>
+                        <th
+                          className="text-center"
+                          style={{ borderBottom: "1px solid #ccc" }}
+                        >
+                          <div className="d-flex flex-column align-items-center gap-1">
+                            <small
+                              className="text-dark fw-bold"
+                              style={{ fontSize: "1rem" }}
+                            >
+                              Status
+                            </small>
+                            <input
+                              type="text"
+                              name="status"
+                              id="status"
                               className="form-control rounded-4 text-center"
                               onChange={this.handleSearch}
                               style={{ borderColor: "#ccc" }}
@@ -452,25 +478,28 @@ class City extends Component {
                           <td>{item.country_name}</td>
                           <td>{this.formatDate(item.created_at)}</td>
                           <td>{this.formatDate(item.updated_at)}</td>
+                          <td>{item.status}</td>
                           <td className="status text-center">
-                            <button onClick={() => this.toggleForm(item)}>
-                              <span className="la la-pencil"></span>
-                            </button>
+                            <div className="d-flex justify-content-center align-items-center gap-3">
+                              <button onClick={() => this.toggleForm(item)} className="icon-btn">
+                                <span className="la la-pencil"></span>
+                              </button>
 
-                            <button
-                              onClick={() => this.confirmDelete(item.id)}
-                              className="mx-3"
-                            >
-                              {item.status === "active" ? (
-                                <span className="la la-times-circle text-danger"></span>
-                              ) : (
-                                <span className="la la-check-circle text-success"></span>
-                              )}
-                            </button>
+                              <button
+                                onClick={() => this.confirmDelete(item.id, item.status)}
+                                className="icon-btn"
+                              >
+                                {item.status === "active" ? (
+                                  <span className="la la-times-circle text-danger"></span>
+                                ) : (
+                                  <span className="la la-check-circle text-success"></span>
+                                )}
+                              </button>
 
-                            <button onClick={() => this.toggleHistory(item)}>
-                              <span className="la la-history"></span>
-                            </button>
+                              <button onClick={() => this.toggleHistory(item)} className="icon-btn">
+                                <span className="la la-history"></span>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -534,24 +563,36 @@ class City extends Component {
 
         {/* Delete Confirmation */}
         <Modal show={showDeleteConfirm} onHide={this.cancelDelete} centered>
-          <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
-            <Modal.Title style={{ fontSize: "1rem", marginBottom: 0 }}>
-              Confirm {isActive === "active" ? "Inactivate" : "Activate"}
+          <Modal.Header closeButton>
+            <Modal.Title style={{ fontSize: "1rem", fontWeight: 600 }}>
+              Confirm {deleteStatus === "active" ? "Inactivate" : "Activate"}
             </Modal.Title>
           </Modal.Header>
 
-          <Modal.Body
-            style={{ paddingTop: "0.5rem", paddingBottom: "0.75rem" }}
-          >
-            Are you sure you want to {isActive} this Districts?
+          <Modal.Body className="text-center py-3">
+            <p style={{ marginBottom: 0 }}>
+              Are you sure you want to{" "}
+              <strong>
+                {deleteStatus === "active" ? "inactivate" : "activate"}
+              </strong>{" "}
+              this City?
+            </p>
           </Modal.Body>
 
-          <Modal.Footer style={{ paddingTop: "0.5rem" }}>
-            <Button variant="danger" onClick={this.handleDelete}>
-              {isActive === "active" ? "Inactivate" : "Activate"}
+          <Modal.Footer className="d-flex justify-content-end gap-2">
+            <Button variant="secondary" onClick={this.cancelDelete}>
+              Cancel
+            </Button>
+
+            <Button
+              variant={deleteStatus === "active" ? "danger" : "success"}
+              onClick={this.handleDelete}
+            >
+              {deleteStatus === "active" ? "Inactivate" : "Activate"}
             </Button>
           </Modal.Footer>
         </Modal>
+
         <Modal
           show={showHistoryModal}
           onHide={() => this.setState({ showHistoryModal: false })}
@@ -582,10 +623,10 @@ class City extends Component {
                       item.action === "ADDED"
                         ? "green"
                         : item.action === "UPDATED"
-                        ? "purple"
-                        : item.action === "ACTIVE"
-                        ? "teal"
-                        : "red",
+                          ? "purple"
+                          : item.action === "ACTIVE"
+                            ? "teal"
+                            : "red",
                     fontWeight: "bold",
                   }}
                 >
@@ -606,444 +647,3 @@ class City extends Component {
 }
 
 export default City;
-
-// import React, { useState, useEffect } from "react";
-// import axios from "axios";
-// import Pagination from "../common/pagination.jsx";
-// import AsyncSelect from "react-select/async";
-// import api from '../lib/api.jsx';
-
-// const City = () => {
-//   const [cities, setCities] = useState([]);
-//   const [showModal, setShowModal] = useState(false);
-//   const [inputValue, setInputValue] = useState("");
-//   const [postalcode, setPostalcode] = useState("");
-//   const [editId, setEditId] = useState(null);
-//   const [deleteId, setDeleteId] = useState(null);
-//   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-//     const [showHistoryModal, setShowHistoryModal] = useState(false);
-//     const [history, setHistory] = useState(null);
-//   // Selected dropdowns (objects: {label, value})
-//   const [selectedDistrict, setSelectedCountry] = useState(null);
-//   const [selectedDistrict, setSelectedDistrict] = useState(null);
-
-//   // Pagination state
-//   const [currentPage, setCurrentPage] = useState(1);
-//   const itemsPerPage = 15;
-//   const [totalCities, setTotalCities] = useState(0);
-//   const totalPages = Math.ceil(totalCities / itemsPerPage);
-//   const [isActive, setIsActive] = useState("active");
-
-//   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-
-//   // ------------------ Loaders for AsyncSelect ------------------ //
-//   const loadCountries = async (inputValue) => {
-//     try {
-//       const res = await axios.get(`${apiBaseUrl}country/getallCountries`, {
-//         params: { search: inputValue || "", page: 1, limit: 15 },
-//       });
-//       return res.data.countries.map((c) => ({
-//         label: c.name,
-//         value: c.id,
-//       }));
-//     } catch (error) {
-//       console.error("Error loading countries:", error);
-//       return [];
-//     }
-//   };
-
-//   const loadDistricts = async (inputValue) => {
-//     if (!selectedDistrict?.value) return [];
-//     try {
-//       const res = await axios.get(`${apiBaseUrl}getalldistricts`, {
-//         params: {
-//           country_id: selectedDistrict.value,
-//           search: inputValue || "",
-//           page: 1,
-//           limit: 15,
-//         },
-//       });
-//       return res.data.districts.map((d) => ({
-//         label: d.name,
-//         value: d.id,
-//       }));
-//     } catch (error) {
-//       console.error("Error loading districts:", error);
-//       return [];
-//     }
-//   };
-
-//   // ------------------ Fetch Cities ------------------ //
-//   const fetchCities =  async (page = currentPage, status = isActive) =>  {
-//     if (selectedDistrict?.value) {
-//       axios
-//         .get(
-//           `${apiBaseUrl}getCitiesByDistrict/${selectedDistrict.value}?page=${currentPage}&limit=${itemsPerPage}`
-//         )
-//         .then((response) => {
-//           setCities(response.data.cities);
-//           setTotalCities(response.data.total);
-//         })
-//         .catch((error) =>
-//           console.error("Error fetching cities by district:", error)
-//         );
-//     } else {
-//       axios
-//         .get(`${apiBaseUrl}getallcities?page=${currentPage}&limit=${itemsPerPage}&status=${isActive}`)
-//         .then((response) => {
-//           setCities(response.data.cities);
-//           setTotalCities(response.data.total);
-//         })
-//         .catch((error) => console.error("Error fetching all cities:", error));
-//     }
-//   };
-
-//    useEffect(() => {
-//              fetchCities();
-//              resetSearch();
-//            }, [currentPage, isActive]);
-
-//   // ------------------ Modal Toggle ------------------ //
-//   const toggleForm = (item = null) => {
-//     if (item) {
-
-//       setEditId(item.id);
-//       setInputValue(item.name);
-
-//       // Preselect country + district as objects
-//       setSelectedCountry(
-//         item.country_id ? { value: item.country_id, label: item.country_name } : null
-//       );
-//       setSelectedDistrict(
-//         item.district_id ? { value: item.district_id, label: item.district_name } : null
-//       );
-//     } else {
-//       setEditId(null);
-//       setInputValue("");
-//       setPostalcode("");
-//       setSelectedCountry(null);
-//       setSelectedDistrict(null);
-//     }
-//     setShowModal(true);
-//   };
-
-//   // ------------------ Save ------------------ //
-//   const handleSave = async () => {
-//     try {
-//       if (!selectedDistrict?.value || !selectedDistrict?.value) {
-//         alert("Please select a country and district.");
-//         return;
-//       }
-
-//       if (editId) {
-//         await api.put(`${apiBaseUrl}editCity/${editId}`, {
-//           name: inputValue,
-//           district_id: selectedDistrict.value,
-//         });
-//         setCities((prev) => prev.map((city) =>
-//           city.id === editId ? {...city, name: inputValue, district_id: selectedDistrict.value, district_name: selectedDistrict.label, country_id: selectedDistrict.value, country_name: selectedDistrict.label } : city
-//         ))
-//       } else {
-//         await api.post(`${apiBaseUrl}addcities`, {
-//           name: inputValue,
-//           postalcode,
-//           district_id: selectedDistrict.value,
-//         });
-//         fetchCities();
-
-//       }
-
-//       setShowModal(false);
-//       setInputValue("");
-//       setEditId(null);
-//       setSelectedCountry(null);
-
-//       setSelectedDistrict(null);
-//     } catch (error) {
-//       console.error("Error saving city:", error);
-//     }
-//   };
-
-//   // ------------------ Delete ------------------ //
-//   const confirmDelete = (id) => {
-//     setDeleteId(id);
-//     setShowDeleteConfirm(true);
-//   };
-
-//   const handleDelete = async () => {
-//     try {
-//       await api.delete(`${apiBaseUrl}deleteCity/${deleteId}`);
-//       setShowDeleteConfirm(false);
-//       setDeleteId(null);
-//       fetchCities();
-//     } catch (error) {
-//       console.error("Error deleting city:", error);
-//     }
-//   };
-
-//   const cancelDelete = () => {
-//     setShowDeleteConfirm(false);
-//     setDeleteId(null);
-//   };
-
-//   const fetchHistory = async (id) => {
-//         if (!id) return;
-//         try {
-//             const res = await axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}dbadminhistory`, {
-//                 params: { entity_type: "city", entity_id: id }
-//             });
-
-//             setHistory(res.data);
-//         } catch (error) {
-//             console.error("Error fetching history:", error);
-//         }
-//     }
-//     const toggleHistory = (item = null) => {
-//         if (item) {
-//             fetchHistory(item.id);
-//         }
-//         setShowHistoryModal(true);
-//     }
-
-//     const handleSearch = async (e) => {
-//          const {name, value} = e.target;
-//          setCurrentPage(1);
-//           const inputs = ["name", "district", "country", "created_at", "updated_at"];
-//           inputs.forEach((input) => {
-//             if(input !== name) {
-//               const ele = document.getElementById(input);
-//               if(ele) ele.value = "";
-//             }
-//           })
-//         try {
-//           const res = await axios.get(`${apiBaseUrl}getallcities`, {
-//             params: {
-//               name,
-//               search: value,
-//               status: isActive,
-//               page: 1,
-//               limit: itemsPerPage,
-//             }
-//           });
-
-//           setCities(res.data.cities);
-//           setTotalCities(res.data.total);
-//         } catch (error) {
-//           console.error("error in search", error);
-//         }
-//       }
-
-//           const resetSearch = () => {
-//               document.getElementById("name").value = "";
-//               document.getElementById("district").value = "";
-//               document.getElementById("country").value = "";
-//               document.getElementById("created_at").value = "";
-//               document.getElementById("updated_at").value = "";
-//           }
-
-//           useEffect(() => {
-//               resetSearch();
-//           }, [isActive])
-
-//   // ------------------ Render ------------------ //
-//   return (
-//     <>
-//       <table className="default-table manage-job-table">
-//         <thead>
-//           <tr>
-//             <th>
-//               <div><input type="text" name="name" id="name" className="py-4 px-3 mb-3 w-100 rounded-4" onChange={(e) => handleSearch(e)} /></div>
-//               <div>City</div>
-//               </th>
-//             <th>
-//               <div><input type="text" name="district" id="district" className="py-4 px-3 mb-3 w-100 rounded-4" onChange={(e) => handleSearch(e)} /></div>
-//               <div>District</div>
-//               </th>
-
-//             <th>
-//               <div><input type="text" name="country" id="country" className="py-4 px-3 mb-3 w-100 rounded-4" onChange={(e) => handleSearch(e)} /></div>
-//               <div>Country</div>
-//               </th>
-//             <th>
-//               <div><input type="date" name="created_at" id="created_at" className="py-4 px-3 mb-3 w-100 rounded-4" onChange={(e) => handleSearch(e)} max={new Date().toISOString().split('T')[0]} /></div>
-//               <div>Created At</div>
-//               </th>
-//             <th>
-//               <div><input type="date" name="updated_at" id="updated_at" className="py-4 px-3 mb-3 w-100 rounded-4" onChange={(e) => handleSearch(e)} max={new Date().toISOString().split('T')[0]} /></div>
-//               <div>Updated At</div>
-//               </th>
-//             <th className="align-bottom">Action</th>
-//           </tr>
-//         </thead>
-//         <tbody>
-//           {cities?.map((item) => (
-//                         <tr key={item.id}>
-//                             <td>{item.name}</td>
-//                             <td>{item.district_name}</td>
-//                             <td>{item.country_name}</td>
-//                             <td>{new Date(item.created_at).toISOString().split('T')[0]}</td>
-//                             <td>{new Date(item.updated_at).toISOString().split('T')[0]}</td>
-//                             <td className="status" style={{ padding: "21px 15px"}}>
-//                                 <button onClick={() => toggleForm(item)}>
-//                                     <span className="la la-pencil"></span>
-//                                 </button>
-//                                 <button onClick={() => confirmDelete(item.id)} className="mx-3">
-
-//                                     {item.status === "active" ?
-//                                         <span className="la la-times-circle" style={{ color: "red" }}></span> :
-//                                         <span className="la la-check-circle" style={{ color: "green" }}></span>
-
-//                                     }
-//                                 </button>
-//                                 <button onClick={() => toggleHistory(item)}>
-
-//                                     <span className="la la-history"></span>
-//                                 </button>
-//                             </td>
-//                         </tr>
-//                     ))}
-//         </tbody>
-//       </table>
-
-//       <Pagination
-//         currentPage={currentPage}
-//         totalPages={totalPages}
-//         onPageChange={(page) => setCurrentPage(page)}
-//       />
-
-//       {/* Add/Edit modal */}
-//       {showModal && (
-//         <div className="Modal-outer-div">
-//           <div className="Modal-inner-div">
-//             <h4>{editId ? "Edit City" : "Add City"}</h4>
-
-//             <label>Country</label>
-//             <AsyncSelect
-//               cacheOptions
-//               defaultOptions
-//               loadOptions={loadCountries}
-//               value={selectedDistrict}
-//               onChange={(option) => {
-//                 setSelectedCountry(option);
-//                 setSelectedDistrict(null); // reset district
-//               }}
-//               placeholder="Select Country"
-//               className="Modal-input"
-//             />
-
-//             <label>District</label>
-//             <AsyncSelect
-//               key={selectedDistrict?.value} // re-render when country changes
-//               cacheOptions
-//               defaultOptions
-//               loadOptions={loadDistricts}
-//               value={selectedDistrict}
-//               onChange={(option) => setSelectedDistrict(option)}
-//               placeholder="Select District"
-//               isDisabled={!selectedDistrict}
-//               className="Modal-input"
-//             />
-
-//             <label>City Name</label>
-//             <input
-//               type="text"
-//               value={inputValue}
-//               onChange={(e) => setInputValue(e.target.value)}
-//               placeholder="Enter City name"
-//               className="Modal-input"
-//             />
-
-//             <div
-//               style={{ display: "flex", justifyContent: "flex-end", marginTop: "15px" }}
-//             >
-//               <button
-//                 className="Modal-cancel-button"
-//                 onClick={() => setShowModal(false)}
-//               >
-//                 Cancel
-//               </button>
-//               <button
-//                 className="Modal-save-button"
-//                 onClick={handleSave}
-//                 disabled={!selectedDistrict || !selectedDistrict || !inputValue}
-//               >
-//                 Save
-//               </button>
-//             </div>
-//           </div>
-//         </div>
-//       )}
-
-//       {/* Delete confirmation modal */}
-//       {/* Delete confirmation modal */}
-//       {showDeleteConfirm && (
-//         <div className="Modal-outer-div">
-//           <div className="Modal-inner-div">
-//             <h4>Confirm {isActive === "active" ? " In Activate" : " Activate"} </h4>
-//             <p>Are you sure you want to {isActive} this City?</p>
-//             <div style={{ display: "flex", justifyContent: "flex-end" }}>
-//               <button className="Modal-cancel-button" onClick={cancelDelete}>
-//                 Cancel
-//               </button>
-//               <button className="Modal-save-button" onClick={handleDelete}>
-//                 {isActive === "active" ? " In Activate" : " Activate"}
-//               </button>
-//             </div>
-//           </div>
-//         </div>
-//       )}
-
-//       {showHistoryModal && (
-//                 <div className="modal fade show" style={{ display: "block" }}>
-//                     <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-//                         <div className="modal-content">
-
-//                             <div className="modal-header">
-//                                 <h5 className="modal-title">History</h5>
-//                                 <button
-//                                     type="button"
-//                                     className="btn-close"
-//                                     onClick={() => setShowHistoryModal(false)}
-//                                 ></button>
-//                             </div>
-
-//                             <div className="modal-body">
-//                                 {history?.map((item, idx) => (
-//                                     <div
-//                                         key={item.id || idx}
-//                                         className="p-2 mb-2 rounded"
-//                                         style={{
-//                                             backgroundColor: idx % 2 === 0 ? "#f8f9fa" : "#e9ecef",
-//                                             border: "1px solid #dee2e6",
-//                                             fontSize: "14px",
-//                                         }}
-//                                     >
-//                                         <strong>{item.data.name}</strong> was{" "}
-//                                         <span
-//                                             style={{
-//                                                 color:
-//                                                     item.action === "ADDED"
-//                                                         ? "green"
-//                                                         : item.action === "UPDATED"
-//                                                             ? "purple"
-//                                                             : item.action === "ACTIVE"
-//                                                                 ? "teal"
-//                                                                 : "red",
-//                                                 fontWeight: "bold",
-//                                             }}
-//                                         >
-//                                             {item.action}
-//                                         </span>{" "}
-//                                         by <em>{item.changed_by_name}</em> on{" "}
-//                                         {item.changed_at?.split("T")[0]}
-//                                     </div>
-//                                 ))} </div>
-//                         </div>
-//                     </div>
-//                 </div>
-//             )}
-//     </>
-//   );
-// };
-
-// export default City;

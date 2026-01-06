@@ -1,161 +1,237 @@
 "use client";
 
+import React, { Component } from "react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { withRouter } from "next/navigation";
+import {
+  Navbar,
+  NavbarBrand,
+  Nav,
+  NavItem,
+  Button,
+  Dropdown,
+  DropdownToggle,
+  DropdownMenu,
+  DropdownItem,
+} from "reactstrap";
+import { useRouter } from "next/router";
 import admindropdwonData from "./userdropdownitem";
+import { dbadminmenuitem, regadminmenuitem, companymenuitem } from "./menuitem";
+import DBAdminDashboardArea from "../components/dbadmin-dashboard/dashboard-area";
+import RegAdminDashboardArea from "../components/regadmin-dashboard/dashboard-area";
+import CompanyDashboardArea from "../components/company-dashboard/dashboard-area";
+import DashboardFooter from "./dashboard-footer";
 
-const DashboardHeader = ({ activeTab, setActiveTab }) => {
-  const [navbar, setNavbar] = useState(false);
-  const [menuDropdownOpen, setMenuDropdownOpen] = useState(false);
-  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
-  const { username, userId } = useSelector((state) => state.user);
-  const router = useRouter();
+class DashboardHeader extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      navbar: false,
+      userDropdownOpen: false,
+      menuDropdownOpen: false,
+      activeTab: null,
+      userInfo: { userId: null, username: "User", accountType: null },
+    };
+  }
 
-  const menuItems = [
-    { key: "country", label: "Country" },
-    { key: "district", label: "District" },
-    { key: "city", label: "City" },
-    { key: "profession", label: "Profession" },
-    { key: "skills", label: "Skills" },
-    { key: "degree", label: "Degree" },
-    { key: "degreefields", label: "Degree Fields" },
-    { key: "currency", label: "Currency" },
-    { key: "businessentitytypes", label: "Business Entity" },
-    { key: "jobtypes", label: "Job Types" },
-  ];
+  componentDidMount() {
+    const userId = sessionStorage.getItem("userId");
+    const username = sessionStorage.getItem("username") || "User";
+    const accountType = sessionStorage.getItem("accountType");
 
-  // Change header background on scroll
-  const changeBackground = () => setNavbar(window.scrollY >= 10);
+    this.setState(
+      {
+        userInfo: { userId, username, accountType },
+      },
+      () => {
+        if (accountType && !this.state.activeTab) {
+          if (accountType === "db_admin")
+            this.setState({ activeTab: "country" });
+          else if (accountType === "reg_admin")
+            this.setState({ activeTab: "company" });
+          else if (accountType === "employer")
+            this.setState({ activeTab: "companyProfile" });
+        }
+      }
+    );
 
-  useEffect(() => {
-    window.addEventListener("scroll", changeBackground);
-    return () => window.removeEventListener("scroll", changeBackground);
-  }, []);
+    window.addEventListener("scroll", this.changeBackground);
+  }
 
-  const handleUserActionClick = (item) => {
-    if (item.name === "Logout") router.push("/");
-    else if (item.name === "Change Password")
-      console.log("Show change password form");
-    setUserDropdownOpen(false);
+  componentWillUnmount() {
+    window.removeEventListener("scroll", this.changeBackground);
+  }
+
+  changeBackground = () => {
+    this.setState({ navbar: window.scrollY >= 10 });
   };
 
-  return (
-    <header
-      className={`fixed-top w-100 shadow-sm ${navbar ? "bg-dark" : "bg-dark"}`}
-    >
-      <div className="container-fluid d-flex align-items-center justify-content-between py-2">
-        {/* Left: Logo + Menu */}
-        <div className="d-flex align-items-center gap-3">
-          <Link href="/">
-            <Image width={154} height={50} src="/images/logo-2.svg" alt="brand" />
-          </Link>
+  toggleUserDropdown = () => {
+    this.setState({ userDropdownOpen: !this.state.userDropdownOpen });
+  };
 
-          {/* Menu Dropdown */}
-          <div
-            className="dropdown"
-            style={{ position: "relative", display: "inline-block" }}
-          >
-            <li
-              className="fw-bold"
-              style={{
-                // display: 'inline-block',       // so items are horizontal if you have multiple
-                fontSize: "20px",
-                fontFamily: "Times New Roman",
-                width: "150px",
-                textAlign: "center",
-                padding: "5px 0",
-                cursor: "pointer",
-                color: "#ffffffff",
-                border: menuDropdownOpen
-                  ? "2px solid #f8f8f8ff"
-                  : "2px solid transparent", // underline when active
-                borderRadius: "50px",
-                transition: "border-bottom 0.3s",
-              }}
-              onClick={() => setMenuDropdownOpen(!menuDropdownOpen)}
-            >
-              DataBase
-            </li>
+  toggleMenuDropdown = () => {
+    this.setState({ menuDropdownOpen: !this.state.menuDropdownOpen });
+  };
 
-            {menuDropdownOpen && (
-              <div
-                className="dropdown-menu shadow mt-2 show"
-                style={{
-                  position: "absolute",
-                  top: "100%",
-                  left: 0,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(1, 1fr)",
-                  gap: "10px",
-                  padding: "10px",
-                  backgroundColor: "#fff",
-                  zIndex: 1000,
-                  minWidth: "200px",
-                }}
-              >
-                {menuItems.map((item) => {
-                  const isActive = activeTab === item.key;
-                  return (
-                    <button
-                      key={item.key}
-                      className="dropdown-item"
-                      style={{
-                        fontSize: "16px",
-                        fontFamily: "Helvetica Neue",
-                        textAlign: "left",
-                        backgroundColor: isActive ? "#0d0f11ff" : "#f8f9fa",
-                        color: isActive ? "#fff" : "#000",
-                        border: "none",
-                        borderRadius: "8px",
-                        width: "100%",
-                      }}
-                      onClick={() => {
-                        setActiveTab(item.key);
-                        setMenuDropdownOpen(false); // close dropdown on selection
-                      }}
-                    >
-                      <i className={`las ${item.icon} me-2`}></i>
-                      {item.label}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+  handleUserActionClick = (item) => {
+    if (item.tabKey === "logout") {
+      window.location.href = "/";
+    } else {
+      this.setState({ activeTab: item.tabKey });
+    }
+    this.setState({ userDropdownOpen: false });
+  };
+
+  render() {
+    const { navbar, userDropdownOpen, menuDropdownOpen, activeTab, userInfo } =
+      this.state;
+    const { accountType, username, userId } = userInfo;
+
+    if (!accountType) {
+      return (
+        <div
+          className="d-flex justify-content-center align-items-center"
+          style={{ height: "100vh" }}
+        >
+          Loading...
         </div>
+      );
+    }
 
-        {/* Right: User */}
-        <div className="d-flex align-items-center gap-3 ">
-          <span className="text-white d-none d-lg-inline">
-            Welcome <strong>{username || "Admin"}</strong>
-          </span>
+    return (
+      <>
+        <Navbar color="dark" dark expand="md" fixed="top" className="shadow-sm">
+          <div className="container-fluid d-flex align-items-center justify-content-between py-2">
+            {/* Left: Logo & Menu */}
+            <div className="d-flex align-items-center gap-3">
+              <NavbarBrand href="/">
+                <Image
+                  width={154}
+                  height={50}
+                  src="/images/logo-2.svg"
+                  alt="brand"
+                />
+              </NavbarBrand>
 
-          <i
-            className="las la-user-circle fs-2 text-white cursor-pointer"
-            onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-          ></i>
-
-          {userDropdownOpen && (
-            <div className="dropdown-menu dropdown-menu-end mt-2 show">
-              {admindropdwonData(userId).map((item) => (
-                <button
-                  key={item.id}
-                  className="dropdown-item"
-                  onClick={() => handleUserActionClick(item)}
+              {/* DB Admin Dropdown */}
+              {accountType === "db_admin" && (
+                <Dropdown
+                  isOpen={menuDropdownOpen}
+                  toggle={this.toggleMenuDropdown}
                 >
-                  <i className={`la ${item.icon} me-2`}></i>
-                  {item.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </header>
-  );
-};
+                  <DropdownToggle
+                    caret
+                    color="dark"
+                    className="fw-bold"
+                    style={{
+                      fontSize: "20px",
+                      fontFamily: "Times New Roman",
+                      width: "150px",
+                    }}
+                  >
+                    DataBase
+                  </DropdownToggle>
+                  <DropdownMenu>
+                    {dbadminmenuitem.map((item) => (
+                      <DropdownItem
+                        key={item.key}
+                        style={{
+                          backgroundColor:
+                            this.state.activeTab === item.key
+                              ? "#030405ff"
+                              : "transparent",
+                          color:
+                            this.state.activeTab === item.key ? "#fff" : "#000",
+                        }}
+                        onClick={() => {
+                          this.setState({
+                            activeTab: item.key,
+                            menuDropdownOpen: false,
+                          });
+                        }}
+                      >
+                        <i className={`las ${item.icon} me-2`}></i>
+                        {item.label}
+                      </DropdownItem>
+                    ))}
+                  </DropdownMenu>
+                </Dropdown>
+              )}
 
+              {/* Reg Admin / Employer Menu */}
+              {(accountType === "reg_admin" || accountType === "employer") && (
+                <Nav className="d-flex gap-2">
+                  {(accountType === "reg_admin"
+                    ? regadminmenuitem
+                    : companymenuitem
+                  ).map((item) => (
+                    <NavItem key={item.key}>
+                      <Button
+                        color="dark"
+                        outline
+                        className={`text-white ${
+                          activeTab === item.key
+                            ? "border-bottom border-white"
+                            : ""
+                        }`}
+                        onClick={() => this.setState({ activeTab: item.key })}
+                      >
+                        <i className={`las ${item.icon} me-1`}></i>
+                        {item.label}
+                      </Button>
+                    </NavItem>
+                  ))}
+                </Nav>
+              )}
+            </div>
+
+            {/* Right: User Dropdown */}
+            <div className="d-flex align-items-center gap-3 position-relative">
+              <span className="text-white d-none d-lg-inline">
+                Welcome <strong>{username || "Admin"}</strong>
+              </span>
+
+              <Dropdown
+                isOpen={userDropdownOpen}
+                toggle={this.toggleUserDropdown}
+              >
+                <DropdownToggle tag="span">
+                  <i className="las la-user-circle fs-2 text-white cursor-pointer"></i>
+                </DropdownToggle>
+                <DropdownMenu end>
+                  {admindropdwonData(userId).map((item) => (
+                    <DropdownItem
+                      key={item.id}
+                      onClick={() => this.handleUserActionClick(item)}
+                    >
+                      <i className={`la ${item.icon} me-2`}></i>
+                      {item.name}
+                    </DropdownItem>
+                  ))}
+                </DropdownMenu>
+              </Dropdown>
+            </div>
+          </div>
+        </Navbar>
+
+        {/* Dashboard content */}
+        {accountType === "db_admin" && (
+          <DBAdminDashboardArea activeTab={activeTab} />
+        )}
+        {accountType === "reg_admin" && (
+          <RegAdminDashboardArea activeTab={activeTab} />
+        )}
+        {accountType === "employer" && (
+          <CompanyDashboardArea activeTab={activeTab} />
+        )}
+
+        <DashboardFooter />
+      </>
+    );
+  }
+}
+
+// Use withRouter HOC to get router inside class component
 export default DashboardHeader;
