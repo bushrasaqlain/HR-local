@@ -102,6 +102,7 @@ const getUserName = (userId, callback) => {
 };
 
 const register = (req, res) => {
+  console.log("REQ BODY:", req.body);
   const { accountType, email, password, isActive, username } = req.body;
   try {
     let sql;

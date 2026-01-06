@@ -10,17 +10,40 @@ const addDegreeField = (req, res) => {
         res.json({ success: true, message: "Degree Field added successfully" });
     });
 }
-
 const editDegreeField = (req, res) => {
     const { id } = req.params;
-    const degreeFieldData = req.body;
-    degreeFieldModel.editDegreeField(id, degreeFieldData, (err, result) => {
-        if (err) {
-            return res.status(500).json({ success: false, error: err.message });
+    const { name } = req.body;
+    const userId = req.user.userId;
+
+    if (!name) {
+        return res.status(400).json({
+            success: false,
+            message: "Name is required",
+        });
+    }
+
+    degreeFieldModel.editDegreeField(
+        id,
+        { name },
+        userId,
+        (err, result) => {
+            if (err) {
+                return res.status(err.status || 500).json({
+                    success: false,
+                    message: err.message,
+                });
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: result.message,
+            });
         }
-        res.json({ success: true, message: "Degree Field updated successfully" });
-    });
-}
+    );
+};
+
+
+
 const getAllDegreeFields = (req, res) => {
   const {
     page = 1,
@@ -43,14 +66,24 @@ const getAllDegreeFields = (req, res) => {
 }
 const deleteDegreeField = (req, res) => {
     const { id } = req.params;
-    degreeFieldModel.deleteDegreeField(id, (err, result) => {
+    const userId = req.user.userId;
+
+    degreeFieldModel.deleteDegreeField(id, userId, (err, result) => {
         if (err) {
-            return res.status(500).json({ success: false, error: err.message });
+            return res.status(err.status || 500).json({
+                success: false,
+                message: err.message,
+            });
         }
 
-        res.json({ success: true, message: "Degree Field deleted successfully" });
+        return res.status(200).json({
+            success: true,
+            ...result,
+        });
     });
-}
+};
+
+
 module.exports = {
     addDegreeField,
     editDegreeField,
