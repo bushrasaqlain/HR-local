@@ -13,14 +13,13 @@ const updateCompanySatus = (req,res)=>{
     const { id, status } = req.params; // must match router param names
     companyModel.updateCompanySatus(id, status, res)
 }
-const getAllJobs=(req,res)=>{
-  companyModel.getAllJobs(req,res);
-}
+
+
 
 module.exports = {
   getAllCompanies,
   updateCompanyinfo,
   getcompanybyid,
   updateCompanySatus,
-  getAllJobs,
+ 
 };

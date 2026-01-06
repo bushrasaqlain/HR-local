@@ -8,11 +8,12 @@ import {
   Input,
   Button,
   Badge,
-  Pagination,
-  PaginationItem,
-  PaginationLink,
   Container,
 } from "reactstrap";
+import Pagination from "../common/pagination.jsx";
+import DetailModal from "../common/DetailModal.jsx";
+import { Modal, ModalHeader, ModalBody } from 'reactstrap';
+import PostJob from './postJob.jsx';
 
 class JobListings extends Component {
   constructor(props) {
@@ -26,11 +27,41 @@ class JobListings extends Component {
       currentPage: 1,
       filters: {
         title: "",
-        createdExpired: "",
+        industry: "",
+        no_of_positions: "",
+        application_deadline: "",
         status: "",
       },
+      // Modal state
+      modalOpen: false,
+      selectedJob: null,
+      modalEditOpen: false,
+      editSelectedJob: null,
+
     };
+
     this.userId = sessionStorage.getItem("userId");
+
+    // Fields to show in modal
+    this.modalFields = [
+      "job_title",
+      "username",
+      "country",
+      "district",
+      "city",
+      "packageprice",
+      "packagecurrency",
+      "job_description",
+      "max_experience",
+      "min_experience",
+      "max_salary",
+      "min_salary",
+      "skills",
+      "time_from",
+      "time_to",
+      "created_at",
+      "updated_at",
+    ];
   }
 
   componentDidMount() {
@@ -43,8 +74,9 @@ class JobListings extends Component {
     try {
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
       const response = await axios.get(
-        `${apiBaseUrl}company-info/managejob/${userId}`
+        `${apiBaseUrl}job/managejob/${userId}`
       );
+      console.log(response.data)
       this.setState({
         jobListings: response.data,
         loading: false,
@@ -57,110 +89,159 @@ class JobListings extends Component {
     }
   };
 
+  // Toggle modal
+  toggleModal = () => {
+    this.setState((prev) => ({ modalOpen: !prev.modalOpen }));
+  };
+
+  // Open modal when clicking job title
+  handleTitleClick = (job) => {
+    this.setState({ selectedJob: job, modalOpen: true });
+  };
+
   handleFilterChange = (field, value) => {
     this.setState((prev) => ({
       filters: { ...prev.filters, [field]: value },
     }));
   };
-
-  handleEditJob = (jobId) => {
-    const { router, userId } = this.props;
-    router.push({
-      pathname: `/employers-dashboard/post-jobs/${userId}`,
-      query: { jobId },
+  handleEditJob = (job) => {
+    this.setState({
+      editSelectedJob: job,
+      modalEditOpen: true
     });
   };
 
   handleDeleteJob = async (jobId) => {
     if (!window.confirm("Are you sure you want to delete this job?")) return;
 
-    try {
-      await axios.delete(
-        `http://localhost:8080/delete_job/${this.userId}/${jobId}`
-      );
-      this.setState((prev) => ({
-        jobListings: prev.jobListings.filter((job) => job.id !== jobId),
-      }));
-    } catch (error) {
-      console.error("Delete failed", error);
-    }
+    // try {
+    //   await axios.delete(
+    //     `${this.apiBaseUrl}job/delete_job/${this.userId}/${jobId}`
+    //   );
+    //   this.setState((prev) => ({
+    //     jobListings: prev.jobListings.filter((job) => job.id !== jobId),
+    //   }));
+    // } catch (error) {
+    //   console.error("Delete failed", error);
+    // }
   };
 
-  paginate = (page) => {
+  handlePageChange = (page) => {
     this.setState({ currentPage: page });
   };
 
   filterJobs = (jobs) => {
-    const { title, createdExpired, status } = this.state.filters;
+    const { title, industry, no_of_positions, application_deadline, status } =
+      this.state.filters;
 
     return jobs.filter((job) => {
-      return (
-        job.job_title.toLowerCase().includes(title.toLowerCase()) &&
-        job.created_and_expired_date
+      const jobTitle = job.job_title ? job.job_title.toLowerCase() : "";
+      const jobIndustry = job.industry ? job.industry.toLowerCase() : "";
+      const jobPositions = job.no_of_positions
+        ? job.no_of_positions.toString().toLowerCase()
+        : "";
+      const jobDeadline = job.application_deadline
+        ? new Date(job.application_deadline)
+          .toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          })
           .toLowerCase()
-          .includes(createdExpired.toLowerCase()) &&
-        (status === "" || job.status.toLowerCase() === status.toLowerCase())
+        : "";
+      const jobStatus = job.status ? job.status.toLowerCase() : "";
+
+      return (
+        jobTitle.includes(title.toLowerCase()) &&
+        jobIndustry.includes(industry.toLowerCase()) &&
+        jobPositions.includes(no_of_positions.toLowerCase()) &&
+        jobDeadline.includes(application_deadline.toLowerCase()) &&
+        (status === "" || jobStatus === status.toLowerCase())
       );
     });
   };
 
   render() {
-    const { jobListings, loading, currentPage, jobsPerPage, filters } =
-      this.state;
+    const {
+      jobListings,
+      loading,
+      currentPage,
+      jobsPerPage,
+      filters,
+      modalOpen,
+      selectedJob,
+    } = this.state;
 
-    if (loading) return <p className="text-center">Loading...</p>;
-
+    const filteredJobs = this.filterJobs(jobListings);
     const indexOfLast = currentPage * jobsPerPage;
     const indexOfFirst = indexOfLast - jobsPerPage;
-    const currentJobs = this.filterJobs(jobListings.slice(indexOfFirst, indexOfLast));
-    const totalPages = Math.ceil(jobListings.length / jobsPerPage);
+    const currentJobs = filteredJobs.slice(indexOfFirst, indexOfLast);
+    const totalPages = Math.ceil(filteredJobs.length / jobsPerPage);
 
     return (
       <Container className="mt-4">
-        <h4 className="mb-3">My Job Listings</h4>
+        <h4 className="mb-3">Job Lists</h4>
 
         <Table bordered hover responsive>
           <thead className="table-light">
             <tr>
               <th>
-                 <Input
+                <Input
                   type="text"
                   className="mt-2"
                   value={filters.title}
-                  onChange={(e) => this.handleFilterChange("title", e.target.value)}
+                  onChange={(e) =>
+                    this.handleFilterChange("title", e.target.value)
+                  }
                 />
                 Title
-               
               </th>
-              <th>
-                 <Input
-                  type="text"
-                  className="mt-2"
-                  value={filters.title}
-                  onChange={(e) => this.handleFilterChange("title", e.target.value)}
-                />
-                Applications</th>
               <th>
                 <Input
                   type="text"
                   className="mt-2"
-                  value={filters.createdExpired}
+                  value={filters.industry}
                   onChange={(e) =>
-                    this.handleFilterChange("createdExpired", e.target.value)
+                    this.handleFilterChange("industry", e.target.value)
                   }
                 />
-                Created & Expired
-                
+                Industry
               </th>
               <th>
-                 <Input
+                <Input
+                  type="text"
+                  className="mt-2"
+                  value={filters.no_of_positions}
+                  onChange={(e) =>
+                    this.handleFilterChange("no_of_positions", e.target.value)
+                  }
+                />
+                No. of Positions
+              </th>
+              <th>
+                <Input
+                  type="text"
+                  className="mt-2"
+                  value={filters.application_deadline}
+                  onChange={(e) =>
+                    this.handleFilterChange(
+                      "application_deadline",
+                      e.target.value
+                    )
+                  }
+                />
+                Application Deadline
+              </th>
+              <th>
+                <Input
                   type="text"
                   className="mt-2"
                   value={filters.status}
-                  onChange={(e) => this.handleFilterChange("status", e.target.value)}
+                  onChange={(e) =>
+                    this.handleFilterChange("status", e.target.value)
+                  }
                 />
                 Status
-               
               </th>
               <th>Action</th>
             </tr>
@@ -171,14 +252,37 @@ class JobListings extends Component {
               currentJobs.map((job) => (
                 <tr key={job.id}>
                   <td>
-                    <Link href={`/job-single-v1/${job.id}/${this.props.userId}`}>
+                    <span
+                      style={{
+                        color: "blue",
+                        cursor: "pointer",
+                        textDecoration: "underline",
+                      }}
+                      onClick={() => this.handleTitleClick(job)}
+                    >
                       {job.job_title}
-                    </Link>
+                    </span>
                   </td>
-                  <td>3+ Applied</td>
-                  <td>{job.created_and_expired_date}</td>
+
+                  <td>{job.industry}</td>
+                  <td>{job.no_of_positions}</td>
                   <td>
-                    <Badge color={job.status === "Active" ? "success" : "danger"}>
+                    {job.application_deadline
+                      ? new Date(job.application_deadline).toLocaleDateString(
+                        "en-GB",
+                        {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        }
+                      )
+                      : "-"}
+                  </td>
+
+                  <td>
+                    <Badge
+                      color={job.status === "Active" ? "success" : "danger"}
+                    >
                       {job.status}
                     </Badge>
                   </td>
@@ -187,10 +291,11 @@ class JobListings extends Component {
                       size="sm"
                       color="primary"
                       className="me-2"
-                      onClick={() => this.handleEditJob(job.id)}
+                      onClick={() => this.handleEditJob(job)}
                     >
                       Edit
                     </Button>
+
                     <Button
                       size="sm"
                       color="danger"
@@ -203,7 +308,7 @@ class JobListings extends Component {
               ))
             ) : (
               <tr>
-                <td colSpan="5" className="text-center py-4">
+                <td colSpan="6" className="text-center py-4">
                   <strong>No record found</strong>
                 </td>
               </tr>
@@ -212,15 +317,38 @@ class JobListings extends Component {
         </Table>
 
         {/* Pagination */}
-        <Pagination className="justify-content-center">
-          {[...Array(totalPages)].map((_, i) => (
-            <PaginationItem key={i} active={currentPage === i + 1}>
-              <PaginationLink onClick={() => this.paginate(i + 1)}>
-                {i + 1}
-              </PaginationLink>
-            </PaginationItem>
-          ))}
-        </Pagination>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={this.handlePageChange}
+        />
+
+        {/* Detail Modal */}
+        {selectedJob && (
+          <DetailModal
+            isOpen={modalOpen}
+            toggle={this.toggleModal}
+            title={selectedJob.job_title}
+            details={selectedJob}
+            fields={this.modalFields}
+          />
+        )}
+
+        <Modal
+          isOpen={this.state.modalEditOpen}
+          toggle={() => this.setState({ modalEditOpen: !this.state.modalEditOpen })}
+          size="lg"
+        >
+          <ModalHeader toggle={() => this.setState({ modalEditOpen: false })}>
+            Edit Job
+          </ModalHeader>
+          <ModalBody>
+            {this.state.editSelectedJob && (
+              <PostJob jobId={this.state.editSelectedJob.id} />
+            )}
+          </ModalBody>
+        </Modal>
+
       </Container>
     );
   }

@@ -49,7 +49,6 @@ class CompanyProfile extends Component {
 
   fetchCompanyProfile = async () => {
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-    console.log(this.userId)
     try {
       const response = await axios.get(
         `${apiBaseUrl}company-info/getcompanybyid/${this.userId}`

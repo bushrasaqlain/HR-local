@@ -39,11 +39,16 @@ const updatePackaeStatus=(req,res)=>{
    packageModel.updatePackaeStatus(req, res);
 }
 
+const getCompanyPackgestatus=(req,res)=>{
+  packageModel.getCompanyPackgestatus(req,res);
+}
+
 module.exports = {
   addPackage,
   editPackage,
   getallPackages,
   deletePackage,
   getPackagebyCompany,
-  updatePackaeStatus
+  updatePackaeStatus,
+  getCompanyPackgestatus
 };

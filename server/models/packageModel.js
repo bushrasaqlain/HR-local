@@ -323,7 +323,35 @@ const updatePackaeStatus = (req, res) => {
   });
 };
 
+const getCompanyPackgestatus=(req,res)=>{
+  try {
+    const userId = req.params.userId;
 
+    // Perform a database query to check the user's package status
+    const query =
+      'SELECT status FROM cart WHERE account_id = ? AND status = "active"';
+
+    connection.query(query, [userId], (err, results) => {
+      if (err) {
+        console.error("Error fetching package status:", err);
+        return res.status(500).json({ error: "Internal Server Error" });
+      }
+
+      if (results.length === 0) {
+        return res.status(404).json({ error: "Package status not found" });
+      }
+
+      // Assuming results[0] contains the package status data
+      const packageStatus = results[0].status;
+
+      // You can modify this part based on what exactly you want to return
+      res.status(200).json({ userId, packageStatus });
+    });
+  } catch (error) {
+    console.error("Error in checkUserPackageStatus route:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+}
 module.exports = {
   createPackagesTable,
   getAllPackages,
@@ -331,6 +359,7 @@ module.exports = {
   editPackage,
   deletePackage,
   getPackagebyCompany,
-  updatePackaeStatus
+  updatePackaeStatus,
+  getCompanyPackgestatus
 }
 

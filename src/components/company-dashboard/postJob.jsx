@@ -1,346 +1,292 @@
+"use client"
 import React, { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/router';
+// import { useRouter } from 'next/navigation';
 // import { useQuery } from 'react-query';
 import axios from 'axios';
 import Select from "react-select";
 // import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import AsyncSelect from "react-select/async";
+import api from '../lib/api';
+import { toast } from 'react-toastify';
+import PricingForm from './PricingForm';
 
-const PostJob = ({ userId}) => {
-  const [selectedDepartments, setSelectedDepartments] = useState([]);
-  const [isSubmitting, setIsSubmitting] = useState(false); 
-  const [errorMessage, setErrorMessage] = useState("");
-  const router = useRouter();
-  useEffect(() => {
-    const { query } = router;
-    const jobId = query.jobId;
-    
-    console.log('Job ID:', jobId);
-    // Use the jobId as needed in this component
-  }, [router]);
-////////jo bid 
-
-useEffect(() => {
-  const { query } = router;
-  const jobIdFromUrl = query.jobId;
-  console.log('Job ID from URL:', jobIdFromUrl);
-
-  // Fetch data based on jobIdFromUrl
-  const fetchData = async () => {
-    try {
-      console.log('Fetching data...');
-      const response = await axios.get(`http://localhost:8080/job/${jobIdFromUrl}`);
-      console.log('API Response:', response);
-
-      const jobData = response.data.results[0];
-      console.log('Job Data:', jobData);
-      let departmentsArray = [];
-
-      if (jobData.specialisms) {
-        // Check if jobData.specialisms is not undefined or null
-        departmentsArray = jobData.specialisms.split(",").map((value) => ({
-          value,
-          label: value.trim(), // trim to remove leading/trailing spaces
-        }));
-      }
-      // Convert the UTC date to local date with proper time zone
-      // const localApplicationDeadline = new Date(jobData.application_deadline);
-      // localApplicationDeadline.setMinutes(localApplicationDeadline.getMinutes() - localApplicationDeadline.getTimezoneOffset());
-      // const formattedApplicationDeadline = localApplicationDeadline.toISOString().split('T')[0];
-      const applicationDeadlineUTC = new Date(jobData.application_deadline);
-      const offsetInMinutes = applicationDeadlineUTC.getTimezoneOffset();
-      const localApplicationDeadline = new Date(applicationDeadlineUTC.getTime() - offsetInMinutes * 60000);
-      const formattedApplicationDeadline = localApplicationDeadline.toISOString().slice(0, 16);
-      
-      console.log('Application Deadline:', values.application_deadline);  // This logs the previous state
-      console.log('Formatted Deadline:', formattedApplicationDeadline);
-      setFormData({
-        ...values,
-      
-        job_title: jobData.job_title,
-        job_description: jobData.job_description,
-        email: jobData.email,
-        username: jobData.username,
-        career: jobData.career,
-        experience: jobData.experience,
-        gender: jobData.gender,
-        city: jobData.city,
-        // application_deadline: new Date(jobData.application_deadline).toISOString().split('T')[0], // convert and format the date
-        application_deadline: formattedApplicationDeadline,
-        job_description: jobData.job_description,
-        specialisms: departmentsArray.map(department => department.value),
-        salary: jobData.salary,
-        industry: jobData.industry,
-        job_type: jobData.job_type,
-        qualification: jobData.qualification,
-        address: jobData.address,
-        jobId: jobIdFromUrl,
-      });
-      setSelectedDepartments(departmentsArray);
-
-    } catch (error) {
-      console.error('Error fetching job data:', error);
-    }
-  };
-
-  // Check if jobIdFromUrl is available and fetch data
-  if (jobIdFromUrl) {
-    fetchData();
-  }
-}, [router]);
-
-//////////////////////////////////
-  const formRef = useRef(null);
-  const successMessageRef = useRef(null);
-  const [successMessage, setSuccessMessage] = useState("");
-
-  const scrollToSuccessMessage = () => {
-    if (successMessageRef.current) {
-      window.scrollTo({
-        top: successMessageRef.current.offsetTop,
-        behavior: 'smooth',
-      });
-    } else if (formRef.current) {
-      window.scrollTo({
-        top: formRef.current.offsetTop,
-        behavior: 'smooth',
-      });
-    }
-  };
-
-
-  useEffect(() => {
-    if (successMessage) {
-      scrollToSuccessMessage();
-
-      const timer = setTimeout(() => {
-        setSuccessMessage("");
-      }, 5000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [successMessage]);
+const PostBoxForm = () => {
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+ const userId = sessionStorage.getItem("userId");
   const [values, setFormData] = useState({
     job_title: "",
     job_description: "",
-    email: "",
-    username: "",
-    specialisms: "",
-    job_type: "",
-    salary: "",
-    career: "",
-    experience: "",
-    gender: "",
-    industry: "",
-    qualification: "",
+    skill_ids: [],
+    time_from: "",
+    time_to: "",
+    job_type_id: "",
+    min_salary: "",
+    max_salary: "",
+    min_experience: "",
+    max_experience: "",
+    profession_id: "",
+    degree_id: "",
     application_deadline: "",
-    city: "",
-    address: "",
-    account_id: userId ,
-
-  });
-  const [errors, setErrors] = useState({
-    job_title: "",
-    job_description: "",
-    email: "",
-    username: "",
-    specialisms: "",
-    job_type: "",
-    salary: "",
-    career: "",
-    experience: "",
-    gender: "",
+    no_of_positions: "",
     industry: "",
-    qualification: "",
-    application_deadline: "",
-    city: "",
-    address: "",
-    account_id: userId,
+    currency_id: ""
   });
-  // const handleDateChange = (date) => {
-  //   setFormData((prevData) => ({ ...prevData, application_deadline: date }));
-  //   setIsDatePickerOpen(false);
-  // };
-  // const handleInputchange = (event) => {
-  //   const { name, value } = event.target;
-  
-  //   if (name === "application_deadline") {
-  //     const formattedDateTime = value.replace(" ", "T");
-  //     setFormData((prevData) => ({ ...prevData, [name]: formattedDateTime }));
-  //   } else {
-  //     setFormData((prevData) => ({ ...prevData, [name]: value }));
-  //   }
-  // };
-  // const handleInputchange = (event) => {
-  //   const { name, value } = event.target;
-  
-  //   if (name === "application_deadline") {
-  //     // Ensure that the date is in the correct format for datetime-local input
-  //     // Convert the provided date string to a Date object
-  //     const selectedDate = new Date(value);
-  
-  //     // Subtract the timezone offset to adjust the date to the correct local time
-  //     const offsetInMinutes = selectedDate.getTimezoneOffset();
-  //     const adjustedDate = new Date(selectedDate.getTime() - offsetInMinutes * 60000);
-  
-  //     // Format the adjusted date to a string with the desired format (including time)
-  //     const formattedDate = adjustedDate.toISOString().slice(0, 16);
-  
-  //     // Set the formatted date in the state
-  //     setFormData((prevData) => ({ ...prevData, [name]: formattedDate }));
-  //   } else {
-  //     setFormData((prevData) => ({ ...prevData, [name]: value }));
-  //   }
-  // };
-  
-  
-  
-  
-  
-  const handleSelectChange = (selectedOptions) => {
-    // Extracting only the values from the selected options
-    const selectedValues = selectedOptions.map(option => option.value);
+  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [selectedDistrict, setSelectedDistrict] = useState(null);
+  const [selectedCity, setSelectedCity] = useState(null);
+  const [errors, setErrors] = useState({});
+  const [showPricing, setShowPricing] = useState(false);
+  const [jobId, setJobId] = useState(null);
 
-    setFormData((prevData) => ({ ...prevData, specialisms: selectedValues }));
+  // ------------------ Loaders for AsyncSelect ------------------ //
+  const loadCountries = async (inputValue) => {
+    try {
+      const res = await axios.get(`${apiBaseUrl}getallCountries`, {
+        params: { search: inputValue || "", page: 1, limit: 15 },
+      });
+      return res.data.countries.map((c) => ({
+        label: c.name,
+        value: c.id,
+      }));
+    } catch (error) {
+      console.error("Error loading countries:", error);
+      return [];
+    }
   };
+
+  const loadDistricts = async (inputValue) => {
+    if (!selectedCountry?.value) return [];
+    try {
+      const res = await axios.get(`${apiBaseUrl}getalldistricts`, {
+        params: {
+          country_id: selectedCountry.value,
+          search: inputValue || "",
+          page: 1,
+          limit: 15,
+        },
+      });
+      return res.data.districts.map((d) => ({
+        label: d.name,
+        value: d.id,
+      }));
+    } catch (error) {
+      console.error("Error loading districts:", error);
+      return [];
+    }
+  };
+
+  // ------------------ Fetch Cities ------------------ //
+  const fetchCities = async (inputValue) => {
+    if (!selectedDistrict?.value) return [];
+    try {
+      const res = await axios.get(
+        `${apiBaseUrl}getCitiesByDistrict/${selectedDistrict.value}`,
+        { params: { search: inputValue || "" } }
+      );
+      return res.data.cities.map((city) => ({
+        label: city.name,
+        value: city.id,
+      }));
+    } catch (error) {
+      console.error("Error fetching cities by district:", error);
+      return [];
+    }
+  };
+  const loadJobTypes = async (inputValue) => {
+    try {
+      const res = await axios.get(`${apiBaseUrl}getalljobtypes`, {
+        params: { search: inputValue || "", page: 1, limit: 15 },
+      });
+      return res.data.jobtypes.map((c) => ({
+        label: c.name,
+        value: c.id,
+      }));
+    } catch (error) {
+      console.error("Error loading business types:", error);
+      return [];
+    }
+  };
+
+  const loadSkills = async (inputValue) => {
+    try {
+      const res = await axios.get(`${apiBaseUrl}getallskills`, {
+        params: { search: inputValue || "", page: 1, limit: 15 },
+      });
+      return res.data.skills.map((c) => ({
+        label: c.name,
+        value: c.id,
+      }));
+    } catch (error) {
+      console.error("Error loading business types:", error);
+      return [];
+    }
+  };
+
+  const loadProfessions = async (inputValue) => {
+    try {
+      const res = await axios.get(`${apiBaseUrl}getallprofessions`, {
+        params: { search: inputValue || "", page: 1, limit: 15 },
+      });
+      return res.data.professions.map((c) => ({
+        label: c.name,
+        value: c.id,
+      }));
+    } catch (error) {
+      console.error("Error loading business types:", error);
+      return [];
+    }
+  };
+
+  const loadCurrency = async (inputValue) => {
+    try {
+      const res = await axios.get(`${apiBaseUrl}getallcurrencies`, {
+        params: { search: inputValue || "", page: 1, limit: 15 },
+      });
+      return res.data.currencies.map((c) => ({
+        label: c.code,
+        value: c.id,
+      }));
+    } catch (error) {
+      console.error("Error loading business types:", error);
+      return [];
+    }
+  };
+
+  const loadDegree = async (inputValue) => {
+    try {
+      const res = await axios.get(`${apiBaseUrl}getalldegreetype`, {
+        params: { search: inputValue || "", page: 1, limit: 15 },
+      });
+      return res.data.degreetypes.map((c) => ({
+        label: c.name,
+        value: c.id,
+      }));
+    } catch (error) {
+      console.error("Error loading business types:", error);
+      return [];
+    }
+  };
+
   const handlesubmit = async (event) => {
     event.preventDefault();
 
-   
-  // Convert selected options to an array of strings
-  const selectedSpecialisms = selectedDepartments.map(option => option.value);
+    // --- validate ---
+    let newErrors = {};
+    if (!values.job_title) newErrors.job_title = "Job Title is required.";
+    if (!values.job_description) newErrors.job_description = "Job Description is required.";
+    if (!values.skill_ids || values.skill_ids.length === 0) newErrors.skill_ids = "Please select at least one skill.";
+    if (!values.time_from) newErrors.time_from = "Start time is required.";
+    if (!values.time_to) newErrors.time_to = "End time is required.";
+    if (!values.job_type_id) newErrors.job_type_id = "Job Type is required.";
+    if (!values.min_salary) newErrors.min_salary = "Minimum salary is required.";
+    if (!values.max_salary) newErrors.max_salary = "Maximum salary is required.";
+    if (!values.currency_id) newErrors.currency_id = "Currency is required.";
+    if (!values.min_experience) newErrors.min_experience = "Minimum experience is required.";
+    if (!values.max_experience) newErrors.max_experience = "Maximum experience is required.";
+    if (!values.no_of_positions) newErrors.no_of_positions = "Please enter number of positions.";
+    if (!values.profession_id) newErrors.profession_id = "Speciality is required.";
+    if (!values.degree_id) newErrors.degree_id = "Qualification is required.";
+    if (!selectedCountry) newErrors.country_id = "Country is required.";
+    if (!selectedDistrict) newErrors.district_id = "District is required.";
+    if (!selectedCity) newErrors.city_id = "City is required.";
+    if (!values.application_deadline) newErrors.application_deadline = "Application deadline is required.";
+    if (!values.industry) newErrors.industry = "Industry is required.";
 
-  // Update the formData with the selected specialisms
-  setFormData(prevData => ({
-    ...prevData,
-    specialisms: selectedSpecialisms
-  }));
-
-  setIsSubmitting(true);
-    const newErrors = {};
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(values.email)) {
-      newErrors.email = "Invalid email format";
-    }
-    if (!values.job_title || values.job_title.trim() === "") {
-      newErrors.job_title = "Job title is required";
-    }
-    if (!values.job_description || values.job_description.trim() === "") {
-      newErrors.job_description = "Job description is required";
-    }
-    if (!values.email || values.email.trim() === "") {
-      newErrors.email = "Email is required";
-    }
-
-    if (!values.username || values.username.trim() === "") {
-      newErrors.username = "username is required";
-    }
-    if (!values.specialisms || values.specialisms.length === 0) {
-      newErrors.specialisms = "Specialisms is required";
-    }
-
-    if (!values.job_type || values.job_type.trim() === "") {
-      newErrors.job_type = "job type is required";
-    }
-    if (!values.salary || values.salary.trim() === "") {
-      newErrors.salary = "salary is required";
-    }
-    if (!values.career || values.career.trim() === "") {
-      newErrors.career = "career is required";
-    }
-    if (!values.experience || values.experience.trim() === "") {
-      newErrors.experience = "experience is required";
-    }
-    if (!values.gender || values.gender.trim() === "") {
-      newErrors.gender = "gender is required";
-    }
-    if (!values.industry || values.industry.trim() === "") {
-      newErrors.industry = "industry is required";
-    }
-    if (!values.qualification || values.qualification.trim() === "") {
-      newErrors.qualification = "qualification is required";
-    }
-    if (!values.application_deadline || values.application_deadline.trim() === "") {
-      newErrors.application_deadline = "application_deadline is required";
-    }
-    if (!values.city || values.city.trim() === "") {
-      newErrors.city = "city is required";
-    }
-    if (!values.address || values.address.trim() === "") {
-      newErrors.address = "address is required";
-    }
-    // Update the state with errors
     setErrors(newErrors);
 
-    // If there are any errors, stop form submission
-
-    // If there are any errors, stop form submission
+    // If errors, stop here
     if (Object.keys(newErrors).length > 0) {
-      // Focus on the first error or handle it as needed
+      setErrors(newErrors);
+      console.log("Validation errors:", newErrors);
+
+      // Focus on the first invalid field
+      const firstErrorKey = Object.keys(newErrors)[0];
+      if (refs[firstErrorKey]?.current) {
+        refs[firstErrorKey].current.focus();
+      }
+
+      toast.error("Please fix the highlighted errors before submitting.");
       return;
     }
-    const formDataToSend = new FormData();
-    formDataToSend.append('account_id', values.account_id);
- // Append department names to formDataToSend
-// Ensure specialisms is an array of department names
-const specialismValues = Array.isArray(values.specialisms) ? values.specialisms.map(option => option.value) : [values.specialisms];
-
-// Append department names to formDataToSend
-specialismValues.forEach((specialism, index) => {
-  formDataToSend.append(`specialisms[${index}]`, specialism);
-});
 
 
+
+    const formattedDeadline = new Date(values.application_deadline)
+      .toISOString()
+      .slice(0, 19)     // "2025-09-26T12:56:00"
+      .replace("T", " ");
+
+    const payload = {
+      ...values,
+      country_id: selectedCountry?.value,
+      district_id: selectedDistrict?.value,
+      city_id: selectedCity?.value,
+      job_type_id: values.job_type_id?.value,
+      currency_id: values.currency_id?.value,
+      profession_id: values.profession_id?.value,
+      degree_id: values.degree_id?.value,
+      skill_ids: values.skill_ids.map((skill) => skill.value), // send IDs
+      application_deadline: formattedDeadline
+    };
 
     try {
-      const response = await axios.post('http://localhost:8080/job-description', values);
+      const response = await api.post(`${apiBaseUrl}job/postjob/${userId}`, payload);
+      console.log("response for job post", response)
+      if (response.status === 201) {
+        toast.success('Job post created successfully!');
+        setJobId(response.data.job_id);
+        setFormData({
+          job_title: "",
+          job_description: "",
+          skill_ids: [],
+          time_from: "",
+          time_to: "",
+          job_type_id: "",
+          min_salary: "",
+          max_salary: "",
+          min_experience: "",
+          max_experience: "",
+          profession_id: "",
+          degree_id: "",
+          application_deadline: "",
+          no_of_positions: "",
+          industry: "",
+          currency_id: ""
+        });
 
-      if (response.status === 200) {
-        setSuccessMessage('Job posted successfully!');
+        setShowPricing(true);
       } else {
         // Set error message on API request failure
-        setErrorMessage('Error: Unable to post job.');
+        toast.error('Error: Unable to post job.');
       }
     } catch (error) {
       console.error('Error submitting form:', error);
-    
+
       if (error.response) {
         // The request was made and the server responded with a status code
         // that falls out of the range of 2xx
         console.error('Response data:', error.response.data);
         console.error('Response status:', error.response.status);
         console.error('Response headers:', error.response.headers);
-        
+
         // Extract and set the error message from the response
-        setErrorMessage(`Error: ${error.response.data.error}`);
+        // setErrorMessage(`Error: ${error.response.data.error}`);
       } else if (error.request) {
         // The request was made but no response was received
         console.error('No response received from the server');
-        setErrorMessage('Error: No response received from the server');
+        // setErrorMessage('Error: No response received from the server');
       } else {
         // Something happened in setting up the request that triggered an Error
         console.error('Error setting up the request:', error.message);
-        setErrorMessage(`Error: ${error.message}`);
-      }  
-    
-      // Reset form submission status
-      setIsSubmitting(false);
-    } finally {
-      setIsSubmitting(false); // Reset form submission status
-    }
+        // setErrorMessage(`Error: ${error.message}`);
+      }
 
+      // Reset form submission status
+      // setIsSubmitting(false);
+    }
   };
-  const specialisms = [
-    { value: "Banking", label: "Banking" },
-    { value: "Digital & Creative", label: "Digital & Creative" },
-    { value: "Retail", label: "Retail" },
-    { value: "Human Resources", label: "Human Resources" },
-    { value: "Managemnet", label: "Managemnet" },
-    { value: "Accounting & Finance", label: "Accounting & Finance" },
-    { value: "Digital", label: "Digital" },
-    { value: "Creative Art", label: "Creative Art" },
-  ];
+
   const [isFocused, setIsFocused] = useState(false);
 
   const handleInputFocus = () => {
@@ -366,436 +312,705 @@ specialismValues.forEach((specialism, index) => {
     WebkitBoxSizing: 'border-box',
     boxSizing: 'border-box',
     borderRadius: '8px',
-
- 
   };
-  
-  const [activeAt, setActiveAt] = useState(null);
-  const [expireAt, setExpireAt] = useState(null);
-  
-  const fetchActiveExpireDates = async () => {
-    try {
-      const response = await axios.get(`http://localhost:8080/Application_deadline/${userId}`);
-      console.log("API Response:", response);
-  
-      const packageInfo = response.data.packageInfo[0];
-  
-      // Check if Active_at and Expire_At properties exist
-      if (!('Active_at' in packageInfo) || !('Expire_At' in packageInfo)) {
-        console.error('Active_at or Expire_At is missing in packageInfo.');
-        return;
+
+  const experienceOptions = [
+    { value: "Fresh", label: "Fresh" },
+    { value: "<1", label: "Less than 1 Year" },
+    { value: 1, label: "1 Year" },
+    { value: 2, label: "2 Years" },
+    { value: 3, label: "3 Years" },
+    { value: 4, label: "4 Years" },
+    { value: 5, label: "5 Years" },
+    { value: 6, label: "6 Years" },
+    { value: 7, label: "7 Years" },
+    { value: 8, label: "8 Years" },
+    { value: 9, label: "9 Years" },
+    { value: 10, label: "10 Years" },
+    { value: 11, label: "11 Years" },
+    { value: 12, label: "12 Years" },
+    { value: 13, label: "13 Years" },
+    { value: 14, label: "14 Years" },
+    { value: 15, label: "15 Years" },
+    { value: 16, label: "16 Years" },
+    { value: 17, label: "17 Years" },
+    { value: 18, label: "18 Years" },
+    { value: 19, label: "19 Years" },
+    { value: 20, label: "20 Years" },
+    { value: ">21", label: "More than 20 Years" },
+  ];
+
+  const validateField = (name, value) => {
+    let newErrors = { ...errors };
+
+    // Required fields
+    if (["job_title", "job_description", "time_from", "time_to", "min_salary", "max_salary", "no_of_positions", "application_deadline", "industry"].includes(name)) {
+      if (!value || value.trim() === "") {
+        newErrors[name] = `${name.replace("_", " ")} is required.`;
+      } else {
+        delete newErrors[name];
       }
-  
-      const activeAtDate = new Date(packageInfo.Active_at);
-      const expireAtDate = new Date(packageInfo.Expire_At);
-  
-      setActiveAt(activeAtDate);
-      setExpireAt(expireAtDate);
-  
-      console.log('Active_at:', activeAtDate);
-      console.log('Expire_At:', expireAtDate);
-  
-    } catch (error) {
-      console.error('Error fetching active and expire dates:', error.message);
-      // Handle the error accordingly
     }
-  };
-  
-  
-  
 
-  
-  
+    // Salary range validation
+    // Salary range validation
+    if (name === "min_salary" || name === "max_salary") {
+      const min = values.min_salary !== "" ? parseFloat(values.min_salary) : null;
+      const max = values.max_salary !== "" ? parseFloat(values.max_salary) : null;
+
+      if (min !== null && max !== null) {
+        if (isNaN(min) || isNaN(max)) {
+          newErrors.salary = "Salary must be a valid number.";
+        } else if (max <= min) {
+          newErrors.salary = "Max salary must be greater than min salary.";
+        } else {
+          delete newErrors.salary;
+        }
+      } else {
+        delete newErrors.salary; // don’t run range check until both are filled
+      }
+    }
+
+
+
+    // Experience range validation
+    if (name === "min_experience" || name === "max_experience") {
+      if (values.min_experience && values.max_experience &&
+        Number(values.max_experience) <= Number(values.min_experience)) {
+        newErrors.experience = "Max experience must be greater than min experience.";
+      } else {
+        delete newErrors.experience;
+      }
+    }
+
+    // Deadline validation
+    if (name === "application_deadline") {
+      const today = new Date();
+      const deadline = new Date(value);
+      if (deadline <= today) {
+        newErrors.deadline = "Application deadline must be greater than today's date.";
+      } else {
+        delete newErrors.deadline;
+      }
+    }
+
+    setErrors(newErrors);
+  };
+
+
+
   const handleInputchange = (event) => {
     const { name, value } = event.target;
-  
-    if (name === 'application_deadline') {
-      const selectedDate = new Date(value);
-      console.log('Selected Date:', selectedDate);
-  
-      // Check the time zone offset
-      console.log('Timezone Offset:', selectedDate.getTimezoneOffset());
-  
-      const adjustedSelectedDate = new Date(selectedDate.getTime() - selectedDate.getTimezoneOffset() * 60000);
-      console.log('Adjusted Selected Date:', adjustedSelectedDate);
-  
-      console.log('Active At:', activeAt);
-      console.log('Expire At:', expireAt);
-  
-      // Check if the selected date is valid
-      if (!isDateValid(selectedDate, activeAt, expireAt)) {
-        // Handle the case where the selected date is invalid
-        // For example, you can set an error message or disable form submission
-        return;
-      }
-  
-      setFormData((prevData) => ({ ...prevData, [name]: value }));
-    } else {
-      setFormData((prevData) => ({ ...prevData, [name]: value }));
-    }
-  };
-  
-  const isDateValid = (date, activeAt, expireAt) => {
-    const selectedDate = new Date(date);
-    const adjustedSelectedDate = new Date(selectedDate.getTime() - selectedDate.getTimezoneOffset() * 60000);
-  
-    if (activeAt === null || expireAt === null || isNaN(adjustedSelectedDate.getTime())) {
-      console.log('Active or Expire date is null or invalid.');
-      setErrors((prevErrors) => ({
-        ...prevErrors,
-        application_deadline: 'Active or Expire date is null or invalid.',
-      }));
-      return false;
-    }
-  
-    if (!(adjustedSelectedDate >= activeAt && adjustedSelectedDate <= expireAt)) {
-      console.log('Selected date is outside the active range.');
-      setErrors((prevErrors) => ({
-        ...prevErrors,
-        application_deadline: 'Selected date is outside the active range.',
-      }));
-      return false;
-    }
-  
-    setErrors((prevErrors) => ({
-      ...prevErrors,
-      application_deadline: '',
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
     }));
-  
-    console.log('Selected date is within the active range.');
-    return true;
+
+    // Run field validation on change
+    validateField(name, value);
   };
+
+
 
   useEffect(() => {
-    if (userId) {
-      fetchActiveExpireDates();
-    }
-  }, [userId]);
+    console.log("form data", values);
+  }, [values]);
+
+  // Keep values in sync with selectedCountry, selectedDistrict, selectedCity
+  // useEffect(() => {
+  //   setFormData((prev) => ({
+  //     ...prev,
+  //     country_id: selectedCountry,
+  //     district_id: selectedDistrict,
+  //     city_id: selectedCity,
+  //   }));
+  // }, [selectedCountry, selectedDistrict, selectedCity]);
+
+  const refs = {
+    job_title: useRef(null),
+    job_description: useRef(null),
+    skill_ids: useRef(null),
+    time_from: useRef(null),
+    time_to: useRef(null),
+    job_type_id: useRef(null),
+    min_salary: useRef(null),
+    max_salary: useRef(null),
+    currency_id: useRef(null),
+    min_experience: useRef(null),
+    max_experience: useRef(null),
+    no_of_positions: useRef(null),
+    profession_id: useRef(null),
+    degree_id: useRef(null),
+    country_id: useRef(null),
+    district_id: useRef(null),
+    city_id: useRef(null),
+    application_deadline: useRef(null),
+    industry: useRef(null),
+  };
+
+
   return (
     <div>
-        {successMessage && (
-    <div ref={successMessageRef}>
-      <div className="alert alert-info" role="alert">
-        {successMessage}
-      </div>
-    </div>
-  )}
-  {errorMessage && (
-    <div ref={successMessageRef}>
-      <div className="alert alert-danger" role="alert">
-        {errorMessage}
-      </div>
-    </div>
-  )}
-      <form className="default-form" onSubmit={handlesubmit}>
+      {!showPricing &&
+        <form className="default-form" onSubmit={handlesubmit}>
+          <div className='text-danger py-4'> *  -  All fields are mandatory</div>
+          <div className="row">
+            {/* <!-- Input --> */}
+            <div className="form-group col-lg-12 col-md-12">
+              <label>Job Title <span className="text-danger">*</span></label>
+              <input type="text" name="job_title" ref={refs.job_title} placeholder="Title" value={values.job_title} onChange={handleInputchange} />
+              {errors?.job_title && (
+                <div className="text-danger">{errors.job_title}</div>
+              )}
+            </div>
 
-        <div className="row">
+            {/* <!-- About Company --> */}
+            <div className="form-group col-lg-12 col-md-12">
+              <label>Job Description <span className="text-danger">*</span></label>
+              <textarea type="text" ref={refs.job_description} value={values.job_description} name="job_description" placeholder=
+                // "Spent several years working on sheep on Wall Street. Had moderate success investing in Yugo's on Wall Street. Managed a small team buying and selling Pogo sticks for farmers. Spent several years licensing licorice in West Palm Beach, FL. Developed several new methods for working it banjos in the aftermarket. Spent a weekend importing banjos in West Palm Beach, FL.In this position, the Software Engineer collaborates with Evention's Development team to continuously enhance our current software solutions as well as create new solutions to eliminate the back-office operations and management challenges present"
+                "Describe your job in detail"
+                onChange={handleInputchange}></textarea>
+              {errors?.job_description && (
+                <div className="error-message text-danger">{errors?.job_description}</div>
+              )}
+            </div>
+            <div className="form-group col-lg-6 col-md-12">
+              <label>Skills <span className="text-danger">*</span></label>
+              <AsyncSelect
+                isMulti
+                cacheOptions
+                defaultOptions
+                loadOptions={loadSkills}
+                value={values.skill_ids || []}
+                ref={refs.skill_ids}
+                onChange={(selectedOptions) => {
+                  // handleInputchange({ target: { name: "skills", value: selectedOption } })}
+                  setFormData((prev) => ({ ...prev, skill_ids: selectedOptions || [] }))
+                  if (errors.skill_ids) {
+                    setErrors((prev) => {
+                      const newErrors = { ...prev };
+                      delete newErrors.skill_ids;
+                      return newErrors;
+                    });
+                  }
+                }
+                }
 
-          {/* <!-- Input --> */}
-          <div className="form-group col-lg-12 col-md-12">
-            <label>Job Title <span className="text-danger">*</span></label>
-            <input type="text" name="job_title" placeholder="Title" value={values.job_title} onChange={handleInputchange} />
-            {errors.job_title && (
-              <div className="error-message text-danger">{errors.job_title}</div>
-            )}
-          </div>
+                styles={{
+                  control: (provided) => ({
+                    ...provided,
+                    minHeight: "50px",
+                    height: "60px",
+                    backgroundColor: "rgb(240, 245, 247)",
+                    border: "none",
+                  }),
+                  indicatorsContainer: (provided) => ({
+                    ...provided,
+                    height: "38px",
+                  }),
+                }}
+              />
 
-          {/* <!-- About Company --> */}
-          <div className="form-group col-lg-12 col-md-12">
-            <label>Job Description <span className="text-danger">*</span></label>
-            <textarea type="text" value={values.job_description} name="job_description" placeholder="Spent several years working on sheep on Wall Street. Had moderate success investing in Yugo's on Wall Street. Managed a small team buying and selling Pogo sticks for farmers. Spent several years licensing licorice in West Palm Beach, FL. Developed several new methods for working it banjos in the aftermarket. Spent a weekend importing banjos in West Palm Beach, FL.In this position, the Software Engineer collaborates with Evention's Development team to continuously enhance our current software solutions as well as create new solutions to eliminate the back-office operations and management challenges present" onChange={handleInputchange}></textarea>
-            {errors.job_description && (
-              <div className="error-message text-danger">{errors.job_description}</div>
-            )}
-          </div>
+              {errors?.skill_ids && (
+                <div className="text-danger">{errors.skill_ids}</div>
+              )}
+            </div>
 
-          {/* <!-- Input --> */}
-          <div className="form-group col-lg-6 col-md-12">
-            <label>Email Address (optional)</label>
-            <input type="text" name="email" value={values.email} placeholder="" onChange={handleInputchange} />
-            {errors.email && (
-              <div className="error-message text-danger">{errors.email}</div>
-            )}
-          </div>
+            <div className="form-group col-lg-6 col-md-12">
+              <label>Job Timings <span className="text-danger">*</span></label>
+              <div style={{ display: 'flex', direction: 'row', gap: '10px', width: "100%" }}>
+                <div style={{ flex: 1 }}>
+                  <input
+                    type="time"
+                    ref={refs.time_from}
+                    className="form-control"
+                    value={values.time_from}
+                    name="time_from"
+                    onChange={handleInputchange}
+                    style={inputStyles}
+                  />
+                  {errors?.time_from && (
+                    <div className="text-danger">{errors?.time_from}</div>
+                  )}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <input
+                    ref={refs.time_to}
+                    type="time"
+                    className="form-control"
+                    value={values.time_to}
+                    name="time_to"
+                    onChange={handleInputchange}
+                    style={inputStyles}
+                  />
+                  {errors?.time_to && (
+                    <div className="text-danger">{errors?.time_to}</div>
+                  )}
 
-          {/* <!-- Input --> */}
-          <div className="form-group col-lg-6 col-md-12">
-            <label>Username <span className="text-danger">*</span></label>
-            <input type="text" name="username" value={values.username} placeholder="" onChange={handleInputchange} />
-            {errors.username && (
-              <div className="error-message text-danger">{errors.username}</div>
-            )}
-          </div>
-
-          {/* <!-- Search Select --> */}
-          <div className="form-group col-lg-6 col-md-12">
-            <label>Specialisms <span className="text-danger">*</span></label>
-            {/* <Select
-              isMulti
-              name="specialisms"
-              options={specialisms}
-              className="basic-multi-select"
-              classNamePrefix="select"
-              onChange={handleSelectChange}
-            
-            /> */}
-                  <Select
-          value={selectedDepartments}
-          isMulti
-          name="specialisms"
-          options={specialisms}
-          className="basic-multi-select"
-          classNamePrefix="select"
-          onChange={(selectedOptions) => {
-            setSelectedDepartments(selectedOptions);
-            handleSelectChange(selectedOptions);
-          }}
-        />
-
-            {errors.specialisms && (
-              <div className="error-message text-danger">{errors.specialisms}</div>
-            )}
-          </div>
-
-          <div className="form-group col-lg-6 col-md-12">
-            <label>Job Type <span className="text-danger">*</span></label>
-            <select className="chosen-single form-select" value={values.job_type} name="job_type" onChange={handleInputchange} >
-              <option>Select</option>
-              <option>Private</option>
-              <option>Urgent</option>
-              <option>freelancer</option>
-              <option>full time</option>
-              <option>part time</option>
-              <option>temporary</option>
-            </select>
-            {errors.job_type && (
-              <div className="error-message text-danger">{errors.job_type}</div>
-            )}
-          </div>
-
-          {/* <!-- Input --> */}
-          <div className="form-group col-lg-6 col-md-12">
-            <label>Offered Salary <span className="text-danger">*</span></label>
-            <select className="chosen-single form-select" value={values.salary} name="salary" onChange={handleInputchange} >
-              <option>Select</option>
-              <option>$1500</option>
-              <option>$2000</option>
-              <option>$2500</option>
-              <option>$3500</option>
-              <option>$4500</option>
-              <option>$5000</option>
-            </select>
-            {errors.salary && (
-              <div className="error-message text-danger">{errors.salary}</div>
-            )}
-          </div>
-
-          <div className="form-group col-lg-6 col-md-12">
-            <label>Career Level <span className="text-danger">*</span></label>
-            <select className="chosen-single form-select" name="career" value={values.career} onChange={handleInputchange} >
-              <option>Select</option>
-              <option>Banking</option>
-              <option>Digital & Creative</option>
-              <option>Retail</option>
-              <option>Human Resources</option>
-              <option>Management</option>
-            </select>
-            {errors.career && (
-              <div className="error-message text-danger">{errors.career}</div>
-            )}
-          </div>
-
-          <div className="form-group col-lg-6 col-md-12">
-            <label>Experience <span className="text-danger">*</span></label>
-            <select className="chosen-single form-select" name="experience" value={values.experience} onChange={handleInputchange} >
-              <option>Select</option>
-              <option>Banking</option>
-              <option>Digital & Creative</option>
-              <option>Retail</option>
-              <option>Human Resources</option>
-              <option>Management</option>
-            </select>
-            {errors.experience && (
-              <div className="error-message text-danger">{errors.experience}</div>
-            )}
-          </div>
-
-          <div className="form-group col-lg-6 col-md-12">
-            <label>Gender <span className="text-danger">*</span></label>
-            <select className="chosen-single form-select" name="gender" value={values.gender} onChange={handleInputchange} >
-              <option>Select</option>
-              <option>Male</option>
-              <option>Female</option>
-              <option>Other</option>
-            </select>
-            {errors.gender && (
-              <div className="error-message text-danger">{errors.gender}</div>
-            )}
-          </div>
-
-          <div className="form-group col-lg-6 col-md-12">
-            <label>Category <span className="text-danger">*</span></label>
-            <select className="chosen-single form-select" name="industry" value={values.industry} onChange={handleInputchange}>
-              <option>Select</option>
-              <option>Pathologist</option>
-              <option>Histotechnologist</option>
-              <option>Cytotechnologist</option>
-              <option>Medical Laboratory Technician</option>
-              <option>Pathology Assistant</option>
-              <option>Clinical Pathologist</option>
-              <option>Health</option>
-            </select>
-            {errors.industry && (
-              <div className="error-message text-danger">{errors.industry}</div>
-            )}
-          </div>
-
-          <div className="form-group col-lg-6 col-md-12">
-            <label>Qualification <span className="text-danger">*</span></label>
-            <select className="chosen-single form-select" value={values.qualification} name="qualification" onChange={handleInputchange} >
-              <option>Select</option>
-              <option>Banking</option>
-              <option>Digital & Creative</option>
-              <option>Retail</option>
-              <option>Human Resources</option>
-              <option>Management</option>
-            </select>
-            {errors.qualification && (
-              <div className="error-message text-danger">{errors.qualification}</div>
-            )}
-          </div>
-
-          {/* <!-- Input --> */}
-          {/* <div className="form-group col-lg-6 col-md-12">
-          <label>Application Deadline Date</label>
-          <input type="datetime-local" name="application_deadline" placeholder="06.04.2020" onChange={handleInputchange}  />
-        </div> */}
-          <div className="form-group col-lg-6 col-md-12">
-            <label>Application Deadline Date <span className="text-danger">*</span></label>
-            {/* <input
-              type="datetime-local"
-              name="application_deadline"
-              placeholder="MM/DD/YYYY"
-              value={values.application_deadline}
-              onChange={handleInputchange}
-              onFocus={handleInputFocus}
-              onBlur={handleInputBlur}
-              className="form-control"
-              style={inputStyles}
-            /> */}
-<input
-  type="datetime-local"
-  name="application_deadline"
-  placeholder="MM/DD/YYYY"
-  value={values.application_deadline}
-  onChange={handleInputchange}
-  onFocus={handleInputFocus}
-  onBlur={handleInputBlur}
-  className="form-control"
-  style={inputStyles}
-  min={(new Date()).toISOString().slice(0, 16)} // Set min to the current date and time
-  max={expireAt instanceof Date && !isNaN(expireAt) ? expireAt.toISOString().slice(0, 16) : ''}
-/>
-
-
-            {errors.application_deadline && (
-              <div className="error-message text-danger">{errors.application_deadline}</div>
-            )}
-          </div>
-
-          {/* <div className="form-group col-lg-6 col-md-12">
-              <label>Application Deadline Date</label>
-              <div className="w-100">
-                <DatePicker
-                  selected={values.application_deadline}
-                  onChange={handleDateChange}
-                  dateFormat="MM/dd/yyyy"
-                  placeholderText="MM/DD/YYYY"
-              // Apply inline style for width
-                />
+                  {/* {errors.m && (
+                  <div className='error-message text-danger'>{errors.max_salary}</div>
+                )} */}
+                </div>
               </div>
-            </div> */}
+            </div>
+
+            <div className="form-group col-lg-6 col-md-12">
+              <label>Job Type <span className="text-danger">*</span></label>
+              <AsyncSelect
+                ref={refs.job_type_id}
+                cacheOptions
+                defaultOptions
+                loadOptions={loadJobTypes}
+                value={values.job_type_id || null}
+                onChange={(selectedOption) => {
+                  setFormData((prev) => ({ ...prev, job_type_id: selectedOption }))
+                  if (errors.job_type_id) {
+                    setErrors((prev) => {
+                      const newErrors = { ...prev };
+                      delete newErrors.job_type_id;
+                      return newErrors;
+                    });
+                  }
+                }
+                }
+
+                styles={{
+                  control: (provided) => ({
+                    ...provided,
+                    minHeight: "50px",
+                    height: "60px",
+                    backgroundColor: "rgb(240, 245, 247)",
+                    border: "none",
+                  }),
+                  indicatorsContainer: (provided) => ({
+                    ...provided,
+                    height: "38px",
+                  }),
+                }}
+              />
+              {errors?.job_type_id && (
+                <div className="text-danger">{errors?.job_type_id}</div>
+              )}
+            </div>
+
+            <div className="form-group col-lg-6 col-md-12">
+              <label>Salary Range<span className="text-danger">*</span></label>
+              <div style={{ display: 'flex', direction: 'row', gap: '10px', width: "100%" }}>
+                <div style={{ flex: 1 }}>
+                  <input
+                    type='number'
+                    ref={refs.min_salary}
+                    className='form-control'
+                    value={values.min_salary}
+                    placeholder="min"
+                    name="min_salary"
+                    onChange={handleInputchange}
+                  />
+                  {errors?.min_salary && (
+                    <div className="text-danger">{errors?.min_salary}</div>
+                  )}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <input type="number"
+                    ref={refs.max_salary}
+                    className='form-control'
+                    value={values.max_salary}
+                    name="max_salary"
+                    onChange={handleInputchange}
+                  />
+                  {errors?.max_salary && (
+                    <div className="text-danger">{errors?.max_salary}</div>
+                  )}
+                  {errors?.salary && <div className="text-danger">{errors?.salary}</div>}
+                </div>
+
+                <span>
+                  <AsyncSelect
+                    ref={refs.currency_id}
+                    cacheOptions
+                    defaultOptions
+                    loadOptions={loadCurrency}
+                    value={values.currency_id || null}
+                    onChange={(selectedOption) => {
+                      setFormData((prev) => ({ ...prev, currency_id: selectedOption }))
+                      if (errors.currency_id) {
+                        setErrors((prev) => {
+                          const newErrors = { ...prev };
+                          delete newErrors.currency_id;
+                          return newErrors;
+                        });
+                      }
+                    }
+                    }
+
+                    styles={{
+                      control: (provided) => ({
+                        ...provided,
+                        minHeight: "50px",
+                        height: "60px",
+                        backgroundColor: "rgb(240, 245, 247)",
+                        border: "none",
+                      }),
+                      indicatorsContainer: (provided) => ({
+                        ...provided,
+                        height: "38px",
+                      }),
+                    }}
+                  /></span>
+                {errors?.currency_id && (
+                  <div className="text-danger">{errors?.currency_id}</div>
+                )}
+                {/* </div> */}
+              </div>
+            </div>
+
+            <div className="form-group col-lg-6 col-md-12">
+              <label>Experience <span className="text-danger">*</span></label>
+              <div style={{ display: "flex", flexDirection: "row", gap: "10px" }}>
+                <div style={{ flex: 1 }}>
+                  {/* Dropdown */}
+                  <select
+                    className="chosen-single form-select"
+                    name="experienceType"
+                    ref={refs.min_experience}
+                    value={values.min_experience || ""}
+                    onChange={(e) => {
+                      setFormData((prev) => ({ ...prev, min_experience: e.target.value }))
+                      if (errors.min_experience) {
+                        setErrors((prev) => {
+                          const newErrors = { ...prev };
+                          delete newErrors.min_experience;
+                          return newErrors;
+                        });
+                      }
+                    }}
+
+                  >
+                    <option value="">min</option>
+                    {experienceOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                  {errors?.min_experience && (
+                    <div className="text-danger">{errors?.min_experience}</div>
+                  )}
+                </div>
+                <div style={{ flex: 1 }} className="no-scrollbar overflow-auto">
+                  <select
+                    className="chosen-single form-select"
+                    name="experienceType"
+                    ref={refs.max_experience}
+                    value={values.max_experience || ""}
+                    onChange={(e) => {
+                      setFormData((prev) => ({ ...prev, max_experience: e.target.value }))
+                      if (errors.max_experience) {
+                        setErrors((prev) => {
+                          const newErrors = { ...prev };
+                          delete newErrors.max_experience;
+                          return newErrors;
+                        });
+                      }
+                    }}
+                  >
+                    <option value="">max</option>
+                    {experienceOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                  {errors?.max_experience && (
+                    <div className="text-danger">{errors?.max_experience}</div>
+                  )}
+                </div>
+                {errors?.experience && <div className="text-danger">{errors?.experience}</div>}
+              </div>
+
+            </div>
 
 
-          {/* <!-- Input --> */}
-          <div className="form-group col-lg-6 col-md-12">
-            <label>City <span className="text-danger">*</span></label>
-            <select className="chosen-single form-select" value={values.city} name="city" onChange={handleInputchange} >
-              <option>Melbourne</option>
-              <option>Pakistan</option>
-              <option>Chaina</option>
-              <option>Japan</option>
-              <option>India</option>
-            </select>
-            {errors.city && (
-              <div className="error-message text-danger">{errors.city}</div>
-            )}
-          </div>
 
-          {/* <!-- Input --> */}
-          <div className="form-group col-lg-12 col-md-12">
-            <label>Complete Address <span className="text-danger">*</span></label>
-            <input
-              type="text"
-              name="address"
-              value={values.address}
-              placeholder="329 Queensberry Street, North Melbourne VIC 3051, Australia."
-              onChange={handleInputchange}
-            />
-            {errors.address && (
-              <div className="error-message text-danger">{errors.address}</div>
-            )}
-          </div>
+            <div className="form-group col-lg-6 col-md-12">
+              <label>No of Positions <span className="text-danger">*</span></label>
+              <input type="number"
+                ref={refs.no_of_positions}
+                className='form-control'
+                value={values.no_of_positions}
+                name="no_of_positions"
+                onChange={handleInputchange}
+              />
+              {errors?.no_of_positions && (
+                <div className="text-danger">{errors?.no_of_positions}</div>
+              )}
+            </div>
 
-          {/* <!-- Input --> */}
-          {/* <div className="form-group col-lg-6 col-md-12">
-          <label>Find On Map</label>
-          <input
-            type="text"
-            name="name"
-            placeholder="329 Queensberry Street, North Melbourne VIC 3051, Australia."
-          />
-        </div> */}
+            <div className="form-group col-lg-6 col-md-12">
+              <label>Speciality <span className="text-danger">*</span></label>
+              <AsyncSelect
+                ref={refs.profession_id}
+                cacheOptions
+                defaultOptions
+                loadOptions={loadProfessions}
+                value={values.profession_id || null}
+                onChange={(selectedOption) => {
+                  setFormData((prev) => ({ ...prev, profession_id: selectedOption }))
+                  if (errors.profession_id) {
+                    setErrors((prev) => {
+                      const newErrors = { ...prev };
+                      delete newErrors.profession_id;
+                      return newErrors;
+                    });
+                  }
+                }
+                }
 
-          {/* <!-- Input --> */}
-          {/* <div className="form-group col-lg-3 col-md-12">
-          <label>Latitude</label>
-          <input type="text" name="name" placeholder="Melbourne" />
-        </div> */}
+                styles={{
+                  control: (provided) => ({
+                    ...provided,
+                    minHeight: "50px",
+                    height: "60px",
+                    backgroundColor: "rgb(240, 245, 247)",
+                    border: "none",
+                  }),
+                  indicatorsContainer: (provided) => ({
+                    ...provided,
+                    height: "38px",
+                  }),
+                }}
+              />
+              {errors?.profession_id && (
+                <div className="text-danger">{errors?.profession_id}</div>
+              )}
+            </div>
 
-          {/* <!-- Input --> */}
-          {/* <div className="form-group col-lg-3 col-md-12">
-          <label>Longitude</label>
-          <input type="text" name="name" placeholder="Melbourne" />
-        </div> */}
+            <div className="form-group col-lg-6 col-md-12">
+              <label>Qualification Required <span className="text-danger">*</span></label>
+              <AsyncSelect
+                ref={refs.degree_id}
+                cacheOptions
+                defaultOptions
+                loadOptions={loadDegree}
+                value={values.degree_id || null}
+                onChange={(selectedOption) => {
+                  setFormData((prev) => ({ ...prev, degree_id: selectedOption }))
+                  if (errors.degree_id) {
+                    setErrors((prev) => {
+                      const newErrors = { ...prev };
+                      delete newErrors.degree_id;
+                      return newErrors;
+                    });
+                  }
+                }
+                }
 
-          {/* <!-- Input --> */}
-          {/* <div className="form-group col-lg-12 col-md-12">
-          <button className="theme-btn btn-style-three">Search Location</button>
-        </div> */}
+                styles={{
+                  control: (provided) => ({
+                    ...provided,
+                    minHeight: "50px",
+                    height: "60px",
+                    backgroundColor: "rgb(240, 245, 247)",
+                    border: "none",
+                  }),
+                  indicatorsContainer: (provided) => ({
+                    ...provided,
+                    height: "38px",
+                  }),
+                }}
+              />
+              {errors?.degree_id && (
+                <div className="text-danger">{errors?.degree_id}</div>
+              )}
+            </div>
+            <div className="form-group col-lg-6 col-md-12">
+              <label>Country <span className="text-danger">*</span></label>
+              <AsyncSelect
+                ref={refs.country_id}
+                cacheOptions
+                defaultOptions
+                loadOptions={loadCountries}
+                value={selectedCountry || null}
+                onChange={(option) => {
+                  setSelectedCountry(option);
+                  setSelectedDistrict(null);
+                  setSelectedCity(null);
+                  if (errors.country_id) {
+                    setErrors((prev) => {
+                      const newErrors = { ...prev };
+                      delete newErrors.country_id;
+                      return newErrors;
+                    });
+                  }
+                }}
+                styles={{
+                  control: (provided) => ({
+                    ...provided,
+                    minHeight: "50px",
+                    height: "60px",
+                    backgroundColor: "rgb(240, 245, 247)",
+                    border: "none",
+                  }),
+                  indicatorsContainer: (provided) => ({
+                    ...provided,
+                    height: "38px",
+                  }),
+                }}
+              />
+              {errors?.country_id && (
+                <div className="text-danger">{errors?.country_id}</div>
+              )}
+            </div>
 
-          {/* <div className="form-group col-lg-12 col-md-12">
-          <div className="map-outer">
-            <div style={{ height: "420px", width: "100%" }}>
-              <Map />
+            <div className="form-group col-lg-6 col-md-12">
+              <label>District <span className="text-danger">*</span></label>
+              <AsyncSelect
+                key={selectedCountry?.value}
+                ref={refs.district_id}
+                cacheOptions
+                defaultOptions
+                loadOptions={loadDistricts}
+                value={selectedDistrict || null}
+                onChange={(option) => {
+                  setSelectedDistrict(option);
+                  setSelectedCity(null);
+                  if (errors.district_id) {
+                    setErrors((prev) => {
+                      const newErrors = { ...prev };
+                      delete newErrors.district_id;
+                      return newErrors;
+                    });
+                  }
+                }}
+                isDisabled={!selectedCountry}
+                styles={{
+                  control: (provided) => ({
+                    ...provided,
+                    minHeight: "50px",
+                    height: "60px",
+                    backgroundColor: "rgb(240, 245, 247)",
+                    border: "none",
+                  }),
+                  indicatorsContainer: (provided) => ({
+                    ...provided,
+                    height: "38px",
+                  }),
+                }}
+              />
+              {errors?.district_id && (
+                <div className="text-danger">{errors?.district_id}</div>
+              )}
+            </div>
+
+
+
+            <div className="form-group col-lg-6 col-md-12">
+              <label>City <span className="text-danger">*</span></label>
+              <AsyncSelect
+                key={selectedDistrict?.value}
+                ref={refs.city_id}
+                cacheOptions
+                defaultOptions
+                loadOptions={fetchCities}
+                value={selectedCity || null}
+                onChange={(option) => {
+                  setSelectedCity(option)
+                  if (errors.city_id) {
+                    setErrors((prev) => {
+                      const newErrors = { ...prev };
+                      delete newErrors.city_id;
+                      return newErrors;
+                    });
+                  }
+                }}
+                isDisabled={!selectedDistrict}
+                styles={{
+                  control: (provided) => ({
+                    ...provided,
+                    minHeight: "50px",
+                    height: "60px",
+                    backgroundColor: "rgb(240, 245, 247)",
+                    border: "none",
+                  }),
+                  indicatorsContainer: (provided) => ({
+                    ...provided,
+                    height: "38px",
+                  }),
+                }}
+              />
+              {errors?.city_id && (
+                <div className="text-danger">{errors?.city_id}</div>
+              )}
+            </div>
+
+            {/* Application deadline */}
+            <div className="form-group col-lg-6 col-md-12">
+              <label>Application Deadline Date <span className="text-danger">*</span></label>
+
+              <input
+                type="datetime-local"
+                name="application_deadline"
+                placeholder="MM/DD/YYYY"
+                value={values.application_deadline}
+                onChange={handleInputchange}
+                onFocus={handleInputFocus}
+                onBlur={handleInputBlur}
+                className="form-control"
+                style={inputStyles}
+                ref={refs.application_deadline}
+                min={(new Date()).toISOString().slice(0, 16)} // Set min to the current date and time
+              // max={expireAt instanceof Date && !isNaN(expireAt) ? expireAt.toISOString().slice(0, 16) : ''}
+              />
+              {errors?.application_deadline && (
+                <div className="text-danger">{errors?.application_deadline}</div>
+              )}
+              {errors?.deadline && <div className="text-danger">{errors?.deadline}</div>}
+            </div>
+
+            <div className="form-group col-lg-6 col-md-12">
+              <label htmlFor="industry" className="form-label">Industry / Facility Type</label>
+              <select
+                id="industry"
+                name="industry"
+                className="form-select"
+                value={values.industry || ""}
+                onChange={handleInputchange}
+                style={inputStyles}
+                ref={refs.industry}
+              >
+                <option value="">-- Select Industry --</option>
+                <option value="hospital_small">Hospital (Small, &lt;50 beds)</option>
+                <option value="hospital_medium">Hospital (Medium, 50–200 beds)</option>
+                <option value="hospital_large">Hospital (Large, 200+ beds)</option>
+                <option value="clinic">Clinic</option>
+                <option value="diagnostic_center">Diagnostic Center</option>
+                <option value="medical_laboratory">Medical Laboratory</option>
+                <option value="rehabilitation_center">Rehabilitation Center</option>
+                <option value="medical_equipment_supplier">Medical Equipment Supplier / Distributor</option>
+              </select>
+              {errors?.industry && (
+                <div className="text-danger">{errors?.industry}</div>
+              )}
+            </div>
+
+
+            {/* <!-- Input --> */}
+            <div className="form-group col-lg-12 col-md-12 text-right">
+              <input
+                type="hidden"
+                name="account_id"
+              // value={values.company_id} // Set the value to the actual company ID
+              />
+
+              <button className="theme-btn btn-style-one" type="submit">Save</button>
             </div>
           </div>
-        </div> */}
+        </form>
+      }
 
-          {/* <!-- Input --> */}
-          <div className="form-group col-lg-12 col-md-12 text-right">
-            <input
-              type="hidden"
-              name="account_id"
-            // value={values.company_id} // Set the value to the actual company ID
-            />
-
-            <button className="theme-btn btn-style-one" type="submit">Save</button>
-          </div>
-        </div>
-      </form>
+      {showPricing &&
+        <PricingForm jobId={jobId} setShowPricing={setShowPricing} />
+      }
     </div>
   );
 };
 
-export default PostJob;
+export default PostBoxForm;
