@@ -6,9 +6,10 @@ import { useSelector, useDispatch } from "react-redux";
 import { setLogoUsername } from "../../redux/features/user/userSlice.js";
 import api from "../lib/api.jsx";
 import { toast } from "react-toastify";
-import AsyncSelect from "react-select/async";
-import { useRouter } from "next/navigation";
 
+import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+const AsyncSelect = dynamic(() => import("react-select/async"), { ssr: false });
 // import LogoUpload from "./LogoUpload";
 const RegisterCompanyform = ({ isRegister, userId }) => {
   const router = useRouter();
@@ -26,7 +27,6 @@ const RegisterCompanyform = ({ isRegister, userId }) => {
   const [selectedCity, setSelectedCity] = useState(null);
   const [selectedBusinessEntityType, setSelectedBusinessEntityType] = useState(null);
   const [originalData, setOriginalData] = useState(null);
-
 
   const dispatch = useDispatch();
 
@@ -264,7 +264,7 @@ const RegisterCompanyform = ({ isRegister, userId }) => {
         );
 
         const userData = response.data;
-       
+
 
         if (userData && Object.keys(userData).length > 0) {
           let imageDataUrl = userData.logo;
@@ -319,7 +319,7 @@ const RegisterCompanyform = ({ isRegister, userId }) => {
     }
 
 
-    
+
     const validationErrors = {};
     // Basic validations
     if (!formData.logo) {
@@ -494,7 +494,7 @@ const RegisterCompanyform = ({ isRegister, userId }) => {
     }
   };
 
- 
+
 
   const inputStyles = {
     height: "3.5rem",
@@ -620,17 +620,18 @@ const RegisterCompanyform = ({ isRegister, userId }) => {
           />
           {errors.phone && <span style={{ color: "red" }}>{errors.phone}</span>}
         </div>
+        {/* Country */}
         <div className="form-group col-lg-6 col-md-12">
-
           <label>Country<span className="text-danger"> *</span></label>
           <AsyncSelect
             cacheOptions
-            defaultOptions
+            defaultOptions={selectedCountry ? [selectedCountry] : []} // show default
             loadOptions={loadCountries}
-            value={selectedCountry ?? ""}
+            value={selectedCountry}
             onChange={(option) => {
               setSelectedCountry(option);
               setSelectedDistrict(null); // reset district
+              setSelectedCity(null);     // reset city
               SetErrors((prev) => ({ ...prev, country: "" }));
             }}
             placeholder="Select Country"
@@ -639,16 +640,21 @@ const RegisterCompanyform = ({ isRegister, userId }) => {
           />
           {errors.country && <span style={{ color: "red" }}>{errors.country}</span>}
         </div>
-        <div className="form-group col-lg-6 col-md-12">
 
+        {/* District */}
+        <div className="form-group col-lg-6 col-md-12">
           <label>District<span className="text-danger"> *</span></label>
           <AsyncSelect
             key={selectedCountry?.value} // re-render when country changes
             cacheOptions
-            defaultOptions
+            defaultOptions={selectedDistrict ? [selectedDistrict] : []} // show default
             loadOptions={loadDistricts}
-            value={selectedDistrict ?? ""}
-            onChange={(option) => { setSelectedDistrict(option); SetErrors((prev) => ({ ...prev, district: "" })); }}
+            value={selectedDistrict}
+            onChange={(option) => {
+              setSelectedDistrict(option);
+              setSelectedCity(null); // reset city
+              SetErrors((prev) => ({ ...prev, district: "" }));
+            }}
             placeholder="Select District"
             isDisabled={!selectedCountry}
             className="Modal-input"
@@ -656,16 +662,20 @@ const RegisterCompanyform = ({ isRegister, userId }) => {
           />
           {errors.district && <span style={{ color: "red" }}>{errors.district}</span>}
         </div>
-        <div className="form-group col-lg-6 col-md-12">
 
+        {/* City */}
+        <div className="form-group col-lg-6 col-md-12">
           <label>City<span className="text-danger"> *</span></label>
           <AsyncSelect
             key={selectedDistrict?.value} // re-render when district changes
             cacheOptions
-            defaultOptions
+            defaultOptions={selectedCity ? [selectedCity] : []} // show default
             loadOptions={fetchCities}
-            value={selectedCity ?? ""}
-            onChange={(option) => { setSelectedCity(option); SetErrors((prev) => ({ ...prev, city: "" })) }}
+            value={selectedCity}
+            onChange={(option) => {
+              setSelectedCity(option);
+              SetErrors((prev) => ({ ...prev, city: "" }));
+            }}
             placeholder="Select City"
             isDisabled={!selectedDistrict}
             className="Modal-input"
@@ -673,6 +683,7 @@ const RegisterCompanyform = ({ isRegister, userId }) => {
           />
           {errors.city && <span style={{ color: "red" }}>{errors.city}</span>}
         </div>
+
         {/* <!-- Input --> */}
 
         <div className="form-group col-lg-6 col-md-12">

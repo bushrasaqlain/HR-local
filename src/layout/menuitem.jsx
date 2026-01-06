@@ -1,47 +1,4 @@
 
-export const findJobItems = [
-  {
-    
-    name: "Jobs List",
-    routePath: "/joblist",
-  },
-
-];
-export const employerItems = [
-  {
-    name: "Employers List",
-    routePath: "/employers-list/employers-list-v1",
-  },
- 
-
-];
-
-export const candidateItems = [
-  {
-    name: "Candidates List",
-        routePath: "/candidates-list/candidates-list-v2",
-  },
-]
-
-export const blogItems = [
-  {
-    name: "Blog List V1",
-    routePath: "/blog/blog-list-v1",
-  },
-  {
-    name: "Blog List V2",
-    routePath: "/blog/blog-list-v2",
-  },
-  {
-    name: "Blog List V3",
-    routePath: "/blog/blog-list-v3",
-  },
-  {
-    name: "Blog Details",
-    routePath: "/blog-details/1",
-  },
-];
-
 export const pageItems = [
   {
     name: "About",
@@ -67,45 +24,111 @@ export const pageItems = [
     name: "Contact",
     routePath: "/contact",
   },
-  // {
-  //   name: "404",
-  //   routePath: "/404",
-  // },
+
 ];
 
-export const shopItems = [
-  {
-    id: 1,
-    title: "Shop",
-    items: [
-      {
-        name: "Shop List",
-        routePath: "/shop/shop-list",
-      },
-      {
-        name: "Shop Single",
-        routePath: "/shop/shop-single/1",
-      },
-      {
-        name: "Cart",
-        routePath: "/shop/cart",
-      },
-      {
-        name: "Checkout",
-        routePath: "/shop/checkout",
-      },
-      {
-        name: "Order Completed",
-        routePath: "/shop/order-completed",
-      },
-      {
-        name: "Login",
-        routePath: "/login",
-      },
-      {
-        name: "Register",
-        routePath: "/register",
-      },
-    ],
-  },
+
+export const dbadminmenuitem = [
+  { key: "country", label: "Country" },
+  { key: "district", label: "District" },
+  { key: "city", label: "City" },
+  { key: "profession", label: "Profession" },
+  { key: "skills", label: "Skills" },
+  { key: "degreetype", label: "Degree" },
+  { key: "degreefields", label: "Degree Fields" },
+  { key: "currency", label: "Currency" },
+  { key: "businessentitytypes", label: "Business Entity" },
+  { key: "jobtypes", label: "Job Types" },
+    { key: "packages", label: "Packages" },
 ];
+export const regadminmenuitem = [
+  { key: "company", label: "Comapany List" },
+  { key: "candidate", label: "Candidates List" },
+  { key: "packages", label: "Packages List" },
+]
+
+export const companymenuitem = [
+  { key: "companyProfile", label: "Profile" },
+  { key: "allApplicants", label: "All Applicants" },
+  { key: "jobList", label: "Job List" },
+  // { key: "postJob", label: "Job Post" },
+  // { key: "WidgetContentBox", label: "ShortList Candidates" },
+  // { key: "packagesList", label: "Packages List" },
+  // { key: "messages", label: "messages" },
+  // { key: "Packages Prices", label: "pricing" },
+
+
+  //   id: 8,
+  //   name: "Resume Alerts",
+  //   icon: "la-bell",
+  //   routePath: `/employers-dashboard/resume-alerts`,
+  //   active: "",
+  // },
+
+];
+
+export const candidatesmenuitem = [
+  { key: "company", label: "Profile" },
+  { key: "candidate", label: "Candidates List" },
+]
+
+
+
+
+// export const shopItems = [
+//   {
+//     id: 1,
+//     title: "Shop",
+//     items: [
+//       {
+//         name: "Shop List",
+//         routePath: "/shop/shop-list",
+//       },
+//       {
+//         name: "Shop Single",
+//         routePath: "/shop/shop-single/1",
+//       },
+//       {
+//         name: "Cart",
+//         routePath: "/shop/cart",
+//       },
+//       {
+//         name: "Checkout",
+//         routePath: "/shop/checkout",
+//       },
+//       {
+//         name: "Order Completed",
+//         routePath: "/shop/order-completed",
+//       },
+//       {
+//         name: "Login",
+//         routePath: "/login",
+//       },
+//       {
+//         name: "Register",
+//         routePath: "/register",
+//       },
+//     ],
+//   },
+// ];
+// export const findJobItems = [
+//   {
+
+//     name: "Jobs List",
+//     routePath: "/joblist",
+//   },
+
+// ];
+// export const employerItems = [
+//   {
+//     name: "Employers List",
+//     routePath: "/employeelist",
+//   },
+// ];
+
+// export const candidateItems = [
+//   {
+//     name: "Candidates List",
+//     routePath: "/candidateslist",
+//   },
+// ]

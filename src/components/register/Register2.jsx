@@ -1,27 +1,38 @@
+"use client";
+
+import React from "react";
+import { Card, CardBody, CardTitle, Row, Col } from "reactstrap";
 import FormContent from "./FormContent";
 import Link from "next/link";
 
 const Register2 = ({ setShowNext, setUserId }) => {
   return (
-    <div className="form-inner">
-      <h3>Create a Free Superio Account</h3>
+    <Row className="justify-content-center mt-5">
+      <Col>
+        <Card className="shadow-sm">
+          <CardBody>
+            <CardTitle tag="h3" className="mb-4 text-center">
+              Create a Free Superio Account
+            </CardTitle>
 
-      <FormContent setShowNext={setShowNext} setUserId={setUserId}/>
+            {/* Registration Form */}
+            <FormContent setShowNext={setShowNext} setUserId={setUserId} />
 
-      <div className="bottom-box">
-        <div className="text">
-          Already have an account?{" "}
-          <Link href="/login" className="call-modal login">
-            LogIn
-          </Link>
-        </div>
-        {/* <div className="divider">
-          <span>or</span>
-        </div>
-        <LoginWithSocial /> */}
-      </div>
-      {/* End bottom-box LoginWithSocial */}
-    </div>
+            {/* Bottom Box */}
+            <div className="mt-3 text-center">
+              <p>
+                Already have an account?{" "}
+                <Link href="/login" passHref>
+                  <span style={{ color: "#0d6efd", cursor: "pointer" }}>Log In</span>
+                </Link>
+              </p>
+            </div>
+
+          
+          </CardBody>
+        </Card>
+      </Col>
+    </Row>
   );
 };
 

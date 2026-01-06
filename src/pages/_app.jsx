@@ -6,6 +6,7 @@ import { Provider } from "react-redux";
 import { store } from "../redux/store";
 // import "bootstrap-icons/font/bootstrap-icons.css";
 import "../styles/index.scss";
+import "bootstrap/dist/css/bootstrap.min.css";
 
 if (typeof window !== "undefined") {
   require("bootstrap/dist/js/bootstrap");

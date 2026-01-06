@@ -14,26 +14,33 @@ const authMiddleware = require("../middleware/auth.js");
 
 // Create the candidate_info table in the database
 
-
-router.post("/availability",candidateController.addAvailaibility)
-
-router.post("/", logo.single("logo"), candidateController.addCandidateInfo)
+router.get("/getallCandidates",candidateController.getAllCandidates)
+router.put("/updateStatus/:id/:status",candidateController.updateStatus)
 
 
-router.get("/candidate/", authMiddleware , candidateController.getCandidateInfo)
 
 
-// update canidate data
-router.put("/candidate/",authMiddleware , logo.single("logo"), candidateController.getCandidateInfobyId)
 
 
-router.get("/:accountId",candidateController.getCandidateFullProfilebyId )
+// router.post("/availability",candidateController.addAvailaibility)
 
-router.get("/logo/:accountId",candidateController.getCandidateLogobyId)
-
-router.get("/candidate/full_profile/:accountId",candidateController.getCandidateFullProfilebyId )
+// router.post("/", logo.single("logo"), candidateController.addCandidateInfo)
 
 
-router.get("/", candidateController.getCandidateInfobyAccountType)
+// router.get("/candidate/", authMiddleware , candidateController.getCandidateInfo)
+
+
+// // update canidate data
+// router.put("/candidate/",authMiddleware , logo.single("logo"), candidateController.getCandidateInfobyId)
+
+
+// router.get("/:accountId",candidateController.getCandidateFullProfilebyId )
+
+// router.get("/logo/:accountId",candidateController.getCandidateLogobyId)
+
+// router.get("/candidate/full_profile/:accountId",candidateController.getCandidateFullProfilebyId )
+
+
+// router.get("/", candidateController.getCandidateInfobyAccountType)
 
 module.exports = router;
