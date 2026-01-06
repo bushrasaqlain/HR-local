@@ -1,28 +1,18 @@
-const admindropdwonData = (userId) => {
-
-    return [
+const admindropdwonData = () => {
+  return [
     {
       id: 1,
       name: "Change Password",
       icon: "la-lock",
-      routePath: `/form/change-password/`,
-      active: "",
+      tabKey: "changepassword", // 👈 IMPORTANT
     },
     {
       id: 2,
       name: "Logout",
       icon: "la-sign-out",
-      routePath: "/",
-      active: "",
+      tabKey: "logout",
     },
-    // {
-    //   id: 3,
-    //   name: "Delete Profile",
-    //   icon: "la-trash",
-    //   routePath: "/",
-    //   active: "",
-    // },
   ];
-  };
-  
-  export default admindropdwonData;
+};
+
+export default admindropdwonData;

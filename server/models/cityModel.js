@@ -145,44 +145,61 @@ const getAllCities = ({ page, limit, name, search, status }, callback) => {
   const limitNum = parseInt(limit) || 15;
   const offset = (pageNum - 1) * limitNum;
 
-  let condition = "AND c.name LIKE ?";
-  let values = [status];
-  if (name === "district") {
-    condition = "AND d.name LIKE ?";
-    values.push(`%${search}%`);
-  } else if (name === "country") {
-    condition = "AND co.name LIKE ?";
-    values.push(`%${search}%`);
-  } else if (name === "created_at" || name === "updated_at") {
-    condition = `AND DATE(c.${name}) = ?`;
-    values.push(search);
-  } else {
-    values.push(`%${search}%`);
+  let whereConditions = [];
+  let values = [];
+
+  // ✅ Status filter (ONLY when active/inactive)
+  if (status && status !== "all") {
+    whereConditions.push("c.status = ?");
+    values.push(status);
   }
+
+  // ✅ Search filters
+  if (search) {
+    if (name === "district") {
+      whereConditions.push("d.name LIKE ?");
+      values.push(`%${search}%`);
+    } else if (name === "country") {
+      whereConditions.push("co.name LIKE ?");
+      values.push(`%${search}%`);
+    } else if (name === "created_at" || name === "updated_at") {
+      whereConditions.push(`DATE(c.${name}) = ?`);
+      values.push(search);
+    } else {
+      whereConditions.push("c.name LIKE ?");
+      values.push(`%${search}%`);
+    }
+  }
+
+  const whereClause =
+    whereConditions.length > 0
+      ? `WHERE ${whereConditions.join(" AND ")}`
+      : "";
 
   const query = `
     SELECT c.*, d.name AS district_name, co.name AS country_name, co.id AS country_id
     FROM cities c
     JOIN districts d ON c.district_id = d.id
     JOIN countries co ON d.country_id = co.id
-    WHERE c.status = ? ${condition}
+    ${whereClause}
     ORDER BY c.id DESC
     LIMIT ? OFFSET ?
   `;
-  values.push(limitNum, offset);
 
-  connection.query(query, values, (err, results) => {
+  const queryValues = [...values, limitNum, offset];
+
+  connection.query(query, queryValues, (err, results) => {
     if (err) return callback(err);
 
     const countQuery = `
-      SELECT COUNT(*) AS total 
+      SELECT COUNT(*) AS total
       FROM cities c
       JOIN districts d ON c.district_id = d.id
       JOIN countries co ON d.country_id = co.id
-      WHERE c.status = ? ${condition}
+      ${whereClause}
     `;
 
-    connection.query(countQuery, values.slice(0, -2), (err2, countResult) => {
+    connection.query(countQuery, values, (err2, countResult) => {
       if (err2) return callback(err2);
 
       callback(null, {

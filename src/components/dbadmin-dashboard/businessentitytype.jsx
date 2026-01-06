@@ -1,366 +1,538 @@
-import React, { useState, useEffect } from "react";
+import React, { Component } from "react";
 import axios from "axios";
 import Pagination from "../common/pagination.jsx";
-import api from '../lib/api.jsx';
+import { toast } from "react-toastify";
+import api from "../lib/api.jsx";
+import MetaTags from "react-meta-tags";
+import {
+  Card,
+  Row,
+  Col,
+  Container,
+  CardBody,
+  Table,
+  Button,
+  Modal,
+  ModalBody,
+  ModalHeader,
+} from "react-bootstrap";
 
+class BusinessEntityTypes extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      businesstype: [],
+      showModal: false,
+      inputValue: "",
+      editId: null,
+      deleteId: null,
+      deleteStatus: null,
+      showDeleteConfirm: false,
+      showHistoryModal: false,
+      history: [],
+      currentPage: 1,
+      totalbusinesstype: 0,
+      isActive: "all",
 
-const BusinessEntityTypes = () => {
-    const [packageData, setPackageData] = useState([]);
-    const [showModal, setShowModal] = useState(false);
-    const [inputValue, setInputValue] = useState("");
-    const [editId, setEditId] = useState(null);
-    const [deleteId, setDeleteId] = useState(null);    // Track id to delete
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // Show confirm modal
-    const [showHistoryModal, setShowHistoryModal] = useState(false);
-    const [history, setHistory] = useState(null);
-
-    const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 15;
-
-
-    const [totalCities, setTotalCities] = useState(0);
-    const totalPages = Math.ceil(totalCities / itemsPerPage);
-    const [isActive, setIsActive] = useState("active");
-    
-
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-
-    const fetchskills = async (page = currentPage, status = isActive) => {
-        axios.get(`${apiBaseUrl}getallbusinesstypes?page=${currentPage}&limit=15&status=${isActive}`)
-            .then(response => {
-                setPackageData(response.data.business_types);
-                setTotalCities(response.data.total);
-            })
-            .catch(error => {
-                console.error('Error fetching data:', error);
-            });
     };
 
-   
-    useEffect(() => {
-                       fetchskills();
-                       resetSearch();
-                     }, [currentPage, isActive]);
-    
+    this.itemsPerPage = 50;
+    this.apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  }
 
-    const toggleForm = (item = null) => {
-        if (item) {
-            setEditId(item.id);
-            setInputValue(item.name);
-        } else {
-            setEditId(null);
-            setInputValue("");
-        }
-        setShowModal(true);
-    };
+  componentDidMount() {
+    this.fetchbusinesstype();
+  }
 
-    const handleSave = async () => {
-        try {
-            if (editId) {
-                // ✅ update API
-                const response = await api.put(`${apiBaseUrl}editbusinesstype/${editId}`, { name: inputValue });
-
-                // ✅ update local state instead of refreshing
-                setPackageData((prev) =>
-                    prev.map((item) =>
-                        item.id === editId ? { ...item, name: inputValue, updated_at: new Date().toISOString() } : item
-                    )
-                );
-            } else {
-                // ✅ add new entry
-                const response = await api.post(`${apiBaseUrl}addbusinesstype`, { name: inputValue });
-
-                // if API returns the new item, use that, else just create temp
-                const newItem = response.data?.business_type || {
-                    id: Date.now(), // fallback temp id
-                    name: inputValue,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                    status: "active",
-                };
-
-                // prepend OR append (depending on your requirement)
-                setPackageData((prev) => [newItem, ...prev]);
-                setTotalCities((prev) => prev + 1);
-            }
-
-            // ✅ close modal, reset
-            setShowModal(false);
-            setInputValue("");
-            setEditId(null);
-        } catch (error) {
-            console.error("Error saving business entity type:", error);
-        }
-    };
-
-
-    const confirmDelete = (id) => {
-        setDeleteId(id);
-        setShowDeleteConfirm(true);
-    };
-
-    // When user confirms deletion
-    const handleDelete = async () => {
-        try {
-            await api.delete(`${apiBaseUrl}deletebusinesstype/${deleteId}`);
-            setShowDeleteConfirm(false);
-            setDeleteId(null);
-            fetchskills();
-        } catch (error) {
-            console.error('Error deleting business entity type:', error);
-        }
-    };
-
-    // Cancel deletion
-    const cancelDelete = () => {
-        setShowDeleteConfirm(false);
-        setDeleteId(null);
-    };
-
-    const handlePageChange = async (page) => {
-        setCurrentPage(page);
-
-        try {
-            const response = await axios.get(`${apiBaseUrl}search`, {
-                params: {
-                    name: res?.name || "",
-                    type: "BusinessEntityType",
-                    page,
-                    limit: 15
-                }
-            });
-
-
-            setPackageData(response.data.results);
-            setTotalCities(response.data.total);
-        } catch (error) {
-            console.error("Error fetching search results:", error);
-        }
-    };
-
-    const fetchHistory = async (id) => {
-        if (!id) return;
-        try {
-            const res = await axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}dbadminhistory`, {
-                params: { entity_type: "business_entity_type", entity_id: id }
-            });
-           
-            setHistory(res.data);
-        } catch (error) {
-            console.error("Error fetching history:", error);
-        }
+  componentDidUpdate(prevProps, prevState) {
+    if (
+      prevState.currentPage !== this.state.currentPage ||
+      prevState.isActive !== this.state.isActive
+    ) {
+      this.fetchbusinesstype();
+      this.resetSearch();
     }
-    const toggleHistory = (item = null) => {
-        if (item) {
-            fetchHistory(item.id);
-        }
-        setShowHistoryModal(true);
+  }
+
+  fetchbusinesstype = async (
+    page = this.state.currentPage,
+    status = this.state.isActive
+  ) => {
+    try {
+      const response = await axios.get(`${this.apiBaseUrl}getallbusinesstypes`, {
+        params: { page, limit: this.itemsPerPage, status },
+      });
+      this.setState({
+        businesstype: response.data.business_types || [],
+        totalbusinesstype: response.data.total || 0,
+      });
+    } catch (error) {
+      console.error("Error fetching Business Type:", error);
     }
+  };
 
-    const handleSearch = async (e) => {
-        const { name, value } = e.target;
+  formatDate = (dateStr) => {
+    if (!dateStr) return "";
 
-        // reset to page 1 when searching
-        setCurrentPage(1);
+    const date = new Date(dateStr);
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = date.toLocaleString("en-US", { month: "short" }); // Sep
+    const year = String(date.getFullYear()).slice(-2); // 25
 
-        // clear other fields
-        const inputs = ["name", "created_at", "updated_at"];
-        inputs.forEach((input) => {
-            if (input !== name) {
-                const ele = document.getElementById(input);
-                if (ele) ele.value = "";
-            }
+    return `${day}-${month}-${year}`;
+  };
+
+  fetchHistory = async (id) => {
+    if (!id) return;
+    try {
+      const res = await axios.get(`${this.apiBaseUrl}dbadminhistory`, {
+        params: { entity_type: "business_entity_type", entity_id: id },
+      });
+      this.setState({ history: res.data || [] });
+    } catch (error) {
+      console.error("Error fetching history:", error);
+    }
+  };
+
+  toggleForm = (item = null) => {
+    if (item) {
+      this.setState({
+        editId: item.id,
+        inputValue: item.name,
+        showModal: true,
+      });
+    } else {
+      this.setState({ editId: null, inputValue: "", showModal: true });
+    }
+  };
+
+  toggleHistory = (item = null) => {
+    if (item) this.fetchHistory(item.id);
+    this.setState({ showHistoryModal: true });
+  };
+
+  handleSave = async () => {
+    const { editId, inputValue } = this.state;
+    try {
+      if (editId) {
+        await api.put(`${this.apiBaseUrl}editbusinesstype/${editId}`, {
+          name: inputValue,
         });
-
-        try {
-            const res = await axios.get(`${apiBaseUrl}getallbusinesstypes`, {
-                params: {
-                    name,
-                    search: value,
-                    status: isActive,
-                    page: 1,   // force backend to send first page
-                    limit: 15,
-                },
-            });
-            setPackageData(res.data.business_types);
-            setTotalCities(res.data.total);
-        } catch (error) {
-            console.error("error in search", error);
-        }
-    };
-
-
-    const resetSearch = () => {
-        document.getElementById("name").value = "";
-        document.getElementById("created_at").value = "";
-        document.getElementById("updated_at").value = "";
+        this.setState((prevState) => ({
+          businesstype: prevState.businesstype.map((item) =>
+            item.id === editId ? { ...item, name: inputValue } : item
+          ),
+        }));
+      } else {
+        await api.post(`${this.apiBaseUrl}addbusinesstype`, { name: inputValue });
+        this.fetchbusinesstype(1);
+      }
+      this.setState({ showModal: false, inputValue: "", editId: null });
+    } catch (error) {
+      console.error("Error saving businesstype:", error);
     }
+  };
 
-    useEffect(() => {
-        resetSearch();
-    }, [isActive])
+  confirmDelete = (id, status) => {
+    this.setState({
+      deleteId: id,
+      deleteStatus: status, // ✅ actual row status
+      showDeleteConfirm: true,
+    });
+  };
+  handleDelete = async () => {
+    const { deleteId, isActive } = this.state;
+    try {
+      await api.delete(`${this.apiBaseUrl}deletebusinesstype/${deleteId}`);
+      toast.success(
+        isActive === "active"
+          ? "Inactivated successfully"
+          : "Activated successfully"
+      );
+      this.setState({ showDeleteConfirm: false }, this.fetchbusinesstype);
+    } catch (error) {
+      console.error("Error deleting businesstype:", error);
+    }
+  };
+
+  cancelDelete = () => {
+    this.setState({ showDeleteConfirm: false, deleteId: null });
+  };
+
+  handleSearch = async (e) => {
+    const { name, value } = e.target;
+    ["name", "created_at", "updated_at"].forEach((input) => {
+      if (input !== name) {
+        const ele = document.getElementById(input);
+        if (ele) ele.value = "";
+      }
+    });
+
+    this.setState({ currentPage: 1 });
+
+    try {
+      const res = await axios.get(`${this.apiBaseUrl}getallbusinesstypes`, {
+        params: {
+          name,
+          search: value,
+          status: this.state.isActive,
+          page: 1,
+          limit: this.itemsPerPage,
+        },
+      });
+      this.setState({
+        businesstype: res.data.business_types || [],
+        totalbusinesstype: res.data.total || 0,
+      });
+    } catch (error) {
+      console.error("Error searching businesstype:", error);
+    }
+  };
+
+  resetSearch = () => {
+    ["name", "created_at", "updated_at"].forEach((id) => {
+      const ele = document.getElementById(id);
+      if (ele) ele.value = "";
+    });
+  };
+
+  handlePageChange = (page) => {
+    this.setState({ currentPage: page });
+  };
+
+  render() {
+    const {
+      businesstype,
+      showModal,
+      inputValue,
+      showDeleteConfirm,
+      showHistoryModal,
+      history,
+      currentPage,
+      totalbusinesstype,
+      deleteStatus,
+      isActive,
+      editId,
+    } = this.state;
+    const totalPages = Math.ceil(totalbusinesstype / this.itemsPerPage);
 
     return (
-        <>
-            <table className="default-table manage-job-table">
-                <thead>
-                    <tr>
-                        <th>
-                            <div><input type="text" name="name" id="name" className="py-4 px-3 mb-3 w-100 rounded-4" onChange={(e) => handleSearch(e)} /></div>
-                            <div>Name</div>
+      <React.Fragment>
+        <MetaTags>
+          <title>businesstype | List</title>
+        </MetaTags>
+        <h6 className="fw-bold mb-3">businesstype List</h6>
+        <div className="poppins-font">
+          <Container fluid>
+            <div className="businesstype-header-section">
+              <p
+                className="breadcrumb-text"
+                title="History"
+                breadcrumbItem="Activity Log"
+              />
+
+              <div className="d-flex justify-content-end my-2">
+                <Button
+                  variant="dark"
+                  onClick={() => this.toggleForm()}
+                  className="add-businesstype-btn"
+                >
+                  Add New businesstype
+                </Button>
+              </div>
+
+              <div className="w-100 m-2">
+                <p className="filter-label text-dark">Filter by Status</p>
+                <select
+                  className="rounded-square form-select p-2"
+                  style={{
+                    maxWidth: "250px",
+                    // fontFamily: "Helvetica Neue, Arial, sans-serif",
+                    color: "#666565ff",
+                    border: "1px solid #ccc",
+                  }}
+                  value={isActive}
+                  onChange={(e) => this.setState({ isActive: e.target.value })}
+                >
+                  <option value="all">All</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+
+
+              </div>
+            </div>
+
+            <Card>
+              <CardBody>
+                <div className="table-responsive">
+                  <Table className="table-responsive align-middle default-table manage-job-table p-2 w-100 table table-striped custom-table">
+                    <thead className="align-middle">
+                      <tr>
+                       
+                        <th
+                          className="text-center"
+                          style={{ borderBottom: "1px solid #ccc" }}
+                        >
+                          <div className="d-flex flex-column align-items-center gap-1">
+                            <small
+                              className="text-dark fw-bold"
+                              style={{ fontSize: "1rem" }}
+                            >
+                              businesstype 
+                            </small>
+                            <input
+                              type="text"
+                              name="name"
+                              id="name"
+                              className="form-control rounded-4 text-center"
+                              placeholder="Search by name"
+                              onChange={this.handleSearch}
+                              style={{ maxWidth: "180px", borderColor: "#ccc" }}
+                            />
+                          </div>
                         </th>
-                        <th>
-                            <div><input type="date" name="created_at" id="created_at" className="py-4 px-3 mb-3 w-100 rounded-4" onChange={(e) => handleSearch(e)} max={new Date().toISOString().split('T')[0]} /></div>
-                            <div>Created At</div>
+
+                        <th
+                          className="text-center"
+                          style={{ borderBottom: "1px solid #ccc" }}
+                        >
+                          <div className="d-flex flex-column align-items-center gap-1">
+                            <small
+                              className="text-dark fw-bold"
+                              style={{ fontSize: "1rem" }}
+                            >
+                              Created
+                            </small>
+                            <input
+                              type="date"
+                              name="created_at"
+                              id="created_at"
+                              className="form-control rounded-4 text-center"
+                              onChange={this.handleSearch}
+                              style={{ borderColor: "#ccc" }}
+                            />
+                          </div>
                         </th>
-                        <th>
-                            <div><input type="date" name="updated_at" id="updated_at" className="py-4 px-3 mb-3 w-100 rounded-4" onChange={(e) => handleSearch(e)} max={new Date().toISOString().split('T')[0]} /></div>
-                            <div>Updated At</div>
+
+                        <th
+                          className="text-center"
+                          style={{ borderBottom: "1px solid #ccc" }}
+                        >
+                          <div className="d-flex flex-column align-items-center gap-1">
+                            <small
+                              className="text-dark fw-bold"
+                              style={{ fontSize: "1rem" }}
+                            >
+                              Updated
+                            </small>
+                            <input
+                              type="date"
+                              name="updated_at"
+                              id="updated_at"
+                              className="form-control rounded-4 text-center"
+                              onChange={this.handleSearch}
+                              style={{ borderColor: "#ccc" }}
+                            />
+                          </div>
                         </th>
-                        <th className="align-bottom">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {packageData?.map((item) => (
+                        <th
+                          className="text-center"
+                          style={{ borderBottom: "1px solid #ccc" }}
+                        >
+                          <div className="d-flex flex-column align-items-center gap-1">
+                            <small
+                              className="text-dark fw-bold"
+                              style={{ fontSize: "1rem" }}
+                            >
+                              Status
+                            </small>
+                            <input
+                              type="text"
+                              name="status"
+                              id="status"
+                              className="form-control rounded-4 text-center"
+                              onChange={this.handleSearch}
+                              style={{ borderColor: "#ccc" }}
+                            />
+                          </div>
+                        </th>
+                        <th
+                          className="text-center text-dark fw-bold"
+                          style={{
+                            fontSize: "1rem",
+                            borderBottom: "1px solid #ccc",
+                          }}
+                        >
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {businesstype.map((item) => (
                         <tr key={item.id}>
-                            <td>{item.name}</td>
-                            <td>{new Date(item.created_at).toISOString().split('T')[0]}</td>
-                            <td>{new Date(item.updated_at).toISOString().split('T')[0]}</td>
-                            <td className="status">
-                                <button onClick={() => toggleForm(item)}>
-                                    <span className="la la-pencil"></span>
-                                </button>
-                                <button onClick={() => confirmDelete(item.id)} className="mx-3">
+                          <td className="text-center">{item.name}</td>
+                          <td className="text-center">
+                            {this.formatDate(item.created_at)}
+                          </td>
+                          <td className="text-center">
+                            {this.formatDate(item.updated_at)}
+                          </td>
+                          <td className="text-center">
+                            {item.status}
+                          </td>
 
-                                    {item.status === "active" ?
-                                        <span className="la la-times-circle" style={{ color: "red" }}></span> :
-                                        <span className="la la-check-circle" style={{ color: "green" }}></span>
+                          <td className="status text-center">
+                            <div className="d-flex justify-content-center align-items-center gap-3">
+                              <button onClick={() => this.toggleForm(item)} className="icon-btn">
+                                <span className="la la-pencil"></span>
+                              </button>
 
+                              <button
+                                onClick={() => this.confirmDelete(item.id, item.status)}
+                                className="icon-btn"
+                              >
+                                {item.status === "active" ? (
+                                  <span className="la la-times-circle text-danger"></span>
+                                ) : (
+                                  <span className="la la-check-circle text-success"></span>
+                                )}
+                              </button>
 
-                                    }
-                                </button>
-                                <button onClick={() => toggleHistory(item)}>
-
-                                    <span className="la la-history"></span>
-                                </button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-
-            <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={(page) => {
-                    setCurrentPage(page);
-                    if (res) {
-                        handlePageChange(page);
-                    }
-                }}
-            />
-
-            {/* Add/Edit modal */}
-            {showModal && (
-                <div className="Modal-outer-div">
-                    <div className="Modal-inner-div">
-                        <h4>{editId ? "Edit Business Entity Type" : "Add Business Entity Type"}</h4>
-                        <input
-                            type="text"
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            placeholder="Enter Business Entity Type name"
-                            className="Modal-input"
-                        />
-                        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                            <button className="Modal-cancel-button" onClick={() => setShowModal(false)}>
-                                Cancel
-                            </button>
-                            <button className="Modal-save-button" onClick={handleSave}>
-                                Save
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Delete confirmation modal */}
-            {showDeleteConfirm && (
-                <div className="Modal-outer-div">
-                    <div className="Modal-inner-div">
-                        <h4>Confirm {isActive === "active" ? " In Activate" : " Activate"} </h4>
-                        <p>Are you sure you want to {isActive} this Business Entity?</p>
-                        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                            <button className="Modal-cancel-button" onClick={cancelDelete}>
-                                Cancel
-                            </button>
-                            <button className="Modal-save-button" onClick={handleDelete}>
-                                {isActive === "active" ? " In Activate" : " Activate"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {showHistoryModal && (
-                <div className="modal fade show" style={{ display: "block" }}>
-                    <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-                        <div className="modal-content">
-
-                            <div className="modal-header">
-                                <h5 className="modal-title">History</h5>
-                                <button
-                                    type="button"
-                                    className="btn-close"
-                                    onClick={() => setShowHistoryModal(false)}
-                                ></button>
+                              <button onClick={() => this.toggleHistory(item)} className="icon-btn">
+                                <span className="la la-history"></span>
+                              </button>
                             </div>
+                          </td>
 
-                            <div className="modal-body">
-                                {history?.map((item, idx) => (
-                                    <div
-                                        key={item.id || idx}
-                                        className="p-2 mb-2 rounded"
-                                        style={{
-                                            backgroundColor: idx % 2 === 0 ? "#f8f9fa" : "#e9ecef",
-                                            border: "1px solid #dee2e6",
-                                            fontSize: "14px",
-                                        }}
-                                    >
-                                        <strong>{item.data.name}</strong> was{" "}
-                                        <span
-                                            style={{
-                                                color:
-                                                    item.action === "ADDED"
-                                                        ? "green"
-                                                        : item.action === "UPDATED"
-                                                            ? "purple"
-                                                            : item.action === "ACTIVE"
-                                                                ? "teal"
-                                                                : "red",
-                                                fontWeight: "bold",
-                                            }}
-                                        >
-                                            {item.action}
-                                        </span>{" "}
-                                        by <em>{item.changed_by_name}</em> on{" "}
-                                        {item.changed_at?.split("T")[0]}
-                                    </div>
-                                ))} </div>
-                        </div>
-                    </div>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
                 </div>
-            )}
-            {/* Backdrop */}
-            {showHistoryModal && (
+              </CardBody>
+            </Card>
+          </Container>
+
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={this.handlePageChange}
+          />
+
+          {/* Add/Edit Modal */}
+          <Modal
+            show={showModal}
+            onHide={() => this.setState({ showModal: false })}
+            centered
+          >
+            <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
+              <Modal.Title style={{ fontSize: "1rem", marginBottom: "0" }}>
+                {editId ? "Edit businesstype" : "Add New businesstype"}
+              </Modal.Title>
+            </Modal.Header>
+            <Modal.Body style={{ paddingTop: "0.5rem" }}>
+              <label style={{ marginBottom: "0.25rem" }}>Name</label>
+              <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => this.setState({ inputValue: e.target.value })}
+                placeholder="Enter businesstype name"
+                className="form-control"
+              />
+            </Modal.Body>
+
+            <Modal.Footer>
+              <Button variant="primary" onClick={this.handleSave}>
+                Save
+              </Button>
+            </Modal.Footer>
+          </Modal>
+
+          {/* Delete Confirmation */}
+          <Modal show={showDeleteConfirm} onHide={this.cancelDelete} centered>
+            <Modal.Header closeButton>
+              <Modal.Title style={{ fontSize: "1rem", fontWeight: 600 }}>
+                Confirm {deleteStatus === "active" ? "Inactivate" : "Activate"}
+              </Modal.Title>
+            </Modal.Header>
+
+            <Modal.Body className="text-center py-3">
+              <p style={{ marginBottom: 0 }}>
+                Are you sure you want to{" "}
+                <strong>
+                  {deleteStatus === "active" ? "inactivate" : "activate"}
+                </strong>{" "}
+                this businesstype?
+              </p>
+            </Modal.Body>
+
+            <Modal.Footer className="d-flex justify-content-end gap-2">
+              <Button variant="secondary" onClick={this.cancelDelete}>
+                Cancel
+              </Button>
+
+              <Button
+                variant={deleteStatus === "active" ? "danger" : "success"}
+                onClick={this.handleDelete}
+              >
+                {deleteStatus === "active" ? "Inactivate" : "Activate"}
+              </Button>
+            </Modal.Footer>
+          </Modal>
+
+
+          {/* History Modal */}
+          <Modal
+            show={showHistoryModal}
+            onHide={() => this.setState({ showHistoryModal: false })}
+            centered
+            scrollable
+          >
+            <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
+              <Modal.Title style={{ fontSize: "1rem", marginBottom: 0 }}>
+                History
+              </Modal.Title>
+            </Modal.Header>
+
+            <Modal.Body style={{ paddingTop: "0.5rem" }}>
+              {history.map((item, idx) => (
                 <div
-                    className="modal-backdrop fade show"
-                    onClick={() => setShowHistoryModal(false)}
-                ></div>
-            )}
-        </>
+                  key={item.id || idx}
+                  className="p-2 mb-2 rounded"
+                  style={{
+                    backgroundColor: idx % 2 === 0 ? "#f8f9fa" : "#e9ecef",
+                    border: "1px solid #dee2e6",
+                    fontSize: "14px",
+                  }}
+                >
+                  <strong> {item.data.name} </strong> was{" "}
+                  <span
+                    style={{
+                      color:
+                        item.action === "ADDED"
+                          ? "green"
+                          : item.action === "UPDATED"
+                            ? "purple"
+                            : item.action === "ACTIVE"
+                              ? "teal"
+                              : "red",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {item.action}
+                  </span>{" "}
+                  by <em>{item.changed_by_name}</em> on{" "}
+                  {this.formatDate(item.changed_at)}
+                </div>
+              ))}
+            </Modal.Body>
+          </Modal>
+        </div>
+      </React.Fragment>
     );
-};
+  }
+}
 
 export default BusinessEntityTypes;
-

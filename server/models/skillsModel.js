@@ -135,23 +135,37 @@ const getAllSkills = (
     limit = parseInt(limit, 10) || 10;
     const offset = (page - 1) * limit;
 
-    const condition = name === "name" ? "name LIKE ?" : `DATE(${name}) = ?`;
-    const searchValue = name === "name" ? `%${search}%` : search;
+    let condition = "";
+    const values = [];
+
+    // Status filter
+    if (status !== "all") {
+        condition += " AND status = ?";
+        values.push(status);
+    }
+
+    // Search or date filter
+    if (name === "name") {
+        condition += " AND name LIKE ?";
+        values.push(`%${search}%`);
+    } else if (name === "created_at" || name === "updated_at") {
+        condition += ` AND DATE(${name}) = ?`;
+        values.push(search);
+    }
 
     const query = `
         SELECT * FROM skills
-        WHERE status = ? AND ${condition}
+        WHERE 1=1 ${condition}
         ORDER BY id DESC
         LIMIT ? OFFSET ?
     `;
-
-    const values = [status, searchValue, limit, offset];
+    values.push(limit, offset);
 
     connection.query(query, values, (err, results) => {
         if (err) return callback(err);
 
-        const countQuery = `SELECT COUNT(*) AS total FROM skills WHERE status = ? AND ${condition}`;
-        connection.query(countQuery, [status, searchValue], (err2, countResult) => {
+        const countQuery = `SELECT COUNT(*) AS total FROM skills WHERE 1=1 ${condition}`;
+        connection.query(countQuery, values.slice(0, -2), (err2, countResult) => {
             if (err2) return callback(err2);
 
             callback(null, {
@@ -163,6 +177,7 @@ const getAllSkills = (
         });
     });
 };
+
 
 
 const deleteSkill = (req, res) => {
