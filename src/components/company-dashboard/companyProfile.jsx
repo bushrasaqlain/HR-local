@@ -1,12 +1,15 @@
 import React, { Component, createRef } from "react";
 import axios from "axios";
-import { connect } from "react-redux";
+import { toast } from "react-toastify";
+import { Form, FormGroup, Label, Input, Button, Row, Col } from "reactstrap";
 import Select from "react-select";
+
 class CompanyProfile extends Component {
   constructor(props) {
     super(props);
     this.state = {
       formData: {
+        username: "",
         company_name: "",
         email: "",
         phone: "",
@@ -18,102 +21,107 @@ class CompanyProfile extends Component {
         business_type: "",
         company_address: "",
         company_website: "",
-        established_date: "", logo: "",
+        established_date: "",
+        logo: "",
       },
       selectedCountry: null,
       selectedDistrict: null,
       selectedCity: null,
+      selectedbusiness_type: null,
       countryOptions: [],
       districtOptions: [],
       cityOptions: [],
+      businesstypeOptions: [],
       logoImg: "",
       isNewImageUploaded: false,
       successMessage: "",
-      errors: {},
     };
     this.formRef = createRef();
     this.successMessageRef = createRef();
-  }
-  componentDidUpdate(prevProps) {
-    if (
-      this.props.userId &&
-      this.props.userId !== prevProps.userId
-    ) {
-      this.fetchCompanyProfile();
-      this.loadCountries();
-    }
+    this.userId = sessionStorage.getItem("userId");
   }
 
-
-  scrollToSuccessMessage = () => {
-    if (this.successMessageRef.current) {
-      window.scrollTo({
-        top: this.successMessageRef.current.offsetTop,
-        behavior: "smooth",
-      });
-    } else if (this.formRef.current) {
-      window.scrollTo({
-        top: this.formRef.current.offsetTop,
-        behavior: "smooth",
-      });
-    }
-  };
+  componentDidMount() {
+    this.fetchCompanyProfile();
+    this.loadCountries();
+    this.loadBusinessType();
+  }
 
   fetchCompanyProfile = async () => {
-    const { userId } = this.props;
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-
+    console.log(this.userId)
     try {
       const response = await axios.get(
-        `${apiBaseUrl}company-info/getcompanybyid/${userId}`
+        `${apiBaseUrl}company-info/getcompanybyid/${this.userId}`
       );
       const data = response.data;
-
       const logoData = data.logo ? `data:image/png;base64,${data.logo}` : "";
 
-      this.setState({
-        formData: {
-          company_name: data.username || "",
-          email: data.email || "",
-          phone: data.phone || "",
-          NTN: data.NTN || "",
-          city: data.city_name || "",
-          country: data.country_name || "",
-          district: data.district_name || "",
-          size_of_company: data.size_of_company || "",
-          business_type: data.business_type_name || "",
-          company_address: data.company_address || "",
-          company_website: data.company_website || "",
-          established_date: data.established_date || "",
-          logo: logoData,
+      this.setState(
+        {
+          formData: {
+            username: data.username,
+            company_name: data.username || "",
+            email: data.email || "",
+            phone: data.phone || "",
+            NTN: data.NTN || "",
+            city: data.city_name || "",
+            country: data.country_name || "",
+            district: data.district_name || "",
+            size_of_company: data.size_of_company || "",
+            business_type: data.Business_entity_type_id || "",
+            company_address: data.company_address || "",
+            company_website: data.company_website || "",
+            established_date: data.established_date || "",
+            logo: logoData,
+          },
+          logoImg: logoData,
+          selectedCountry: data.country_id
+            ? { value: data.country_id, label: data.country_name }
+            : null,
+          selectedDistrict: data.district_id
+            ? { value: data.district_id, label: data.district_name }
+            : null,
+          selectedCity: data.city_id
+            ? { value: data.city_id, label: data.city_name }
+            : null,
+          selectedbusiness_type: data.Business_entity_type_id
+            ? { value: data.Business_entity_type_id, label: data.business_type_name }
+            : null,
         },
-        logoImg: logoData,
-        selectedCountry: data.country_id
-          ? { value: data.country_id, label: data.country_name }
-          : null,
-        selectedDistrict: data.district_id
-          ? { value: data.district_id, label: data.district_name }
-          : null,
-        selectedCity: data.city_id
-          ? { value: data.city_id, label: data.city_name }
-          : null,
-      }, () => {
-        if (this.state.selectedCountry) this.loadDistricts();
-        if (this.state.selectedDistrict) this.loadCities();
-      });
-
+        () => {
+          if (this.state.selectedCountry) this.loadDistricts();
+          if (this.state.selectedDistrict) this.loadCities();
+        }
+      );
     } catch (error) {
       console.error(error);
     }
   };
+
   loadCountries = async () => {
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
     try {
-      const res = await axios.get(`${apiBaseUrl}getallCountries`, { params: { page: 1, limit: 100 } });
-      const options = res.data.countries.map(c => ({ label: c.name, value: c.id }));
+      const res = await axios.get(`${apiBaseUrl}getallCountries`, {
+        params: { page: 1, limit: 100 },
+      });
+      const options = res.data.countries.map((c) => ({ label: c.name, value: c.id }));
       this.setState({ countryOptions: options });
     } catch (error) {
       console.error("Error loading countries:", error);
+    }
+  };
+
+  loadBusinessType = async () => {
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    try {
+      const res = await axios.get(`${apiBaseUrl}getallbusinesstypes`, {
+        params: { page: 1, limit: 100, status: "Active" },
+      });
+      const options = res.data.business_types.map((b) => ({ label: b.name, value: b.id }));
+      this.setState({ businesstypeOptions: options });
+    } catch (error) {
+      console.error("Error loading business types:", error);
     }
   };
 
@@ -125,7 +133,7 @@ class CompanyProfile extends Component {
       const res = await axios.get(`${apiBaseUrl}getalldistricts`, {
         params: { country_id: selectedCountry.value, page: 1, limit: 100 },
       });
-      const options = res.data.districts.map(d => ({ label: d.name, value: d.id }));
+      const options = res.data.districts.map((d) => ({ label: d.name, value: d.id }));
       this.setState({ districtOptions: options });
     } catch (error) {
       console.error("Error loading districts:", error);
@@ -137,52 +145,68 @@ class CompanyProfile extends Component {
     if (!selectedDistrict) return;
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
     try {
-      const res = await axios.get(`${apiBaseUrl}getCitiesByDistrict/${selectedDistrict.value}`, { params: { page: 1, limit: 100 } });
-      const options = res.data.cities.map(c => ({ label: c.name, value: c.id }));
+      const res = await axios.get(`${apiBaseUrl}getCitiesByDistrict/${selectedDistrict.value}`, {
+        params: { page: 1, limit: 100 },
+      });
+      const options = res.data.cities.map((c) => ({ label: c.name, value: c.id }));
       this.setState({ cityOptions: options });
     } catch (error) {
       console.error("Error loading cities:", error);
     }
   };
 
-
-  handleCountryChange = (selectedCountry) => {
-    this.setState(prev => ({
-      selectedCountry,
-      selectedDistrict: null,
-      selectedCity: null,
+  handleBusinessTypeChange = (selectedbusiness_type) => {
+    this.setState((prev) => ({
+      selectedbusiness_type,
       formData: {
         ...prev.formData,
-        country: selectedCountry ? selectedCountry.value : "",
+        business_type: selectedbusiness_type ? selectedbusiness_type.value : "",
+      },
+    }));
+  };
+
+  handleCountryChange = (selectedCountry) => {
+    this.setState(
+      (prev) => ({
+        selectedCountry,
+        selectedDistrict: null,
+        selectedCity: null,
+        formData: {
+          ...prev.formData,
+          country: selectedCountry ? selectedCountry.value : "",
+        },
+      }),
+      () => {
+        if (selectedCountry) this.loadDistricts();
       }
-    }), () => {
-      if (selectedCountry) this.loadDistricts();
-    });
+    );
   };
 
   handleDistrictChange = (selectedDistrict) => {
-    this.setState(prev => ({
-      selectedDistrict,
-      selectedCity: null,
-      formData: {
-        ...prev.formData,
-        district: selectedDistrict ? selectedDistrict.value : "",
+    this.setState(
+      (prev) => ({
+        selectedDistrict,
+        selectedCity: null,
+        formData: {
+          ...prev.formData,
+          district: selectedDistrict ? selectedDistrict.value : "",
+        },
+      }),
+      () => {
+        if (selectedDistrict) this.loadCities();
       }
-    }), () => {
-      if (selectedDistrict) this.loadCities();
-    });
+    );
   };
 
   handleCityChange = (selectedCity) => {
-    this.setState(prev => ({
+    this.setState((prev) => ({
       selectedCity,
       formData: {
         ...prev.formData,
         city: selectedCity ? selectedCity.value : "",
-      }
+      },
     }));
   };
-
 
   handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -196,11 +220,7 @@ class CompanyProfile extends Component {
       const reader = new FileReader();
       reader.onloadend = () => {
         this.setState((prevState) => ({
-          formData: {
-            ...prevState.formData,
-            logo: reader.result,
-            logoName: file.name,
-          },
+          formData: { ...prevState.formData, logo: reader.result, logoName: file.name },
           logoImg: reader.result,
           isNewImageUploaded: true,
         }));
@@ -238,8 +258,7 @@ class CompanyProfile extends Component {
 
   handleSubmit = async (e) => {
     e.preventDefault();
-    const { userId } = this.props;
-    const { formData, isNewImageUploaded } = this.state;
+    const { formData } = this.state;
 
     const formDataToSend = new FormData();
 
@@ -251,25 +270,23 @@ class CompanyProfile extends Component {
 
     Object.entries(formData).forEach(([key, value]) => {
       if (value !== undefined && key !== "logo") {
-        if (key === "company_address") {
-          formDataToSend.append("company_address", value);
-        } else {
-          formDataToSend.append(key, value);
-        }
+        formDataToSend.append(key, value);
       }
     });
 
-    formDataToSend.append("account_id", userId);
-
+    formDataToSend.append("account_id", this.userId);
+    formDataToSend.append("userId", this.userId);
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
     try {
       const response = await axios.put(
-        `http://localhost:8080/companyinfochanges/${userId}`,
+        `${apiBaseUrl}company-info/updateCompanyinfo`,
         formDataToSend,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
 
       if (response.status === 200) {
         this.setState({ successMessage: "Company profile updated successfully!" });
+        toast.success("Company profile updated successfully!");
       } else {
         this.setState({ successMessage: "Error: Unable to update company profile." });
       }
@@ -279,150 +296,149 @@ class CompanyProfile extends Component {
   };
 
   render() {
-    const { formData, logoImg, successMessage, cityOptions, countryOptions, districtOptions } = this.state;
-    const inputStyles = {
-      height: "3.5rem",
-      position: "relative",
-      width: "100%",
-      display: "block",
-      lineHeight: "30px",
-      padding: "15px 20px",
-      fontSize: "15px",
-      color: "#696969",
-      backgroundColor: "#f0f5f7",
-      border: "1px solid #f0f5f7",
-      boxSizing: "border-box",
-      borderRadius: "8px",
-    };
+    const { formData, logoImg, successMessage, countryOptions, districtOptions, cityOptions, businesstypeOptions } =
+      this.state;
 
     return (
       <div>
         {successMessage && (
           <div ref={this.successMessageRef}>
-            <div className={`alert alert-info`} role="alert">
-              {successMessage}
-            </div>
+            <div className="alert alert-info">{successMessage}</div>
           </div>
         )}
+
         <div className="widget-title d-flex align-items-center mb-3">
           <h4 className="me-3">Company Profile</h4>
         </div>
-        <form className="default-form" ref={this.formRef} onSubmit={this.handleSubmit}>
-          <div className="row">
-            <div className="uploading-outer">
+
+        <Form ref={this.formRef} onSubmit={this.handleSubmit}>
+          <Row className="mb-3">
+            <Col md={12} className="d-flex align-items-center gap-3 mb-3">
               <div>
                 <strong>Current Logo: </strong>
-                {logoImg && <img src={logoImg} alt="Selected Logo" style={{ maxWidth: "100%", maxHeight: "100px" }} />}
-                <div className="uploadButton">
-                  <input
-                    className="form-control"
-                    style={inputStyles}
-                    type="file"
-                    id="upload"
-                    accept=".jpg,.jpeg,.png"
-                    onChange={(e) => this.logoHandler(e.target.files[0])}
-                  />
-                </div>
+                {logoImg && <img src={logoImg} alt="Selected Logo" style={{ maxWidth: "100px", maxHeight: "100px" }} />}
               </div>
-            </div>
-
-            <div className="form-group col-lg-4 col-md-12">
-              <label>Company Name</label>
-              <input type="text" name="company_name" value={formData.company_name} onChange={this.handleInputChange} />
-            </div>
-
-            <div className="form-group col-lg-4 col-md-12">
-              <label>Email</label>
-              <input type="email" name="email" value={formData.email} onChange={this.handleInputChange} />
-            </div>
-
-            <div className="form-group col-lg-4 col-md-12">
-              <label>Phone</label>
-              <input type="text" name="phone" value={formData.phone} onChange={this.handleInputChange} />
-            </div>
-            <div className="form-group col-lg-4 col-md-12">
-              <label>Size of Company</label>
-              <input type="number" name="size_of_company" value={formData.size_of_company} onChange={this.handleInputChange} />
-            </div>
-
-            <div className="form-group col-lg-4 col-md-12">
-              <label>Business Type</label>
-              <input type="text" name="business_type" value={formData.business_type} onChange={this.handleInputChange} />
-            </div>
-
-            <div className="form-group col-lg-4 col-md-12">
-              <label>Company Website</label>
-              <input type="text" name="company_website" value={formData.company_website} onChange={this.handleInputChange} />
-            </div>
-
-            <div className="form-group col-lg-6 col-md-12">
-              <label>Established Date</label>
-              <input type="date" name="established_date" value={formData.established_date} onChange={this.handleInputChange} />
-            </div>
-
-            <div className="form-group col-lg-6 col-md-12">
-              <label>NTN</label>
-              <input type="text" name="NTN" value={formData.NTN} onChange={this.handleInputChange} />
-            </div>
-
-            <div className="row">
-              <div className="form-group col-lg-4 col-md-12">
-                <label>Country</label>
-                <Select
-                  value={this.state.selectedCountry}
-                  options={countryOptions}
-                  onChange={this.handleCountryChange}
-                  placeholder="Select country"
+              <div>
+                <Input
+                  type="file"
+                  id="upload"
+                  accept=".jpg,.jpeg,.png"
+                  onChange={(e) => this.logoHandler(e.target.files[0])}
                 />
               </div>
+            </Col>
 
-              <div className="form-group col-lg-4 col-md-12">
-                <label>District</label>
+            <Col lg={4}>
+              <FormGroup>
+                <Label>Company Name</Label>
+                <Input type="text" name="company_name" value={formData.company_name} onChange={this.handleInputChange} />
+              </FormGroup>
+            </Col>
+
+            <Col lg={4}>
+              <FormGroup>
+                <Label>Email</Label>
+                <Input type="email" name="email" value={formData.email} onChange={this.handleInputChange} />
+              </FormGroup>
+            </Col>
+
+            <Col lg={4}>
+              <FormGroup>
+                <Label>Phone</Label>
+                <Input type="text" name="phone" value={formData.phone} onChange={this.handleInputChange} />
+              </FormGroup>
+            </Col>
+
+            <Col lg={4}>
+              <FormGroup>
+                <Label>Size of Company</Label>
+                <Input type="number" name="size_of_company" value={formData.size_of_company} onChange={this.handleInputChange} />
+              </FormGroup>
+            </Col>
+
+            <Col lg={4}>
+              <FormGroup>
+                <Label>Business Entity Type</Label>
+                <Select
+                  value={this.state.selectedbusiness_type}
+                  options={businesstypeOptions}
+                  onChange={this.handleBusinessTypeChange}
+                  placeholder="Select Business Type"
+                />
+              </FormGroup>
+            </Col>
+
+            <Col lg={4}>
+              <FormGroup>
+                <Label>Company Website</Label>
+                <Input type="text" name="company_website" value={formData.company_website} onChange={this.handleInputChange} />
+              </FormGroup>
+            </Col>
+
+            <Col lg={6}>
+              <FormGroup>
+                <Label>Established Date</Label>
+                <Input type="date" name="established_date" value={formData.established_date} onChange={this.handleInputChange} />
+              </FormGroup>
+            </Col>
+
+            <Col lg={6}>
+              <FormGroup>
+                <Label>NTN</Label>
+                <Input type="text" name="NTN" value={formData.NTN} onChange={this.handleInputChange} />
+              </FormGroup>
+            </Col>
+
+            <Col lg={4}>
+              <FormGroup>
+                <Label>Country</Label>
+                <Select value={this.state.selectedCountry} options={countryOptions} onChange={this.handleCountryChange} placeholder="Select Country" />
+              </FormGroup>
+            </Col>
+
+            <Col lg={4}>
+              <FormGroup>
+                <Label>District</Label>
                 <Select
                   value={this.state.selectedDistrict}
                   options={districtOptions}
                   onChange={this.handleDistrictChange}
-                  placeholder="Select district"
+                  placeholder="Select District"
                   isDisabled={!this.state.selectedCountry}
                 />
-              </div>
+              </FormGroup>
+            </Col>
 
-              <div className="form-group col-lg-4 col-md-12">
-                <label>City</label>
+            <Col lg={4}>
+              <FormGroup>
+                <Label>City</Label>
                 <Select
                   value={this.state.selectedCity}
                   options={cityOptions}
                   onChange={this.handleCityChange}
-                  placeholder="Select city"
+                  placeholder="Select City"
                   isDisabled={!this.state.selectedDistrict}
                 />
-              </div>
-            </div>
+              </FormGroup>
+            </Col>
 
+            <Col lg={12}>
+              <FormGroup>
+                <Label>Company Address</Label>
+                <Input type="text" name="company_address" value={formData.company_address} onChange={this.handleInputChange} />
+              </FormGroup>
+            </Col>
 
-
-            <div className="form-group col-lg-12 col-md-12">
-              <label>Company Address</label>
-              <input type="text" name="company_address" value={formData.company_address} onChange={this.handleInputChange} />
-            </div>
-
-            <div className="form-group col-lg-6 col-md-12">
-              <button className="theme-btn btn-style-one" type="submit">
+            <Col lg={6}>
+              <Button color="primary" type="submit">
                 Save
-              </button>
-            </div>
-          </div>
-        </form >
-      </div >
+              </Button>
+            </Col>
+          </Row>
+        </Form>
+      </div>
     );
   }
 }
 
-const mapStateToProps = (state, ownProps) => {
-  return {
-    userId: ownProps.userId || state.user.userId,
-  };
-};
-
-
-export default connect(mapStateToProps)(CompanyProfile);
+export default CompanyProfile;

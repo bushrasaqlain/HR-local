@@ -21,7 +21,6 @@ const CompanyDashboardArea = ({ activeTab }) => {
         if (typeof window !== "undefined") {
             const userId = sessionStorage.getItem("userId");
             const token = sessionStorage.getItem("token");
-
             if (!token) {
                 router.replace("/login");
                 return;

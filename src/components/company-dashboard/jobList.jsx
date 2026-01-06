@@ -3,6 +3,16 @@ import Link from "next/link";
 import axios from "axios";
 import { withRouter } from "next/router";
 import { connect } from "react-redux";
+import {
+  Table,
+  Input,
+  Button,
+  Badge,
+  Pagination,
+  PaginationItem,
+  PaginationLink,
+  Container,
+} from "reactstrap";
 
 class JobListings extends Component {
   constructor(props) {
@@ -20,12 +30,12 @@ class JobListings extends Component {
         status: "",
       },
     };
+    this.userId = sessionStorage.getItem("userId");
   }
 
   componentDidMount() {
-    const { userId } = this.props;
-    if (userId) {
-      this.fetchData(userId);
+    if (this.userId) {
+      this.fetchData(this.userId);
     }
   }
 
@@ -62,15 +72,12 @@ class JobListings extends Component {
   };
 
   handleDeleteJob = async (jobId) => {
-    const { userId } = this.props;
-
     if (!window.confirm("Are you sure you want to delete this job?")) return;
 
     try {
       await axios.delete(
-        `http://localhost:8080/delete_job/${userId}/${jobId}`
+        `http://localhost:8080/delete_job/${this.userId}/${jobId}`
       );
-
       this.setState((prev) => ({
         jobListings: prev.jobListings.filter((job) => job.id !== jobId),
       }));
@@ -92,8 +99,7 @@ class JobListings extends Component {
         job.created_and_expired_date
           .toLowerCase()
           .includes(createdExpired.toLowerCase()) &&
-        (status === "" ||
-          job.status.toLowerCase() === status.toLowerCase())
+        (status === "" || job.status.toLowerCase() === status.toLowerCase())
       );
     });
   };
@@ -101,128 +107,121 @@ class JobListings extends Component {
   render() {
     const { jobListings, loading, currentPage, jobsPerPage, filters } =
       this.state;
-    const { userId } = this.props;
-
-    const indexOfLast = currentPage * jobsPerPage;
-    const indexOfFirst = indexOfLast - jobsPerPage;
-    const currentJobs = this.filterJobs(
-      jobListings.slice(indexOfFirst, indexOfLast)
-    );
-
-    const totalPages = Math.ceil(jobListings.length / jobsPerPage);
 
     if (loading) return <p className="text-center">Loading...</p>;
 
+    const indexOfLast = currentPage * jobsPerPage;
+    const indexOfFirst = indexOfLast - jobsPerPage;
+    const currentJobs = this.filterJobs(jobListings.slice(indexOfFirst, indexOfLast));
+    const totalPages = Math.ceil(jobListings.length / jobsPerPage);
+
     return (
-      <div className="container mt-4">
+      <Container className="mt-4">
         <h4 className="mb-3">My Job Listings</h4>
 
-        <div className="table-responsive">
-          <table className="table table-bordered table-hover">
-            <thead className="table-light">
-              <tr>
-                <th>
-                  Title
-                  <input
-                    className="form-control mt-2"
-                    value={filters.title}
-                    onChange={(e) =>
-                      this.handleFilterChange("title", e.target.value)
-                    }
-                  />
-                </th>
-                <th>Applications</th>
-                <th>
-                  Created & Expired
-                  <input
-                    className="form-control mt-2"
-                    value={filters.createdExpired}
-                    onChange={(e) =>
-                      this.handleFilterChange("createdExpired", e.target.value)
-                    }
-                  />
-                </th>
-                <th>
-                  Status
-                  <input
-                    className="form-control mt-2"
-                    value={filters.status}
-                    onChange={(e) =>
-                      this.handleFilterChange("status", e.target.value)
-                    }
-                  />
-                </th>
-                <th>Action</th>
-              </tr>
-            </thead>
+        <Table bordered hover responsive>
+          <thead className="table-light">
+            <tr>
+              <th>
+                 <Input
+                  type="text"
+                  className="mt-2"
+                  value={filters.title}
+                  onChange={(e) => this.handleFilterChange("title", e.target.value)}
+                />
+                Title
+               
+              </th>
+              <th>
+                 <Input
+                  type="text"
+                  className="mt-2"
+                  value={filters.title}
+                  onChange={(e) => this.handleFilterChange("title", e.target.value)}
+                />
+                Applications</th>
+              <th>
+                <Input
+                  type="text"
+                  className="mt-2"
+                  value={filters.createdExpired}
+                  onChange={(e) =>
+                    this.handleFilterChange("createdExpired", e.target.value)
+                  }
+                />
+                Created & Expired
+                
+              </th>
+              <th>
+                 <Input
+                  type="text"
+                  className="mt-2"
+                  value={filters.status}
+                  onChange={(e) => this.handleFilterChange("status", e.target.value)}
+                />
+                Status
+               
+              </th>
+              <th>Action</th>
+            </tr>
+          </thead>
 
-            <tbody>
-              {currentJobs.length > 0 ? (
-                currentJobs.map((job) => (
-                  <tr key={job.id}>
-                    <td>
-                      <Link href={`/job-single-v1/${job.id}/${this.props.userId}`}>
-                        {job.job_title}
-                      </Link>
-                    </td>
-                    <td>3+ Applied</td>
-                    <td>{job.created_and_expired_date}</td>
-                    <td>
-                      <span
-                        className={`badge ${job.status === "Active" ? "bg-success" : "bg-danger"
-                          }`}
-                      >
-                        {job.status}
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        className="btn btn-sm btn-primary me-2"
-                        onClick={() => this.handleEditJob(job.id)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={() => this.handleDeleteJob(job.id)}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="5" className="text-center py-4">
-                    <strong>No record found</strong>
+          <tbody>
+            {currentJobs.length > 0 ? (
+              currentJobs.map((job) => (
+                <tr key={job.id}>
+                  <td>
+                    <Link href={`/job-single-v1/${job.id}/${this.props.userId}`}>
+                      {job.job_title}
+                    </Link>
+                  </td>
+                  <td>3+ Applied</td>
+                  <td>{job.created_and_expired_date}</td>
+                  <td>
+                    <Badge color={job.status === "Active" ? "success" : "danger"}>
+                      {job.status}
+                    </Badge>
+                  </td>
+                  <td>
+                    <Button
+                      size="sm"
+                      color="primary"
+                      className="me-2"
+                      onClick={() => this.handleEditJob(job.id)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      color="danger"
+                      onClick={() => this.handleDeleteJob(job.id)}
+                    >
+                      Delete
+                    </Button>
                   </td>
                 </tr>
-              )}
-            </tbody>
-
-          </table>
-        </div>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="5" className="text-center py-4">
+                  <strong>No record found</strong>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </Table>
 
         {/* Pagination */}
-        <nav>
-          <ul className="pagination justify-content-center">
-            {[...Array(totalPages)].map((_, i) => (
-              <li
-                key={i}
-                className={`page-item ${currentPage === i + 1 ? "active" : ""
-                  }`}
-              >
-                <button
-                  className="page-link"
-                  onClick={() => this.paginate(i + 1)}
-                >
-                  {i + 1}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </div>
+        <Pagination className="justify-content-center">
+          {[...Array(totalPages)].map((_, i) => (
+            <PaginationItem key={i} active={currentPage === i + 1}>
+              <PaginationLink onClick={() => this.paginate(i + 1)}>
+                {i + 1}
+              </PaginationLink>
+            </PaginationItem>
+          ))}
+        </Pagination>
+      </Container>
     );
   }
 }

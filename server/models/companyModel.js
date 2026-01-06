@@ -2,7 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const connection = require("../connection");
-
+const logAudit = require("../utils/auditLogger");
 const createCompanyInfoTable = () => {
   const createCompanyInfoTableQuery = `
 CREATE TABLE IF NOT EXISTS company_info (
@@ -133,107 +133,119 @@ const getAllCompanies = (req, res) => {
 };
 
 
-const updateCompanyinfo = (req, res) => {
-  let accountId = parseInt(req.body.userId);
-
-  const {
-    username,
-    email,
-    company_name,
-    Business_entity_type,
-    phone,
-    country,
-    district,
-    city,
-    company_address,
-    company_website,
-    NTN,
-    size_of_company,
-    established_date
-  } = req.body;
-
-  const logo = req.file ? req.file.buffer : null;
-
-  let sql = `
-    INSERT INTO company_info
-      (account_id, company_name, Business_entity_type_id, phone, country_id, district_id, city_id, 
-       company_address, company_website, NTN, size_of_company, established_date ${req.file ? ", logo" : ""})
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ${req.file ? ", ?" : ""})
-    ON DUPLICATE KEY UPDATE
-      company_name=VALUES(company_name),
-      Business_entity_type_id=VALUES(Business_entity_type_id),
-      phone=VALUES(phone),
-      country_id=VALUES(country_id),
-      district_id=VALUES(district_id),
-      city_id=VALUES(city_id),
-      company_address=VALUES(company_address),
-      company_website=VALUES(company_website),
-      NTN=VALUES(NTN),
-      size_of_company=VALUES(size_of_company),
-      established_date=VALUES(established_date)
-      ${req.file ? ", logo=VALUES(logo)" : ""}
-  `;
-
-  const params = [
-    accountId,
-    company_name,
-    Business_entity_type,
-    phone,
-    country,
-    district,
-    city,
-    company_address,
-    company_website,
-    NTN,
-    size_of_company,
-    established_date,
-  ];
-
-  if (req.file) params.push(req.file.buffer);
-
-  connection.query(sql, params, (err, result) => {
-    if (err) {
-
-      return res.status(500).json({ error: err });
-    }
-
-    if (username || email) {
-      let updatedFields = [];
-      let updatedParams = [];
-
-      if (username) {
-        updatedFields.push("username = ?")
-        updatedParams.push(username);
+const getIdFromName = async (tableName, name) => {
+  return new Promise((resolve, reject) => {
+    connection.query(
+      `SELECT id FROM ${tableName} WHERE name = ? LIMIT 1`,
+      [name],
+      (err, result) => {
+        if (err) return reject(err);
+        resolve(result.length > 0 ? result[0].id : null);
       }
-
-      if (email) {
-        updatedFields.push("email = ?");
-        updatedParams.push(email);
-      }
-
-      const accountSql = `UPDATE account SET ${updatedFields.join(", ")} WHERE id = ?`;
-      updatedParams.push(accountId);
-      connection.query(accountSql, updatedParams, (accErr) => {
-        if (accErr) {
-
-          return res.status(500).json({ error: accErr });
-        }
-
-
-      })
-    }
-
-    logAudit({
-      tableName: "history",
-      entityType: "employer",
-      entityId: accountId,
-      action: "UPDATED",
-      data: { ...req.body },
-      changedBy: accountId, // or req.user.userId
-    });
-    res.status(200).json({ message: "Profile saved/updated successfully" });
+    );
   });
-}
+};
+
+const updateCompanyinfo = async (req, res) => {
+  try {
+    const accountId = parseInt(req.body.userId);
+    const {
+      username,
+      email,
+      company_name,
+      business_type,
+      phone,
+      country,
+      district,
+      city,
+      company_address,
+      company_website,
+      NTN,
+      size_of_company,
+      established_date
+    } = req.body;
+    const country_id = await getIdFromName("countries", country);
+    const district_id = await getIdFromName("districts", district);
+    const city_id = await getIdFromName("cities", city);
+
+    const logo = req.file ? req.file.buffer : null;
+
+    let sql = `
+      INSERT INTO company_info
+        (account_id, company_name, Business_entity_type_id, phone, country_id, district_id, city_id, 
+         company_address, company_website, NTN, size_of_company, established_date ${req.file ? ", logo" : ""})
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ${req.file ? ", ?" : ""})
+      ON DUPLICATE KEY UPDATE
+        company_name=VALUES(company_name),
+        Business_entity_type_id=VALUES(Business_entity_type_id),
+        phone=VALUES(phone),
+        country_id=VALUES(country_id),
+        district_id=VALUES(district_id),
+        city_id=VALUES(city_id),
+        company_address=VALUES(company_address),
+        company_website=VALUES(company_website),
+        NTN=VALUES(NTN),
+        size_of_company=VALUES(size_of_company),
+        established_date=VALUES(established_date)
+        ${req.file ? ", logo=VALUES(logo)" : ""}
+    `;
+
+    const params = [
+      accountId,
+      company_name,
+      business_type,
+      phone,
+      country_id,
+      district_id,
+      city_id,
+      company_address,
+      company_website,
+      NTN,
+      size_of_company,
+      established_date
+    ];
+
+    if (req.file) params.push(req.file.buffer);
+
+    connection.query(sql, params, (err, result) => {
+      if (err) return res.status(500).json({ error: err });
+
+      // update account table if needed
+      if (username || email) {
+        let updatedFields = [];
+        let updatedParams = [];
+        if (username) {
+          updatedFields.push("username = ?");
+          updatedParams.push(username);
+        }
+        if (email) {
+          updatedFields.push("email = ?");
+          updatedParams.push(email);
+        }
+        const accountSql = `UPDATE account SET ${updatedFields.join(", ")} WHERE id = ?`;
+        updatedParams.push(accountId);
+        connection.query(accountSql, updatedParams, (accErr) => {
+          if (accErr) return res.status(500).json({ error: accErr });
+        });
+      }
+
+      logAudit({
+        tableName: "history",
+        entityType: "employer",
+        entityId: accountId,
+        action: "UPDATED",
+        data: { ...req.body },
+        changedBy: accountId,
+      });
+
+      res.status(200).json({ message: "Profile saved/updated successfully" });
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error });
+  }
+};
+
 const getcompanybyid = (req, res) => {
   const accountId = parseInt(req.params.userId);
 
@@ -300,6 +312,7 @@ const updateCompanySatus = (id, status, res) => {
 
 const getAllJobs = (req, res) => {
   const userId = req.params.userId;
+  console.log(userId)
 
   // Fetch job posts for the given userId
   const jobPostsQuery = `
@@ -344,7 +357,7 @@ const getAllJobs = (req, res) => {
       ...job,
       skill_ids: job.skill_ids ? JSON.parse(job.skill_ids) : [],
     }));
-
+console.log("job",transformedResults)
     res.status(200).json(transformedResults);
   });
 };
@@ -355,6 +368,7 @@ module.exports = {
   updateCompanyinfo,
   getcompanybyid,
   updateCompanySatus,
-  getAllJobs
+  getAllJobs,
+ 
  
 };

@@ -95,7 +95,7 @@ class FormContent extends Component {
       sessionStorage.setItem("token", res.data.token);
       const userRes = await api.get("/api/me");
       dispatch(setUser(userRes.data));
-      sessionStorage.setItem("userId", userRes.data.id);
+      sessionStorage.setItem("userId", userRes.data.userId);
       sessionStorage.setItem("accountType", userRes.data.accountType);
       sessionStorage.setItem("username", userRes.data.username);
       toast.success("Login successfully!");
