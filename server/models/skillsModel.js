@@ -2,7 +2,7 @@ const connection = require("../connection");
 const logAudit = require("../utils/auditLogger");
 
 const createSkillsTable = () => {
-const createTableQuery = `
+  const createTableQuery = `
   CREATE TABLE IF NOT EXISTS skills (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
@@ -12,16 +12,16 @@ const createTableQuery = `
   )
 `;
 
-connection.query(createTableQuery, (err) => {
-  if (err) {
-    return console.error("❌ Error creating skills table:", err.message);
-  }
-  console.log("✅ Skills Table created successfully");
-});
-}
+  connection.query(createTableQuery, (err) => {
+    if (err) {
+      return console.error("❌ Error creating skills table:", err.message);
+    }
+    console.log("✅ Skills Table created successfully");
+  });
+};
 
 const addSkill = (req, res) => {
-    const userId = req.user.userId;
+  const userId = req.user.userId;
   const { name, type, data } = req.body;
 
   if (type === "csv") {
@@ -72,7 +72,8 @@ const addSkill = (req, res) => {
     const checkQuery = "SELECT id FROM skills WHERE name = ?";
     connection.query(checkQuery, [name], (err, results) => {
       if (err) return res.status(500).json({ error: "Database error" });
-      if (results.length > 0) return res.status(409).json({ message: "Skill already exists" });
+      if (results.length > 0)
+        return res.status(409).json({ message: "Skill already exists" });
 
       const insertQuery = "INSERT INTO skills (name) VALUES (?)";
       connection.query(insertQuery, [name], (err, insertResults) => {
@@ -97,7 +98,7 @@ const addSkill = (req, res) => {
 };
 
 const editSkill = (req, res) => {
-    const { id } = req.params;
+  const { id } = req.params;
   const { name } = req.body;
   const userId = req.user.userId;
 
@@ -106,7 +107,8 @@ const editSkill = (req, res) => {
   const checkQuery = "SELECT * FROM skills WHERE id = ?";
   connection.query(checkQuery, [id], (err, results) => {
     if (err) return res.status(500).json({ error: "Database error" });
-    if (results.length === 0) return res.status(404).json({ error: "Skill not found" });
+    if (results.length === 0)
+      return res.status(404).json({ error: "Skill not found" });
 
     const updateQuery = "UPDATE skills SET name = ? WHERE id = ?";
     connection.query(updateQuery, [name, id], (err2) => {
@@ -127,67 +129,69 @@ const editSkill = (req, res) => {
 };
 
 const getAllSkills = (
-    { page = 1, limit = 10, search = "", name = "name", status = "active" },
-    callback
+  { page = 1, limit = 10, search = "", name = "name", status = "active" },
+  callback
 ) => {
-    // Convert page and limit to integers
-    page = parseInt(page, 10) || 1;
-    limit = parseInt(limit, 10) || 10;
-    const offset = (page - 1) * limit;
+  // Convert page and limit to integers
+  page = parseInt(page, 10) || 1;
+  limit = parseInt(limit, 10) || 10;
+  const offset = (page - 1) * limit;
 
-    let condition = "";
-    const values = [];
+  let condition = "";
+  const values = [];
 
-    // Status filter
-    if (status !== "all") {
-        condition += " AND status = ?";
-        values.push(status);
-    }
+  // Status filter
+  if (status !== "all") {
+    condition += " AND status = ?";
+    values.push(status);
+  }
 
-    // Search or date filter
-    if (name === "name") {
-        condition += " AND name LIKE ?";
-        values.push(`%${search}%`);
-    } else if (name === "created_at" || name === "updated_at") {
-        condition += ` AND DATE(${name}) = ?`;
-        values.push(search);
-    }
+  // Search or date filter
+  if (name === "name") {
+    condition += " AND name LIKE ?";
+    values.push(`%${search}%`);
+  } else if (name === "created_at" || name === "updated_at") {
+    condition += ` AND DATE(${name}) = ?`;
+    values.push(search);
+  } else if (name === "status") {
+    condition += " AND LOWER(status) LIKE ?";
+    values.push(`%${search.toLowerCase()}%`);
+  }
 
-    const query = `
+  const query = `
         SELECT * FROM skills
         WHERE 1=1 ${condition}
         ORDER BY id DESC
         LIMIT ? OFFSET ?
     `;
-    values.push(limit, offset);
+  values.push(limit, offset);
 
-    connection.query(query, values, (err, results) => {
-        if (err) return callback(err);
+  connection.query(query, values, (err, results) => {
+    if (err) return callback(err);
 
-        const countQuery = `SELECT COUNT(*) AS total FROM skills WHERE 1=1 ${condition}`;
-        connection.query(countQuery, values.slice(0, -2), (err2, countResult) => {
-            if (err2) return callback(err2);
+    const countQuery = `SELECT COUNT(*) AS total FROM skills WHERE 1=1 ${condition}`;
+    connection.query(countQuery, values.slice(0, -2), (err2, countResult) => {
+      if (err2) return callback(err2);
 
-            callback(null, {
-                total: countResult[0].total,
-                page,
-                limit,
-                skills: results,
-            });
-        });
+      callback(null, {
+        total: countResult[0].total,
+        page,
+        limit,
+        skills: results,
+      });
     });
+  });
 };
 
-
-
 const deleteSkill = (req, res) => {
-    const { id } = req.params;
+  const { id } = req.params;
   const userId = req.user.userId;
 
   const checkQuery = "SELECT * FROM skills WHERE id = ?";
   connection.query(checkQuery, [id], (err, results) => {
     if (err) return res.status(500).json({ error: "Database error" });
-    if (results.length === 0) return res.status(404).json({ error: "Skill not found" });
+    if (results.length === 0)
+      return res.status(404).json({ error: "Skill not found" });
 
     const currentSkill = results[0];
     const newStatus = currentSkill.status === "active" ? "inactive" : "active";
@@ -208,12 +212,12 @@ const deleteSkill = (req, res) => {
       res.status(200).json({ message: `Skill status updated to ${newStatus}` });
     });
   });
-}
+};
 
 module.exports = {
-    createSkillsTable,
-    addSkill,
-    editSkill,
-    getAllSkills,
-    deleteSkill
+  createSkillsTable,
+  addSkill,
+  editSkill,
+  getAllSkills,
+  deleteSkill,
 };

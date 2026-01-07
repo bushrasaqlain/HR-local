@@ -210,10 +210,12 @@ class City extends Component {
     // reset other search fields
     [
       "city_name",
+      // "country_name",
       "district_name",
       "country_name",
       "created_at",
       "updated_at",
+      "status",
     ].forEach((id) => {
       if (id !== name) {
         const ele = document.getElementById(id);
@@ -339,7 +341,7 @@ class City extends Component {
                             </small>
                             <input
                               type="text"
-                              name="name"
+                              name="city_name"
                               id="name"
                               className="form-control rounded-4 text-center"
                               placeholder="Search by name"
@@ -361,7 +363,7 @@ class City extends Component {
                             </small>
                             <input
                               type="text"
-                              name="name"
+                              name="district"
                               id="name"
                               className="form-control rounded-4 text-center"
                               placeholder="Search by name"
@@ -383,7 +385,7 @@ class City extends Component {
                             </small>
                             <input
                               type="text"
-                              name="name"
+                              name="country_name"
                               id="name"
                               className="form-control rounded-4 text-center"
                               placeholder="Search by name"
@@ -428,8 +430,8 @@ class City extends Component {
                             </small>
                              <input
                               type="date"
-                              name="created_at"
-                              id="created_at"
+                              name="updated_at"
+                              id="updated_at"
                               className="form-control rounded-4 text-center"
                               onChange={this.handleSearch}
                               style={{ borderColor: "#ccc" }}

@@ -126,50 +126,77 @@ const getAllCurrency = (
   { page = 1, limit = 15, name = "code", search = "", status = "active" },
   callback
 ) => {
-  // Ensure page and limit are numbers
-  page = parseInt(page, 10) || 1;
-  limit = parseInt(limit, 10) || 15;
-  const offset = (page - 1) * limit;
+  // ✅ Ensure page and limit are numbers
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = parseInt(limit, 10) || 15;
+  const offset = (pageNum - 1) * limitNum;
 
-  let condition = "";
+  // ✅ Whitelist columns for search
+  const allowedColumns = ["code", "name", "status", "created_at", "updated_at"];
+  if (!allowedColumns.includes(name)) name = "code";
+
+  const whereConditions = [];
   const values = [];
 
-  // Status filter
-  if (status !== "all") {
-    condition += " AND status = ?";
+  // ✅ Status filter (only if not "all")
+  if (status && status !== "all") {
+    whereConditions.push("status = ?");
     values.push(status);
   }
 
-  // Search filter
+  // ✅ Search filter
   if (search) {
-    condition += ` AND ${name} LIKE ?`;
-    values.push(`%${search}%`);
+    if (name === "created_at" || name === "updated_at") {
+      whereConditions.push(`DATE(${name}) = ?`);
+      values.push(search);
+    } else if (name === "status") {
+      // case-insensitive status search
+      whereConditions.push("LOWER(status) LIKE ?");
+      values.push(`%${search.toLowerCase()}%`);
+    } else {
+      // code or name columns
+      whereConditions.push(`${name} LIKE ?`);
+      values.push(`%${search}%`);
+    }
   }
 
+  const whereClause = whereConditions.length > 0
+    ? `WHERE ${whereConditions.join(" AND ")}`
+    : "";
+
+  // ✅ Main query
   const query = `
-    SELECT * FROM currencies
-    WHERE 1=1 ${condition}
+    SELECT *
+    FROM currencies
+    ${whereClause}
     ORDER BY id DESC
     LIMIT ? OFFSET ?
   `;
-  values.push(limit, offset);
+  const queryValues = [...values, limitNum, offset];
 
-  connection.query(query, values, (err, results) => {
+  // ✅ Count query for pagination
+  const countQuery = `
+    SELECT COUNT(*) AS total
+    FROM currencies
+    ${whereClause}
+  `;
+
+  connection.query(query, queryValues, (err, results) => {
     if (err) return callback(err);
 
-    const countQuery = `SELECT COUNT(*) AS total FROM currencies WHERE 1=1 ${condition}`;
-    connection.query(countQuery, values.slice(0, -2), (err2, countResult) => {
+    connection.query(countQuery, values, (err2, countResult) => {
       if (err2) return callback(err2);
 
       callback(null, {
         total: countResult[0].total,
-        page,
-        limit,
+        page: pageNum,
+        limit: limitNum,
         currencies: results,
       });
     });
   });
 };
+
 
 
 const deleteCurrency = (req, res) => {

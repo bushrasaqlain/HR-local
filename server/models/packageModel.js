@@ -34,10 +34,10 @@ const getAllPackages = (
   limit = parseInt(limit, 10);
   const offset = (page - 1) * limit;
 
-  const allowedColumns = ["name", "price", "duration_value", "duration_unit", "currency", "created_at", "updated_at"];
+  const allowedColumns = ["name", "price", "duration_value", "duration_unit", "currency", "created_at", "updated_at",  "status",  ];
 
   if (!allowedColumns.includes(name)) {
-    name = "name"; // default column
+    name = "price";  // default column
   }
 
   // Handle special fields

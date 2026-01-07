@@ -161,7 +161,7 @@ class Skills extends Component {
 
   handleSearch = async (e) => {
     const { name, value } = e.target;
-    ["name", "created_at", "updated_at"].forEach((input) => {
+    ["name", "created_at", "updated_at", "status"].forEach((input) => {
       if (input !== name) {
         const ele = document.getElementById(input);
         if (ele) ele.value = "";
@@ -171,7 +171,7 @@ class Skills extends Component {
     this.setState({ currentPage: 1 });
 
     try {
-      const res = await axios.get(`${this.apiBaseUrl}getallSkills`, {
+      const res = await axios.get(`${this.apiBaseUrl}getallskills`, {
         params: {
           name,
           search: value,
@@ -190,7 +190,7 @@ class Skills extends Component {
   };
 
   resetSearch = () => {
-    ["name", "created_at", "updated_at"].forEach((id) => {
+    ["name", "created_at", "updated_at", "status"].forEach((id) => {
       const ele = document.getElementById(id);
       if (ele) ele.value = "";
     });
