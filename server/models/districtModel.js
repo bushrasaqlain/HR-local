@@ -160,57 +160,69 @@ const getAllDistricts = (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 15;
   const offset = (page - 1) * limit;
-  const name = req.query.name || "name";
+
+  const name = req.query.name || "district"; // column to search
   const search = req.query.search || "";
-  const countryId = req.query.country_id
-    ? parseInt(req.query.country_id)
-    : null;
+  const countryId = req.query.country_id ? parseInt(req.query.country_id) : null;
   const status = req.query.status || "active";
 
-  // ✅ whitelist to avoid SQL injection
-  const validColumns = ["name", "country"];
-  if (!validColumns.includes(name)) {
-    return res.status(400).json({ error: "Invalid column name" });
+  let whereConditions = [];
+  let values = [];
+
+  // ✅ Status filter
+  if (status && status !== "all") {
+    whereConditions.push("d.status = ?");
+    values.push(status);
   }
 
-  const filterColumn = name === "country" ? "c.name" : "d.name";
+  // ✅ Country filter by ID
+  if (countryId) {
+    whereConditions.push("d.country_id = ?");
+    values.push(countryId);
+  }
 
-  let query = `
+  // ✅ Search filters
+  if (search) {
+    if (name === "district") {
+      whereConditions.push("d.name LIKE ?");
+      values.push(`%${search}%`);
+    } else if (name === "country") {
+      whereConditions.push("c.name LIKE ?");
+      values.push(`%${search}%`);
+    } else if (name === "status") {
+      whereConditions.push("LOWER(d.status) LIKE ?");
+      values.push(`%${search.toLowerCase()}%`);
+    } else if (name === "created_at" || name === "updated_at") {
+      whereConditions.push(`DATE(d.${name}) = ?`);
+      values.push(search);
+    } else {
+      // default fallback
+      whereConditions.push("d.name LIKE ?");
+      values.push(`%${search}%`);
+    }
+  }
+
+  const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
+
+  // ✅ Main query
+  const query = `
     SELECT d.*, c.name AS country_name
     FROM districts d
     JOIN countries c ON d.country_id = c.id
-    WHERE ${filterColumn} LIKE ?
+    ${whereClause}
+    ORDER BY d.id DESC
+    LIMIT ? OFFSET ?
   `;
 
-  let countQuery = `
+  const queryValues = [...values, limit, offset];
+
+  // ✅ Count query for pagination
+  const countQuery = `
     SELECT COUNT(*) AS total
     FROM districts d
     JOIN countries c ON d.country_id = c.id
-    WHERE ${filterColumn} LIKE ?
+    ${whereClause}
   `;
-
-  let queryValues = [`%${search}%`];
-  let countValues = [`%${search}%`];
-
-  // ✅ Apply status filter only if not "all"
-  if (status !== "all") {
-    query += ` AND d.status = ?`;
-    countQuery += ` AND d.status = ?`;
-    queryValues.push(status);
-    countValues.push(status);
-  }
-
-  // ✅ Country filter
-  if (countryId) {
-    query += ` AND d.country_id = ?`;
-    countQuery += ` AND d.country_id = ?`;
-    queryValues.push(countryId);
-    countValues.push(countryId);
-  }
-
-  // ✅ Pagination
-  query += ` ORDER BY d.id DESC LIMIT ? OFFSET ?`;
-  queryValues.push(limit, offset);
 
   connection.query(query, queryValues, (err, results) => {
     if (err) {
@@ -218,7 +230,7 @@ const getAllDistricts = (req, res) => {
       return res.status(500).json({ error: "Database error" });
     }
 
-    connection.query(countQuery, countValues, (err2, countResult) => {
+    connection.query(countQuery, values, (err2, countResult) => {
       if (err2) {
         console.error("❌ Count query error:", err2.sqlMessage || err2);
         return res.status(500).json({ error: "Database error" });
@@ -233,6 +245,7 @@ const getAllDistricts = (req, res) => {
     });
   });
 };
+
 
 
 const deleteDistrict = (req, res) => {

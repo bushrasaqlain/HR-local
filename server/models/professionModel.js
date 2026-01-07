@@ -136,7 +136,10 @@ const getAllProfession = (
   } else if (name === "created_at" || name === "updated_at") {
     condition += ` AND DATE(${name}) = ?`;
     values.push(search);
-  }
+  }  else if (name === "status") {
+    condition += " AND LOWER(status) LIKE ?";
+    values.push(`%${search.toLowerCase()}%`);
+}
 
   const query = `
     SELECT * FROM professions

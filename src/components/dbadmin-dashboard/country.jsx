@@ -161,7 +161,7 @@ class Country extends Component {
 
   handleSearch = async (e) => {
     const { name, value } = e.target;
-    ["name", "created_at", "updated_at"].forEach((input) => {
+    ["name", "created_at", "updated_at", "status",].forEach((input) => {
       if (input !== name) {
         const ele = document.getElementById(input);
         if (ele) ele.value = "";

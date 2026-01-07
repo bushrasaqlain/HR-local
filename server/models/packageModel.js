@@ -34,10 +34,10 @@ const getAllPackages = (
   limit = parseInt(limit, 10);
   const offset = (page - 1) * limit;
 
-  const allowedColumns = ["name", "price", "duration_value", "duration_unit", "currency", "created_at", "updated_at"];
+  const allowedColumns = ["name", "price", "duration_value", "duration_unit", "currency", "created_at", "updated_at",  "status",  ];
 
   if (!allowedColumns.includes(name)) {
-    name = "name"; // default column
+    name = "price";  // default column
   }
 
   // Handle special fields
@@ -48,8 +48,14 @@ const getAllPackages = (
   }
 
   // Build query dynamically
-  let query = `SELECT * FROM packages WHERE status = ?`;
-  let values = [status];
+  let query = `SELECT * FROM packages WHERE 1=1`;
+let values = [];
+
+if (status !== "all") {
+  query += ` AND status = ?`;
+  values.push(status);
+}
+
 
   if (search) {
     query += ` AND ${name} LIKE ?`;
@@ -62,8 +68,13 @@ const getAllPackages = (
   connection.query(query, values, (err, results) => {
     if (err) return callback(err);
 
-    let countQuery = `SELECT COUNT(*) AS total FROM packages WHERE status = ?`;
-    let countValues = [status];
+    let countQuery = `SELECT COUNT(*) AS total FROM packages WHERE 1=1`;
+let countValues = [];
+
+if (status !== "all") {
+  countQuery += ` AND status = ?`;
+  countValues.push(status);
+}
 
     if (search) {
       countQuery += ` AND ${name} LIKE ?`;
