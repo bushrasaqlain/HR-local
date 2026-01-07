@@ -98,7 +98,7 @@ class Currency extends Component {
     if (item) {
       this.setState({
         editId: item.id,
-        inputValue: item.name,
+        inputValue: item.code,
         showModal: true,
       });
     } else {
@@ -120,7 +120,7 @@ class Currency extends Component {
         });
         this.setState((prevState) => ({
           currencies: prevState.currencies.map((item) =>
-            item.id === editId ? { ...item, name: inputValue } : item
+            item.id === editId ? { ...item, code: inputValue } : item
           ),
         }));
       } else {
@@ -161,7 +161,7 @@ class Currency extends Component {
 
   handleSearch = async (e) => {
     const { name, value } = e.target;
-    ["name", "created_at", "updated_at"].forEach((input) => {
+    ["name", "created_at", "updated_at", "status"].forEach((input) => {
       if (input !== name) {
         const ele = document.getElementById(input);
         if (ele) ele.value = "";
@@ -372,7 +372,7 @@ class Currency extends Component {
                     <tbody>
                       {currencies.map((item) => (
                         <tr key={item.id}>
-                          <td className="text-center">{item.name}</td>
+                          <td className="text-center">{item.code}</td>
                           <td className="text-center">
                             {this.formatDate(item.created_at)}
                           </td>

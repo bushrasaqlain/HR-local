@@ -33,7 +33,6 @@ class Jobtype extends Component {
       currentPage: 1,
       totalJobType: 0,
       isActive: "all",
-
     };
 
     this.itemsPerPage = 50;
@@ -161,7 +160,7 @@ class Jobtype extends Component {
 
   handleSearch = async (e) => {
     const { name, value } = e.target;
-    ["name", "created_at", "updated_at"].forEach((input) => {
+    ["name", "created_at", "updated_at", "status"].forEach((input) => {
       if (input !== name) {
         const ele = document.getElementById(input);
         if (ele) ele.value = "";
@@ -258,8 +257,6 @@ class Jobtype extends Component {
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>
-
-
               </div>
             </div>
 
@@ -269,7 +266,6 @@ class Jobtype extends Component {
                   <Table className="table-responsive align-middle default-table manage-job-table p-2 w-100 table table-striped custom-table">
                     <thead className="align-middle">
                       <tr>
-                       
                         <th
                           className="text-center"
                           style={{ borderBottom: "1px solid #ccc" }}
@@ -279,7 +275,7 @@ class Jobtype extends Component {
                               className="text-dark fw-bold"
                               style={{ fontSize: "1rem" }}
                             >
-                              Job Type 
+                              Job Type
                             </small>
                             <input
                               type="text"
@@ -379,18 +375,21 @@ class Jobtype extends Component {
                           <td className="text-center">
                             {this.formatDate(item.updated_at)}
                           </td>
-                          <td className="text-center">
-                            {item.status}
-                          </td>
+                          <td className="text-center">{item.status}</td>
 
                           <td className="status text-center">
                             <div className="d-flex justify-content-center align-items-center gap-3">
-                              <button onClick={() => this.toggleForm(item)} className="icon-btn">
+                              <button
+                                onClick={() => this.toggleForm(item)}
+                                className="icon-btn"
+                              >
                                 <span className="la la-pencil"></span>
                               </button>
 
                               <button
-                                onClick={() => this.confirmDelete(item.id, item.status)}
+                                onClick={() =>
+                                  this.confirmDelete(item.id, item.status)
+                                }
                                 className="icon-btn"
                               >
                                 {item.status === "active" ? (
@@ -400,12 +399,14 @@ class Jobtype extends Component {
                                 )}
                               </button>
 
-                              <button onClick={() => this.toggleHistory(item)} className="icon-btn">
+                              <button
+                                onClick={() => this.toggleHistory(item)}
+                                className="icon-btn"
+                              >
                                 <span className="la la-history"></span>
                               </button>
                             </div>
                           </td>
-
                         </tr>
                       ))}
                     </tbody>
@@ -482,7 +483,6 @@ class Jobtype extends Component {
             </Modal.Footer>
           </Modal>
 
-
           {/* History Modal */}
           <Modal
             show={showHistoryModal}
@@ -514,10 +514,10 @@ class Jobtype extends Component {
                         item.action === "ADDED"
                           ? "green"
                           : item.action === "UPDATED"
-                            ? "purple"
-                            : item.action === "ACTIVE"
-                              ? "teal"
-                              : "red",
+                          ? "purple"
+                          : item.action === "ACTIVE"
+                          ? "teal"
+                          : "red",
                       fontWeight: "bold",
                     }}
                   >

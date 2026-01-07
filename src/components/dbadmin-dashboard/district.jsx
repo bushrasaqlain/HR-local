@@ -219,7 +219,7 @@ class Districts extends Component {
 
   handleSearch = async (e) => {
     const { name, value } = e.target;
-    ["name", "created_at", "updated_at"].forEach((input) => {
+    ["name", "country_name", "created_at", "updated_at", "status"].forEach((input) => {
       if (input !== name) {
         const ele = document.getElementById(input);
         if (ele) ele.value = "";
@@ -361,8 +361,8 @@ class Districts extends Component {
                             </small>
                             <input
                               type="text"
-                              name="name"
-                              id="name"
+                              name="country"
+                              id="country"
                               className="form-control rounded-4 text-center"
                               placeholder="Search by name"
                               onChange={this.handleSearch}
