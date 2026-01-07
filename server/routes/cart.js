@@ -145,47 +145,7 @@ function generate_order_id() {
 }
 ////////////////////////////////////////////get the packages from the database/////////////
 router.get('/PackagesDetail/:userId', (req, res) => {
-  const userId = req.params.userId;
-
-  const query = `
-    SELECT 
-      cart.id,
-      cart.order_id, 
-      cart.package_type, 
-      cart.status, 
-      cart.Expire_At,
-      packages.Jobs,
-      COALESCE(package_jobs.total_jobs, 0) AS total_jobs,
-      (packages.Jobs - COALESCE(package_jobs.total_jobs, 0)) AS remaining_jobs
-    FROM 
-      cart 
-    JOIN 
-      packages 
-    ON 
-      cart.package_type = packages.package_type 
-    LEFT JOIN (
-      SELECT 
-        Pkg_id,
-        COUNT(*) AS total_jobs
-      FROM 
-        job_posts
-      GROUP BY 
-        Pkg_id
-    ) AS package_jobs
-    ON
-      cart.id = package_jobs.Pkg_id
-    WHERE 
-      cart.account_id = ?;
-  `;
-
-  connection.query(query, [userId], (err, results) => {
-    if (err) {
-      console.error('Error executing SQL query:', err);
-      res.status(500).json({ error: 'Internal Server Error' });
-    } else {
-      res.json(results);
-    }
-  });
+ 
 });
 
 ///////////////////////////////////get the active date and expiry date for application deadline///////

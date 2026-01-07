@@ -14,10 +14,21 @@ const getSingleJob=(req,res)=>{
 const postJob=(req,res)=>{
   jobModel.postJob(req,res);
 }
+const subcribePackage=(req,res)=>{
+  jobModel.subcribePackage(req,res);
+}
+
+const getJobPostCount=(req,res)=>{
+  jobModel.getJobPostCount(req,res);
+}
+
 
 module.exports={
+  
     getAllJobs,
     getSingleJob,
     deleteJob,
-    postJob
+    postJob,
+    subcribePackage,
+    getJobPostCount
 }

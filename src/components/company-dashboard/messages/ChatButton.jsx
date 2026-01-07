@@ -1,7 +1,7 @@
 import { useDispatch } from "react-redux";
 import { chatSidebarToggle } from "../../../redux/features/toggle/toggleSlice";
 
-export default function ChatHamburger() {
+export default function ChatButton() {
   const dispatch = useDispatch();
 
   const chatToggle = () => {

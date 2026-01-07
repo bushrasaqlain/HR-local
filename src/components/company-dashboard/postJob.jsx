@@ -1,177 +1,253 @@
-"use client"
-import React, { useState, useRef, useEffect } from 'react';
-// import { useRouter } from 'next/navigation';
-// import { useQuery } from 'react-query';
-import axios from 'axios';
-import Select from "react-select";
-// import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+"use client";
+import React, { Component, createRef } from "react";
+import { Form, FormGroup, Label, Input, Button, Row, Col } from "reactstrap";
 import AsyncSelect from "react-select/async";
-import api from '../lib/api';
-import { toast } from 'react-toastify';
-import PricingForm from './PricingForm';
+import axios from "axios";
+import { toast } from "react-toastify";
+import PricingForm from "./PricingForm";
+import api from "../lib/api";
 
-const PostBoxForm = () => {
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
- const userId = sessionStorage.getItem("userId");
-  const [values, setFormData] = useState({
-    job_title: "",
-    job_description: "",
-    skill_ids: [],
-    time_from: "",
-    time_to: "",
-    job_type_id: "",
-    min_salary: "",
-    max_salary: "",
-    min_experience: "",
-    max_experience: "",
-    profession_id: "",
-    degree_id: "",
-    application_deadline: "",
-    no_of_positions: "",
-    industry: "",
-    currency_id: ""
-  });
-  const [selectedCountry, setSelectedCountry] = useState(null);
-  const [selectedDistrict, setSelectedDistrict] = useState(null);
-  const [selectedCity, setSelectedCity] = useState(null);
-  const [errors, setErrors] = useState({});
-  const [showPricing, setShowPricing] = useState(false);
-  const [jobId, setJobId] = useState(null);
+class PostBoxForm extends Component {
+  constructor(props) {
+    super(props);
+    this.apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    this.userId = sessionStorage.getItem("userId");
 
-  // ------------------ Loaders for AsyncSelect ------------------ //
-  const loadCountries = async (inputValue) => {
+    this.state = {
+      values: {
+        job_title: "",
+        job_description: "",
+        skill_ids: [],
+        time_from: "",
+        time_to: "",
+        job_type_id: null,
+        min_salary: "",
+        max_salary: "",
+        min_experience: "",
+        max_experience: "",
+        profession_id: null,
+        degree_id: null,
+        application_deadline: "",
+        no_of_positions: "",
+        industry: "",
+        currency_id: null,
+      },
+      selectedCountry: null,
+      selectedDistrict: null,
+      selectedCity: null,
+      errors: {},
+      showPricing: false,
+      jobId: null,
+      isFocused: false,
+    };
+
+    // Create refs for all fields
+    this.refsFields = {
+      job_title: createRef(),
+      job_description: createRef(),
+      skill_ids: createRef(),
+      time_from: createRef(),
+      time_to: createRef(),
+      job_type_id: createRef(),
+      min_salary: createRef(),
+      max_salary: createRef(),
+      currency_id: createRef(),
+      min_experience: createRef(),
+      max_experience: createRef(),
+      no_of_positions: createRef(),
+      profession_id: createRef(),
+      degree_id: createRef(),
+      country_id: createRef(),
+      district_id: createRef(),
+      city_id: createRef(),
+      application_deadline: createRef(),
+      industry: createRef(),
+    };
+
+    this.experienceOptions = [
+      { value: "Fresh", label: "Fresh" },
+      { value: "<1", label: "Less than 1 Year" },
+      ...Array.from({ length: 20 }, (_, i) => ({ value: i + 1, label: `${i + 1} Years` })),
+      { value: ">21", label: "More than 20 Years" },
+    ];
+  }
+
+  // ------------------ Loaders ------------------ //
+  loadCountries = async (inputValue) => {
     try {
-      const res = await axios.get(`${apiBaseUrl}getallCountries`, {
+      const res = await axios.get(`${this.apiBaseUrl}getallCountries`, {
         params: { search: inputValue || "", page: 1, limit: 15 },
       });
-      return res.data.countries.map((c) => ({
-        label: c.name,
-        value: c.id,
-      }));
-    } catch (error) {
-      console.error("Error loading countries:", error);
+      return res.data.countries.map((c) => ({ label: c.name, value: c.id }));
+    } catch (err) {
+      console.error(err);
       return [];
     }
   };
 
-  const loadDistricts = async (inputValue) => {
+  loadDistricts = async (inputValue) => {
+    const { selectedCountry } = this.state;
     if (!selectedCountry?.value) return [];
     try {
-      const res = await axios.get(`${apiBaseUrl}getalldistricts`, {
-        params: {
-          country_id: selectedCountry.value,
-          search: inputValue || "",
-          page: 1,
-          limit: 15,
-        },
+      const res = await axios.get(`${this.apiBaseUrl}getalldistricts`, {
+        params: { country_id: selectedCountry.value, search: inputValue || "", page: 1, limit: 15 },
       });
-      return res.data.districts.map((d) => ({
-        label: d.name,
-        value: d.id,
-      }));
-    } catch (error) {
-      console.error("Error loading districts:", error);
+      return res.data.districts.map((d) => ({ label: d.name, value: d.id }));
+    } catch (err) {
+      console.error(err);
       return [];
     }
   };
 
-  // ------------------ Fetch Cities ------------------ //
-  const fetchCities = async (inputValue) => {
+  fetchCities = async (inputValue) => {
+    const { selectedDistrict } = this.state;
     if (!selectedDistrict?.value) return [];
     try {
-      const res = await axios.get(
-        `${apiBaseUrl}getCitiesByDistrict/${selectedDistrict.value}`,
-        { params: { search: inputValue || "" } }
-      );
-      return res.data.cities.map((city) => ({
-        label: city.name,
-        value: city.id,
-      }));
-    } catch (error) {
-      console.error("Error fetching cities by district:", error);
+      const res = await axios.get(`${this.apiBaseUrl}getCitiesByDistrict/${selectedDistrict.value}`, {
+        params: { search: inputValue || "" },
+      });
+      return res.data.cities.map((c) => ({ label: c.name, value: c.id }));
+    } catch (err) {
+      console.error(err);
       return [];
     }
   };
-  const loadJobTypes = async (inputValue) => {
+
+  loadJobTypes = async (inputValue) => {
     try {
-      const res = await axios.get(`${apiBaseUrl}getalljobtypes`, {
+      const res = await axios.get(`${this.apiBaseUrl}getalljobtypes`, {
         params: { search: inputValue || "", page: 1, limit: 15 },
       });
-      return res.data.jobtypes.map((c) => ({
-        label: c.name,
-        value: c.id,
-      }));
-    } catch (error) {
-      console.error("Error loading business types:", error);
+      return res.data.jobtypes.map((c) => ({ label: c.name, value: c.id }));
+    } catch (err) {
+      console.error(err);
       return [];
     }
   };
 
-  const loadSkills = async (inputValue) => {
+  loadSkills = async (inputValue) => {
     try {
-      const res = await axios.get(`${apiBaseUrl}getallskills`, {
+      const res = await axios.get(`${this.apiBaseUrl}getallskills`, {
         params: { search: inputValue || "", page: 1, limit: 15 },
       });
-      return res.data.skills.map((c) => ({
-        label: c.name,
-        value: c.id,
-      }));
-    } catch (error) {
-      console.error("Error loading business types:", error);
+      return res.data.skills.map((c) => ({ label: c.name, value: c.id }));
+    } catch (err) {
+      console.error(err);
       return [];
     }
   };
 
-  const loadProfessions = async (inputValue) => {
+  loadProfessions = async (inputValue) => {
     try {
-      const res = await axios.get(`${apiBaseUrl}getallprofessions`, {
+      const res = await axios.get(`${this.apiBaseUrl}getallprofessions`, {
         params: { search: inputValue || "", page: 1, limit: 15 },
       });
-      return res.data.professions.map((c) => ({
-        label: c.name,
-        value: c.id,
-      }));
-    } catch (error) {
-      console.error("Error loading business types:", error);
+      return res.data.professions.map((c) => ({ label: c.name, value: c.id }));
+    } catch (err) {
+      console.error(err);
       return [];
     }
   };
 
-  const loadCurrency = async (inputValue) => {
+  loadDegree = async (inputValue) => {
     try {
-      const res = await axios.get(`${apiBaseUrl}getallcurrencies`, {
+      const res = await axios.get(`${this.apiBaseUrl}getalldegreetype`, {
         params: { search: inputValue || "", page: 1, limit: 15 },
       });
-      return res.data.currencies.map((c) => ({
-        label: c.code,
-        value: c.id,
-      }));
-    } catch (error) {
-      console.error("Error loading business types:", error);
+      return res.data.degreetypes.map((c) => ({ label: c.name, value: c.id }));
+    } catch (err) {
+      console.error(err);
       return [];
     }
   };
 
-  const loadDegree = async (inputValue) => {
+  loadCurrency = async (inputValue) => {
     try {
-      const res = await axios.get(`${apiBaseUrl}getalldegreetype`, {
+      const res = await axios.get(`${this.apiBaseUrl}getallcurrencies`, {
         params: { search: inputValue || "", page: 1, limit: 15 },
       });
-      return res.data.degreetypes.map((c) => ({
-        label: c.name,
-        value: c.id,
-      }));
-    } catch (error) {
-      console.error("Error loading business types:", error);
+      return res.data.currencies.map((c) => ({ label: c.code, value: c.id }));
+    } catch (err) {
+      console.error(err);
       return [];
     }
   };
 
-  const handlesubmit = async (event) => {
-    event.preventDefault();
+  // ------------------ Handlers ------------------ //
+  handleInputChange = (e) => {
+    const { name, value } = e.target;
+    this.setState((prev) => ({
+      values: { ...prev.values, [name]: value },
+    }), () => this.validateField(name, value));
+  };
 
-    // --- validate ---
+  handleSelectChange = (name, selectedOption) => {
+    this.setState(
+      (prev) => ({
+        values: { ...prev.values, [name]: selectedOption },
+      }),
+      () => {
+        const { errors } = this.state;
+        if (errors[name]) {
+          this.setState((prev) => {
+            const newErrors = { ...prev.errors };
+            delete newErrors[name];
+            return { errors: newErrors };
+          });
+        }
+      }
+    );
+  };
+
+  handleFocus = () => this.setState({ isFocused: true });
+  handleBlur = () => this.setState({ isFocused: false });
+
+  validateField = (name, value) => {
+    const { values } = this.state;
+    let errors = { ...this.state.errors };
+
+    if (["job_title", "job_description", "time_from", "time_to", "min_salary", "max_salary", "no_of_positions", "application_deadline", "industry"].includes(name)) {
+      if (!value || value.trim() === "") {
+        errors[name] = `${name.replace("_", " ")} is required.`;
+      } else {
+        delete errors[name];
+      }
+    }
+
+    if (name === "min_salary" || name === "max_salary") {
+      const min = parseFloat(values.min_salary);
+      const max = parseFloat(values.max_salary);
+      if (!isNaN(min) && !isNaN(max) && max <= min) {
+        errors.salary = "Max salary must be greater than min salary.";
+      } else {
+        delete errors.salary;
+      }
+    }
+
+    if (name === "min_experience" || name === "max_experience") {
+      if (values.min_experience && values.max_experience &&
+        Number(values.max_experience) <= Number(values.min_experience)) {
+        errors.experience = "Max experience must be greater than min experience.";
+      } else {
+        delete errors.experience;
+      }
+    }
+
+    if (name === "application_deadline") {
+      const today = new Date();
+      const deadline = new Date(value);
+      if (deadline <= today) errors.deadline = "Application deadline must be greater than today.";
+      else delete errors.deadline;
+    }
+
+    this.setState({ errors });
+  };
+
+  handleSubmit = async (e) => {
+    e.preventDefault();
+    const { values, selectedCountry, selectedDistrict, selectedCity } = this.state;
+
+    // --- Validation ---
     let newErrors = {};
     if (!values.job_title) newErrors.job_title = "Job Title is required.";
     if (!values.job_description) newErrors.job_description = "Job Description is required.";
@@ -193,28 +269,15 @@ const PostBoxForm = () => {
     if (!values.application_deadline) newErrors.application_deadline = "Application deadline is required.";
     if (!values.industry) newErrors.industry = "Industry is required.";
 
-    setErrors(newErrors);
-
-    // If errors, stop here
+    this.setState({ errors: newErrors });
     if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      console.log("Validation errors:", newErrors);
-
-      // Focus on the first invalid field
-      const firstErrorKey = Object.keys(newErrors)[0];
-      if (refs[firstErrorKey]?.current) {
-        refs[firstErrorKey].current.focus();
-      }
-
       toast.error("Please fix the highlighted errors before submitting.");
       return;
     }
 
-
-
     const formattedDeadline = new Date(values.application_deadline)
       .toISOString()
-      .slice(0, 19)     // "2025-09-26T12:56:00"
+      .slice(0, 19)
       .replace("T", " ");
 
     const payload = {
@@ -226,544 +289,299 @@ const PostBoxForm = () => {
       currency_id: values.currency_id?.value,
       profession_id: values.profession_id?.value,
       degree_id: values.degree_id?.value,
-      skill_ids: values.skill_ids.map((skill) => skill.value), // send IDs
-      application_deadline: formattedDeadline
+      skill_ids: values.skill_ids.map((s) => s.value),
+      application_deadline: formattedDeadline,
     };
 
     try {
-      const response = await api.post(`${apiBaseUrl}job/postjob/${userId}`, payload);
-      console.log("response for job post", response)
-      if (response.status === 201) {
-        toast.success('Job post created successfully!');
-        setJobId(response.data.job_id);
-        setFormData({
+      const response = await api.post(`${this.apiBaseUrl}job/postjob/${this.userId}`, payload);
+      toast.success("Job post created successfully!");
+      this.setState({ jobId: response.data.job_id, showPricing: true });
+
+      // Reset form
+      this.setState({
+        values: {
           job_title: "",
           job_description: "",
           skill_ids: [],
           time_from: "",
           time_to: "",
-          job_type_id: "",
+          job_type_id: null,
           min_salary: "",
           max_salary: "",
           min_experience: "",
           max_experience: "",
-          profession_id: "",
-          degree_id: "",
+          profession_id: null,
+          degree_id: null,
           application_deadline: "",
           no_of_positions: "",
           industry: "",
-          currency_id: ""
-        });
-
-        setShowPricing(true);
-      } else {
-        // Set error message on API request failure
-        toast.error('Error: Unable to post job.');
-      }
-    } catch (error) {
-      console.error('Error submitting form:', error);
-
-      if (error.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        console.error('Response data:', error.response.data);
-        console.error('Response status:', error.response.status);
-        console.error('Response headers:', error.response.headers);
-
-        // Extract and set the error message from the response
-        // setErrorMessage(`Error: ${error.response.data.error}`);
-      } else if (error.request) {
-        // The request was made but no response was received
-        console.error('No response received from the server');
-        // setErrorMessage('Error: No response received from the server');
-      } else {
-        // Something happened in setting up the request that triggered an Error
-        console.error('Error setting up the request:', error.message);
-        // setErrorMessage(`Error: ${error.message}`);
-      }
-
-      // Reset form submission status
-      // setIsSubmitting(false);
+          currency_id: null,
+        },
+        selectedCountry: null,
+        selectedDistrict: null,
+        selectedCity: null,
+        errors: {},
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error("Unable to post job");
     }
   };
 
-  const [isFocused, setIsFocused] = useState(false);
+  render() {
+    const { values, errors, showPricing, jobId, selectedCountry, selectedDistrict, selectedCity, isFocused } = this.state;
+    const inputStyles = {
+      height: '60px',
+      padding: '15px 20px',
+      fontSize: '15px',
+      color: '#696969',
+      backgroundColor: isFocused ? 'white' : '#f0f5f7',
+      border: '1px solid #f0f5f7',
+      borderRadius: '8px',
+      boxSizing: 'border-box'
+    };
 
-  const handleInputFocus = () => {
-    setIsFocused(true);
-  };
-
-  const handleInputBlur = () => {
-    setIsFocused(false);
-  };
-  const inputStyles = {
-    height: '3.5rem',
-    backgroundColor: isFocused ? 'white' : '#f0f5f7',
-    position: 'relative',
-    width: '100%',
-    display: 'block',
-    height: '60px',
-    lineHeight: '30px',
-    padding: '15px 20px',
-    fontSize: '15px',
-    color: '#696969',
-    backgroundColor: '#f0f5f7',
-    border: '1px solid #f0f5f7',
-    WebkitBoxSizing: 'border-box',
-    boxSizing: 'border-box',
-    borderRadius: '8px',
-  };
-
-  const experienceOptions = [
-    { value: "Fresh", label: "Fresh" },
-    { value: "<1", label: "Less than 1 Year" },
-    { value: 1, label: "1 Year" },
-    { value: 2, label: "2 Years" },
-    { value: 3, label: "3 Years" },
-    { value: 4, label: "4 Years" },
-    { value: 5, label: "5 Years" },
-    { value: 6, label: "6 Years" },
-    { value: 7, label: "7 Years" },
-    { value: 8, label: "8 Years" },
-    { value: 9, label: "9 Years" },
-    { value: 10, label: "10 Years" },
-    { value: 11, label: "11 Years" },
-    { value: 12, label: "12 Years" },
-    { value: 13, label: "13 Years" },
-    { value: 14, label: "14 Years" },
-    { value: 15, label: "15 Years" },
-    { value: 16, label: "16 Years" },
-    { value: 17, label: "17 Years" },
-    { value: 18, label: "18 Years" },
-    { value: 19, label: "19 Years" },
-    { value: 20, label: "20 Years" },
-    { value: ">21", label: "More than 20 Years" },
-  ];
-
-  const validateField = (name, value) => {
-    let newErrors = { ...errors };
-
-    // Required fields
-    if (["job_title", "job_description", "time_from", "time_to", "min_salary", "max_salary", "no_of_positions", "application_deadline", "industry"].includes(name)) {
-      if (!value || value.trim() === "") {
-        newErrors[name] = `${name.replace("_", " ")} is required.`;
-      } else {
-        delete newErrors[name];
-      }
+    if (showPricing) {
+      return <PricingForm jobId={jobId} setShowPricing={(show) => this.setState({ showPricing: show })} />;
     }
 
-    // Salary range validation
-    // Salary range validation
-    if (name === "min_salary" || name === "max_salary") {
-      const min = values.min_salary !== "" ? parseFloat(values.min_salary) : null;
-      const max = values.max_salary !== "" ? parseFloat(values.max_salary) : null;
+    return (
+      <Form onSubmit={this.handleSubmit}>
+        <div className='text-danger py-4'>*  -  All fields are mandatory</div>
+        <Row>
+          {/* Job Title */}
+          <Col md="12">
+            <FormGroup>
+              <Label>Job Title <span className="text-danger">*</span></Label>
+              <Input
+                type="text"
+                name="job_title"
+                innerRef={this.refsFields.job_title}
+                value={values.job_title}
+                onChange={this.handleInputChange}
+              />
+              {errors?.job_title && <div className="text-danger">{errors.job_title}</div>}
+            </FormGroup>
+          </Col>
 
-      if (min !== null && max !== null) {
-        if (isNaN(min) || isNaN(max)) {
-          newErrors.salary = "Salary must be a valid number.";
-        } else if (max <= min) {
-          newErrors.salary = "Max salary must be greater than min salary.";
-        } else {
-          delete newErrors.salary;
-        }
-      } else {
-        delete newErrors.salary; // don’t run range check until both are filled
-      }
-    }
+          {/* Job Description */}
+          <Col md="12">
+            <FormGroup>
+              <Label>Job Description <span className="text-danger">*</span></Label>
+              <Input
+                type="textarea"
+                name="job_description"
+                innerRef={this.refsFields.job_description}
+                value={values.job_description}
+                placeholder="Describe your job in detail"
+                onChange={this.handleInputChange}
+              />
+              {errors?.job_description && <div className="text-danger">{errors.job_description}</div>}
+            </FormGroup>
+          </Col>
 
-
-
-    // Experience range validation
-    if (name === "min_experience" || name === "max_experience") {
-      if (values.min_experience && values.max_experience &&
-        Number(values.max_experience) <= Number(values.min_experience)) {
-        newErrors.experience = "Max experience must be greater than min experience.";
-      } else {
-        delete newErrors.experience;
-      }
-    }
-
-    // Deadline validation
-    if (name === "application_deadline") {
-      const today = new Date();
-      const deadline = new Date(value);
-      if (deadline <= today) {
-        newErrors.deadline = "Application deadline must be greater than today's date.";
-      } else {
-        delete newErrors.deadline;
-      }
-    }
-
-    setErrors(newErrors);
-  };
-
-
-
-  const handleInputchange = (event) => {
-    const { name, value } = event.target;
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-
-    // Run field validation on change
-    validateField(name, value);
-  };
-
-
-
-  useEffect(() => {
-    console.log("form data", values);
-  }, [values]);
-
-  // Keep values in sync with selectedCountry, selectedDistrict, selectedCity
-  // useEffect(() => {
-  //   setFormData((prev) => ({
-  //     ...prev,
-  //     country_id: selectedCountry,
-  //     district_id: selectedDistrict,
-  //     city_id: selectedCity,
-  //   }));
-  // }, [selectedCountry, selectedDistrict, selectedCity]);
-
-  const refs = {
-    job_title: useRef(null),
-    job_description: useRef(null),
-    skill_ids: useRef(null),
-    time_from: useRef(null),
-    time_to: useRef(null),
-    job_type_id: useRef(null),
-    min_salary: useRef(null),
-    max_salary: useRef(null),
-    currency_id: useRef(null),
-    min_experience: useRef(null),
-    max_experience: useRef(null),
-    no_of_positions: useRef(null),
-    profession_id: useRef(null),
-    degree_id: useRef(null),
-    country_id: useRef(null),
-    district_id: useRef(null),
-    city_id: useRef(null),
-    application_deadline: useRef(null),
-    industry: useRef(null),
-  };
-
-
-  return (
-    <div>
-      {!showPricing &&
-        <form className="default-form" onSubmit={handlesubmit}>
-          <div className='text-danger py-4'> *  -  All fields are mandatory</div>
-          <div className="row">
-            {/* <!-- Input --> */}
-            <div className="form-group col-lg-12 col-md-12">
-              <label>Job Title <span className="text-danger">*</span></label>
-              <input type="text" name="job_title" ref={refs.job_title} placeholder="Title" value={values.job_title} onChange={handleInputchange} />
-              {errors?.job_title && (
-                <div className="text-danger">{errors.job_title}</div>
-              )}
-            </div>
-
-            {/* <!-- About Company --> */}
-            <div className="form-group col-lg-12 col-md-12">
-              <label>Job Description <span className="text-danger">*</span></label>
-              <textarea type="text" ref={refs.job_description} value={values.job_description} name="job_description" placeholder=
-                // "Spent several years working on sheep on Wall Street. Had moderate success investing in Yugo's on Wall Street. Managed a small team buying and selling Pogo sticks for farmers. Spent several years licensing licorice in West Palm Beach, FL. Developed several new methods for working it banjos in the aftermarket. Spent a weekend importing banjos in West Palm Beach, FL.In this position, the Software Engineer collaborates with Evention's Development team to continuously enhance our current software solutions as well as create new solutions to eliminate the back-office operations and management challenges present"
-                "Describe your job in detail"
-                onChange={handleInputchange}></textarea>
-              {errors?.job_description && (
-                <div className="error-message text-danger">{errors?.job_description}</div>
-              )}
-            </div>
-            <div className="form-group col-lg-6 col-md-12">
-              <label>Skills <span className="text-danger">*</span></label>
+          {/* Skills */}
+          <Col md="6">
+            <FormGroup>
+              <Label>Skills <span className="text-danger">*</span></Label>
               <AsyncSelect
                 isMulti
                 cacheOptions
                 defaultOptions
-                loadOptions={loadSkills}
+                loadOptions={this.loadSkills}
                 value={values.skill_ids || []}
-                ref={refs.skill_ids}
-                onChange={(selectedOptions) => {
-                  // handleInputchange({ target: { name: "skills", value: selectedOption } })}
-                  setFormData((prev) => ({ ...prev, skill_ids: selectedOptions || [] }))
-                  if (errors.skill_ids) {
-                    setErrors((prev) => {
-                      const newErrors = { ...prev };
-                      delete newErrors.skill_ids;
-                      return newErrors;
-                    });
-                  }
-                }
-                }
-
-                styles={{
-                  control: (provided) => ({
-                    ...provided,
-                    minHeight: "50px",
-                    height: "60px",
-                    backgroundColor: "rgb(240, 245, 247)",
-                    border: "none",
-                  }),
-                  indicatorsContainer: (provided) => ({
-                    ...provided,
-                    height: "38px",
-                  }),
-                }}
+                ref={this.refsFields.skill_ids}
+                onChange={(selected) => this.setState((prev) => ({
+                  values: { ...prev.values, skill_ids: selected || [] },
+                  errors: { ...prev.errors, skill_ids: undefined },
+                }))}
               />
+              {errors?.skill_ids && <div className="text-danger">{errors.skill_ids}</div>}
+            </FormGroup>
+          </Col>
 
-              {errors?.skill_ids && (
-                <div className="text-danger">{errors.skill_ids}</div>
-              )}
-            </div>
-
-            <div className="form-group col-lg-6 col-md-12">
-              <label>Job Timings <span className="text-danger">*</span></label>
-              <div style={{ display: 'flex', direction: 'row', gap: '10px', width: "100%" }}>
-                <div style={{ flex: 1 }}>
-                  <input
+          {/* Job Timings */}
+          <Col md="6">
+            <FormGroup>
+              <Label>Job Timings <span className="text-danger">*</span></Label>
+              <Row>
+                <Col>
+                  <Input
                     type="time"
-                    ref={refs.time_from}
-                    className="form-control"
-                    value={values.time_from}
                     name="time_from"
-                    onChange={handleInputchange}
+                    innerRef={this.refsFields.time_from}
+                    value={values.time_from}
+                    onChange={this.handleInputChange}
                     style={inputStyles}
                   />
-                  {errors?.time_from && (
-                    <div className="text-danger">{errors?.time_from}</div>
-                  )}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <input
-                    ref={refs.time_to}
+                  {errors?.time_from && <div className="text-danger">{errors.time_from}</div>}
+                </Col>
+                <Col>
+                  <Input
                     type="time"
-                    className="form-control"
-                    value={values.time_to}
                     name="time_to"
-                    onChange={handleInputchange}
+                    innerRef={this.refsFields.time_to}
+                    value={values.time_to}
+                    onChange={this.handleInputChange}
                     style={inputStyles}
                   />
-                  {errors?.time_to && (
-                    <div className="text-danger">{errors?.time_to}</div>
-                  )}
+                  {errors?.time_to && <div className="text-danger">{errors.time_to}</div>}
+                </Col>
+              </Row>
+            </FormGroup>
+          </Col>
 
-                  {/* {errors.m && (
-                  <div className='error-message text-danger'>{errors.max_salary}</div>
-                )} */}
-                </div>
-              </div>
-            </div>
-
-            <div className="form-group col-lg-6 col-md-12">
-              <label>Job Type <span className="text-danger">*</span></label>
+          {/* Job Type */}
+          <Col md="6">
+            <FormGroup>
+              <Label>Job Type <span className="text-danger">*</span></Label>
               <AsyncSelect
-                ref={refs.job_type_id}
                 cacheOptions
                 defaultOptions
-                loadOptions={loadJobTypes}
-                value={values.job_type_id || null}
-                onChange={(selectedOption) => {
-                  setFormData((prev) => ({ ...prev, job_type_id: selectedOption }))
-                  if (errors.job_type_id) {
-                    setErrors((prev) => {
-                      const newErrors = { ...prev };
-                      delete newErrors.job_type_id;
-                      return newErrors;
-                    });
-                  }
-                }
-                }
-
-                styles={{
-                  control: (provided) => ({
-                    ...provided,
-                    minHeight: "50px",
-                    height: "60px",
-                    backgroundColor: "rgb(240, 245, 247)",
-                    border: "none",
-                  }),
-                  indicatorsContainer: (provided) => ({
-                    ...provided,
-                    height: "38px",
-                  }),
-                }}
+                loadOptions={this.loadJobTypes}
+                value={values.job_type_id}
+                ref={this.refsFields.job_type_id}
+                onChange={(option) => this.handleSelectChange("job_type_id", option)}
               />
-              {errors?.job_type_id && (
-                <div className="text-danger">{errors?.job_type_id}</div>
-              )}
-            </div>
+              {errors?.job_type_id && <div className="text-danger">{errors.job_type_id}</div>}
+            </FormGroup>
+          </Col>
 
-            <div className="form-group col-lg-6 col-md-12">
-              <label>Salary Range<span className="text-danger">*</span></label>
-              <div style={{ display: 'flex', direction: 'row', gap: '10px', width: "100%" }}>
-                <div style={{ flex: 1 }}>
-                  <input
-                    type='number'
-                    ref={refs.min_salary}
-                    className='form-control'
-                    value={values.min_salary}
-                    placeholder="min"
+          {/* Salary */}
+          <Col md="6">
+            <FormGroup>
+              <Label>Salary Range <span className="text-danger">*</span></Label>
+              <Row>
+                <Col>
+                  <Input
+                    type="number"
                     name="min_salary"
-                    onChange={handleInputchange}
+                    innerRef={this.refsFields.min_salary}
+                    value={values.min_salary}
+                    placeholder="Min"
+                    onChange={this.handleInputChange}
                   />
-                  {errors?.min_salary && (
-                    <div className="text-danger">{errors?.min_salary}</div>
-                  )}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <input type="number"
-                    ref={refs.max_salary}
-                    className='form-control'
-                    value={values.max_salary}
+                  {errors?.min_salary && <div className="text-danger">{errors.min_salary}</div>}
+                </Col>
+                <Col>
+                  <Input
+                    type="number"
                     name="max_salary"
-                    onChange={handleInputchange}
+                    innerRef={this.refsFields.max_salary}
+                    value={values.max_salary}
+                    placeholder="Max"
+                    onChange={this.handleInputChange}
                   />
-                  {errors?.max_salary && (
-                    <div className="text-danger">{errors?.max_salary}</div>
-                  )}
-                  {errors?.salary && <div className="text-danger">{errors?.salary}</div>}
-                </div>
-
-                <span>
+                  {errors?.max_salary && <div className="text-danger">{errors.max_salary}</div>}
+                  {errors?.salary && <div className="text-danger">{errors.salary}</div>}
+                </Col>
+                <Col>
                   <AsyncSelect
-                    ref={refs.currency_id}
                     cacheOptions
                     defaultOptions
-                    loadOptions={loadCurrency}
-                    value={values.currency_id || null}
-                    onChange={(selectedOption) => {
-                      setFormData((prev) => ({ ...prev, currency_id: selectedOption }))
-                      if (errors.currency_id) {
-                        setErrors((prev) => {
-                          const newErrors = { ...prev };
-                          delete newErrors.currency_id;
-                          return newErrors;
-                        });
-                      }
-                    }
-                    }
+                    loadOptions={this.loadCurrency}
+                    value={values.currency_id}
+                    ref={this.refsFields.currency_id}
+                    onChange={(option) => this.handleSelectChange("currency_id", option)}
+                  />
+                  {errors?.currency_id && <div className="text-danger">{errors.currency_id}</div>}
+                </Col>
+              </Row>
+            </FormGroup>
+          </Col>
 
-                    styles={{
-                      control: (provided) => ({
-                        ...provided,
-                        minHeight: "50px",
-                        height: "60px",
-                        backgroundColor: "rgb(240, 245, 247)",
-                        border: "none",
-                      }),
-                      indicatorsContainer: (provided) => ({
-                        ...provided,
-                        height: "38px",
-                      }),
-                    }}
-                  /></span>
-                {errors?.currency_id && (
-                  <div className="text-danger">{errors?.currency_id}</div>
-                )}
-                {/* </div> */}
-              </div>
-            </div>
-
-            <div className="form-group col-lg-6 col-md-12">
-              <label>Experience <span className="text-danger">*</span></label>
-              <div style={{ display: "flex", flexDirection: "row", gap: "10px" }}>
-                <div style={{ flex: 1 }}>
-                  {/* Dropdown */}
-                  <select
-                    className="chosen-single form-select"
-                    name="experienceType"
-                    ref={refs.min_experience}
-                    value={values.min_experience || ""}
-                    onChange={(e) => {
-                      setFormData((prev) => ({ ...prev, min_experience: e.target.value }))
-                      if (errors.min_experience) {
-                        setErrors((prev) => {
-                          const newErrors = { ...prev };
-                          delete newErrors.min_experience;
-                          return newErrors;
-                        });
-                      }
-                    }}
-
+          {/* Experience */}
+          <Col md="6">
+            <FormGroup>
+              <Label>Experience <span className="text-danger">*</span></Label>
+              <Row>
+                <Col>
+                  <Input
+                    type="select"
+                    name="min_experience"
+                    innerRef={this.refsFields.min_experience}
+                    value={values.min_experience}
+                    onChange={this.handleInputChange}
                   >
-                    <option value="">min</option>
-                    {experienceOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                  {errors?.min_experience && (
-                    <div className="text-danger">{errors?.min_experience}</div>
-                  )}
-                </div>
-                <div style={{ flex: 1 }} className="no-scrollbar overflow-auto">
-                  <select
-                    className="chosen-single form-select"
-                    name="experienceType"
-                    ref={refs.max_experience}
-                    value={values.max_experience || ""}
-                    onChange={(e) => {
-                      setFormData((prev) => ({ ...prev, max_experience: e.target.value }))
-                      if (errors.max_experience) {
-                        setErrors((prev) => {
-                          const newErrors = { ...prev };
-                          delete newErrors.max_experience;
-                          return newErrors;
-                        });
-                      }
-                    }}
+                    <option value="">Min</option>
+                    {this.experienceOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                  </Input>
+                  {errors?.min_experience && <div className="text-danger">{errors.min_experience}</div>}
+                </Col>
+                <Col>
+                  <Input
+                    type="select"
+                    name="max_experience"
+                    innerRef={this.refsFields.max_experience}
+                    value={values.max_experience}
+                    onChange={this.handleInputChange}
                   >
-                    <option value="">max</option>
-                    {experienceOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                  {errors?.max_experience && (
-                    <div className="text-danger">{errors?.max_experience}</div>
-                  )}
-                </div>
-                {errors?.experience && <div className="text-danger">{errors?.experience}</div>}
-              </div>
-
-            </div>
-
-
-
-            <div className="form-group col-lg-6 col-md-12">
-              <label>No of Positions <span className="text-danger">*</span></label>
-              <input type="number"
-                ref={refs.no_of_positions}
-                className='form-control'
-                value={values.no_of_positions}
+                    <option value="">Max</option>
+                    {this.experienceOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                  </Input>
+                  {errors?.max_experience && <div className="text-danger">{errors.max_experience}</div>}
+                  {errors?.experience && <div className="text-danger">{errors.experience}</div>}
+                </Col>
+              </Row>
+            </FormGroup>
+          </Col>
+          <Col md="6">
+            <FormGroup>
+              <Label>No of Positions <span className="text-danger">*</span></Label>
+              <Input
+                type="number"
                 name="no_of_positions"
-                onChange={handleInputchange}
+                innerRef={this.refsFields.no_of_positions}
+                value={values.no_of_positions}
+                onChange={this.handleInputChange}
               />
-              {errors?.no_of_positions && (
-                <div className="text-danger">{errors?.no_of_positions}</div>
-              )}
-            </div>
-
-            <div className="form-group col-lg-6 col-md-12">
-              <label>Speciality <span className="text-danger">*</span></label>
+              {errors?.no_of_positions && <div className="text-danger">{errors.no_of_positions}</div>}
+            </FormGroup>
+          </Col>
+          {/* Profession */}
+          <Col md="6">
+            <FormGroup>
+              <Label>Speciality <span className="text-danger">*</span></Label>
               <AsyncSelect
-                ref={refs.profession_id}
                 cacheOptions
                 defaultOptions
-                loadOptions={loadProfessions}
-                value={values.profession_id || null}
-                onChange={(selectedOption) => {
-                  setFormData((prev) => ({ ...prev, profession_id: selectedOption }))
-                  if (errors.profession_id) {
-                    setErrors((prev) => {
-                      const newErrors = { ...prev };
-                      delete newErrors.profession_id;
-                      return newErrors;
-                    });
-                  }
-                }
-                }
+                loadOptions={this.loadProfessions}
+                value={values.profession_id}
+                ref={this.refsFields.profession_id}
+                onChange={(option) => this.handleSelectChange("profession_id", option)}
+              />
+              {errors?.profession_id && <div className="text-danger">{errors.profession_id}</div>}
+            </FormGroup>
+          </Col>
 
+          {/* Degree */}
+          <Col md="6">
+            <FormGroup>
+              <Label>Degree <span className="text-danger">*</span></Label>
+              <AsyncSelect
+                cacheOptions
+                defaultOptions
+                loadOptions={this.loadDegree}
+                value={values.degree_id}
+                ref={this.refsFields.degree_id}
+                onChange={(option) => this.handleSelectChange("degree_id", option)}
+              />
+              {errors?.degree_id && <div className="text-danger">{errors.degree_id}</div>}
+            </FormGroup>
+          </Col>
+
+          {/* Country */}
+          <Col md="6">
+            <FormGroup>
+              <Label>Country <span className="text-danger">*</span></Label>
+              <AsyncSelect
+                ref={this.refsFields.country_id}
+                cacheOptions
+                defaultOptions
+                loadOptions={this.loadCountries}
+                value={this.state.selectedCountry || null}
+                onChange={(option) => this.setState({ selectedCountry: option, selectedDistrict: null, selectedCity: null })}
                 styles={{
                   control: (provided) => ({
                     ...provided,
@@ -772,37 +590,26 @@ const PostBoxForm = () => {
                     backgroundColor: "rgb(240, 245, 247)",
                     border: "none",
                   }),
-                  indicatorsContainer: (provided) => ({
-                    ...provided,
-                    height: "38px",
-                  }),
+                  indicatorsContainer: (provided) => ({ ...provided, height: "38px" }),
                 }}
               />
-              {errors?.profession_id && (
-                <div className="text-danger">{errors?.profession_id}</div>
-              )}
-            </div>
+              {errors?.country_id && <div className="text-danger">{errors.country_id}</div>}
+            </FormGroup>
+          </Col>
 
-            <div className="form-group col-lg-6 col-md-12">
-              <label>Qualification Required <span className="text-danger">*</span></label>
+          {/* District */}
+          <Col md="6">
+            <FormGroup>
+              <Label>District <span className="text-danger">*</span></Label>
               <AsyncSelect
-                ref={refs.degree_id}
+                key={this.state.selectedCountry?.value || 'district'}
+                ref={this.refsFields.district_id}
                 cacheOptions
                 defaultOptions
-                loadOptions={loadDegree}
-                value={values.degree_id || null}
-                onChange={(selectedOption) => {
-                  setFormData((prev) => ({ ...prev, degree_id: selectedOption }))
-                  if (errors.degree_id) {
-                    setErrors((prev) => {
-                      const newErrors = { ...prev };
-                      delete newErrors.degree_id;
-                      return newErrors;
-                    });
-                  }
-                }
-                }
-
+                loadOptions={this.loadDistricts}
+                value={this.state.selectedDistrict || null}
+                onChange={(option) => this.setState({ selectedDistrict: option, selectedCity: null })}
+                isDisabled={!this.state.selectedCountry}
                 styles={{
                   control: (provided) => ({
                     ...provided,
@@ -811,36 +618,26 @@ const PostBoxForm = () => {
                     backgroundColor: "rgb(240, 245, 247)",
                     border: "none",
                   }),
-                  indicatorsContainer: (provided) => ({
-                    ...provided,
-                    height: "38px",
-                  }),
+                  indicatorsContainer: (provided) => ({ ...provided, height: "38px" }),
                 }}
               />
-              {errors?.degree_id && (
-                <div className="text-danger">{errors?.degree_id}</div>
-              )}
-            </div>
-            <div className="form-group col-lg-6 col-md-12">
-              <label>Country <span className="text-danger">*</span></label>
+              {errors?.district_id && <div className="text-danger">{errors.district_id}</div>}
+            </FormGroup>
+          </Col>
+
+          {/* City */}
+          <Col md="6">
+            <FormGroup>
+              <Label>City <span className="text-danger">*</span></Label>
               <AsyncSelect
-                ref={refs.country_id}
+                key={this.state.selectedDistrict?.value || 'city'}
+                ref={this.refsFields.city_id}
                 cacheOptions
                 defaultOptions
-                loadOptions={loadCountries}
-                value={selectedCountry || null}
-                onChange={(option) => {
-                  setSelectedCountry(option);
-                  setSelectedDistrict(null);
-                  setSelectedCity(null);
-                  if (errors.country_id) {
-                    setErrors((prev) => {
-                      const newErrors = { ...prev };
-                      delete newErrors.country_id;
-                      return newErrors;
-                    });
-                  }
-                }}
+                loadOptions={this.fetchCities}
+                value={this.state.selectedCity || null}
+                onChange={(option) => this.setState({ selectedCity: option })}
+                isDisabled={!this.state.selectedDistrict}
                 styles={{
                   control: (provided) => ({
                     ...provided,
@@ -849,132 +646,44 @@ const PostBoxForm = () => {
                     backgroundColor: "rgb(240, 245, 247)",
                     border: "none",
                   }),
-                  indicatorsContainer: (provided) => ({
-                    ...provided,
-                    height: "38px",
-                  }),
+                  indicatorsContainer: (provided) => ({ ...provided, height: "38px" }),
                 }}
               />
-              {errors?.country_id && (
-                <div className="text-danger">{errors?.country_id}</div>
-              )}
-            </div>
-
-            <div className="form-group col-lg-6 col-md-12">
-              <label>District <span className="text-danger">*</span></label>
-              <AsyncSelect
-                key={selectedCountry?.value}
-                ref={refs.district_id}
-                cacheOptions
-                defaultOptions
-                loadOptions={loadDistricts}
-                value={selectedDistrict || null}
-                onChange={(option) => {
-                  setSelectedDistrict(option);
-                  setSelectedCity(null);
-                  if (errors.district_id) {
-                    setErrors((prev) => {
-                      const newErrors = { ...prev };
-                      delete newErrors.district_id;
-                      return newErrors;
-                    });
-                  }
-                }}
-                isDisabled={!selectedCountry}
-                styles={{
-                  control: (provided) => ({
-                    ...provided,
-                    minHeight: "50px",
-                    height: "60px",
-                    backgroundColor: "rgb(240, 245, 247)",
-                    border: "none",
-                  }),
-                  indicatorsContainer: (provided) => ({
-                    ...provided,
-                    height: "38px",
-                  }),
-                }}
-              />
-              {errors?.district_id && (
-                <div className="text-danger">{errors?.district_id}</div>
-              )}
-            </div>
+              {errors?.city_id && <div className="text-danger">{errors.city_id}</div>}
+            </FormGroup>
+          </Col>
 
 
 
-            <div className="form-group col-lg-6 col-md-12">
-              <label>City <span className="text-danger">*</span></label>
-              <AsyncSelect
-                key={selectedDistrict?.value}
-                ref={refs.city_id}
-                cacheOptions
-                defaultOptions
-                loadOptions={fetchCities}
-                value={selectedCity || null}
-                onChange={(option) => {
-                  setSelectedCity(option)
-                  if (errors.city_id) {
-                    setErrors((prev) => {
-                      const newErrors = { ...prev };
-                      delete newErrors.city_id;
-                      return newErrors;
-                    });
-                  }
-                }}
-                isDisabled={!selectedDistrict}
-                styles={{
-                  control: (provided) => ({
-                    ...provided,
-                    minHeight: "50px",
-                    height: "60px",
-                    backgroundColor: "rgb(240, 245, 247)",
-                    border: "none",
-                  }),
-                  indicatorsContainer: (provided) => ({
-                    ...provided,
-                    height: "38px",
-                  }),
-                }}
-              />
-              {errors?.city_id && (
-                <div className="text-danger">{errors?.city_id}</div>
-              )}
-            </div>
 
-            {/* Application deadline */}
-            <div className="form-group col-lg-6 col-md-12">
-              <label>Application Deadline Date <span className="text-danger">*</span></label>
-
-              <input
-                type="datetime-local"
+          {/* Application Deadline */}
+          <Col md="6">
+            <FormGroup>
+              <Label>Application Deadline <span className="text-danger">*</span></Label>
+              <Input
+                type="date"
                 name="application_deadline"
-                placeholder="MM/DD/YYYY"
+                innerRef={this.refsFields.application_deadline}
                 value={values.application_deadline}
-                onChange={handleInputchange}
-                onFocus={handleInputFocus}
-                onBlur={handleInputBlur}
-                className="form-control"
-                style={inputStyles}
-                ref={refs.application_deadline}
-                min={(new Date()).toISOString().slice(0, 16)} // Set min to the current date and time
-              // max={expireAt instanceof Date && !isNaN(expireAt) ? expireAt.toISOString().slice(0, 16) : ''}
+                onChange={this.handleInputChange}
               />
-              {errors?.application_deadline && (
-                <div className="text-danger">{errors?.application_deadline}</div>
-              )}
-              {errors?.deadline && <div className="text-danger">{errors?.deadline}</div>}
-            </div>
+              {errors?.application_deadline && <div className="text-danger">{errors.application_deadline}</div>}
+              {errors?.deadline && <div className="text-danger">{errors.deadline}</div>}
+            </FormGroup>
+          </Col>
 
-            <div className="form-group col-lg-6 col-md-12">
-              <label htmlFor="industry" className="form-label">Industry / Facility Type</label>
-              <select
-                id="industry"
+          {/* Industry */}
+          <Col md="6">
+            <FormGroup>
+              <Label for="industry">Industry / Facility Type</Label>
+              <Input
+                type="select"
                 name="industry"
-                className="form-select"
-                value={values.industry || ""}
-                onChange={handleInputchange}
+                id="industry"
+                value={this.state.values.industry || ""}
+                onChange={this.handleInputChange}   // ✅ correct handler
+                innerRef={this.refsFields.industry}
                 style={inputStyles}
-                ref={refs.industry}
               >
                 <option value="">-- Select Industry --</option>
                 <option value="hospital_small">Hospital (Small, &lt;50 beds)</option>
@@ -985,32 +694,19 @@ const PostBoxForm = () => {
                 <option value="medical_laboratory">Medical Laboratory</option>
                 <option value="rehabilitation_center">Rehabilitation Center</option>
                 <option value="medical_equipment_supplier">Medical Equipment Supplier / Distributor</option>
-              </select>
-              {errors?.industry && (
-                <div className="text-danger">{errors?.industry}</div>
+              </Input>
+              {this.state.errors?.industry && (
+                <div className="text-danger">{this.state.errors.industry}</div>
               )}
-            </div>
+            </FormGroup>
+          </Col>
 
+        </Row>
 
-            {/* <!-- Input --> */}
-            <div className="form-group col-lg-12 col-md-12 text-right">
-              <input
-                type="hidden"
-                name="account_id"
-              // value={values.company_id} // Set the value to the actual company ID
-              />
-
-              <button className="theme-btn btn-style-one" type="submit">Save</button>
-            </div>
-          </div>
-        </form>
-      }
-
-      {showPricing &&
-        <PricingForm jobId={jobId} setShowPricing={setShowPricing} />
-      }
-    </div>
-  );
-};
+        <Button color="primary" type="submit">Next</Button>
+      </Form>
+    );
+  }
+}
 
 export default PostBoxForm;

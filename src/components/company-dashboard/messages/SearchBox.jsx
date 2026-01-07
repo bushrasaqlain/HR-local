@@ -1,7 +1,7 @@
-const SearchBox = ({userId}) => {
+const SearchBox = () => {
   return (
     <form method="post" action="#">
-      {/* <div className="form-group">
+      <div className="form-group">
         <span className="icon flaticon-search-1"></span>
         <input
           type="search"
@@ -9,7 +9,7 @@ const SearchBox = ({userId}) => {
           placeholder="Search"
           required=""
         />
-      </div> */}
+      </div>
     </form>
   );
 };

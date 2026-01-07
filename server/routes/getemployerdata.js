@@ -540,19 +540,7 @@
 // });
 // //*************************************fetch the posted jobs on dashboard */
 // router.get("/job-posts/:userId", (req, res) => {
-//   const userId = req.params.userId;
-
-//   // Fetch count of job posts associated with the provided userId from the database
-//   const sql = "SELECT COUNT(*) AS jobCount FROM job_posts WHERE account_id = ?";
-
-//   connection.query(sql, [userId], (err, results) => {
-//     if (err) {
-//       console.error(err);
-//       return res.status(500).json({ error: "Internal Server Error" });
-//     }
-//     const jobCount = results[0].jobCount || 0; // Extract job count from the results
-//     return res.json({ userId, jobPostsCount: jobCount });
-//   });
+// 
 // });
 
 // ////////////////////////////////////////////////////////////////////////

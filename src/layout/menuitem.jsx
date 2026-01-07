@@ -48,16 +48,17 @@ export const regadminmenuitem = [
 ]
 
 export const companymenuitem = [
-  { key: "companyProfile", label: "Profile" },
+    { key: "profile", label: "Profile" },
+   { key: "companyProfile", label: "Update Profile" },
   { key: "postJob", label: "Post Job" },
-  { key: "jobList", label: "Job List" },
+  { key: "jobList", label: "Job Post List" },
+  // { key: "pricing", label: "Packages Pricing"},
+  { key: "packagesList", label: "Packages List" },
   { key: "allApplicants", label: "All Applicants" },
 
-  // { key: "postJob", label: "Job Post" },
   // { key: "WidgetContentBox", label: "ShortList Candidates" },
-  // { key: "packagesList", label: "Packages List" },
-  // { key: "messages", label: "messages" },
-  // { key: "Packages Prices", label: "pricing" },
+  
+  { key: "chatBox", label: "Messages" },
 
 
   //   id: 8,
