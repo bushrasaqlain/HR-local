@@ -155,21 +155,32 @@ const getAllCities = ({ page, limit, name, search, status }, callback) => {
   }
 
   // ✅ Search filters
-  if (search) {
-    if (name === "district") {
-      whereConditions.push("d.name LIKE ?");
-      values.push(`%${search}%`);
-    } else if (name === "country") {
-      whereConditions.push("co.name LIKE ?");
-      values.push(`%${search}%`);
-    } else if (name === "created_at" || name === "updated_at") {
-      whereConditions.push(`DATE(c.${name}) = ?`);
-      values.push(search);
-    } else {
-      whereConditions.push("c.name LIKE ?");
-      values.push(`%${search}%`);
-    }
+// ✅ Search filters
+if (search) {
+  if (name === "district") {
+    whereConditions.push("d.name LIKE ?");
+    values.push(`%${search}%`);
+
+  } else if (name === "country") {
+    whereConditions.push("co.name LIKE ?");
+    values.push(`%${search}%`);
+
+  } else if (name === "status") {
+    // 🔥 Status column filter
+    whereConditions.push("LOWER(c.status) LIKE ?");
+    values.push(`%${search.toLowerCase()}%`);
+
+  } else if (name === "created_at" || name === "updated_at") {
+    whereConditions.push(`DATE(c.${name}) = ?`);
+    values.push(search);
+
+  } else {
+    // city name (default)
+    whereConditions.push("c.name LIKE ?");
+    values.push(`%${search}%`);
   }
+}
+
 
   const whereClause =
     whereConditions.length > 0
