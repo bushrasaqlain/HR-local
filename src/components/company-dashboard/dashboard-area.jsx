@@ -13,6 +13,7 @@ import PackagesList from "./packagesList.jsx";
 import PostJob from "./postJob.jsx";
 import Pricing from "./pricing.jsx";
 import WidgetContentBox from "./shortlisted-resumes/WidgetContentBox.jsx";
+import Profile from "./dashboard/profile.jsx";
 const CompanyDashboardArea = ({ activeTab }) => {
     const router = useRouter();
     const [userInfo, setUserInfo] = useState({ userId: null, token: null });
@@ -67,45 +68,38 @@ const CompanyDashboardArea = ({ activeTab }) => {
 
     const renderContent = () => {
         switch (activeTab) {
+            case "profile":
+                return <Profile/>
+
+
             case "companyProfile":
                 return <CompanyProfile userId={userInfo.userId} />;
+                 case "pricing":
+                return <Pricing/>;
             case "allApplicants":
                 return <AllApplicants />
             case "jobList":
                 return <JobListings userId={userInfo.userId} />;
 
-            // case "packagesList":
-            //     return <PackagesList />;
+            case "packagesList":
+                return <PackagesList />;
 
-            // case "chatBox":
-            //     return <ChatBox />;
+            case "chatBox":
+                return <ChatBox />;
 
             case "postJob":
-                return <PostJob/>
-                // return hasActivePackage ? (
-                //     <PostJob />
-                // ) : (
-                //     <h6 className="text-danger">
-                //         Subscribe to a package before posting the job. Click on{" "}
-                //         <Link
-                //             href={`/pricing`}
-                //             className="proceed-btn"
-                //         >
-                //             <u>Job Packages</u>
-                //         </Link>
-                //         {" "}to subscribe.
-                //     </h6>
-                // );
+                return <PostJob />
+            case "changepassword":
+                return <ChangePasswordForm />;
+            
 
             // case "WidgetContentBox":
             //     return <WidgetContentBox />
-            // case "changepassword":
-            //     return <ChangePasswordForm />;
+            
             default:
-                return <CompanyProfile />
+                return <Profile />
         }
     };
-
 
     return (
         <section className="user-dashboard py-2 my-4">

@@ -23,7 +23,7 @@ class JobListings extends Component {
       jobListings: [],
       loading: true,
       error: null,
-      jobsPerPage: 5,
+      jobsPerPage: 50,
       currentPage: 1,
       filters: {
         title: "",
@@ -286,11 +286,10 @@ class JobListings extends Component {
                       {job.status}
                     </Badge>
                   </td>
-                  <td>
+                  <td style={{ display: "flex", gap: "8px" }}>
                     <Button
                       size="sm"
-                      color="primary"
-                      className="me-2"
+                      color="outline-primary"
                       onClick={() => this.handleEditJob(job)}
                     >
                       Edit
@@ -298,12 +297,13 @@ class JobListings extends Component {
 
                     <Button
                       size="sm"
-                      color="danger"
+                      color="outline-danger"
                       onClick={() => this.handleDeleteJob(job.id)}
                     >
                       Delete
                     </Button>
                   </td>
+
                 </tr>
               ))
             ) : (

@@ -24,7 +24,7 @@ const education = require('./routes/Education')
 const projects = require("./routes/Projects");
 const certificateAwards = require("./routes/CertificateAward");
 const jobs = require("./routes/CandidateJobs")
-const messages = require("./routes/messages");
+// const messages = require("./routes/messages");
 
 // const singlejob = require("./routes/singlejobdata")
 
@@ -37,8 +37,6 @@ app.use('/', education )
 app.use('/', projects)
 app.use('/', certificateAwards)
 app.use('/',jobs)
-
-app.use('/', messages)
 
 
 // Require your route files
@@ -83,6 +81,8 @@ const packages= require("./routes/packagesRoutes");
 const cart= require("./routes/cartRoutes");
 const jobRoutes=require("./routes/jobRoutes")
 
+const messages = require("./routes/messagesRoutes");
+
 app.use("/", accountRoutes);
 app.use("/company-info", companyRoute);
 app.use("/job",jobRoutes)
@@ -106,6 +106,10 @@ app.use ("/",currency);
 
 app.use("/packages", packages);
 app.use("/", cart);
+
+
+app.use('/message', messages)
+
 
 
 

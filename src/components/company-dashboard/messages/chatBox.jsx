@@ -4,9 +4,9 @@ import ContentField from "./ContentField";
 import { useDispatch } from "react-redux";
 import { chatSidebarToggle } from "../../../redux/features/toggle/toggleSlice";
 
-const ChatBox = ({userId}) => {
+const ChatBox = () => {
   const dispatch = useDispatch();
-
+  const userId = sessionStorage.getItem("userId");
   const chatToggle = () => {
     dispatch(chatSidebarToggle());
   };
@@ -27,20 +27,20 @@ const ChatBox = ({userId}) => {
             </div>
             {/* close chatbox in mobile menu */}
             <div className="search-box-one">
-              <SearchBox userId={userId}/>
+              <SearchBox userId={userId} />
             </div>
           </div>
           {/* End cart-heaer */}
 
           <div className="card-body contacts_body">
-            <ContactList userId={userId} />
+            <ContactList  />
           </div>
         </div>
       </div>
       {/* End chat_contact */}
 
       <div className=" col-xl-8 col-lg-7 col-md-12 col-sm-12 chat">
-        <ContentField userId={userId}/>
+        <ContentField userId={userId} />
       </div>
       {/* chatbox-field-content */}
     </div>

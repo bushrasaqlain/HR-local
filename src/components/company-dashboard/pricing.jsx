@@ -1,17 +1,26 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { toast } from "react-toastify";
 
 const Pricing = () => {
-   const userId = sessionStorage.getItem("userId");
+  const userId = sessionStorage.getItem("userId");
   const [pricingContent, setPricingContent] = useState([]);
-
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   const [successMessage, setSuccessMessage] = useState(null);
+const [packageCount,setPackageCount]=useState(0)
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch("http://localhost:8080/pricing");
+        const response = await fetch(`${apiBaseUrl}packages/getallpackages`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
         const data = await response.json();
-        setPricingContent(data);
+
+        // IMPORTANT LINE
+        setPricingContent(data.packages);
+
       } catch (error) {
         console.error("Error fetching pricing data:", error);
       }
@@ -19,6 +28,8 @@ const Pricing = () => {
 
     fetchData();
   }, []);
+
+
 
   const staticPricingContent = [
     {
@@ -54,12 +65,14 @@ const Pricing = () => {
   ];
 
   const combinedPricingContent = pricingContent.map((dynamicItem, index) => {
-    const staticItem = staticPricingContent[index];
+    const staticItem = staticPricingContent[index] || {};
     return {
       ...staticItem,
       ...dynamicItem,
+      features: dynamicItem.features || staticItem.features || [], // fallback
     };
   });
+
   const handleAddToCart = async (packageType, price) => {
     try {
       const response = await fetch(`http://localhost:8080/cart/${userId}`, {
@@ -72,45 +85,39 @@ const Pricing = () => {
           price: price,
         }),
       });
-  
+
       if (response.ok) {
         setSuccessMessage("Item added to cart successfully");
-  
+
         // Automatically hide the success message after 3 seconds
         setTimeout(() => {
           setSuccessMessage(null);
-        }, 3000);
-  
-        // Update the local state immediately
+        }, 500);
+
+        
         setPackageCount((prevCount) => (prevCount || 0) + 1);
-  
-        // Dispatch an action to update Redux state
+
+        
         dispatch(reloadCart());
-  
-        // If you have WebSocket implemented, notify the server about the cart update
-        // socket.emit('cartUpdated', { userId });
-  
-        // Set reloadHeader to true to trigger the header reload
         setReloadHeader(true);
       } else {
         console.error("Failed to add item to cart", response.status, response.statusText);
         const responseBody = await response.json();
         const errorMessage = responseBody.error;
-  
-        // Set the error message to the successMessage state
-        setSuccessMessage(errorMessage);
+         toast.error(`${errorMessage}`);
       }
     } catch (error) {
       console.error("Error adding item to cart:", error);
+      
     }
   };
-  
-  
-  
-  
+
+
+
+
   return (
     <div className="pricing-tabs tabs-box wow fadeInUp">
-        {successMessage && (
+      {successMessage && (
         <div className="success-message alert alert-info">
           {successMessage}
         </div>
@@ -134,26 +141,27 @@ const Pricing = () => {
               <div className="price">
                 Rs{item.price} <span className="duration">
                   / monthly
-                  </span>
+                </span>
               </div>
               <div className="table-content">
-              <ul>
+                <ul>
                   <li>
-                  <span>{`${item.Jobs} job postings`}</span>
-                
+                    <span>{`${item.Jobs} job postings`}</span>
+
                   </li>
                   <li>
-                  <span>{`Job displayed for ${item.days} days`}</span>
+                    <span>{`Job displayed for ${item.days} days`}</span>
                   </li>
-                  {item.features.map((feature, i) => (
+                  {item.features?.map((feature, i) => (
                     <li key={i}>
                       <span>{feature}</span>
                     </li>
                   ))}
+
                 </ul>
               </div>
               <div className="table-footer">
-              <button
+                <button
                   className="theme-btn btn-style-three"
                   onClick={() => handleAddToCart(item.package_type, item.price)}
                 >

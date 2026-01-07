@@ -352,6 +352,62 @@ const getCompanyPackgestatus=(req,res)=>{
     res.status(500).json({ error: "Internal Server Error" });
   }
 }
+
+const getPackageDetail = (req, res) => {
+  const userId = req.params.userId;
+
+  const query = `
+    SELECT 
+      c.id AS cart_id,
+      c.order_id,
+      c.package_type,
+      c.status AS package_status,
+      c.Expire_At,
+      COALESCE(pj.total_jobs, 0) AS total_jobs,
+      COALESCE(job_list.jobs, '[]') AS jobs
+    FROM 
+      cart c
+    JOIN 
+      packages p
+      ON c.package_type = p.duration_unit
+    LEFT JOIN (
+      SELECT 
+        package_id,
+        COUNT(*) AS total_jobs
+      FROM 
+        job_posts
+      GROUP BY 
+        package_id
+    ) AS pj
+      ON c.id = pj.package_id
+    LEFT JOIN (
+      SELECT 
+        package_id,
+      JSON_ARRAYAGG(JSON_OBJECT(
+  'id', id,
+  'account_id', account_id,
+  'job_title', job_title
+)) AS jobs
+
+      FROM 
+        job_posts
+      GROUP BY package_id
+    ) AS job_list
+      ON c.id = job_list.package_id
+    WHERE 
+      c.account_id = ?;
+  `;
+
+  connection.query(query, [userId], (err, results) => {
+    if (err) {
+      console.error('Error executing SQL query:', err);
+      res.status(500).json({ error: 'Internal Server Error' });
+    } else {
+      res.json(results);
+    }
+  });
+};
+
 module.exports = {
   createPackagesTable,
   getAllPackages,
@@ -360,6 +416,7 @@ module.exports = {
   deletePackage,
   getPackagebyCompany,
   updatePackaeStatus,
-  getCompanyPackgestatus
+  getCompanyPackgestatus,
+  getPackageDetail
 }
 

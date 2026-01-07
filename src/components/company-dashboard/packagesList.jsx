@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 
-const PackagesList = ({ userId }) => {
+const PackagesList = () => {
   const [packageData, setPackageData] = useState([]);
   const [loading, setLoading] = useState(true);
+ const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const userId = sessionStorage.getItem("userId");
 
   useEffect(() => {
     const fetchPackageData = async () => {
       try {
-        const response = await fetch(`http://localhost:8080/PackagesDetail/${userId}`);
+        const response = await fetch(`${apiBaseUrl}packages/getPackageDetail/${userId}`);
         const data = await response.json();
         setPackageData(data);
       } catch (error) {
@@ -25,18 +27,13 @@ const PackagesList = ({ userId }) => {
     return <p>Loading...</p>;
   }
 
-  // Check if packageData is an array
-  if (!Array.isArray(packageData) || packageData.length === 0) {
-    return <p>No data available</p>;
-  }
-  
+ 
   return (
        
     <table className="default-table manage-job-table">
       <thead>
         <tr>
-          <th>#</th>
-          <th>Transaction id</th>
+          <th>Job id</th>
           <th>Package</th>
           <th>Expiry</th>
           <th>Total Jobs/CVs</th>

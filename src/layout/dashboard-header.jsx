@@ -51,7 +51,7 @@ class DashboardHeader extends Component {
           else if (accountType === "reg_admin")
             this.setState({ activeTab: "company" });
           else if (accountType === "employer")
-            this.setState({ activeTab: "companyProfile" });
+            this.setState({ activeTab: "profile" });
         }
       }
     );
@@ -171,11 +171,10 @@ class DashboardHeader extends Component {
                       <Button
                         color="dark"
                         outline
-                        className={`text-white ${
-                          activeTab === item.key
-                            ? "border-bottom border-white"
-                            : ""
-                        }`}
+                        className={`text-white ${activeTab === item.key
+                          ? "border-bottom border-white"
+                          : ""
+                          }`}
                         onClick={() => this.setState({ activeTab: item.key })}
                       >
                         <i className={`las ${item.icon} me-1`}></i>
@@ -217,17 +216,22 @@ class DashboardHeader extends Component {
         </Navbar>
 
         {/* Dashboard content */}
-        {accountType === "db_admin" && (
-          <DBAdminDashboardArea activeTab={activeTab} />
-        )}
-        {accountType === "reg_admin" && (
-          <RegAdminDashboardArea activeTab={activeTab} />
-        )}
-        {accountType === "employer" && (
-          <CompanyDashboardArea activeTab={activeTab} />
-        )}
+        <div className="dashboard-wrapper">
+          <div className="dashboard-content">
+            {accountType === "db_admin" && (
+              <DBAdminDashboardArea activeTab={activeTab} />
+            )}
+            {accountType === "reg_admin" && (
+              <RegAdminDashboardArea activeTab={activeTab} />
+            )}
+            {accountType === "employer" && (
+              <CompanyDashboardArea activeTab={activeTab} />
+            )}
+          </div>
 
-        <DashboardFooter />
+          <DashboardFooter className="dashboard-footer" />
+        </div>
+
       </>
     );
   }

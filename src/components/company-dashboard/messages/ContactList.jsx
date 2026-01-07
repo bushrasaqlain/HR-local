@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 
-const ChatboxContactList = ({ userId }) => {
+const ChatboxContactList = () => {
   const [contacts, setContacts] = useState([]);
   const [searchValue, setSearchValue] = useState("");
-
+  const userId = sessionStorage.getItem("userId");
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   useEffect(() => {
     fetchContacts();
   }, []);
 
   const fetchContacts = async () => {
     try {
-      const response = await fetch(`http://localhost:8080/contacts/${userId}`);
+      const response = await fetch(`${apiBaseUrl}message/contacts/${userId}`);
       if (response.ok) {
         const data = await response.json();
         setContacts(data);
@@ -60,29 +61,23 @@ const ChatboxContactList = ({ userId }) => {
 
       {/* Contact List */}
       <ul className="contacts">
-  {filteredContacts.map((contact) => (
-    <li key={contact.id}>
-      <a href="#">
-        <div className="d-flex bd-highlight">
-          <div className="img_cont">
-            <img
-              src={contact.Image} 
-              className="rounded-circle user_img"
-              alt="chatbox avatar"
-              width={90}
-              height={90}
-            />
-          </div>
-          <div className="user_info">
-            <span>{contact.full_name}</span>
-            <p>{contact.last_message} </p>
-          </div>
-          <span className="info" style={{ fontSize: '13px' }}>{formatTime(contact.last_message_time)}</span>
-        </div>
-      </a>
-    </li>
-  ))}
-</ul>
+        {filteredContacts.map((contact) => (
+          <li key={contact.id}>
+            <a href="#">
+              <div className="d-flex bd-highlight">
+               
+                <div className="user_info">
+                  <span>{contact.full_name}</span>
+                  <p>Message: {contact.last_message} </p>
+                </div>
+                <div>
+                <span className="info" style={{ fontSize: '13px' }}>Date: {formatTime(contact.last_message_time)}</span>
+              </div>
+              </div>
+            </a>
+          </li>
+        ))}
+      </ul>
 
     </div>
   );

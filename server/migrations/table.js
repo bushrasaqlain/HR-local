@@ -12,6 +12,8 @@ const packageModel = require("../models/packageModel");
 const emplyeeModel = require("../models/employeeModel");
 const historyModel = require("../models/historyModel")
 const applicantModel = require("../models/applicantModel")
+const jobModel=require("../models/jobModel")
+const messageModel=require("../models/messageModel")
 function Database() {
 
   countryModel.createCountriesTable();
@@ -25,15 +27,17 @@ function Database() {
   bankModel.createBankTable();
   packageModel.createPackagesTable();
 
+
   emplyeeModel.createCompanyInfoTable();
   candidateModel.createCandidateTable();
   candidateModel.createCandidateAvailabilityTable();
   candidateModel.createCandidateSpecialityTable();
   candidateModel.createCandidatePreferredCitiesTable();
   candidateModel.createsaveJobsTableQuery();
-
+  jobModel.createJobPostTable()
   applicantModel.createApplicantsTable();
   historyModel.createHistoryTable();
+  messageModel.createMessagesTable()
 
 
 }
