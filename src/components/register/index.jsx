@@ -15,14 +15,15 @@ const Index = () => {
   if (!mounted) return null; // render nothing on server
 
   return (
-    <div className="login-section">
+    // <div className="login-section">
+    <>
       {!showNext && (
         <>
           <div
             className="image-layer"
-            style={{ backgroundImage: "url(/images/background/bg-1.png)" }}
+            style={{ backgroundImage: "url(/images/background/bg-3.png)" }}
           ></div>
-          <div className="outer-box">
+          <div className="outer-box"> 
             <div className="login-form default-form">
               <Register2 setShowNext={setShowNext} setUserId={setUserId} />
             </div>
@@ -40,7 +41,8 @@ const Index = () => {
           <RegisterCompany isRegister={showNext} userId={userId} />
         </div>
       )}
-    </div>
+      </>
+    // </div>
   );
 };
 
