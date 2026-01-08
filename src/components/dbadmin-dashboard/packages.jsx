@@ -32,7 +32,7 @@ class Packages extends Component {
                 package: "",
                 amount: "",
             },
-            
+
             selectedCurrency: null,
             errors: {},
             successMessage: "",
@@ -100,6 +100,7 @@ class Packages extends Component {
             const res = await axios.get(`${this.apiBaseUrl}dbadminhistory`, {
                 params: { entity_type: "package", entity_id: id },
             });
+            console.log("console",res.data)
             this.setState({ history: res.data || [] });
         } catch (error) {
             console.error("Error fetching history:", error);
@@ -120,36 +121,42 @@ class Packages extends Component {
         }));
     };
     handleCurrencyChange = (selectedCurrency) => {
+        console.log(selectedCurrency)
         this.setState({
             selectedCurrency,
             errors: { ...this.state.errors, currency: "" },
         });
     };
 
-    loadCurrencies = async (inputValue) => {
-        const res = await axios.get(`${apiBaseUrl}getallcurrencies`, {
-            params: { search: inputValue },
-        });
 
-        return res.data.map((item) => ({
-            label: item.code,
-            value: item.id,
-        }));
+    loadCurrencies = async (inputValue) => {
+        try {
+            const res = await axios.get(`${this.apiBaseUrl}getallcurrencies`, {
+                params: { search: inputValue || "", page: 1, limit: 15, status: 'active' },
+            });
+            return res.data.currencies.map((c) => ({ label: c.code, value: c.id }));
+        } catch (err) {
+            console.error(err);
+            return [];
+        }
     };
+
     validateForm = () => {
         const { FormData, selectedCurrency } = this.state;
         let errors = {};
 
-        if (!this.FormData.duration) errors.duration = "Duration is required";
-        if (!this.FormData.package) errors.package = "Package is required";
-        if (!this.FormData.amount) errors.amount = "Amount is required";
+        if (!FormData.duration) errors.duration = "Duration is required";
+        if (!FormData.package) errors.package = "Package is required";
+        if (!FormData.amount) errors.amount = "Amount is required";
         if (!selectedCurrency) errors.currency = "Currency is required";
 
         this.setState({ errors });
         return Object.keys(errors).length === 0;
     };
 
+
     toggleForm = (item = null) => {
+        console.log(item)
         if (item) {
             this.setState({
                 showModal: true,
@@ -189,9 +196,9 @@ class Packages extends Component {
         const { editId, FormData, selectedCurrency } = this.state;
 
         const payload = {
-            duration_value: this.FormData.duration,
-            duration_unit: this.FormData.package,
-            price: this.FormData.amount,
+            duration_value: FormData.duration,
+            duration_unit: FormData.package,
+            price: FormData.amount,
             currency_id: selectedCurrency.value,
         };
 
@@ -218,6 +225,7 @@ class Packages extends Component {
             console.error(error);
         }
     };
+
 
 
 
@@ -609,7 +617,7 @@ class Packages extends Component {
                                         <input
                                             type="number"
                                             name="duration"
-                                           value={FormData.duration}
+                                            value={FormData.duration}
                                             className={`form-control ${errors.duration ? "is-invalid" : ""}`}
                                             onChange={this.handleInputChange}
                                         />
@@ -751,7 +759,12 @@ class Packages extends Component {
                                         fontSize: "14px",
                                     }}
                                 >
-                                    <strong> {item.data.name} </strong> was{" "}
+                                    <strong> 
+                                        Price : {item.data.price},Duration {item.data.duration_value}
+                                        {item.data.duration_unit}
+                                        
+                                        </strong> was{" "}
+                                    
                                     <span
                                         style={{
                                             color:

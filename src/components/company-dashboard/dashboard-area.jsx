@@ -6,12 +6,12 @@ import { useSelector } from "react-redux";
 import AllApplicants from "./allApplicants.jsx";
 import CompanyProfile from "./companyProfile.jsx";
 import ChangePasswordForm from "../form/changepassword/changepasswordform.jsx"
-
+import Cart from "./cart.jsx";
 import ChatBox from "./messages/chatBox.jsx";
 import JobListings from "./jobList.jsx";
 import PackagesList from "./packagesList.jsx";
 import PostJob from "./postJob.jsx";
-import Pricing from "./pricing.jsx";
+
 import WidgetContentBox from "./shortlisted-resumes/WidgetContentBox.jsx";
 import Profile from "./dashboard/profile.jsx";
 const CompanyDashboardArea = ({ activeTab }) => {
@@ -69,33 +69,36 @@ const CompanyDashboardArea = ({ activeTab }) => {
     const renderContent = () => {
         switch (activeTab) {
             case "profile":
-                return <Profile/>
+                return <Profile />
 
-
+            case "postJob":
+                return <PostJob />
             case "companyProfile":
-                return <CompanyProfile userId={userInfo.userId} />;
-                 case "pricing":
-                return <Pricing/>;
+                return <CompanyProfile />;
+
             case "allApplicants":
                 return <AllApplicants />
             case "jobList":
-                return <JobListings userId={userInfo.userId} />;
+                return <JobListings />;
 
             case "packagesList":
                 return <PackagesList />;
 
             case "chatBox":
                 return <ChatBox />;
+                
+                  case "cart":
+                return <Cart />;
 
-            case "postJob":
-                return <PostJob />
+          
+
             case "changepassword":
                 return <ChangePasswordForm />;
-            
+
 
             // case "WidgetContentBox":
             //     return <WidgetContentBox />
-            
+
             default:
                 return <Profile />
         }

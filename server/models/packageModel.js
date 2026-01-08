@@ -34,50 +34,66 @@ const getAllPackages = (
   limit = parseInt(limit, 10);
   const offset = (page - 1) * limit;
 
-  const allowedColumns = ["name", "price", "duration_value", "duration_unit", "currency", "created_at", "updated_at",  "status",  ];
+  const allowedColumns = [
+    "name",
+    "price",
+    "duration_value",
+    "duration_unit",
+    "currency",
+    "created_at",
+    "updated_at",
+    "status",
+  ];
 
   if (!allowedColumns.includes(name)) {
-    name = "price";  // default column
+    name = "price";
   }
 
-  // Handle special fields
-  if (name === "amount") {
-    name = "price"; // fallback to price; we can concatenate later if needed
-  } else if (name === "duration") {
-    name = "duration_value"; // fallback to duration_value
+  if (name === "amount") name = "price";
+  if (name === "duration") name = "duration_value";
+
+  let query = `
+    SELECT 
+      p.*,
+      c.id AS currency_code,
+      c.code AS currency
+    FROM packages p
+    LEFT JOIN currencies c ON c.id = p.currency
+    WHERE 1=1
+  `;
+
+  let values = [];
+
+  if (status !== "all") {
+    query += ` AND p.status = ?`;
+    values.push(status);
   }
-
-  // Build query dynamically
-  let query = `SELECT * FROM packages WHERE 1=1`;
-let values = [];
-
-if (status !== "all") {
-  query += ` AND status = ?`;
-  values.push(status);
-}
-
 
   if (search) {
-    query += ` AND ${name} LIKE ?`;
+    query += ` AND p.${name} LIKE ?`;
     values.push(`%${search}%`);
   }
 
-  query += ` ORDER BY id DESC LIMIT ? OFFSET ?`;
+  query += ` ORDER BY p.id DESC LIMIT ? OFFSET ?`;
   values.push(limit, offset);
 
   connection.query(query, values, (err, results) => {
     if (err) return callback(err);
 
-    let countQuery = `SELECT COUNT(*) AS total FROM packages WHERE 1=1`;
-let countValues = [];
+    let countQuery = `
+      SELECT COUNT(*) AS total
+      FROM packages p
+      WHERE 1=1
+    `;
+    let countValues = [];
 
-if (status !== "all") {
-  countQuery += ` AND status = ?`;
-  countValues.push(status);
-}
+    if (status !== "all") {
+      countQuery += ` AND p.status = ?`;
+      countValues.push(status);
+    }
 
     if (search) {
-      countQuery += ` AND ${name} LIKE ?`;
+      countQuery += ` AND p.${name} LIKE ?`;
       countValues.push(`%${search}%`);
     }
 
@@ -94,14 +110,11 @@ if (status !== "all") {
   });
 };
 
-
-
-
 const addPackage = (req, res) => {
   const userId = req.user.userId;
-  const { duration_unit, price, duration_value, currency } = req.body;
+  const { duration_unit, price, duration_value, currency_id } = req.body;
 
-  if (!duration_unit || !price || !duration_value || !currency) {
+  if (!duration_unit || !price || !duration_value || !currency_id) {
     return res.status(400).json({ error: "All fields are required" });
   }
 
@@ -109,7 +122,7 @@ const addPackage = (req, res) => {
                      (duration_unit, price, duration_value, currency) 
                      VALUES (?, ?, ?, ?)`;
 
-  connection.query(insertSql, [duration_unit, price, duration_value, currency], (err, results) => {
+  connection.query(insertSql, [duration_unit, price, duration_value, currency_id], (err, results) => {
     if (err) {
       console.error("❌ Error inserting package:", err);
       return res.status(500).json({ error: "Database error" });
@@ -120,7 +133,7 @@ const addPackage = (req, res) => {
       entityType: "package",
       entityId: results.insertId,
       action: "ADDED",
-      data: { duration_unit, price, duration_value, currency, status: "active" },
+      data: { duration_unit, price, duration_value, currency_id, status: "active" },
       changedBy: userId,
     });
 
@@ -130,10 +143,10 @@ const addPackage = (req, res) => {
 
 const editPackage = (req, res) => {
   const { id } = req.params;
-  const { duration_unit, price, duration_value, currency } = req.body;
+  const { duration_unit, price, duration_value, currency_id } = req.body;
   const userId = req.user.userId;
 
-  if (!duration_unit || !price || !duration_value || !currency) {
+  if (!duration_unit || !price || !duration_value || !currency_id) {
     return res.status(400).json({ error: "All fields are required" });
   }
 
@@ -146,7 +159,7 @@ const editPackage = (req, res) => {
                            SET duration_unit = ?, price = ?, duration_value = ?, currency = ? 
                            WHERE id = ?`;
 
-    connection.query(updateSql, [duration_unit, price, duration_value, currency, id], (err2) => {
+    connection.query(updateSql, [duration_unit, price, duration_value, currency_id, id], (err2) => {
       if (err2) return res.status(500).json({ error: "Database error" });
 
       logAudit({
@@ -154,7 +167,7 @@ const editPackage = (req, res) => {
         entityType: "package",
         entityId: id,
         action: "UPDATED",
-        data: { duration_unit, price, duration_value, currency, status: results[0].status },
+        data: { duration_unit, price, duration_value, currency_id, status: results[0].status },
         changedBy: userId,
       });
 
@@ -206,25 +219,48 @@ const getPackagebyCompany = (
     name = "price";
   }
 
+  // ✅ Include company_info table
   let sql = `
-    SELECT c.id, c.package_type, c.price, c.status, a.username
-    FROM cart c
-    JOIN account a ON c.account_id = a.id
-    WHERE 1=1
-  `;
+  SELECT 
+    c.id, 
+    c.package_type, 
+    c.price, 
+    c.status, 
+    a.id AS account_id,
+    a.username,
+    ci.company_name,
+    bet.name AS business_entity_type, 
+    co.name AS country_name,          
+    ci_town.name AS city_name,        
+    d.name AS district_name,      
+    ci.company_address,
+    ci.phone,
+    ci.company_website,
+    ci.NTN,
+    ci.size_of_company,
+    ci.established_date
+  FROM cart c
+  JOIN account a ON c.account_id = a.id
+  LEFT JOIN company_info ci ON ci.account_id = a.id
+  LEFT JOIN business_entity_type bet ON bet.id = ci.Business_entity_type_id  
+  LEFT JOIN countries co ON co.id = ci.country_id
+  LEFT JOIN cities ci_town ON ci_town.id = ci.city_id
+  LEFT JOIN districts d ON d.id = ci.district_id
+  WHERE 1=1
+`;
+
+
 
   const params = [];
 
-  // ✅ Status filter (ONLY ONCE, CORRECT PLACE)
   if (status !== "all") {
     sql += ` AND c.status = ?`;
     params.push(status);
   }
 
-  // ✅ Search filter
   if (search) {
-    sql += ` AND (c.package_type LIKE ? OR a.username LIKE ?)`;
-    params.push(`%${search}%`, `%${search}%`);
+    sql += ` AND (c.package_type LIKE ? OR a.username LIKE ? OR ci.company_name LIKE ? )`;
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
   }
 
   sql += ` ORDER BY ${name} ASC LIMIT ? OFFSET ?`;
@@ -232,99 +268,129 @@ const getPackagebyCompany = (
 
   connection.query(sql, params, (err, results) => {
     if (err) {
-      console.error("SQL ERROR:", err.sqlMessage);
+      console.error("SQL ERROR:", err);
       return callback(err, null);
     }
-    callback(null, results);
+
+    // ✅ Get total count for pagination
+    let countSql = `
+      SELECT COUNT(*) AS totalRecords
+      FROM cart c
+      JOIN account a ON c.account_id = a.id
+      LEFT JOIN company_info ci ON ci.account_id = a.id
+      WHERE 1=1
+    `;
+    const countParams = [];
+    if (status !== "all") countParams.push(status);
+    if (search) countParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+
+    connection.query(countSql, countParams, (countErr, countRes) => {
+      if (countErr) {
+
+        return callback(countErr, null);
+      }
+      const totalRecords = countRes[0].totalRecords || 0;
+      callback(null, { data: results, totalRecords });
+    });
   });
 };
 
 
+
 const updatePackaeStatus = (req, res) => {
- const { id, status } = req.params; // Pass id and status from request body
+  const { id, status } = req.params;
 
   if (!id || !status) {
     return res.status(400).json({ error: "packageId and status are required" });
   }
 
-  // 1️⃣ Get account_id for the package
-  const getAccountIdSql = 'SELECT account_id FROM cart WHERE id = ?';
-  connection.query(getAccountIdSql, [id], (err, accountResult) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ error: "Internal Server Error" });
-    }
+  // 🔁 Status mapping
+  let cartStatus;
+  let setDates = "";
 
+  if (status === "Approved") {
+    cartStatus = "active";
+    setDates = `,
+      active_at = CURRENT_TIMESTAMP,
+      Expire_At = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 30 DAY)
+    `;
+  } else if (status === "UnApproved") {
+    cartStatus = "inactive";
+  } else {
+    return res.status(400).json({ error: "Invalid status value" });
+  }
+
+  // 1️⃣ Get account_id
+  const getAccountIdSql = `SELECT account_id FROM cart WHERE id = ?`;
+  connection.query(getAccountIdSql, [id], (err, accountResult) => {
+    if (err) return res.status(500).json({ error: "Internal Server Error" });
     if (accountResult.length === 0) {
       return res.status(404).json({ error: "Package not found" });
     }
 
     const accountId = accountResult[0].account_id;
 
-    // 2️⃣ Start transaction
-    connection.beginTransaction((beginTransactionErr) => {
-      if (beginTransactionErr) {
-        console.error(beginTransactionErr);
-        return res.status(500).json({ error: "Internal Server Error" });
-      }
+    connection.beginTransaction((err) => {
+      if (err) return res.status(500).json({ error: "Internal Server Error" });
 
-      // 3️⃣ Update clicked package with dynamic status
+      // 2️⃣ Update selected cart package
       const updatePackageSql = `
         UPDATE cart 
-        SET 
-          status = ?,
-          active_at = CURRENT_TIMESTAMP,
-          Expire_At = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 30 DAY)
+        SET status = ? ${setDates}
         WHERE id = ?
       `;
-      connection.query(updatePackageSql, [status, id], (updatePackageErr) => {
-        if (updatePackageErr) {
+      connection.query(updatePackageSql, [cartStatus, id], (err) => {
+        if (err) {
           connection.rollback();
-          console.error(updatePackageErr);
           return res.status(500).json({ error: "Internal Server Error" });
         }
 
-        // 4️⃣ Update other packages for same account to 'expire'
-        const updateOthersSql = 'UPDATE cart SET status = "expire" WHERE account_id = ? AND id != ?';
-        connection.query(updateOthersSql, [accountId, id], (updateOthersErr) => {
-          if (updateOthersErr) {
+        // 3️⃣ Expire other packages
+        const updateOthersSql = `
+          UPDATE cart 
+          SET status = "expire" 
+          WHERE account_id = ? AND id != ?
+        `;
+        connection.query(updateOthersSql, [accountId, id], (err) => {
+          if (err) {
             connection.rollback();
-            console.error(updateOthersErr);
             return res.status(500).json({ error: "Internal Server Error" });
           }
 
-          // 5️⃣ Update job_posts table
-          const updateJobPostsSql = 'UPDATE job_posts SET status = "InActive" WHERE account_id = ? AND id != ?';
-          connection.query(updateJobPostsSql, [accountId, id], (updateJobPostsErr) => {
-            if (updateJobPostsErr) {
+          // 4️⃣ Update job posts
+          const updateJobPostsSql = `
+            UPDATE job_posts 
+            SET status = ? 
+            WHERE account_id = ?
+          `;
+          connection.query(updateJobPostsSql, [status, accountId], (err) => {
+            if (err) {
               connection.rollback();
-              console.error(updateJobPostsErr);
               return res.status(500).json({ error: "Internal Server Error" });
             }
 
-            // 6️⃣ Update payment table for the same package type
-            const updatePaymentStatusSql = `
+            // 5️⃣ Update payment status
+            const updatePaymentSql = `
               UPDATE Payment 
-              SET payment_status = "Paid" 
-              WHERE account_id = ? 
+              SET payment_status = "Paid"
+              WHERE account_id = ?
                 AND package_type = (SELECT package_type FROM cart WHERE id = ?)
             `;
-            connection.query(updatePaymentStatusSql, [accountId, id], (updatePaymentStatusErr) => {
-              if (updatePaymentStatusErr) {
+            connection.query(updatePaymentSql, [accountId, id], (err) => {
+              if (err) {
                 connection.rollback();
-                console.error(updatePaymentStatusErr);
                 return res.status(500).json({ error: "Internal Server Error" });
               }
 
-              // 7️⃣ Commit transaction
-              connection.commit((commitErr) => {
-                if (commitErr) {
+              connection.commit((err) => {
+                if (err) {
                   connection.rollback();
-                  console.error(commitErr);
                   return res.status(500).json({ error: "Internal Server Error" });
                 }
 
-                res.json({ message: `Package status updated to "${status}" successfully` });
+                res.json({
+                  message: `Package ${status} → cart set to ${cartStatus}`
+                });
               });
             });
           });
@@ -334,7 +400,8 @@ const updatePackaeStatus = (req, res) => {
   });
 };
 
-const getCompanyPackgestatus=(req,res)=>{
+
+const getCompanyPackgestatus = (req, res) => {
   try {
     const userId = req.params.userId;
 
