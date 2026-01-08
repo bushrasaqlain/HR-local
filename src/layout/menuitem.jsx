@@ -55,6 +55,7 @@ export const companymenuitem = [
   // { key: "pricing", label: "Packages Pricing"},
   { key: "packagesList", label: "Packages List" },
   { key: "allApplicants", label: "All Applicants" },
+    // { key: "cart", label: "All Cart" },
 
   // { key: "WidgetContentBox", label: "ShortList Candidates" },
   

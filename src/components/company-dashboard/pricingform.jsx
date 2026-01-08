@@ -3,9 +3,11 @@ import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import api from '../lib/api';
+import { useRouter } from "next/navigation";
 
 const PricingForm = ({ jobId, setShowPricing }) => {
-  
+  const router = useRouter();
+
   const APIBASEURL = process.env.NEXT_PUBLIC_API_BASE_URL;
   const [packages, setPackages] = useState(null);
   const userId = sessionStorage.getItem("userId");
@@ -35,11 +37,15 @@ const PricingForm = ({ jobId, setShowPricing }) => {
     if (response.status === 200) {
       toast.success("Package Subscribed Successfully");
       toast.info("Wait for admin approval");
-      setTimeout(() => setShowPricing(false), 1500);
+      setTimeout(() => {
+  router.push("/cart");   // ✅ route to cart.jsx
+}, 1000);
+
     } else {
       toast.error("Unable to subscribe package");
     }
   };
+  
 
 
   return (
@@ -135,12 +141,14 @@ const PricingForm = ({ jobId, setShowPricing }) => {
                 </ul>
 
                 {/* Button */}
-                <button
-                  className="plan-btn"
-                  onClick={() => addPackage(pkg.id)}
-                >
-                  Select
-                </button>
+              <button
+  type="button"   // ✅ VERY IMPORTANT
+  className="plan-btn"
+  onClick={() => addPackage(pkg.id)}
+>
+  Select
+</button>
+
               </div>
             </div>
           );
