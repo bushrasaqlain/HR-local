@@ -1,186 +1,232 @@
 "use client";
 
-import React, { useState, useRef } from "react";
-import { Form, FormGroup, Label, Input, Button, FormFeedback, Alert, InputGroup } from "reactstrap";
+import React, { Component } from "react";
+import {
+  Form,
+  FormGroup,
+  Label,
+  Input,
+  Button,
+  FormFeedback,
+  Alert,
+  InputGroup,
+} from "reactstrap";
 import axios from "axios";
 
-const FormContent = ({ setShowNext, setUserId }) => {
-  const [accountType, setAccountType] = useState("candidate");
-  const [values, setValues] = useState({
-    username: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-  });
-  const [errors, setErrors] = useState({});
-  const [successMessage, setSuccessMessage] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL + "account";
+class FormContent extends Component {
+  constructor(props) {
+    super(props);
 
-  const togglePassword = (field) => {
-    if (field === "password") setShowPassword(!showPassword);
-    if (field === "confirmPassword") setShowConfirmPassword(!showConfirmPassword);
-  };
+    this.state = {
+      accountType: "candidate",
+      values: {
+        username: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+      },
+      errors: {},
+      successMessage: "",
+      showPassword: false,
+      showConfirmPassword: false,
+    };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setValues((prev) => ({ ...prev, [name]: value }));
-    setErrors((prev) => ({ ...prev, [name]: "" }));
+    this.apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL + "account";
+  }
 
-    if (name === "username" && !/^[A-Za-z0-9\s]+$/.test(value)) {
-      setErrors((prev) => ({
-        ...prev,
-        username: "Username can only contain letters and numbers",
+  togglePassword = (field) => {
+    if (field === "password") {
+      this.setState((prev) => ({ showPassword: !prev.showPassword }));
+    }
+    if (field === "confirmPassword") {
+      this.setState((prev) => ({
+        showConfirmPassword: !prev.showConfirmPassword,
       }));
     }
   };
 
-  const checkEmailExists = async (email) => {
+  handleChange = (e) => {
+    const { name, value } = e.target;
+
+    this.setState((prev) => ({
+      values: { ...prev.values, [name]: value },
+      errors: { ...prev.errors, [name]: "" },
+    }));
+
+    if (name === "username" && !/^[A-Za-z0-9\s]+$/.test(value)) {
+      this.setState((prev) => ({
+        errors: {
+          ...prev.errors,
+          username: "Username can only contain letters and numbers",
+        },
+      }));
+    }
+  };
+
+  checkEmailExists = async (email) => {
     try {
-      const res = await axios.get(`${apiBaseUrl}/email?email=${email}`);
+      const res = await axios.get(`${this.apiBaseUrl}/email?email=${email}`);
       return res.data.exists;
     } catch {
       return false;
     }
   };
 
-  const handleSubmit = async (e) => {
+  handleSubmit = async (e) => {
     e.preventDefault();
+
+    const { values, accountType } = this.state;
     const validationErrors = {};
 
-    if (!values.username.trim()) validationErrors.username = "Username is required";
-    if (!values.email.trim()) validationErrors.email = "Email is required";
-    if (!values.password.trim()) validationErrors.password = "Password is required";
-    if (values.password.length < 8) validationErrors.password = "Password must be at least 8 characters";
-    if (values.password !== values.confirmPassword) validationErrors.confirmPassword = "Passwords do not match";
+    if (!values.username.trim())
+      validationErrors.username = "Username is required";
+    if (!values.email.trim())
+      validationErrors.email = "Email is required";
+    if (!values.password.trim())
+      validationErrors.password = "Password is required";
+    if (values.password.length < 8)
+      validationErrors.password = "Password must be at least 8 characters";
+    if (values.password !== values.confirmPassword)
+      validationErrors.confirmPassword = "Passwords do not match";
 
-    setErrors(validationErrors);
-    if (Object.keys(validationErrors).length > 0) return;
+    if (Object.keys(validationErrors).length > 0) {
+      this.setState({ errors: validationErrors });
+      return;
+    }
 
-    const emailExists = await checkEmailExists(values.email);
+    const emailExists = await this.checkEmailExists(values.email);
     if (emailExists) {
-      setErrors({ ...validationErrors, email: "Email already exists" });
+      this.setState({
+        errors: { email: "Email already exists" },
+      });
       return;
     }
 
     try {
       const formData = new FormData();
-      formData.append("username", values.username);
-      formData.append("email", values.email);
-      formData.append("password", values.password);
-      formData.append("confirmPassword", values.confirmPassword);
+      Object.entries(values).forEach(([key, value]) =>
+        formData.append(key, value)
+      );
       formData.append("accountType", accountType);
       formData.append("isActive", "InActive");
 
-      const res = await axios.post(apiBaseUrl, formData);
+      const res = await axios.post(this.apiBaseUrl, formData);
+
       if (res.status === 201) {
-        setUserId(res.data.insertId);
-        setSuccessMessage("Registration successful!");
-        setShowNext(true);
+        this.props.setUserId(res.data.insertId);
+        this.setState({ successMessage: "Registration successful!" });
+        this.props.setShowNext(true);
       }
     } catch (err) {
       console.error(err);
-      setSuccessMessage("Registration failed. Try again.");
+      this.setState({
+        successMessage: "Registration failed. Try again.",
+      });
     }
   };
 
-  return (
-    <div>
-      {successMessage && <Alert variant="success">{successMessage}</Alert>}
-      <Form onSubmit={handleSubmit}>
-        <div className="d-flex mb-3">
-          <Button
-            variant={accountType === "candidate" ? "primary" : "outline-secondary"}
-            className="me-2 w-50"
-            onClick={() => setAccountType("candidate")}
-          >
-            Candidate
-          </Button>
-          <Button
-            variant={accountType === "employer" ? "primary" : "outline-secondary"}
-            className="w-50"
-            onClick={() => setAccountType("employer")}
-          >
-            Employer
-          </Button>
-        </div>
+  render() {
+    const {
+      accountType,
+      values,
+      errors,
+      successMessage,
+      showPassword,
+      showConfirmPassword,
+    } = this.state;
 
-        <FormGroup className="mb-3">
-          <Label>Username</Label>
-          <Input
-            type="text"
-            placeholder="Enter username"
-            name="username"
-            value={values.username}
-            onChange={handleChange}
-            invalid={!!errors.username}
-          />
-          {errors.username && <FormFeedback>{errors.username}</FormFeedback>}
-        </FormGroup>
+    return (
+      <div>
+        {successMessage && <Alert color="success">{successMessage}</Alert>}
 
-        <FormGroup className="mb-3">
-          <Label>Email Address</Label>
-          <Input
-            type="email"
-            placeholder="Enter Email"
-            name="email"
-            value={values.email}
-            onChange={handleChange}
-            invalid={!!errors.email}
-          />
-          {errors.email && <FormFeedback>{errors.email}</FormFeedback>}
-        </FormGroup>
-
-        <FormGroup className="mb-3">
-          <Label>Password</Label>
-          <InputGroup>
-            <Input
-              type={showPassword ? "text" : "password"}
-              placeholder="Password"
-              name="password"
-              value={values.password}
-              onChange={handleChange}
-              invalid={!!errors.password} // use invalid instead of isInvalid
-            />
+        <Form onSubmit={this.handleSubmit}>
+          <div className="d-flex mb-3">
             <Button
-              color="secondary"
-              outline
-              onClick={() => togglePassword("password")}
+              color={accountType === "candidate" ? "secondary" : "transparent"}
+              outline={accountType !== "candidate"}
+              className="me-2 w-50"
+              onClick={() => this.setState({ accountType: "candidate" })}
             >
-              {showPassword ? "Hide" : "Show"}
+              Candidate
             </Button>
-            {errors.password && <FormFeedback>{errors.password}</FormFeedback>}
-          </InputGroup>
-        </FormGroup>
 
-        <FormGroup className="mb-3">
-          <Label>Confirm Password</Label>
-          <InputGroup>
-            <Input
-              type={showConfirmPassword ? "text" : "password"}
-              placeholder="Confirm Password"
-              name="confirmPassword"
-              value={values.confirmPassword}
-              onChange={handleChange}
-              invalid={!!errors.confirmPassword} // use invalid instead of isInvalid
-            />
             <Button
-              color="secondary"
-              outline
-              onClick={() => togglePassword("confirmPassword")}
+              color={accountType === "employer" ? "secondary" : "transparent"}
+              outline={accountType !== "employer"}
+              className="w-50"
+              onClick={() => this.setState({ accountType: "employer" })}
             >
-              {showConfirmPassword ? "Hide" : "Show"}
+              Employer
             </Button>
-            {errors.confirmPassword && <FormFeedback>{errors.confirmPassword}</FormFeedback>}
-          </InputGroup>
-        </FormGroup>
+          </div>
 
+          <FormGroup>
+            <Label>Username</Label>
+            <Input
+              name="username"
+              value={values.username}
+              onChange={this.handleChange}
+              invalid={!!errors.username}
+            />
+            <FormFeedback>{errors.username}</FormFeedback>
+          </FormGroup>
 
-        <Button type="submit" className="w-100" variant="success">Register</Button>
-      </Form>
-    </div>
-  );
-};
+          <FormGroup>
+            <Label>Email</Label>
+            <Input
+              type="email"
+              name="email"
+              value={values.email}
+              onChange={this.handleChange}
+              invalid={!!errors.email}
+            />
+            <FormFeedback>{errors.email}</FormFeedback>
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Password</Label>
+            <InputGroup>
+              <Input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={values.password}
+                onChange={this.handleChange}
+                invalid={!!errors.password}
+              />
+              <Button outline onClick={() => this.togglePassword("password")}>
+                {showPassword ? "Hide" : "Show"}
+              </Button>
+              <FormFeedback>{errors.password}</FormFeedback>
+            </InputGroup>
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Confirm Password</Label>
+            <InputGroup>
+              <Input
+                type={showConfirmPassword ? "text" : "password"}
+                name="confirmPassword"
+                value={values.confirmPassword}
+                onChange={this.handleChange}
+                invalid={!!errors.confirmPassword}
+              />
+              <Button
+                outline
+                onClick={() => this.togglePassword("confirmPassword")}
+              >
+                {showConfirmPassword ? "Hide" : "Show"}
+              </Button>
+              <FormFeedback>{errors.confirmPassword}</FormFeedback>
+            </InputGroup>
+          </FormGroup>
+
+          <Button type="submit" className="w-100 p-2 mt-2" color="dark">
+            Register
+          </Button>
+        </Form>
+      </div>
+    );
+  }
+}
 
 export default FormContent;

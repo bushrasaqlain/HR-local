@@ -167,18 +167,15 @@ class FormContent extends Component {
 
         {/* Bottom */}
         <div className="bottom-box text-center mt-4">
-          <div className="text mb-2">
+           <div className="divider my-3">
+            <span>or</span>
+          </div>
+          <div className="text mb-3">
             Don&apos;t have an account?{" "}
             <Link href="/register">
               <span className="signup">Signup</span>
             </Link>
           </div>
-
-          <div className="divider my-3">
-            <span>or</span>
-          </div>
-
-       
         </div>
       </div>
     );
