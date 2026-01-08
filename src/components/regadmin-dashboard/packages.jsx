@@ -62,11 +62,13 @@ class Packages extends Component {
       },
     })
       .then((res) => {
+          console.log(res.data.data || res.data)
         this.setState({
           packagesData: res.data.data || res.data,
           totalRecords: res.data.totalRecords || 0,
         });
       })
+    
       .catch((err) => {
         console.error(err);
       });
@@ -87,21 +89,21 @@ class Packages extends Component {
   };
 
 
-  // getHistory = (id) => {
-  //   const accountType = "cart";
-  //   const apiUrl = `${this.apibasurl}gethistory/${id}/${accountType}`;
-  //   const token = localStorage.getItem("token");
+  getHistory = (id) => {
+    const accountType = "cart";
+    const apiUrl = `${this.apibasurl}gethistory/${id}/${accountType}`;
+    const token = localStorage.getItem("token");
 
-  //   api
-  //     .get(apiUrl, { headers: { Authorization: `Bearer ${token}` } })
-  //     .then((res) => {
-  //       this.setState({ historyData: res.data.history || [], historyModalOpen: true });
-  //     })
-  //     .catch((err) => {
-  //       console.error("Error fetching history:", err);
-  //       toast.error("Failed to fetch history.");
-  //     });
-  // };
+    api
+      .get(apiUrl, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => {
+        this.setState({ historyData: res.data.history || [], historyModalOpen: true });
+      })
+      .catch((err) => {
+        console.error("Error fetching history:", err);
+        toast.error("Failed to fetch history.");
+      });
+  };
 
 
   handleSearchChange = (key, value) => {
@@ -174,8 +176,8 @@ class Packages extends Component {
                 style={{ display: "inline-block", width: "auto" }}
               >
                 <option value="all">All</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
+                <option value="Approved">Approved</option>
+                <option value="UnApproved">UnApproved</option>
               </Input>
             </FormGroup>
           </Col>
@@ -252,7 +254,7 @@ class Packages extends Component {
                                 <i className="la la-edit" />
                               </Button>
 
-                              {/* <Button
+                              <Button
                                 color="outline-danger"
                                 size="sm"
                                 onClick={() =>
@@ -276,15 +278,15 @@ class Packages extends Component {
                                 }
                               >
                                 <i className="la la-eye" />
-                              </Button> */}
+                              </Button>
 
-                              {/* <Button
+                              <Button
                                 color="outline-info"
                                 size="sm"
                                 onClick={() => this.getHistory(item.account_id)}
                               >
                                 <i className="la la-history" />
-                              </Button> */}
+                              </Button>
                             </div>
 
                             {/* Dropdown appears BELOW edit button */}
@@ -297,8 +299,8 @@ class Packages extends Component {
                                   this.updateCompanyStatus(item.id, e.target.value)
                                 }
                               >
-                                <option value="Active">Active</option>
-                                <option value="InActive">InActive</option>
+                                <option value="Approved">Approved</option>
+                                <option value="UnApproved">UnApproved</option>
                               </Input>
 
                             )}
