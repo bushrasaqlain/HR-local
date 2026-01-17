@@ -6,13 +6,10 @@ import { useSelector } from "react-redux";
 import AllApplicants from "./allApplicants.jsx";
 import CompanyProfile from "./companyProfile.jsx";
 import ChangePasswordForm from "../form/changepassword/changepasswordform.jsx"
-import Cart from "./cart.jsx";
 import ChatBox from "./messages/chatBox.jsx";
 import JobListings from "./jobList.jsx";
 import PackagesList from "./packagesList.jsx";
 import PostJob from "./postJob.jsx";
-
-import WidgetContentBox from "./shortlisted-resumes/WidgetContentBox.jsx";
 import Profile from "./dashboard/profile.jsx";
 const CompanyDashboardArea = ({ activeTab }) => {
     const router = useRouter();
@@ -41,7 +38,7 @@ const CompanyDashboardArea = ({ activeTab }) => {
                     return;
                 }
 
-                const response = await fetch(`${apiBaseUrl}packages//checkCompanyPackageStatus/${userInfo.userId}`);
+                const response = await fetch(`${apiBaseUrl}packages/checkCompanyPackageStatus/${userInfo.userId}`);
                 if (!response.ok) {
                     console.error(`Error: ${response.status} - ${response.statusText}`);
                     return;
@@ -86,18 +83,9 @@ const CompanyDashboardArea = ({ activeTab }) => {
 
             case "chatBox":
                 return <ChatBox />;
-                
-                  case "cart":
-                return <Cart />;
-
-          
 
             case "changepassword":
-                return <ChangePasswordForm />;
-
-
-            // case "WidgetContentBox":
-            //     return <WidgetContentBox />
+                return <ChangePasswordForm />
 
             default:
                 return <Profile />

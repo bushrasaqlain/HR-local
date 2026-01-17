@@ -305,11 +305,94 @@ const updateCompanySatus = (id, status, res) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: "Company not found" });
     }
+    logAudit({
+        tableName: "history",
+        entityType: "employer",
+        entityId: id,
+        action: "UPDATED",
+        data: { status },
+        changedBy: id,
+      });
 
     return res.status(200).json({ success: true, message: `Company status updated to ${status}` });
   });
 };
 
+const getCount = (req, res) => {
+  const userId = req.params.userId;
+
+  // 1️⃣ Count total job posts by the user
+  const sqlJobCount = "SELECT COUNT(*) AS jobCount FROM job_posts WHERE account_id = ?";
+
+  // Count total active job posts
+  const sqlActiveCount = "SELECT COUNT(*) AS activeJob FROM job_posts WHERE account_id = ? AND status = 'Active'";
+
+  // 2️⃣ Count total packages used by the user's jobs
+  const sqlPackageJobCount = `
+    SELECT COUNT(p.id) AS packageCount
+    FROM payment pay
+    INNER JOIN job_posts j ON j.id = pay.job_id
+    INNER JOIN packages p ON p.id = j.package_id
+    WHERE pay.account_id = ?
+  `;
+
+  // 3️⃣ Count total applicants for the user's jobs
+  const sqlApplicantsCount = `
+    SELECT COUNT(a.id) AS applicantCount
+    FROM job_posts j
+    LEFT JOIN applications a ON a.job_id = j.id
+    WHERE j.account_id = ?
+  `;
+
+  // First query: total job posts
+  connection.query(sqlJobCount, [userId], (err, jobResults) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Internal Server Error" });
+    }
+
+    const jobCount = jobResults[0].jobCount || 0;
+
+    // Second query: total packages
+    connection.query(sqlPackageJobCount, [userId], (err2, packageResults) => {
+      if (err2) {
+        console.error(err2);
+        return res.status(500).json({ error: "Internal Server Error" });
+      }
+
+      const packageCount = packageResults[0].packageCount || 0;
+
+      // Third query: total applicants
+      connection.query(sqlApplicantsCount, [userId], (err3, applicantResults) => {
+        if (err3) {
+          console.error(err3);
+          return res.status(500).json({ error: "Internal Server Error" });
+        }
+
+        const applicantCount = applicantResults[0].applicantCount || 0;
+
+        // Fourth query: active jobs
+        connection.query(sqlActiveCount, [userId], (err4, activeJobResults) => {
+          if (err4) {
+            console.error(err4);
+            return res.status(500).json({ error: "Internal Server Error" });
+          }
+
+          const activeJobCount = activeJobResults[0].activeJob || 0;
+
+          // Return all counts
+          return res.json({
+            userId,
+            jobPostsCount: jobCount,
+            packageCount,
+            applicantCount,
+            activeJobCount,
+          });
+        });
+      });
+    });
+  });
+};
 
 
 module.exports = {
@@ -318,4 +401,5 @@ module.exports = {
   updateCompanyinfo,
   getcompanybyid,
   updateCompanySatus,
+  getCount
 };

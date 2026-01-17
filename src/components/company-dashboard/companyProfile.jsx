@@ -35,6 +35,7 @@ class CompanyProfile extends Component {
       logoImg: "",
       isNewImageUploaded: false,
       successMessage: "",
+      ntnError: "",
     };
     this.formRef = createRef();
     this.successMessageRef = createRef();
@@ -60,7 +61,7 @@ class CompanyProfile extends Component {
         {
           formData: {
             username: data.username,
-            company_name: data.username || "",
+            company_name: data.company_name || "",
             email: data.email || "",
             phone: data.phone || "",
             NTN: data.NTN || "",
@@ -206,13 +207,42 @@ class CompanyProfile extends Component {
       },
     }));
   };
+  validateNTN = (ntn) => {
+    // Remove any spaces
+    const cleaned = ntn.replace(/\s/g, "");
 
+    // Regex: 7 digits optionally followed by a dash and 1 digit
+    const regex = /^\d{7}(-\d)?$/;
+
+    return regex.test(cleaned);
+  };
   handleInputChange = (e) => {
     const { name, value } = e.target;
+
+    if (name === "NTN") {
+      this.setState((prevState) => ({
+        formData: { ...prevState.formData, [name]: value },
+        ntnError: this.validateNTN(value) ? "" : "Invalid NTN format. 8 digit",
+      }));
+      return;
+    }
+
+    if (name === "phone") {
+      let cleanedValue = value.replace(/[^\d]/g, "");
+      if (cleanedValue.length > 4) {
+        cleanedValue = cleanedValue.slice(0, 4) + "-" + cleanedValue.slice(4, 11);
+      }
+      this.setState((prevState) => ({
+        formData: { ...prevState.formData, phone: cleanedValue },
+      }));
+      return;
+    }
+
     this.setState((prevState) => ({
       formData: { ...prevState.formData, [name]: value },
     }));
   };
+
 
   logoHandler = (file) => {
     if (file) {
@@ -299,144 +329,220 @@ class CompanyProfile extends Component {
       this.state;
 
     return (
-      <div>
-        {successMessage && (
-          <div ref={this.successMessageRef}>
-            <div className="alert alert-info">{successMessage}</div>
-          </div>
-        )}
-
-        <div className="widget-title d-flex align-items-center mb-3">
-          <h4 className="me-3">Company Profile</h4>
-        </div>
-
-        <Form ref={this.formRef} onSubmit={this.handleSubmit}>
-          <Row className="mb-3">
-            <Col md={12} className="d-flex align-items-center gap-3 mb-3">
-              <div>
-                <strong>Current Logo: </strong>
-                {logoImg && <img src={logoImg} alt="Selected Logo" style={{ maxWidth: "100px", maxHeight: "100px" }} />}
-              </div>
-              <div>
+      <div className="company-profile-page">
+        {/* Cover Header */}
+        <div className="profile-cover">
+          <div className="profile-info d-flex align-items-center">
+            <div className="profile-avatar">
+              {logoImg ? (
+                <img src={logoImg} alt="Company Logo" />
+              ) : (
+                <div className="avatar-placeholder">Logo</div>
+              )}
+              <label className="upload-btn">
+                Change
                 <Input
                   type="file"
                   id="upload"
+                  hidden
                   accept=".jpg,.jpeg,.png"
                   onChange={(e) => this.logoHandler(e.target.files[0])}
                 />
-              </div>
-            </Col>
+              </label>
+            </div>
 
-            <Col lg={4}>
-              <FormGroup>
-                <Label>Company Name</Label>
-                <Input type="text" name="company_name" value={formData.company_name} onChange={this.handleInputChange} />
-              </FormGroup>
-            </Col>
+            <div className="ms-4">
+              <h3 className="mb-1">{formData.company_name || "Company Name"}</h3>
+              <p className="text-muted mb-0">{formData.email}</p>
+            </div>
+          </div>
+        </div>
 
-            <Col lg={4}>
-              <FormGroup>
-                <Label>Email</Label>
-                <Input type="email" name="email" value={formData.email} onChange={this.handleInputChange} />
-              </FormGroup>
-            </Col>
+        {/* Content Card */}
+        <div className="container mt-4">
+          {successMessage && (
+            <div className="alert alert-success">{successMessage}</div>
+          )}
 
-            <Col lg={4}>
-              <FormGroup>
-                <Label>Phone</Label>
-                <Input type="text" name="phone" value={formData.phone} onChange={this.handleInputChange} />
-              </FormGroup>
-            </Col>
+          <div className="card profile-card">
+            <div className="card-header">
+              <h5 className="mb-0">Company Details</h5>
+            </div>
 
-            <Col lg={4}>
-              <FormGroup>
-                <Label>Size of Company</Label>
-                <Input type="number" name="size_of_company" value={formData.size_of_company} onChange={this.handleInputChange} />
-              </FormGroup>
-            </Col>
+            <div className="card-body">
+              <Form ref={this.formRef} onSubmit={this.handleSubmit}>
+                <Row>
+                  <Col md={6}>
+                    <FormGroup>
+                      <Label>User Name</Label>
+                      <Input
+                        type="text"
+                        name="username"
+                        value={formData.username}
+                        onChange={this.handleInputChange}
+                      />
+                    </FormGroup>
+                  </Col>
+                  <Col md={6}>
+                    <FormGroup>
+                      <Label>Email</Label>
+                      <Input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={this.handleInputChange}
+                      />
+                    </FormGroup>
+                  </Col>
+                  <Col md={6}>
+                    <FormGroup>
+                      <Label>Company Name</Label>
+                      <Input
+                        type="text"
+                        name="company_name"
+                        value={formData.company_name}
+                        onChange={this.handleInputChange}
+                      />
+                    </FormGroup>
+                  </Col>
 
-            <Col lg={4}>
-              <FormGroup>
-                <Label>Business Entity Type</Label>
-                <Select
-                  value={this.state.selectedbusiness_type}
-                  options={businesstypeOptions}
-                  onChange={this.handleBusinessTypeChange}
-                  placeholder="Select Business Type"
-                />
-              </FormGroup>
-            </Col>
+                  <Col md={6}>
+                    <FormGroup>
+                      <Label>Phone</Label>
+                      <Input
+                        type="text"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={this.handleInputChange}
+                      />
+                    </FormGroup>
+                  </Col>
 
-            <Col lg={4}>
-              <FormGroup>
-                <Label>Company Website</Label>
-                <Input type="text" name="company_website" value={formData.company_website} onChange={this.handleInputChange} />
-              </FormGroup>
-            </Col>
+                  <Col md={6}>
+                    <FormGroup>
+                      <Label>Company Size</Label>
+                      <Input
+                        type="number"
+                        name="size_of_company"
+                        value={formData.size_of_company}
+                        onChange={this.handleInputChange}
+                      />
+                    </FormGroup>
+                  </Col>
 
-            <Col lg={6}>
-              <FormGroup>
-                <Label>Established Date</Label>
-                <Input type="date" name="established_date" value={formData.established_date} onChange={this.handleInputChange} />
-              </FormGroup>
-            </Col>
+                  <Col md={6}>
+                    <FormGroup>
+                      <Label>Business Type</Label>
+                      <Select
+                        value={this.state.selectedbusiness_type}
+                        options={businesstypeOptions}
+                        onChange={this.handleBusinessTypeChange}
+                        placeholder="Select Business Type"
+                      />
+                    </FormGroup>
+                  </Col>
 
-            <Col lg={6}>
-              <FormGroup>
-                <Label>NTN</Label>
-                <Input type="text" name="NTN" value={formData.NTN} onChange={this.handleInputChange} />
-              </FormGroup>
-            </Col>
+                  <Col md={6}>
+                    <FormGroup>
+                      <Label>Website</Label>
+                      <Input
+                        type="text"
+                        name="company_website"
+                        value={formData.company_website}
+                        onChange={this.handleInputChange}
+                      />
+                    </FormGroup>
+                  </Col>
 
-            <Col lg={4}>
-              <FormGroup>
-                <Label>Country</Label>
-                <Select value={this.state.selectedCountry} options={countryOptions} onChange={this.handleCountryChange} placeholder="Select Country" />
-              </FormGroup>
-            </Col>
+                  <Col md={6}>
+                    <FormGroup>
+                      <Label>Established Date</Label>
+                      <Input
+                        type="date"
+                        name="established_date"
+                        value={formData.established_date}
+                        onChange={this.handleInputChange}
+                      />
+                    </FormGroup>
+                  </Col>
 
-            <Col lg={4}>
-              <FormGroup>
-                <Label>District</Label>
-                <Select
-                  value={this.state.selectedDistrict}
-                  options={districtOptions}
-                  onChange={this.handleDistrictChange}
-                  placeholder="Select District"
-                  isDisabled={!this.state.selectedCountry}
-                />
-              </FormGroup>
-            </Col>
+                  <Col md={6}>
+                    <FormGroup>
+                      <Label>NTN</Label>
+                      <Input
+                        type="text"
+                        name="NTN"
+                        value={formData.NTN}
+                        onChange={this.handleInputChange}
+                        invalid={!!this.state.ntnError} // optional if using reactstrap Form feedback styling
+                      />
+                      {this.state.ntnError && (
+                        <div className="text-danger mt-1">{this.state.ntnError}</div>
+                      )}
+                    </FormGroup>
+                  </Col>
 
-            <Col lg={4}>
-              <FormGroup>
-                <Label>City</Label>
-                <Select
-                  value={this.state.selectedCity}
-                  options={cityOptions}
-                  onChange={this.handleCityChange}
-                  placeholder="Select City"
-                  isDisabled={!this.state.selectedDistrict}
-                />
-              </FormGroup>
-            </Col>
 
-            <Col lg={12}>
-              <FormGroup>
-                <Label>Company Address</Label>
-                <Input type="text" name="company_address" value={formData.company_address} onChange={this.handleInputChange} />
-              </FormGroup>
-            </Col>
+                  <Col md={6}>
+                    <FormGroup>
+                      <Label>Country</Label>
+                      <Select
+                        value={this.state.selectedCountry}
+                        options={countryOptions}
+                        onChange={this.handleCountryChange}
+                      />
+                    </FormGroup>
+                  </Col>
 
-            <Col lg={6}>
-              <Button color="primary" type="submit">
-                Save
-              </Button>
-            </Col>
-          </Row>
-        </Form>
+                  <Col md={6}>
+                    <FormGroup>
+                      <Label>District</Label>
+                      <Select
+                        value={this.state.selectedDistrict}
+                        options={districtOptions}
+                        onChange={this.handleDistrictChange}
+                        isDisabled={!this.state.selectedCountry}
+                      />
+                    </FormGroup>
+                  </Col>
+
+                  <Col md={6}>
+                    <FormGroup>
+                      <Label>City</Label>
+                      <Select
+                        value={this.state.selectedCity}
+                        options={cityOptions}
+                        onChange={this.handleCityChange}
+                        isDisabled={!this.state.selectedDistrict}
+                      />
+                    </FormGroup>
+                  </Col>
+
+                  <Col md={12}>
+                    <FormGroup>
+                      <Label>Company Address</Label>
+                      <Input
+                        type="textarea"
+                        name="company_address"
+                        value={formData.company_address}
+                        onChange={this.handleInputChange}
+                      />
+                    </FormGroup>
+                  </Col>
+
+                  <Col md={12} className="text-end">
+                    <Button color="primary" className="px-4">
+                      Save Changes
+                    </Button>
+                  </Col>
+                </Row>
+              </Form>
+            </div>
+          </div>
+        </div>
       </div>
     );
+
   }
 }
 

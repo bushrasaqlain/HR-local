@@ -296,111 +296,6 @@ const getPackagebyCompany = (
 };
 
 
-
-const updatePackaeStatus = (req, res) => {
-  const { id, status } = req.params;
-
-  if (!id || !status) {
-    return res.status(400).json({ error: "packageId and status are required" });
-  }
-
-  // 🔁 Status mapping
-  let cartStatus;
-  let setDates = "";
-
-  if (status === "Approved") {
-    cartStatus = "active";
-    setDates = `,
-      active_at = CURRENT_TIMESTAMP,
-      Expire_At = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 30 DAY)
-    `;
-  } else if (status === "UnApproved") {
-    cartStatus = "inactive";
-  } else {
-    return res.status(400).json({ error: "Invalid status value" });
-  }
-
-  // 1️⃣ Get account_id
-  const getAccountIdSql = `SELECT account_id FROM cart WHERE id = ?`;
-  connection.query(getAccountIdSql, [id], (err, accountResult) => {
-    if (err) return res.status(500).json({ error: "Internal Server Error" });
-    if (accountResult.length === 0) {
-      return res.status(404).json({ error: "Package not found" });
-    }
-
-    const accountId = accountResult[0].account_id;
-
-    connection.beginTransaction((err) => {
-      if (err) return res.status(500).json({ error: "Internal Server Error" });
-
-      // 2️⃣ Update selected cart package
-      const updatePackageSql = `
-        UPDATE cart 
-        SET status = ? ${setDates}
-        WHERE id = ?
-      `;
-      connection.query(updatePackageSql, [cartStatus, id], (err) => {
-        if (err) {
-          connection.rollback();
-          return res.status(500).json({ error: "Internal Server Error" });
-        }
-
-        // 3️⃣ Expire other packages
-        const updateOthersSql = `
-          UPDATE cart 
-          SET status = "expire" 
-          WHERE account_id = ? AND id != ?
-        `;
-        connection.query(updateOthersSql, [accountId, id], (err) => {
-          if (err) {
-            connection.rollback();
-            return res.status(500).json({ error: "Internal Server Error" });
-          }
-
-          // 4️⃣ Update job posts
-          const updateJobPostsSql = `
-            UPDATE job_posts 
-            SET status = ? 
-            WHERE account_id = ?
-          `;
-          connection.query(updateJobPostsSql, [status, accountId], (err) => {
-            if (err) {
-              connection.rollback();
-              return res.status(500).json({ error: "Internal Server Error" });
-            }
-
-            // 5️⃣ Update payment status
-            const updatePaymentSql = `
-              UPDATE Payment 
-              SET payment_status = "Paid"
-              WHERE account_id = ?
-                AND package_type = (SELECT package_type FROM cart WHERE id = ?)
-            `;
-            connection.query(updatePaymentSql, [accountId, id], (err) => {
-              if (err) {
-                connection.rollback();
-                return res.status(500).json({ error: "Internal Server Error" });
-              }
-
-              connection.commit((err) => {
-                if (err) {
-                  connection.rollback();
-                  return res.status(500).json({ error: "Internal Server Error" });
-                }
-
-                res.json({
-                  message: `Package ${status} → cart set to ${cartStatus}`
-                });
-              });
-            });
-          });
-        });
-      });
-    });
-  });
-};
-
-
 const getCompanyPackgestatus = (req, res) => {
   try {
     const userId = req.params.userId;
@@ -432,59 +327,48 @@ const getCompanyPackgestatus = (req, res) => {
 }
 
 const getPackageDetail = (req, res) => {
-  const userId = req.params.userId;
+  const companyId = req.params.userId;
 
   const query = `
     SELECT 
-      c.id AS cart_id,
-      c.order_id,
-      c.package_type,
-      c.status AS package_status,
-      c.Expire_At,
-      COALESCE(pj.total_jobs, 0) AS total_jobs,
-      COALESCE(job_list.jobs, '[]') AS jobs
-    FROM 
-      cart c
-    JOIN 
-      packages p
-      ON c.package_type = p.duration_unit
-    LEFT JOIN (
-      SELECT 
-        package_id,
-        COUNT(*) AS total_jobs
-      FROM 
-        job_posts
-      GROUP BY 
-        package_id
-    ) AS pj
-      ON c.id = pj.package_id
-    LEFT JOIN (
-      SELECT 
-        package_id,
-      JSON_ARRAYAGG(JSON_OBJECT(
-  'id', id,
-  'account_id', account_id,
-  'job_title', job_title
-)) AS jobs
+      pay.account_id AS company_id,
 
-      FROM 
-        job_posts
-      GROUP BY package_id
-    ) AS job_list
-      ON c.id = job_list.package_id
-    WHERE 
-      c.account_id = ?;
+      jp.id AS job_id,
+      jp.job_title,
+      jp.status AS job_status,
+      jp.created_at AS job_date,
+
+      p.id AS package_id,
+      p.price AS package_price,
+      cur.code AS package_currency,
+      p.duration_unit,
+      p.duration_value,
+
+      pay.payment_status AS payment_status
+
+    FROM payment pay
+
+    LEFT JOIN job_posts jp 
+      ON jp.id = pay.job_id
+
+    LEFT JOIN packages p 
+      ON p.id = jp.package_id
+
+    LEFT JOIN currencies cur
+      ON cur.id = p.currency
+
+    WHERE pay.account_id = ?
   `;
 
-  connection.query(query, [userId], (err, results) => {
+  connection.query(query, [companyId], (err, results) => {
     if (err) {
-      console.error('Error executing SQL query:', err);
-      res.status(500).json({ error: 'Internal Server Error' });
-    } else {
-      res.json(results);
+      console.error("SQL Error:", err);
+      return res.status(500).json({ error: "Internal Server Error" });
     }
+    res.json(results);
   });
 };
+
 
 module.exports = {
   createPackagesTable,
@@ -493,7 +377,6 @@ module.exports = {
   editPackage,
   deletePackage,
   getPackagebyCompany,
-  updatePackaeStatus,
   getCompanyPackgestatus,
   getPackageDetail
 }

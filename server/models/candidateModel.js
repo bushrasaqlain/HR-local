@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const connection = require("../connection");
 const authMiddleware = require("../middleware/auth");
-
+const logAudit = require("../utils/auditLogger");
 
 const createCandidateAvailabilityTable = () => {
   const createAvailiabilityTable = `
@@ -224,6 +224,14 @@ const updateStatus = (id, status, res) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: "Company not found" });
     }
+    logAudit({
+            tableName: "history",
+            entityType: "candidate",
+            entityId: id,
+            action: "UPDATED",
+            data: { status },
+            changedBy: id,
+          });
 
     return res.status(200).json({ success: true, message: `Company status updated to ${status}` });
   });

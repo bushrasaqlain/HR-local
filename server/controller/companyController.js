@@ -13,7 +13,9 @@ const updateCompanySatus = (req,res)=>{
     const { id, status } = req.params; // must match router param names
     companyModel.updateCompanySatus(id, status, res)
 }
-
+const getCount=(req,res)=>{
+  companyModel.getCount(req,res)
+}
 
 
 module.exports = {
@@ -21,5 +23,5 @@ module.exports = {
   updateCompanyinfo,
   getcompanybyid,
   updateCompanySatus,
- 
+ getCount
 };

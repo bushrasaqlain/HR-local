@@ -47,7 +47,7 @@ const company_name = require("./routes/comapnyname");
 
 const company_update = require("./routes/updatecompanyinfo")
 
-const dbAdminHistory = require("./routes/dbAdminHistory");
+const dbAdminHistory = require("./routes/dbHistoryRoutes");
 
 // const singlejob = require("./routes/singlejobdata")
 // Use your routes
@@ -80,7 +80,7 @@ const applicantRoute=require("./routes/applicantRoutes")
 const packages= require("./routes/packagesRoutes");
 const cart= require("./routes/cartRoutes");
 const jobRoutes=require("./routes/jobRoutes")
-
+const paymentRoutes=require("./routes/paymentRoutes")
 const messages = require("./routes/messagesRoutes");
 
 app.use("/", accountRoutes);
@@ -108,8 +108,9 @@ app.use("/packages", packages);
 app.use("/", cart);
 
 
-app.use('/message', messages)
 
+app.use('/message', messages)
+app.use("/payment",paymentRoutes)
 
 
 

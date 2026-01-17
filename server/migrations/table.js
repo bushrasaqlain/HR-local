@@ -9,11 +9,13 @@ const businessentitytypeModel = require("../models/businessentitytypeModel");
 const jobtypeModel = require("../models/jobtypeModel");
 const bankModel = require("../models/bankModel");
 const packageModel = require("../models/packageModel");
-const emplyeeModel = require("../models/employeeModel");
+const emplyeeModel = require("../models/companyModel");
 const historyModel = require("../models/historyModel")
 const applicantModel = require("../models/applicantModel")
-const jobModel=require("../models/jobModel")
-const messageModel=require("../models/messageModel")
+const jobModel = require("../models/jobModel")
+const messageModel = require("../models/messageModel")
+const paymentModel = require("../models/paymentModel")
+const dbadminhistory = require("../models/dbHistoryModel")
 function Database() {
 
   countryModel.createCountriesTable();
@@ -26,7 +28,7 @@ function Database() {
   jobtypeModel.createJobTypeTable();
   bankModel.createBankTable();
   packageModel.createPackagesTable();
-
+  dbadminhistory.createDbAdminHistoryTable();
 
   emplyeeModel.createCompanyInfoTable();
   candidateModel.createCandidateTable();
@@ -35,10 +37,10 @@ function Database() {
   candidateModel.createCandidatePreferredCitiesTable();
   candidateModel.createsaveJobsTableQuery();
   jobModel.createJobPostTable()
+  paymentModel.createPaymentTable()
   applicantModel.createApplicantsTable();
   historyModel.createHistoryTable();
   messageModel.createMessagesTable()
-
 
 }
 

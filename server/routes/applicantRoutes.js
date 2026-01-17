@@ -17,6 +17,6 @@ const upload = multer({
 });
 
 router.get("/applicantsData/:userId/:status", applicantController.getAllApplicants)
-router.put("/ShortListedApplicants/:applicationId",applicantController.updateShortListedbyId)
-router.put("/ApprovedApplicatns/:applicationId",applicantController.updateApproveApplicant);
+router.put("/updatestatus/:applicationId/:status",applicantController.updateApplcantStatus)
+
 module.exports = router;

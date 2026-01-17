@@ -3,7 +3,7 @@ import React, { Component } from "react";
 import api from "../lib/api";
 import Pagination from "../common/pagination";
 import { toast } from "react-toastify";
-import { Table, Input, Button, FormGroup, Label, Row, Col, Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
+import { Card, CardBody, Table, Input, Button, FormGroup, Label, Row, Col, Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
 import DetailModal from "../common/DetailModal";
 import HistoryModal from "../common/HistoryModal";
 class CompanyData extends Component {
@@ -98,13 +98,25 @@ class CompanyData extends Component {
     api
       .get(apiUrl, { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => {
-        this.setState({ historyData: res.data.history || [], historyModalOpen: true });
+        const filteredHistory = (res.data.history || []).map((item) => {
+          if (item.data) {
+            const { logo, ...restData } = item.data; // ❌ remove logo
+            return { ...item, data: restData };
+          }
+          return item;
+        });
+
+        this.setState({
+          historyData: filteredHistory,
+          historyModalOpen: true,
+        });
       })
       .catch((err) => {
         console.error("Error fetching history:", err);
         toast.error("Failed to fetch history.");
       });
   };
+
 
 
   handleSearchChange = (key, value) => {
@@ -164,7 +176,7 @@ class CompanyData extends Component {
         {/* Status Filter */}
         <Row className="mb-4 align-items-center">
           <Col>
-            <h4>Company List</h4>
+            <h6 className="fw-bold mb-3">Company List</h6>
           </Col>
           <Col className="text-end">
             <FormGroup className="d-inline-block mb-0">
@@ -183,150 +195,149 @@ class CompanyData extends Component {
             </FormGroup>
           </Col>
         </Row>
+        <Card>
+          <CardBody>
+            <div className="table-responsive">
+              <Table className="align-middle p-2 table table-striped">
+                <thead className="table-light text-center align-middle">
+                  <tr>
+                    {this.tableHeaders.map((header) => (
+                      <th key={header.key}>
 
-        <Table
-          hover
-          responsive
-          striped
-          style={{
-            minHeight: "500px",
-            borderCollapse: "separate",
-            borderSpacing: "0 6px", // adds spacing between rows
-            fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-            fontSize: "0.95rem",
-          }}
-        >
-          <thead className="table-light text-center align-middle">
-            <tr>
-              {this.tableHeaders.map((header) => (
-                <th key={header.key}>
-                  {header.key !== "action" && (
-                    <Input
-                      type="text"
-                      placeholder={`Search ${header.label}`}
-                      value={searchTerms[header.key] || ""}
-                      onChange={(e) => this.handleSearchChange(header.key, e.target.value)}
-                      className="mb-2"
-                      style={{
-                        width: "100%",
-                        height: "36px",
-                        fontSize: "0.9rem",
-                        padding: "6px 8px",
-                        borderRadius: "6px",
-                        border: "1px solid #ced4da",
-                      }}
-                    />
-                  )}
-                  <div style={{ paddingTop: "6px" }}>
-                    {header.label}
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-
-          <tbody>
-            {paginatedData.length > 0 ? (
-              paginatedData.map((item) => (
-                <tr key={item.id}>
-                  {this.tableHeaders.map((header) => {
-                    if (header.key === "action") {
-                      return (
-                        <td key={header.key} className="text-center">
-                          <div
+                        <div style={{ paddingTop: "6px" }}>
+                          {header.label}
+                        </div>
+                        {header.key !== "action" && (
+                          <Input
+                            type="text"
+                            placeholder={`Search ${header.label}`}
+                            value={searchTerms[header.key] || ""}
+                            onChange={(e) => this.handleSearchChange(header.key, e.target.value)}
+                            className="mb-2"
                             style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              alignItems: "center",
-                              gap: "6px",
+                              width: "100%",
+                              height: "36px",
+                              fontSize: "0.9rem",
+                              padding: "6px 8px",
+                              borderRadius: "6px",
+                              border: "1px solid #ced4da",
                             }}
-                          >
-                            {/* Buttons row */}
-                            <div style={{ display: "flex", gap: "6px" }}>
-                              <Button
-                                color="primary"
-                                size="sm"
-                                onClick={() =>
-                                  this.setState({
-                                    editingRow: editingRow === item.id ? null : item.id,
-                                  })
-                                }
-                              >
-                                <i className="la la-edit" />
-                              </Button>
+                          />
+                        )}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
 
-                              <Button
-                                color="outline-danger"
-                                size="sm"
-                                onClick={() =>
-                                  this.toggleModal({
-                                    title: "Company Details",
-                                    details: item,
-                                    fields: [
-                                      "company_name",
-                                      "business_entity_type",
-                                      "country_name",
-                                      "city_name",
-                                      "district_name",
-                                      "company_address",
-                                      "phone",
-                                      "company_website",
-                                      "NTN",
-                                      "size_of_company",
-                                      "establish_date",
-                                    ],
-                                  })
-                                }
-                              >
-                                <i className="la la-eye" />
-                              </Button>
+                <tbody>
+                  {paginatedData.length > 0 ? (
+                    paginatedData.map((item) => (
+                      <tr key={item.id}>
+                        {this.tableHeaders.map((header) => {
+                          if (header.key === "action") {
+                            return (
+                              <td key={header.key} className="text-center">
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "center",
+                                    gap: "6px",
+                                  }}
+                                >
+                                  {/* Buttons row */}
+                                  <div style={{ display: "flex", gap: "6px" }}>
+                                    <td className="text-center">
+                                      {/* Buttons row */}
+                                      <div style={{ display: "flex", gap: "6px" }}>
+                                        <Button
+                                          color="primary"
+                                          onClick={() =>
+                                            this.setState({
+                                              editingRow: editingRow === item.id ? null : item.id,
+                                            })
+                                          }
+                                        >
+                                          <i className="la la-edit" />
+                                        </Button>
 
-                              <Button
-                                color="outline-info"
-                                size="sm"
-                                onClick={() => this.getHistory(item.account_id)}
-                              >
-                                <i className="la la-history" />
-                              </Button>
-                            </div>
+                                        <Button
+                                          color="outline-danger"
+                                          onClick={() =>
+                                            this.toggleModal({
+                                              title: "Company Details",
+                                              details: item,
+                                              fields: [
+                                                "company_name",
+                                                "business_entity_type",
+                                                "NTN",
+                                                "size_of_company",
+                                                "established_date",
+                                                "phone",
+                                                "company_website",
+                                                "country_name",
+                                                "city_name",
+                                                "district_name",
+                                                "company_address",
+                                                "created_at",
+                                                "updated_at"
+                                              ],
+                                            })
+                                          }
+                                        >
+                                          <i className="la la-eye" />
+                                        </Button>
 
-                            {/* Dropdown appears BELOW edit button */}
-                            {editingRow === item.id && (
-                              <Input
-                                type="select"
-                                style={{ width: "120px" }}
-                                value={item.isActive}   // ✅ USE STRING DIRECTLY
-                                onChange={(e) =>
-                                  this.updateCompanyStatus(item.id, e.target.value)
-                                }
-                              >
-                                <option value="Active">Active</option>
-                                <option value="InActive">InActive</option>
-                              </Input>
+                                        <Button
+                                          color="outline-info"
+                                          onClick={() => this.getHistory(item.account_id)}
+                                        >
+                                          <i className="la la-history" />
+                                        </Button>
+                                      </div>
 
-                            )}
-                          </div>
-                        </td>
-                      );
-                    }
+                                      {/* Dropdown appears BELOW edit button */}
+                                      {editingRow === item.id && (
+                                        <Input
+                                          type="select"
+                                          style={{ width: "120px" }}
+                                          value={item.isActive}   // ✅ USE STRING DIRECTLY
+                                          onChange={(e) =>
+                                            this.updateCompanyStatus(item.id, e.target.value)
+                                          }
+                                        >
+                                          <option value="Active">Active</option>
+                                          <option value="InActive">InActive</option>
+                                        </Input>
+
+                                      )}
+
+                                    </td>
+                                  </div>
+                                </div>
+                              </td>
+                            );
+                          }
 
 
-                    return <td key={header.key}>{item[header.key]}</td>;
-                  })}
+                          return <td key={header.key}>{item[header.key]}</td>;
+                        })}
 
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={this.tableHeaders.length} className="text-center align-middle py-4">
-                  No records found.
-                </td>
-              </tr>
-            )}
-          </tbody>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={this.tableHeaders.length} className="text-center align-middle py-4">
+                        No records found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
 
-        </Table>
-
+              </Table>
+            </div>
+          </CardBody>
+        </Card>
         <DetailModal
           isOpen={this.state.modalOpen}
           toggle={() => this.toggleModal()}
