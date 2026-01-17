@@ -69,41 +69,64 @@ class FormContent extends Component {
     }));
   };
 
-  handleSubmit = async (e) => {
-    e.preventDefault();
-    const { values } = this.state;
-    const { dispatch, router } = this.props;
+handleSubmit = async (e) => {
+  e.preventDefault();
+  const { values } = this.state;
+  const { dispatch, router } = this.props;
 
-    const newErrors = {};
-    if (!values.email) newErrors.email = "Email is required";
-    if (!values.password) {
-      newErrors.password = "Password is required";
-    } else if (values.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters";
+  const newErrors = {};
+  if (!values.email) newErrors.email = "Email is required";
+  if (!values.password) {
+    newErrors.password = "Password is required";
+  } else if (values.password.length < 8) {
+    newErrors.password = "Password must be at least 8 characters";
+  }
+
+  this.setState({ errors: newErrors });
+  if (Object.keys(newErrors).length > 0) return;
+
+  try {
+    // Login API
+    const res = await api.post("/login", values);
+
+    if (!res.data.success) {
+      this.setState({ loginError: "Admin has not activated you yet. Please wait!" });
+      return;
     }
 
-    this.setState({ errors: newErrors });
-    if (Object.keys(newErrors).length > 0) return;
+    // Save token
+    sessionStorage.setItem("token", res.data.token);
 
-    try {
-      const res = await api.post("/login", values);
+    // Get logged-in user info
+    const userRes = await api.get("/api/me");
+    dispatch(setUser(userRes.data));
 
-      if (!res.data.success) {
-        this.setState({ loginError: "Admin has not activated you yet. Please wait!" });
-        return;
-      }
-      sessionStorage.setItem("token", res.data.token);
-      const userRes = await api.get("/api/me");
-      dispatch(setUser(userRes.data));
-      sessionStorage.setItem("userId", userRes.data.userId);
-      sessionStorage.setItem("accountType", userRes.data.accountType);
-      sessionStorage.setItem("username", userRes.data.username);
-      toast.success("Login successfully!");
-      router.push("/dashboard-header");
-    } catch (err) {
-      this.setState({ loginError: "Invalid email or password, please try again." });
+    // Save user info in session
+    sessionStorage.setItem("userId", userRes.data.userId);
+    sessionStorage.setItem("accountType", userRes.data.accountType);
+    sessionStorage.setItem("username", userRes.data.username);
+
+    toast.success("Login successfully!");
+
+    // ✅ Role-based routing
+    const { accountType } = userRes.data;
+    if (accountType === "admin") {
+      router.push("/admin/dashboard");
+    } else if (accountType === "candidate") {
+      router.push("/registercandidate");
+    } else if (accountType === "hr") {
+      router.push("/hr/dashboard");
+    } else {
+      router.push("/dashboard-header"); // fallback
     }
-  };
+  } catch (err) {
+    console.error(err);
+    this.setState({ loginError: "Invalid email or password, please try again." });
+  }
+};
+
+
+
 
   render() {
     const { values, errors, showPassword, loginError } = this.state;
@@ -125,7 +148,9 @@ class FormContent extends Component {
               value={values.email}
               onChange={this.handleInputChange}
             />
-            {errors.email && <small className="text-danger">{errors.email}</small>}
+            {errors.email && (
+              <small className="text-danger">{errors.email}</small>
+            )}
           </FormGroup>
 
           {/* Password */}
@@ -139,11 +164,18 @@ class FormContent extends Component {
                 value={values.password}
                 onChange={this.handleInputChange}
               />
-              <InputGroupText role="button" onClick={this.togglePasswordVisibility}>
-                <i className={`las ${showPassword ? "la-eye" : "la-eye-slash"}`} />
+              <InputGroupText
+                role="button"
+                onClick={this.togglePasswordVisibility}
+              >
+                <i
+                  className={`las ${showPassword ? "la-eye" : "la-eye-slash"}`}
+                />
               </InputGroupText>
             </InputGroup>
-            {errors.password && <small className="text-danger">{errors.password}</small>}
+            {errors.password && (
+              <small className="text-danger">{errors.password}</small>
+            )}
           </FormGroup>
 
           {/* Forgot Password */}
@@ -167,7 +199,7 @@ class FormContent extends Component {
 
         {/* Bottom */}
         <div className="bottom-box text-center mt-4">
-           <div className="divider my-3">
+          <div className="divider my-3">
             <span>or</span>
           </div>
           <div className="text mb-3">

@@ -1,101 +1,67 @@
 "use client";
 
-import React, { Component } from "react";
 import Link from "next/link";
-import { Navbar, NavbarBrand, Button, Collapse } from "reactstrap";
+import { useEffect, useState } from "react";
+import { Navbar, NavbarBrand, Nav, NavItem, Button, Collapse } from "reactstrap";
 import HeaderNavContent from "./HeaderNavContent";
 import Image from "next/image";
 
-class DefaulHeader2 extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      navbarScrolled: false,
-      isOpen: false,
-      mounted: false,
+const DefaulHeader2 = () => {
+  const [navbarScrolled, setNavbarScrolled] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  const toggle = () => setIsOpen(!isOpen);
+
+  useEffect(() => {
+    setMounted(true);
+
+    const changeBackground = () => {
+      setNavbarScrolled(window.scrollY >= 10);
     };
 
-    this.toggle = this.toggle.bind(this);
-    this.changeBackground = this.changeBackground.bind(this);
-  }
+    window.addEventListener("scroll", changeBackground);
+    return () => window.removeEventListener("scroll", changeBackground);
+  }, []);
 
-  componentDidMount() {
-    this.setState({ mounted: true });
-    window.addEventListener("scroll", this.changeBackground);
-  }
+  // 🔑 Prevent hydration mismatch
+  if (!mounted) return null;
 
-  componentWillUnmount() {
-    window.removeEventListener("scroll", this.changeBackground);
-  }
+  return (
+    <Navbar
+      expand="lg"
+      light
+      fixed={navbarScrolled ? "top" : undefined}
+      className={`shadow-sm py-2 ${navbarScrolled ? "bg-light" : "bg-transparent"}`}
+    >
+      <div className="container d-flex align-items-center justify-content-between">
+        <NavbarBrand>
+          <Link href="/">
+            <Image src="/images/logo.svg" width={154} height={50} alt="brand" />
+          </Link>
+        </NavbarBrand>
 
-  changeBackground() {
-    this.setState({
-      navbarScrolled: window.scrollY >= 10,
-    });
-  }
+        <Button color="primary" onClick={toggle} className="d-lg-none">
+          ☰
+        </Button>
 
-  toggle() {
-    this.setState((prevState) => ({
-      isOpen: !prevState.isOpen,
-    }));
-  }
-
-  render() {
-    const { navbarScrolled, isOpen, mounted } = this.state;
-
-    // 🔑 Prevent hydration mismatch
-    if (!mounted) return null;
-
-    return (
-      <Navbar
-        expand="lg"
-        light
-        fixed={navbarScrolled ? "top" : undefined}
-        className={`shadow-sm py-2 ${
-          navbarScrolled ? "bg-light" : "bg-transparent"
-        }`}
-      >
-        <div className="container d-flex align-items-center justify-content-between">
-          <NavbarBrand>
-            <Link href="/">
-              <Image
-                src="/images/logo.svg"
-                width={154}
-                height={50}
-                alt="brand"
-              />
+        <Collapse isOpen={isOpen} navbar className="justify-content-between">
+          <HeaderNavContent />
+           <div className="d-flex align-items-center gap-2 mt-2 mt-lg-0">
+            <Link href="/candidates-dashboard/cv-manager" passHref>
+              <Button color="secondary" outline>Upload CV</Button>
             </Link>
-          </NavbarBrand>
-
-          <Button color="primary" onClick={this.toggle} className="d-lg-none">
-            ☰
-          </Button>
-
-          <Collapse isOpen={isOpen} navbar className="justify-content-between">
-            <HeaderNavContent />
-
-            <div className="d-flex align-items-center gap-2 mt-2 mt-lg-0">
-              <Link href="/candidates-dashboard/cv-manager" passHref>
-                <Button color="secondary" outline>
-                  Upload CV
-                </Button>
-              </Link>
-
-              <Link href="/login" passHref>
-                <Button color="info" outline>
-                  Login / Register
-                </Button>
-              </Link>
-
-              <Link href="/employers-dashboard/post-jobs" passHref>
-                <Button color="success">Job Post</Button>
-              </Link>
-            </div>
-          </Collapse>
-        </div>
-      </Navbar>
-    );
-  }
-}
+            <Link href="/login" passHref>
+              <Button color="info" outline>Login / Register</Button>
+            </Link>
+            <Link href="/employers-dashboard/post-jobs" passHref>
+              <Button color="success">Job Post</Button>
+            </Link>
+          </div>
+        </Collapse>
+      </div>
+    </Navbar>
+  );
+};
 
 export default DefaulHeader2;

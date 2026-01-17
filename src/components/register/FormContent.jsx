@@ -80,8 +80,7 @@ class FormContent extends Component {
 
     if (!values.username.trim())
       validationErrors.username = "Username is required";
-    if (!values.email.trim())
-      validationErrors.email = "Email is required";
+    if (!values.email.trim()) validationErrors.email = "Email is required";
     if (!values.password.trim())
       validationErrors.password = "Password is required";
     if (values.password.length < 8)
@@ -102,27 +101,41 @@ class FormContent extends Component {
       return;
     }
 
-    try {
-      const formData = new FormData();
-      Object.entries(values).forEach(([key, value]) =>
-        formData.append(key, value)
-      );
-      formData.append("accountType", accountType);
-      formData.append("isActive", "InActive");
+   try {
+  const formData = new FormData();
+  Object.entries(values).forEach(([key, value]) =>
+    formData.append(key, value)
+  );
+  formData.append("accountType", accountType);
+  formData.append("isActive", "InActive");
 
-      const res = await axios.post(this.apiBaseUrl, formData);
+  const res = await axios.post(this.apiBaseUrl, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
 
-      if (res.status === 201) {
-        this.props.setUserId(res.data.insertId);
-        this.setState({ successMessage: "Registration successful!" });
-        this.props.setShowNext(true);
-      }
-    } catch (err) {
-      console.error(err);
-      this.setState({
-        successMessage: "Registration failed. Try again.",
-      });
-    }
+  // Always check res.data.success instead of res.status
+  if (res.data && res.data.success) {
+  this.props.setUserId?.(res.data.accountId);
+  this.props.setAccountType?.(accountType);
+
+  // Show success message
+  this.setState({ successMessage: "Registration successful!" });
+
+  // Redirect to login after 1 second
+  setTimeout(() => {
+    window.location.href = "/login";
+  }, 1000);
+}
+else {
+    this.setState({ successMessage: "Registration failed. Try again." });
+  }
+} catch (err) {
+  console.error(err.response?.data || err.message);
+  this.setState({
+    successMessage: "Registration failed. Try again.",
+  });
+}
+
   };
 
   render() {

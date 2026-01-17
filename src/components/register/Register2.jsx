@@ -5,7 +5,8 @@ import { Card, CardBody, CardTitle, Row, Col } from "reactstrap";
 import FormContent from "./FormContent";
 import Link from "next/link";
 
-const Register2 = ({ setShowNext, setUserId }) => {
+const Register2 = ({ setShowNext, setUserId, setAccountType }) => {
+
   return (
     
     <Row
@@ -26,7 +27,11 @@ const Register2 = ({ setShowNext, setUserId }) => {
             Create a Free Superio Account
           </CardTitle>
 
-          <FormContent setShowNext={setShowNext} setUserId={setUserId} />
+        <FormContent
+  setShowNext={setShowNext}
+  setUserId={setUserId}
+  setAccountType={setAccountType}
+/>
 
           <div className="mt-5 text-center">
             Already have an account?{" "}
