@@ -184,6 +184,29 @@ class DashboardHeader extends Component {
                   ))}
                 </Nav>
               )}
+              { accountType === "candidate" && (
+                <Nav className="d-flex gap-2">
+                  {(accountType === "reg_admin"
+                    ? regadminmenuitem
+                    : candidatesmenuitem 
+                  ).map((item) => (
+                    <NavItem key={item.key}>
+                      <Button
+                        color="dark"
+                        outline
+                        className={`text-white ${activeTab === item.key
+                          ? "border-bottom border-white"
+                          : ""
+                          }`}
+                        onClick={() => this.setState({ activeTab: item.key })}
+                      >
+                        <i className={`las ${item.icon} me-1`}></i>
+                        {item.label}
+                      </Button>
+                    </NavItem>
+                  ))}
+                </Nav>
+              )}
             </div>
 
             {/* Right: User Dropdown */}

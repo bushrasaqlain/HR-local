@@ -1,3 +1,4 @@
+const path = require("path");
 const express = require("express");
 const bodyParser = require("body-parser");
 // Import the cors middleware
@@ -6,6 +7,8 @@ const connection = require("./connection");
 require("./cron"); // This will start the cron job automatically
 
 const app = express();
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 
 // Enable CORS for all routes
 app.use(cors({
@@ -73,22 +76,25 @@ const degree=require("./routes/degreetypeRoutes");
 const degreefields=require("./routes/degreeFieldRoutes");
 const business_entity_type=require("./routes/businessentitytypeRoutes");
 const district=require("./routes/districtRoutes");
-const candidate = require("./routes/candidateRoutes");
+const candidateRoute = require("./routes/candidateRoutes");
 const companyRoute = require("./routes/companyRoutes");
 const history = require("./routes/historyRoutes");
 const applicantRoute=require("./routes/applicantRoutes")
 const packages= require("./routes/packagesRoutes");
 const cart= require("./routes/cartRoutes");
-const jobRoutes=require("./routes/jobRoutes")
-const paymentRoutes=require("./routes/paymentRoutes")
+const jobRoutes=require("./routes/jobRoutes");
+const licensetypesRoutes=require("./routes/licensetypesRoutes");
+const specialityRoutes=require("./routes/specialityRoutes");
 const messages = require("./routes/messagesRoutes");
 
 app.use("/", accountRoutes);
 app.use("/company-info", companyRoute);
-app.use("/job",jobRoutes)
+app.use("/job",jobRoutes);
+app.use("/", licensetypesRoutes);
+app.use("/", specialityRoutes);
 
 app.use("/",applicantRoute)
-app.use("/candidateProfile",candidate );
+app.use("/candidateProfile",candidateRoute );
 app.use("/", history);
 
 app.use("/",countries);

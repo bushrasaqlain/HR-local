@@ -5,32 +5,42 @@ import { Card, CardBody, CardTitle, Row, Col } from "reactstrap";
 import FormContent from "./FormContent";
 import Link from "next/link";
 
-const Register2 = ({ setShowNext, setUserId }) => {
+const Register2 = ({ setShowNext, setUserId, setAccountType }) => {
+
   return (
-    <Row className="justify-content-center mt-5">
+    
+    <Row
+  className="justify-content-center mt-5 p-5 mb-5"
+  style={{
+    backgroundImage: "url('/images/background/bg-1.png')",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
+    minHeight: "100vh"
+  }}
+>
+
       <Col>
-        <Card className="shadow-sm">
-          <CardBody>
-            <CardTitle tag="h3" className="mb-4 text-center">
-              Create a Free Superio Account
-            </CardTitle>
+         <Card className="register-card">
+        <CardBody>
+          <CardTitle tag="h3" className="m-4 text-center">
+            Create a Free Superio Account
+          </CardTitle>
 
-            {/* Registration Form */}
-            <FormContent setShowNext={setShowNext} setUserId={setUserId} />
+        <FormContent
+  setShowNext={setShowNext}
+  setUserId={setUserId}
+  setAccountType={setAccountType}
+/>
 
-            {/* Bottom Box */}
-            <div className="mt-3 text-center">
-              <p>
-                Already have an account?{" "}
-                <Link href="/login" passHref>
-                  <span style={{ color: "#0d6efd", cursor: "pointer" }}>Log In</span>
-                </Link>
-              </p>
-            </div>
-
-          
-          </CardBody>
-        </Card>
+          <div className="mt-5 text-center">
+            Already have an account?{" "}
+            <Link href="/login">
+              <span className="login-link">Log In</span>
+            </Link>
+          </div>
+        </CardBody>
+      </Card>
       </Col>
     </Row>
   );
