@@ -44,30 +44,17 @@ export const dbadminmenuitem = [
 export const regadminmenuitem = [
   { key: "company", label: "Comapany List" },
   { key: "candidate", label: "Candidates List" },
-  { key: "packages", label: "Packages List" },
+  { key: "job", label: "Job List" },
 ]
 
 export const companymenuitem = [
-    { key: "profile", label: "Profile" },
-   { key: "companyProfile", label: "Update Profile" },
+  { key: "profile", label: "Profile" },
+  { key: "companyProfile", label: "Update Profile" },
   { key: "postJob", label: "Post Job" },
   { key: "jobList", label: "Job Post List" },
-  // { key: "pricing", label: "Packages Pricing"},
   { key: "packagesList", label: "Packages List" },
   { key: "allApplicants", label: "All Applicants" },
-    // { key: "cart", label: "All Cart" },
-
-  // { key: "WidgetContentBox", label: "ShortList Candidates" },
-  
   { key: "chatBox", label: "Messages" },
-
-
-  //   id: 8,
-  //   name: "Resume Alerts",
-  //   icon: "la-bell",
-  //   routePath: `/employers-dashboard/resume-alerts`,
-  //   active: "",
-  // },
 
 ];
 

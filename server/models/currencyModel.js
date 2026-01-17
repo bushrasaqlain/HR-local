@@ -267,6 +267,27 @@ const editCurrency = (req, res) => {
   });
 };
 
+const getAllCurrenciesinPayment = (req, res) => {
+  const query = `
+    SELECT id, code
+    FROM currencies
+    WHERE status = 'active'
+    ORDER BY code ASC
+  `;
+
+  connection.query(query, (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    res.json({
+      success: true,
+      currencies: results,
+    });
+  });
+};
+
 
 module.exports = {
   createCurrenciesTable,
@@ -274,4 +295,5 @@ module.exports = {
   getAllCurrency,
   deleteCurrency,
   editCurrency,
+  getAllCurrenciesinPayment
 };

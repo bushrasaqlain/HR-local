@@ -5,43 +5,60 @@ import { connect } from "react-redux";
 import { Table, Button, FormGroup, Label, Input } from "reactstrap";
 import Link from "next/link";
 import axios from "axios";
-
+import { toast } from "react-toastify";
 class AllApplicants extends Component {
   state = {
-    applicantsData: [],
-    ShortlistApplicants: [],
-    SelectedApplicants: [],
-    rejectedApplicants: [],
-    currentPageTotal: 1,
-    currentPageApproved: 1,
-    currentPageShortlist: 1,
-    currentPageRejected: 1,
-    itemsPerPage: 6,
+    allApplicants: [], // single array to hold all applicants
     selectedTabIndex: 0,
+    selectedJobId: "",
+    selectedSkillId: "",
+    selectedJobTypeId: "",
+    skills: [],
+    jobTypes: [],
+    itemsPerPage: 6,
+    currentPage: 1,
+    counts: {
+      all: 0,
+      pending: 0,
+      shortlisted: 0,
+      rejected: 0,
+    },
   };
 
   apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  userId = sessionStorage.getItem("userId");
 
   componentDidMount() {
     this.fetchAllData();
+    this.fetchSkills();
+    this.fetchJobTypes();
   }
 
   fetchAllData = async () => {
-    const { userId } = this.props;
     try {
-      const [applied, approved, shortlisted, rejected] = await Promise.all([
-        axios.get(`${this.apiBaseUrl}applicantsData/${userId}/applied`),
-        axios.get(`${this.apiBaseUrl}applicantsData/${userId}/Approve`),
-        axios.get(`${this.apiBaseUrl}applicantsData/${userId}/shortlisted`),
-        axios.get(`${this.apiBaseUrl}applicantsData/${userId}/Rejected`),
-      ]);
+      const res = await axios.get(`${this.apiBaseUrl}applicantsData/${this.userId}/all`);
+      // assuming API returns array of all applicants with a `status` field
+      this.setState({ allApplicants: res.data },
+        () => this.calculateCounts(res.data)
+      );
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-      this.setState({
-        applicantsData: applied.data,
-        SelectedApplicants: approved.data,
-        ShortlistApplicants: shortlisted.data,
-        rejectedApplicants: rejected.data,
-      });
+  fetchSkills = async () => {
+    try {
+      const res = await axios.get(`${this.apiBaseUrl}getallskills`);
+      this.setState({ skills: res.data.skills || [] });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  fetchJobTypes = async () => {
+    try {
+      const res = await axios.get(`${this.apiBaseUrl}getalljobtypes`);
+      this.setState({ jobTypes: res.data.jobTypes || [] });
     } catch (err) {
       console.error(err);
     }
@@ -51,149 +68,257 @@ class AllApplicants extends Component {
     await axios.put(url);
     this.fetchAllData();
   };
+  calculateCounts = (applicants) => {
+    const counts = {
+      all: applicants.length,
+      pending: 0,
+      shortlisted: 0,
+      rejected: 0,
+    };
 
-  handleShortlistApplication = (id) =>
-    this.updateStatus(`${this.apiBaseUrl}ShortListedApplicants/${id}`);
+    applicants.forEach((a) => {
+      if (a.candidateStatus === "Pending") counts.pending++;
+      if (a.candidateStatus === "Shortlisted") counts.shortlisted++;
+      if (a.candidateStatus === "Rejected") counts.rejected++;
+    });
 
-  handleApproveApplication = (id) =>
-    this.updateStatus(`${this.apiBaseUrl}ApprovedApplicatns/${id}`);
+    this.setState({ counts });
+  };
 
-  handleRejectApplication = (id) =>
-    this.updateStatus(`${this.apiBaseUrl}RejectedApplicatns/${id}`);
+  handleApplicationStatus = async (id, status) => {
+    try {
+      this.updateStatus(`${this.apiBaseUrl}updatestatus/${id}/${status}`);
+      toast.sucess('Update Status Successfuly')
+
+    } catch (error) {
+      console.error("Delete failed", error);
+    }
+  };
 
   paginate = (data, page) => {
     const { itemsPerPage } = this.state;
     return data.slice((page - 1) * itemsPerPage, page * itemsPerPage);
   };
 
-  renderRow = (item, actions = []) => (
-    <tr key={item.id}>
-      <td>
-        <Link href={`/candidates-single-v1/${item.candidate_id}`}>
-          {item.candidate_name}
-        </Link>
-      </td>
-      <td>{item.job_title}</td>
-      <td>{item.skills}</td>
-      <td>{item.Complete_Address}</td>
-      {actions.length > 0 && (
-        <td>
-          {actions.map((a, i) => (
-            <Button
-              key={i}
-              color={a.icon.includes("times") ? "danger" : "success"}
-              size="sm"
-              className="me-1"
-              onClick={() => a.fn(item.application_id)}
-            >
-              <i className={a.icon}></i>
-            </Button>
-          ))}
-        </td>
-      )}
-    </tr>
-  );
+  filterApplicants = () => {
+    const { allApplicants, selectedTabIndex, selectedJobId, selectedSkillId, selectedJobTypeId } = this.state;
 
-  renderTable = ({ data, page, actions = [], showAction = true }) => (
-    <Table striped responsive hover>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Job Title</th>
-          <th>Skills</th>
-          <th>Address</th>
-          {showAction && <th>Action</th>}
-        </tr>
-      </thead>
-      <tbody>
-        {this.paginate(data, page).map((item) =>
-          this.renderRow(item, actions)
-        )}
-        {data.length === 0 && (
-          <tr>
-            <td colSpan={showAction ? 5 : 4} className="text-center">
-              No records found
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </Table>
-  );
+    return allApplicants.filter((item) => {
+      // Filter by status tab
+      const statusMatch =
+        selectedTabIndex === 0 ? true : // All
+          selectedTabIndex === 1 ? item.candidateStatus === "Pending" :
+            selectedTabIndex === 2 ? item.candidateStatus === "Shortlisted" :
+              selectedTabIndex === 3 ? item.candidateStatus === "Rejected" : true;
 
+      // Filter by job
+      const jobMatch = selectedJobId ? item.job_id === selectedJobId : true;
+
+      // Filter by skill
+      const skillMatch = selectedSkillId ? item.skill_ids?.includes(Number(selectedSkillId)) : true;
+
+      // Filter by job type
+      const jobTypeMatch = selectedJobTypeId ? item.job_type_id === selectedJobTypeId : true;
+
+      return statusMatch && jobMatch && skillMatch && jobTypeMatch;
+    });
+  };
   render() {
     const {
-      applicantsData,
-      SelectedApplicants,
-      ShortlistApplicants,
-      rejectedApplicants,
       selectedTabIndex,
-      currentPageTotal,
-      currentPageApproved,
-      currentPageShortlist,
-      currentPageRejected,
+      selectedJobId,
+      selectedSkillId,
+      selectedJobTypeId,
+      skills,
+      jobTypes,
+      allApplicants,
+      counts
     } = this.state;
+
+    const filteredApplicants = this.filterApplicants();
+
 
     return (
       <div className="ls-widget">
-        <div className="widget-title d-flex align-items-center mb-3">
-          <h4 className="me-3">Applicants</h4>
-          <FormGroup className="mb-0">
-            <Label for="tabSelect" className="visually-hidden">
-              Select Tab
-            </Label>
+        {/* Filters */}
+        <div className="row mb-3 g-3 align-items-end">
+          <div className="col-md-3">
+            <FormGroup className="mb-0">
+              <Label>Status</Label>
+              <Input
+                type="select"
+                value={selectedTabIndex}
+                onChange={(e) =>
+                  this.setState({ selectedTabIndex: +e.target.value })
+                }
+              >
+                <option value={0}>All ({counts.all})</option>
+                <option value={1}>Pending ({counts.pending})</option>
+                <option value={2}>Shortlisted ({counts.shortlisted})</option>
+                <option value={3}>Rejected ({counts.rejected})</option>
+              </Input>
+
+            </FormGroup>
+          </div>
+
+          <div className="col-md-3">
+            <Label>Job</Label>
             <Input
               type="select"
-              id="tabSelect"
-              value={selectedTabIndex}
+              value={selectedJobId}
+              onChange={(e) => this.setState({ selectedJobId: e.target.value })}
+            >
+              <option value="">All Jobs</option>
+              {[...new Map(
+                allApplicants.map(j => [j.job_id, j])
+              ).values()].map(job => (
+                <option key={job.job_id} value={job.job_id}>
+                  {job.job_title}
+                </option>
+              ))}
+            </Input>
+          </div>
+
+          <div className="col-md-3">
+            <Label>Job Type</Label>
+            <Input
+              type="select"
+              value={selectedJobTypeId}
               onChange={(e) =>
-                this.setState({ selectedTabIndex: +e.target.value })
+                this.setState({ selectedJobTypeId: e.target.value })
               }
             >
-              <option value={0}>Applied ({applicantsData.length})</option>
-              <option value={1}>Selected ({SelectedApplicants.length})</option>
-              <option value={2}>Shortlisted ({ShortlistApplicants.length})</option>
-              <option value={3}>Rejected ({rejectedApplicants.length})</option>
+              <option value="">All Job Types</option>
+              {jobTypes.map(type => (
+                <option key={type.id} value={type.id}>
+                  {type.name}
+                </option>
+              ))}
             </Input>
-          </FormGroup>
+          </div>
+          <div className="col-md-3">
+            <Label>Skill</Label>
+            <Input
+              type="select"
+              value={selectedSkillId}
+              onChange={(e) =>
+                this.setState({ selectedSkillId: e.target.value })
+              }
+            >
+              <option value="">All Skills</option>
+              {skills.map(type => (
+                <option key={type.id} value={type.id}>
+                  {type.name}
+                </option>
+              ))}
+            </Input>
+          </div>
+
+
         </div>
 
-        {selectedTabIndex === 0 &&
-          this.renderTable({
-            data: applicantsData,
-            page: currentPageTotal,
-            actions: [
-              { icon: "la la-check", fn: this.handleShortlistApplication },
-              { icon: "la la-times-circle", fn: this.handleRejectApplication },
-            ],
-          })}
+        {/* TABLE */}
+        <Table className="table align-middle mb-0" striped hover>
+          <thead className="table-dark">
+            <tr>
+              <th>Candidate Name</th>
+              <th>Phone</th>
+              {/* <th>date_of_birth</th> */}
+              <th>Gender</th>
+              {/* <th>Martial status</th> */}
+              <th>Total Experience</th>
+              <th>License Type</th>
+              <th>License Number</th>
+              <th>Country</th>
+              <th>District</th>
+              <th>City</th>
+              <th>Address</th>
+              <th>Status</th>
+              <th>Action</th>
 
-        {selectedTabIndex === 1 &&
-          this.renderTable({
-            data: SelectedApplicants,
-            page: currentPageApproved,
-          })}
+            </tr>
+          </thead>
 
-        {selectedTabIndex === 2 &&
-          this.renderTable({
-            data: ShortlistApplicants,
-            page: currentPageShortlist,
-            actions: [
-              { icon: "la la-check", fn: this.handleApproveApplication },
-              { icon: "la la-times-circle", fn: this.handleRejectApplication },
-            ],
-          })}
+          <tbody>
+            {filteredApplicants.length > 0 ? (
+              filteredApplicants.map(item => (
+                <tr key={item.id}>
+                  <td>{item.candidate_name || '-'}</td>
+                  <td>{item.phone || '-'}</td>
+                  {/* <td>{item.date_of_birth ? new Date(item.date_of_birth).toLocaleDateString("en-GB", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })
+                    : "-"}</td> */}
+                  <td>{item.gender || '-'}</td>
+                  {/* <td>{item.marital_status || '-'}</td> */}
+                  <td>{`${item.total_experience || '-'} year`}  </td>
+                  <td>{item.license_type || '-'}</td>
+                  <td>{item.license_number || '-'}</td>
+                  <td>{item.country_name || '-'}</td>
+                  <td>{item.district_name || '-'}</td>
+                  <td>{item.city_name || '-'}</td>
+                  <td>{item.Complete_Address || '-'}</td>
+                  <td>{item.candidateStatus || '-'}</td>
+                  <td>
+                    <div className="d-flex align-items-center gap-2">
+                      
+                      {item.candidateStatus === "Pending" && (
+                        <>
+                          <Button
+                            color="success"
+                            size="sm"
+                            onClick={() =>
+                              this.handleApplicationStatus(item.application_id, "Shortlisted")
+                            }
+                          >
+                            <i className="la la-check"></i>
+                          </Button>
 
-        {selectedTabIndex === 3 &&
-          this.renderTable({
-            data: rejectedApplicants,
-            page: currentPageRejected,
-            actions: [
-              { icon: "la la-check", fn: this.handleShortlistApplication },
-            ],
-          })}
+                          <Button
+                            color="danger"
+                            size="sm"
+                            onClick={() =>
+                              this.handleApplicationStatus(item.application_id, "Rejected")
+                            }
+                          >
+                            <i className="la la-times-circle"></i>
+                          </Button>
+                        </>
+                      )}
+
+                      {/* REJECTED → Shortlist only */}
+                      {item.candidateStatus === "Rejected" && (
+                        <Button
+                          color="success"
+                          size="sm"
+                          onClick={() =>
+                            this.handleApplicationStatus(item.application_id, "Shortlisted")
+                          }
+                        >
+                          <i className="la la-check"></i>
+                        </Button>
+                      )}
+                    </div>
+                  </td>
+
+
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={filteredApplicants.length > 0} className="text-center">
+                  No records found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </Table>
       </div>
     );
   }
+
 }
 
 const mapStateToProps = (state) => ({
