@@ -161,7 +161,7 @@ const getAllCountries = (
   let values = [];
 
   // ✅ Status filter ONLY if not "all"
-  if (status && status !== "all") {
+  if (status && status !== "all" && status !== undefined) {
     whereConditions.push("status = ?");
     values.push(status);
   }
@@ -172,27 +172,24 @@ const getAllCountries = (
       whereConditions.push(`DATE(${name}) = ?`);
       values.push(search);
     } else if (name === "status") {
-      // case-insensitive search on status
       whereConditions.push("LOWER(status) LIKE ?");
       values.push(`%${search.toLowerCase()}%`);
     } else {
-      // name or any other text column
       whereConditions.push(`${name} LIKE ?`);
       values.push(`%${search}%`);
     }
   }
+
   const whereClause =
     whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
 
-  const query = `
-    SELECT *
-    FROM countries
-    ${whereClause}
-    ORDER BY id DESC
-    LIMIT ? OFFSET ?
-  `;
+  // ✅ Decide whether to apply LIMIT/OFFSET
+  let query = `SELECT * FROM countries ${whereClause} ORDER BY id DESC`;
+  if (limit > 0) {
+    query += " LIMIT ? OFFSET ?";
+  }
 
-  const queryValues = [...values, Number(limit), Number(offset)];
+  const queryValues = limit > 0 ? [...values, Number(limit), Number(offset)] : values;
 
   connection.query(query, queryValues, (err, results) => {
     if (err) {
@@ -200,12 +197,8 @@ const getAllCountries = (
       return callback(err);
     }
 
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM countries
-      ${whereClause}
-    `;
-
+    // Count total matching rows
+    const countQuery = `SELECT COUNT(*) AS total FROM countries ${whereClause}`;
     connection.query(countQuery, values, (err2, countResult) => {
       if (err2) {
         console.error("❌ Error counting countries:", err2.sqlMessage);

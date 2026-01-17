@@ -40,6 +40,8 @@ export const dbadminmenuitem = [
   { key: "businessentitytypes", label: "Business Entity" },
   { key: "jobtypes", label: "Job Types" },
   { key: "packages", label: "Packages" },
+  { key: "licensetypes", label: "LicenseType"},
+  { key: "speciality", label: "Speciality"},
 ];
 export const regadminmenuitem = [
   { key: "company", label: "Comapany List" },
