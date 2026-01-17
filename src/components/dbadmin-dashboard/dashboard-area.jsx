@@ -15,6 +15,8 @@ import { useEffect,useState } from "react";
 import { useRouter } from "next/router";
 import { useSelector } from "react-redux";
 import Packages from "./packages.jsx";
+import LicenseType from "./licensetypes.jsx";
+import Speciality from "./speciality.jsx";
 
 const DashboardArea = ({ activeTab }) => {
   // ✅ Receive as prop
@@ -57,6 +59,10 @@ useEffect(() => {
         return <Jobtype />;
          case "packages":
         return <Packages />;
+        case "licensetypes":
+          return <LicenseType />;
+        case "speciality":
+          return <Speciality />;
          case "changepassword":
       return <ChangePasswordForm />;
       default:

@@ -87,81 +87,92 @@ const getUserName = (userId, callback) => {
 
 const register = (req, res) => {
   console.log("REQ BODY:", req.body);
-  const { accountType, email, password, isActive, username } = req.body;
+
   try {
-    let sql;
-    let values;
-    // If account type is candidate or admin, include only specific fields
-    sql =
-      "INSERT INTO account (`username`, `email`, `password`, `isActive`, `accountType`) VALUES (?)";
-    values = [
-      req.body.username,
-      req.body.email,
-      req.body.password,
-      req.body.isActive,
-      req.body.accountType,
-    ];
+    const { accountType, email, password, isActive, username } = req.body;
 
-        connection.query(sql, [values], (err, data) => {
-            if (err) {
-                console.error(err);
-                return res.status(500).json({ error: "Internal Server Error" });
-            }
+    // Ensure isActive is valid ENUM ('Active' or 'InActive')
+    const status = isActive === "Active" ? "Active" : "InActive";
 
+    const sql = `
+      INSERT INTO account (username, email, password, isActive, accountType)
+      VALUES (?, ?, ?, ?, ?)
+    `;
 
-            if (accountType === "candidate" || accountType === "employer") {
-                logAudit({
-                    tableName: "history",
-                    entityType: accountType,
-                    entityId: data.insertId,
-                    action: "ADDED",
-                    data: { username: username, email: email, password: password, isActive: isActive, accountType: accountType },
-                    changedBy: data.insertId, // or req.user.userId
-                });
-            }
+    const values = [username, email, password, status, accountType];
 
-            return res.status(201).json(data);
+    connection.query(sql, values, (err, data) => {
+      if (err) {
+        console.error("Error creating account:", err);
+        return res.status(500).json({ error: "Internal Server Error", details: err.message });
+      }
+
+      // Log audit if candidate or employer
+      if (accountType === "candidate" || accountType === "employer") {
+        logAudit({
+          tableName: "history",
+          entityType: accountType,
+          entityId: data.insertId,
+          action: "ADDED",
+          data: { username, email, password, isActive: status, accountType },
+          changedBy: data.insertId, // or req.user.userId if logged in
         });
-    } catch (error) {
-        console.error(error.message);
-        return res.status(400).json({ error: error.message });
-    }
-}
+      }
+
+      return res.status(201).json({
+        success: true,
+        message: "Account created successfully",
+        accountId: data.insertId,
+      });
+    });
+  } catch (error) {
+    console.error("Unexpected error:", error.message);
+    return res.status(400).json({ error: error.message });
+  }
+};
+
 
 const login = (req, res) => {
-    try {
-        const { email, password } = req.body;
+  try {
+    const { email, password } = req.body;
 
-        const sql = 'SELECT id, accountType, isActive FROM account WHERE email = ? AND password = ?';
-        connection.query(sql, [email, password], (err, results) => {
-            if (err) {
-                console.error(err);
-                return res.status(500).json({ error: 'Internal Server Error' });
-            }
+    const sql = `
+      SELECT 
+        a.id,
+        a.accountType,
+        a.isActive,
+        ci.profile_completed
+      FROM account a
+      LEFT JOIN candidate_info ci ON a.id = ci.account_id
+      WHERE a.email = ? AND a.password = ?
+    `;
 
-            if (results.length === 0) {
-                return res.status(401).json({ error: 'Invalid email or password' });
-            }
+    connection.query(sql, [email, password], (err, results) => {
+      if (err) {
+        return res.status(500).json({ error: "Internal Server Error" });
+      }
 
-            const user = results[0];
+      if (!results.length) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
 
-            if (user.isActive !== "Active") {
-                return res.json({ success: false, error: "Admin has not granted permissions yet...." })
-            }
+      const user = results[0];
+      const token = generateToken(user);
 
-            if (user.accountType === 'candidate' || user.accountType === 'employer' || user.accountType === 'db_admin' || user.accountType === 'reg_admin') {
-                const token = generateToken(user);
+      // 🔑 ALWAYS allow login
+      return res.json({
+        success: true,
+        token,
+        accountType: user.accountType,
+        isActive: user.isActive,
+        profile_completed: !!user.profile_completed
+      });
+    });
+  } catch (error) {
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+};
 
-                return res.json({ success: true, token });
-            } else {
-                return res.json({ success: false, error: 'Invalid user type' });
-            }
-        });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ error: 'Internal Server Error' });
-    }
-}
 
 const adminLogin = (req, res) => {
     const adminId = req.params.userId;

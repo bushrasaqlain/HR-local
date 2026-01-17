@@ -333,3 +333,40 @@ textarea::-ms-input-placeholder {
     font-weight: bold;
   }
 }
+.register-card {
+  // background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(8px);
+  border-radius: 12px;
+  border: none;
+  width: auto;
+  min-width: 70vh;
+}
+.register-wrapper {
+  background-size: cover;
+  background-position: center;
+  min-height: 100vh;
+}
+.upload-photo-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 12px;
+}
+
+.upload-photo-row .form-control {
+  flex: 1;               /* 👈 takes full remaining width */
+}
+
+.profile-photo-wrapper {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;        /* 👈 never shrink */
+}
+
+.profile-photo {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #ddd;
+}
