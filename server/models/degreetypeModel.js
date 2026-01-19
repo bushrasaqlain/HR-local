@@ -142,7 +142,7 @@ const editDegreeType = (req, res) => {
 };
 
 const getAllDegreeTypes = (
-  { page = 1, limit = 15, name = "name", search = "", status = "active" },
+  { page = 1, limit = 100, name = "name", search = "", status = "active" },
   callback
 ) => {
   const pageNum = parseInt(page, 10) || 1;

@@ -82,7 +82,8 @@ class CandidateRegisterForm extends Component {
       skills: [], // <-- move here
       allCities: [],
       degree: [],
-       degreeTitles: [],    // { [degreeId]: [ {id, name} ] }
+      degreeTitles: [], // { [degreeId]: [ {id, name} ] }
+      degreeFieldData: [], // must exist
     };
 
     // Example options
@@ -264,25 +265,24 @@ class CandidateRegisterForm extends Component {
       console.error("Fetch failed", err);
     }
   };
-loadDegrees = async () => {
-  try {
-    const res = await api.get("/getalldegreetype");
-    console.log("degree API response:", res.data);
+  loadDegrees = async () => {
+    try {
+      const res = await api.get("/getalldegreetype");
+      console.log("degree API response:", res.data);
 
-    const degreeArray = Array.isArray(res.data?.degreetypes)
-      ? res.data.degreetypes
-      : [];
+      const degreeArray = Array.isArray(res.data?.degreetypes)
+        ? res.data.degreetypes
+        : [];
 
-    console.log("Parsed degrees:", degreeArray[0]); // MUST NOT be undefined
+      console.log("Parsed degrees:", degreeArray[0]); // MUST NOT be undefined
 
-    this.setState({ degreeFieldData: degreeArray });
-  } catch (err) {
-    console.error("Failed to load degreeFieldData", err);
-    toast.error("Could not load degreeFieldData");
-    this.setState({ degreeFieldData: [] });
-  }
-};
-
+      this.setState({ degreeFieldData: degreeArray });
+    } catch (err) {
+      console.error("Failed to load degreeFieldData", err);
+      toast.error("Could not load degreeFieldData");
+      this.setState({ degreeFieldData: [] });
+    }
+  };
 
   loadInstitutes = async () => {
     try {
@@ -294,32 +294,28 @@ loadDegrees = async () => {
     }
   };
 loadDegreeTitles = (degreeId) => async (inputValue) => {
-  if (!degreeId) return []; // no degree selected → empty options
+  const res = await api.get("/getallDegreeFields", {
+    params: {
+      search: inputValue || "",
+      degree_type_id: degreeId,
+      limit: 0, // return all for dropdown
+    },
+  });
 
-  try {
-    const res = await api.get("/getDegreeTitlesByDegree", {
-      params: { degree_id: degreeId, search: inputValue || "" },
-    });
-
-    const titles = Array.isArray(res.data.titles) ? res.data.titles : [];
-
-    return titles.map((t) => ({
-      value: t.id,
-      label: t.name,
-    }));
-  } catch (err) {
-    console.error("Failed to load degree titles", err);
-    toast.error("Could not load degree titles");
-    return [];
-  }
+  return (res.data.degreefields || []).map((t) => ({
+    value: t.id,
+    label: t.name,
+  }));
 };
+
+
 
 
 
 
   componentDidMount() {
     this.loadCountries();
-    this.loadSkills(); 
+    this.loadSkills();
     this.loadAllCities();
     this.loadSpeciality();
     this.loadLicenseTypes();
@@ -408,7 +404,7 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
       phone: Yup.string()
         .matches(
           /^(03\d{2}-\d{7}|0\d{2,3}-\d{7})$/,
-          "Enter a valid Pakistani mobile or landline number"
+          "Enter a valid Pakistani mobile or landline number",
         )
         .required("Contact number is required"),
 
@@ -418,7 +414,7 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
         .trim()
         .matches(
           /^[A-Za-z0-9-\/]+$/,
-          "License number can only contain letters, numbers, hyphens, or slashes"
+          "License number can only contain letters, numbers, hyphens, or slashes",
         )
         .min(3, "License number must be at least 3 characters")
         .max(20, "License number must be at most 20 characters")
@@ -429,7 +425,7 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
         Yup.object().shape({
           degreeTitle: Yup.string().required("Required"),
           instituteName: Yup.string().required("Required"),
-        })
+        }),
       ),
     }),
     Yup.object().shape({
@@ -437,7 +433,7 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
         Yup.object().shape({
           jobTitle: Yup.string().required("Required"),
           companyName: Yup.string().required("Required"),
-        })
+        }),
       ),
     }),
     Yup.object().shape({
@@ -450,7 +446,7 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
           shift: Yup.string().required("Required"),
           startTime: Yup.string().required("Required"),
           endTime: Yup.string().required("Required"),
-        })
+        }),
       ),
     }),
   ];
@@ -786,7 +782,7 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
                   value={values.otherPreferredCities
                     .map((id) => {
                       const city = this.state.allCities.find(
-                        (c) => c.id === id
+                        (c) => c.id === id,
                       );
                       return city ? { value: city.id, label: city.name } : null;
                     })
@@ -794,7 +790,7 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
                   onChange={(selected) =>
                     setFieldValue(
                       "otherPreferredCities",
-                      selected ? selected.map((o) => o.value) : []
+                      selected ? selected.map((o) => o.value) : [],
                     )
                   }
                 />
@@ -834,20 +830,20 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
                       <div className="row mb-3">
                         {/* Degree */}
                         <div className="col-md-6">
-  <label>Degree</label>
-{console.log(
-  "First degree item:",
-  this.state.degreeFieldData?.[0]
-)}
-
-<Field
+                          <label>Degree</label>
+                          {console.log(
+                            "First degree item:",
+                            this.state.degreeFieldData?.[0],
+                          )}
+                         <Field
   as="select"
   name={`education.${idx}.degree`}
   className="form-control"
   onChange={(e) => {
     const degreeId = e.target.value;
     setFieldValue(`education.${idx}.degree`, degreeId);
-    setFieldValue(`education.${idx}.degreeTitle`, ""); // reset title
+    // reset title
+    setFieldValue(`education.${idx}.degreeTitle`, "");
     setFieldValue(`education.${idx}.degreeTitle_label`, "");
   }}
 >
@@ -860,25 +856,26 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
 </Field>
 
 
-
-
-
-  <ErrorMessage
-    name={`education.${idx}.degree`}
-    component="div"
-    className="text-danger"
-  />
-</div>
-
+                          <ErrorMessage
+                            name={`education.${idx}.degree`}
+                            component="div"
+                            className="text-danger"
+                          />
+                        </div>
 
                         {/* Degree Title */}
-                        <div className="col-md-6">
-                          <label>Degree Title</label>
-                   <AsyncSelect
-  cacheOptions
+                    <div className="col-md-6">
+  <label>Degree Title</label>
+  {console.log(
+                            "First degree types",
+                            this.state.degreeTitle?.[0],
+                          )}
+<AsyncSelect
+  key={edu.degree || "no-degree"}   // 🔥 THIS IS THE FIX
+  cacheOptions={false}
   defaultOptions
-  isDisabled={!edu.degree} // disable until a degree is selected
-  loadOptions={this.loadDegreeTitles(edu.degree)}
+  isDisabled={!edu.degree}
+  loadOptions={this.loadDegreeTitles(Number(edu.degree))}
   value={
     edu.degreeTitle
       ? { value: edu.degreeTitle, label: edu.degreeTitle_label }
@@ -892,10 +889,8 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
 />
 
 
+</div>
 
-
-
-                        </div>
                       </div>
 
                       <div className="row mb-3">
@@ -917,11 +912,11 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
                             onChange={(opt) => {
                               setFieldValue(
                                 `education.${idx}.instituteName`,
-                                opt?.value || ""
+                                opt?.value || "",
                               );
                               setFieldValue(
                                 `education.${idx}.institute_label`,
-                                opt?.label || ""
+                                opt?.label || "",
                               );
                             }}
                           />
@@ -1110,12 +1105,12 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
                       <Select
                         options={this.shiftOptions}
                         value={this.shiftOptions.find(
-                          (o) => o.value === values.availability[idx].shift
+                          (o) => o.value === values.availability[idx].shift,
                         )}
                         onChange={(option) =>
                           setFieldValue(
                             `availability.${idx}.shift`,
-                            option.value
+                            option.value,
                           )
                         }
                       />
@@ -1164,11 +1159,11 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
           return formData.full_name || formData.phone || formData.email;
         case 2:
           return formData.education.some(
-            (edu) => edu.degreeTitle || edu.instituteName
+            (edu) => edu.degreeTitle || edu.instituteName,
           );
         case 3:
           return formData.experience.some(
-            (exp) => exp.jobTitle || exp.companyName
+            (exp) => exp.jobTitle || exp.companyName,
           );
         case 4:
           return formData.resume !== null;
@@ -1203,8 +1198,8 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
                 step === stepNumber
                   ? "current-step"
                   : filled
-                  ? "completed-step"
-                  : "inactive-step"
+                    ? "completed-step"
+                    : "inactive-step"
               }`}
               style={{
                 cursor: filled ? "pointer" : "default",
@@ -1214,8 +1209,8 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
                   step === stepNumber
                     ? "#4CAF50"
                     : filled
-                    ? "#a5d6a7"
-                    : "#e0e0e0",
+                      ? "#a5d6a7"
+                      : "#e0e0e0",
                 color: step === stepNumber || filled ? "#fff" : "#000",
                 minWidth: "120px", // ensures readable labels on mobile
               }}
