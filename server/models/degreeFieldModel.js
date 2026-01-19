@@ -85,7 +85,7 @@ const addDegreeField = ({ name, t_id, type, data, userId }, callback) => {
 
 
 const getAllDegreeFields = (
-  { page = 1, limit = 15, column = "name", search = "", status = "all" },
+  { page = 1, limit = 0, column = "name", search = "", status = "all", degree_type_id },
   callback
 ) => {
   page = parseInt(page);
@@ -93,51 +93,63 @@ const getAllDegreeFields = (
   const offset = (page - 1) * limit;
 
   const allowedColumns = ["name", "created_at", "updated_at"];
+  if (!allowedColumns.includes(column)) column = "name";
 
-  if (!allowedColumns.includes(column)) {
-    column = "name";
+  const conditions = [];
+  const params = [];
+
+  // ✅ Search filter
+  if (search) {
+    const searchColumn =
+      column === "created_at" || column === "updated_at"
+        ? `DATE(d.${column})`
+        : `d.${column}`;
+    conditions.push(`${searchColumn} LIKE ?`);
+    params.push(`%${search}%`);
   }
 
-  const searchColumn =
-    column === "created_at" || column === "updated_at"
-      ? `DATE(d.${column})`
-      : `d.${column}`;
-
-  let where = `WHERE ${searchColumn} LIKE ?`;
-  let params = [`%${search}%`];
-
+  // ✅ Status filter
   if (status !== "all") {
-    where += " AND d.status = ?";
+    conditions.push("d.status = ?");
     params.push(status);
   }
 
+  // ✅ Degree type filter
+  if (degree_type_id) {
+    conditions.push("d.degree_type_id = ?");
+    params.push(degree_type_id);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+  // ✅ Main query
   const query = `
     SELECT d.*
     FROM degreefields d
-    ${where}
+    ${whereClause}
     ORDER BY d.id DESC
-    LIMIT ? OFFSET ?
+    ${limit > 0 ? "LIMIT ? OFFSET ?" : ""}
   `;
+  const queryValues = limit > 0 ? [...params, limit, offset] : params;
 
-  connection.query(query, [...params, limit, offset], (err, results) => {
+  connection.query(query, queryValues, (err, results) => {
     if (err) return callback(err);
 
-    connection.query(
-      `SELECT COUNT(*) AS total FROM degreefields d ${where}`,
-      params,
-      (err2, count) => {
-        if (err2) return callback(err2);
+    // ✅ Count query
+    const countQuery = `SELECT COUNT(*) AS total FROM degreefields d ${whereClause}`;
+    connection.query(countQuery, params, (err2, count) => {
+      if (err2) return callback(err2);
 
-        callback(null, {
-          total: count[0].total,
-          page,
-          limit,
-          degreefields: results,
-        });
-      }
-    );
+      callback(null, {
+        total: count[0].total,
+        page,
+        limit,
+        degreefields: results,
+      });
+    });
   });
 };
+
 
 
 
