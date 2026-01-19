@@ -34,6 +34,7 @@ export const dbadminmenuitem = [
   { key: "city", label: "City" },
   { key: "profession", label: "Profession" },
   { key: "skills", label: "Skills" },
+  { key: "institute", label: "Institute" },
   { key: "degreetype", label: "Degree" },
   { key: "degreefields", label: "Degree Fields" },
   { key: "currency", label: "Currency" },

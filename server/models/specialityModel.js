@@ -78,8 +78,6 @@ const addspeciality = (req, res) => {
   run(0);
 };
 
-
-
 // Edit speciality type
 const editspeciality = (req, res) => {
   const { id } = req.params;

@@ -5,7 +5,7 @@ import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import MetaTags from "react-meta-tags";
 import AsyncSelect from "react-select/async";
-
+import * as XLSX from "xlsx";
 import {
   Card,
   Row,
@@ -137,6 +137,38 @@ class Districts extends Component {
       });
     }
   };
+
+  handleExcelExport = () => {
+    const { districts } = this.state;
+
+    if (!districts || !districts.length) {
+      toast.info("No districts available to export");
+      return;
+    }
+
+    // Map data for Excel
+    const dataToExport = districts.map((district) => ({
+      "District Name": district.name,
+      "Country Name": district.country_name,
+      "Status": district.status,
+      "Created At": this.formatDate(district.created_at),
+      "Updated At": this.formatDate(district.updated_at),
+    }));
+
+    // Create worksheet
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+
+    // Create workbook and append worksheet
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Districts");
+
+    // Write file
+    XLSX.writeFile(workbook, "Districts.xlsx");
+
+    toast.success("Districts exported successfully");
+  };
+
+
 
   toggleHistory = (item = null) => {
     if (item) this.fetchHistory(item.id);
@@ -282,33 +314,14 @@ class Districts extends Component {
         <h6 className="fw-bold mb-3">Districts List</h6>
         <div className="poppins-font">
           <Container fluid>
-            <div className="district-header-section">
-              <p
-                className="breadcrumb-text"
-                title="History"
-                breadcrumbItem="Activity Log"
-              />
+            <div className="institute-header-section d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
 
-              <div className="d-flex justify-content-end my-2">
-                <Button
-                  variant="dark"
-                  onClick={() => this.toggleForm()}
-                  className="add-district-btn"
-                >
-                  Add New Districts
-                </Button>
-              </div>
-
-              <div className="w-100 m-2">
-                <p className="filter-label text-dark">Filter by Status</p>
+              {/* Left side: Status filter */}
+              <div className="d-flex align-items-center gap-2">
+                <span className="filter-label text-dark">Filter by Status:</span>
                 <select
                   className="rounded-square form-select p-2"
-                  style={{
-                    maxWidth: "250px",
-                    // fontFamily: "Helvetica Neue, Arial, sans-serif",
-                    color: "#666565ff",
-                    border: "1px solid #ccc",
-                  }}
+                  style={{ maxWidth: "200px" }}
                   value={isActive}
                   onChange={(e) => this.setState({ isActive: e.target.value })}
                 >
@@ -317,6 +330,44 @@ class Districts extends Component {
                   <option value="inactive">Inactive</option>
                 </select>
               </div>
+
+
+              {/* Right side: Buttons */}
+              <div className="d-flex align-items-end gap-2 flex-wrap">
+
+                {/* Add Institute */}
+                <Button
+                  variant="dark"
+                  onClick={() => this.toggleForm()}
+                  className="add-institute-btn"
+                >
+                  Add District
+                </Button>
+
+                {/* Import Excel */}
+                <Button
+                  variant="secondary"
+                  onClick={() => this.fileInputRef.click()}
+                >
+                  Import Excel
+                </Button>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  ref={(ref) => (this.fileInputRef = ref)}
+                  style={{ display: "none" }}
+                  onChange={this.handleExcelImport}
+                />
+
+                {/* Export Button */}
+                <Button
+                  variant="success"
+                  onClick={this.handleExcelExport} // create this function
+                >
+                  Export
+                </Button>
+              </div>
+
             </div>
 
             <Card>
