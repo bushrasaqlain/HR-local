@@ -29,6 +29,8 @@ class DegreeField extends Component {
       deleteStatus: null,
       showDeleteConfirm: false,
       showHistoryModal: false,
+        degreeTypes: [],          // 👈 ADD THIS
+  selectedDegreeType: "",   // 👈 AND THIS
       history: [],
       currentPage: 1,
       totalDegreeFileds: 0,
@@ -44,9 +46,18 @@ class DegreeField extends Component {
     this.itemsPerPage = 50;
     this.apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   }
+fetchDegreeTypes = async () => {
+  try {
+    const res = await axios.get(`${this.apiBaseUrl}getalldegreetype`);
+    this.setState({ degreeTypes: res.data.degreetypes || [] });
+  } catch (err) {
+    console.error("Error fetching degree types", err);
+  }
+};
 
   componentDidMount() {
     this.fetchDegreeFields();
+     this.fetchDegreeTypes(); // 👈 IMPORTANT
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -121,44 +132,77 @@ fetchDegreeFields = async (page = this.state.currentPage, filters = {}) => {
     }
   };
 
-  toggleForm = (item = null) => {
-    if (item) {
-      this.setState({
-        editId: item.id,
-        inputValue: item.name,
-        showModal: true,
-      });
-    } else {
-      this.setState({ editId: null, inputValue: "", showModal: true });
-    }
-  };
+ toggleForm = (item = null) => {
+  if (item) {
+    this.setState({
+      editId: item.id,
+      inputValue: item.name,
+      selectedDegreeType: item.degree_type_id, // 👈 EDIT MODE
+      showModal: true,
+    });
+  } else {
+    this.setState({
+      editId: null,
+      inputValue: "",
+      selectedDegreeType: "",
+      showModal: true,
+    });
+  }
+};
+
 
   toggleHistory = (item = null) => {
     if (item) this.fetchHistory(item.id);
     this.setState({ showHistoryModal: true });
   };
 
-  handleSave = async () => {
-    const { editId, inputValue } = this.state;
-    try {
-      if (editId) {
-        await api.put(`${this.apiBaseUrl}editDegreeField/${editId}`, {
-          name: inputValue,
-        });
-        this.setState((prevState) => ({
-          degreeFieldData: prevState.degreeFieldData.map((item) =>
-            item.id === editId ? { ...item, name: inputValue } : item
-          ),
-        }));
-      } else {
-        await api.post(`${this.apiBaseUrl}adddegreefield`, { name: inputValue });
-        this.fetchDegreeFields(1);
-      }
-      this.setState({ showModal: false, inputValue: "", editId: null });
-    } catch (error) {
-      console.error("Error saving Currency:", error);
+handleSave = async () => {
+  const { editId, inputValue, selectedDegreeType } = this.state;
+
+  if (!selectedDegreeType) {
+    toast.error("Please select a Degree Type");
+    return;
+  }
+
+  try {
+    if (editId) {
+      await api.put(`${this.apiBaseUrl}editDegreeField/${editId}`, {
+        name: inputValue,
+        t_id: selectedDegreeType, // ✅ SEND DEGREE TYPE
+      });
+
+      this.setState((prevState) => ({
+        degreeFieldData: prevState.degreeFieldData.map((item) =>
+          item.id === editId
+            ? {
+                ...item,
+                name: inputValue,
+                degree_type_id: selectedDegreeType,
+              }
+            : item
+        ),
+      }));
+    } else {
+      await api.post(`${this.apiBaseUrl}adddegreefield`, {
+        name: inputValue,
+        t_id: selectedDegreeType, // ✅ SEND DEGREE TYPE
+      });
+
+      this.fetchDegreeFields(1);
     }
-  };
+
+    this.setState({
+      showModal: false,
+      inputValue: "",
+      selectedDegreeType: "",
+      editId: null,
+    });
+  } catch (error) {
+    console.error("Error saving Degree Field:", error);
+    toast.error(error.response?.data?.error || "Something went wrong");
+  }
+};
+
 
 confirmDelete = (id, status) => {
   this.setState({
@@ -483,6 +527,22 @@ onStatusChange = (e) => {
               </Modal.Title>
             </Modal.Header>
             <Modal.Body style={{ paddingTop: "0.5rem" }}>
+              <label style={{ marginBottom: "0.25rem" }}>Degree Type</label>
+<select
+  className="form-select mb-2"
+  value={this.state.selectedDegreeType}
+  onChange={(e) =>
+    this.setState({ selectedDegreeType: e.target.value })
+  }
+>
+  <option value="">Select Degree Type</option>
+  {this.state.degreeTypes.map((type) => (
+    <option key={type.id} value={type.id}>
+      {type.name}
+    </option>
+  ))}
+</select>
+
               <label style={{ marginBottom: "0.25rem" }}>Name</label>
               <input
                 type="text"
