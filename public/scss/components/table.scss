@@ -1,48 +1,113 @@
 /*==========================
-default table
+Table container
 ===========================*/
-
 .table-outer {
-  overflow-y: hidden;
   overflow-x: auto;
+  overflow-y: hidden;
 }
 
+/*==========================
+Default table styling
+===========================*/
 .default-table {
   position: relative;
   background: #ffffff;
   border: 0;
-  border-radius: 5px;
+  border-radius: 8px;
   margin-bottom: 30px;
   overflow: hidden;
   width: 100%;
   min-width: 700px;
+  border-collapse: separate; /* prevent cell borders from merging */
+  border-spacing: 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
 }
 
+/* Table header */
 .default-table thead {
   background: #f5f7fc;
-  border-radius: 8px;
-  color: #ffffff;
+  color: var(--primary-color);
 }
 
 .default-table thead th {
-  position: relative;
-  padding: 20px 30px;
+  padding: 15px 20px;
   font-size: 16px;
-  color: var(--primary-color);
-  font-weight: 500;
-  line-height: 30px;
+  font-weight: 600;
+  text-align: center;
   white-space: nowrap;
 }
 
-.default-table tbody tr {
-  position: relative;
-  border-bottom: 1px solid #ecedf2;
+/* Table body */
+.default-table tbody td {
+  padding: 15px 20px;
+  font-size: 14px;
+  color: #333;
+  font-weight: 400;
+  text-align: center;
+  vertical-align: middle;
 }
 
-.default-table tr td {
-  position: relative;
-  padding: 21px 30px;
-  font-size: 14px;
-  color: #696969;
-  font-weight: 400;
+/* Striped rows */
+.default-table tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+/* Hover effect */
+.default-table tbody tr:hover {
+  background-color: #eef1f7;
+  transition: 0.2s;
+}
+
+/* Job title clickable link */
+.job-title-link {
+  cursor: pointer;
+  color: #0d6efd; /* bootstrap primary */
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.job-title-link:hover {
+  text-decoration: underline;
+}
+
+/* Action buttons row */
+.default-table .btn {
+  font-size: 13px;
+  padding: 5px 10px;
+}
+
+/* Status badge colors */
+.status-badge {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 20px;
+  display: inline-block;
+  min-width: 80px;
+}
+
+/* Status colors */
+.status-approved {
+  background-color: #28a745; /* green */
+  color: #fff;
+}
+
+.status-pending-payment {
+  background-color: #ffc107; /* yellow */
+  color: #212529;
+}
+
+.status-unapproved {
+  background-color: #dc3545; /* red */
+  color: #fff;
+}
+
+.status-pending {
+  background-color: #0d6efd; /* blue */
+  color: #fff;
+}
+
+.status-inactive {
+  background-color: #17a2b8; /* info */
+  color: #fff;
 }

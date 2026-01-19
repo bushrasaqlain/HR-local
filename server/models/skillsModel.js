@@ -129,12 +129,12 @@ const editSkill = (req, res) => {
 };
 
 const getAllSkills = (
-  { page = 1, limit = 10, search = "", name = "name", status = "active" },
+  { page = 1, limit = 1000, search = "", name = "name", status = "active" },
   callback
 ) => {
   // Convert page and limit to integers
   page = parseInt(page, 10) || 1;
-  limit = parseInt(limit, 10) || 10;
+  limit = parseInt(limit, 10) || 1000;
   const offset = (page - 1) * limit;
 
   let condition = "";

@@ -9,11 +9,14 @@ import {
   Button,
   Badge,
   Container,
+  Dropdown, DropdownToggle, DropdownMenu, DropdownItem
 } from "reactstrap";
 import Pagination from "../common/pagination.jsx";
 import DetailModal from "../common/DetailModal.jsx";
-import { Modal, ModalHeader, ModalBody } from 'reactstrap';
 import PostJob from './postJob.jsx';
+import PricingForm from "./pricingform.jsx";
+import { Modal, ModalHeader, ModalBody } from 'reactstrap';
+
 
 class JobListings extends Component {
   constructor(props) {
@@ -33,14 +36,25 @@ class JobListings extends Component {
         status: "",
       },
       // Modal state
+      dropdownOpen: false,
       modalOpen: false,
       selectedJob: null,
-      modalEditOpen: false,
-      editSelectedJob: null,
+      editModalOpen: false,
+      editingJobId: null,
 
     };
+    this.tableHeaders = [
+      { key: "job_title", label: "Title", placeholder: "Filter by Title", minWidth: "150px" },
+      { key: "industry", label: "Industry", placeholder: "Filter by Industry", minWidth: "120px" },
+      { key: "no_of_positions", label: "Positions", placeholder: "No. of Positions", minWidth: "100px" },
+      { key: "application_deadline", label: "Deadline", placeholder: "Deadline", minWidth: "130px" },
+      { key: "approval_status", label: "Approval Status", placeholder: "Approval Status", minWidth: "100px" },
+      { key: "status", label: "Status", placeholder: "Status", minWidth: "100px" },
+      { key: "action", label: "Action", minWidth: "180px" } // No filter for action
+    ];
 
     this.userId = sessionStorage.getItem("userId");
+
 
     // Fields to show in modal
     this.modalFields = [
@@ -76,7 +90,7 @@ class JobListings extends Component {
       const response = await axios.get(
         `${apiBaseUrl}job/managejob/${userId}`
       );
-      console.log(response.data)
+
       this.setState({
         jobListings: response.data,
         loading: false,
@@ -104,26 +118,71 @@ class JobListings extends Component {
       filters: { ...prev.filters, [field]: value },
     }));
   };
-  handleEditJob = (job) => {
-    this.setState({
-      editSelectedJob: job,
-      modalEditOpen: true
-    });
+
+  toggleEditModal = (jobId) => {
+    this.setState((prev) => ({
+      editModalOpen: !prev.editModalOpen,
+      editingJobId: jobId,
+    }));
   };
 
+
   handleDeleteJob = async (jobId) => {
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+
     if (!window.confirm("Are you sure you want to delete this job?")) return;
 
-    // try {
-    //   await axios.delete(
-    //     `${this.apiBaseUrl}job/delete_job/${this.userId}/${jobId}`
-    //   );
-    //   this.setState((prev) => ({
-    //     jobListings: prev.jobListings.filter((job) => job.id !== jobId),
-    //   }));
-    // } catch (error) {
-    //   console.error("Delete failed", error);
-    // }
+    try {
+      await axios.delete(
+        `${apiBaseUrl}job/delete_job/${this.userId}/${jobId}`
+      );
+
+      this.setState((prev) => ({
+        jobListings: prev.jobListings.filter((job) => job.id !== jobId),
+      }));
+    } catch (error) {
+      console.error("Delete failed", error);
+    }
+  };
+
+  handlePay = (job) => {
+    this.setState({
+      selectedJob: job,
+      modalPackagesOpen: true, // open packages modal
+    });
+  };
+  handlePaymentSuccess = async () => {
+    this.setState({
+      modalPackagesOpen: false,
+      modalPaymentOpen: false,
+      selectedJob: null,
+    });
+    // Refresh the job list to show updated data
+    await this.fetchData(this.userId);
+  };
+
+
+  toggle = () => {
+    this.setState({ dropdownOpen: !this.state.dropdownOpen });
+  };
+
+  handleStatusChange = async (jobId, status) => {
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+    try {
+      await axios.put(
+        `${apiBaseUrl}job/updateJobPostStatus/${jobId}/${status}`
+      );
+
+      this.setState((prevState) => ({
+        jobListings: prevState.jobListings.map((job) =>
+          job.id === jobId ? { ...job, status } : job
+        ),
+        [`dropdownOpen_${jobId}`]: false, // close dropdown
+      }));
+    } catch (error) {
+      console.error("Failed to update job status", error);
+    }
   };
 
   handlePageChange = (page) => {
@@ -149,14 +208,16 @@ class JobListings extends Component {
           })
           .toLowerCase()
         : "";
-      const jobStatus = job.status ? job.status.toLowerCase() : "";
+      const jobStatus = job.status ? job.status.trim().toLowerCase() : "";
+
 
       return (
         jobTitle.includes(title.toLowerCase()) &&
         jobIndustry.includes(industry.toLowerCase()) &&
         jobPositions.includes(no_of_positions.toLowerCase()) &&
         jobDeadline.includes(application_deadline.toLowerCase()) &&
-        (status === "" || jobStatus === status.toLowerCase())
+        (status === "" || jobStatus.includes(status.toLowerCase()))
+
       );
     });
   };
@@ -182,138 +243,143 @@ class JobListings extends Component {
       <Container className="mt-4">
         <h4 className="mb-3">Job Lists</h4>
 
-        <Table bordered hover responsive>
-          <thead className="table-light">
+        <Table bordered hover responsive className="job-table">
+          <thead className="table-light text-center align-middle">
             <tr>
-              <th>
-                <Input
-                  type="text"
-                  className="mt-2"
-                  value={filters.title}
-                  onChange={(e) =>
-                    this.handleFilterChange("title", e.target.value)
-                  }
-                />
-                Title
-              </th>
-              <th>
-                <Input
-                  type="text"
-                  className="mt-2"
-                  value={filters.industry}
-                  onChange={(e) =>
-                    this.handleFilterChange("industry", e.target.value)
-                  }
-                />
-                Industry
-              </th>
-              <th>
-                <Input
-                  type="text"
-                  className="mt-2"
-                  value={filters.no_of_positions}
-                  onChange={(e) =>
-                    this.handleFilterChange("no_of_positions", e.target.value)
-                  }
-                />
-                No. of Positions
-              </th>
-              <th>
-                <Input
-                  type="text"
-                  className="mt-2"
-                  value={filters.application_deadline}
-                  onChange={(e) =>
-                    this.handleFilterChange(
-                      "application_deadline",
-                      e.target.value
-                    )
-                  }
-                />
-                Application Deadline
-              </th>
-              <th>
-                <Input
-                  type="text"
-                  className="mt-2"
-                  value={filters.status}
-                  onChange={(e) =>
-                    this.handleFilterChange("status", e.target.value)
-                  }
-                />
-                Status
-              </th>
-              <th>Action</th>
+              {this.tableHeaders.map((header) => (
+                <th key={header.key} style={{ minWidth: header.minWidth }}>
+                  {header.label}
+                  {header.key !== "action" && (
+                    <Input
+                      type="text"
+                      className="mt-2"
+                      placeholder={header.placeholder}
+                      value={filters[header.key]}
+                      onChange={(e) => this.handleFilterChange(header.key, e.target.value)}
+                    />
+                  )}
+                </th>
+              ))}
             </tr>
           </thead>
 
+
           <tbody>
             {currentJobs.length > 0 ? (
-              currentJobs.map((job) => (
-                <tr key={job.id}>
+              currentJobs.map((job, index) => (
+                <tr key={job.id} className={index % 2 === 0 ? "even-row" : "odd-row"}>
                   <td>
                     <span
-                      style={{
-                        color: "blue",
-                        cursor: "pointer",
-                        textDecoration: "underline",
-                      }}
+                      className="job-title-link"
                       onClick={() => this.handleTitleClick(job)}
                     >
                       {job.job_title}
                     </span>
                   </td>
-
-                  <td>{job.industry}</td>
-                  <td>{job.no_of_positions}</td>
-                  <td>
+                  <td className="text-center">{job.industry}</td>
+                  <td className="text-center">{job.no_of_positions}</td>
+                  <td className="text-center">
                     {job.application_deadline
-                      ? new Date(job.application_deadline).toLocaleDateString(
-                        "en-GB",
-                        {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        }
-                      )
+                      ? new Date(job.application_deadline).toLocaleDateString("en-GB", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })
                       : "-"}
                   </td>
-
-                  <td>
-                    <Badge
-                      color={job.status === "Active" ? "success" : "danger"}
-                    >
+                  <td className="text-center">
+                    <Badge color={
+                      job.approval_status === "Approved"
+                        ? "success"
+                        : job.approval_status === "Pending Payment"
+                          ? "warning"
+                          : job.approval_status === "Unapproved"
+                            ? "danger"
+                            : job.approval_status === "Pending"
+                              ? "primary"
+                              : "info"
+                    } pill>
+                      {job.approval_status}
+                    </Badge>
+                  </td>
+                  <td className="text-center">
+                    <Badge color={
+                      job.status === "Active"
+                        ? "success"
+                        : job.status === "InActive"
+                          ? "danger"
+                          : "info"
+                    } pill>
                       {job.status}
                     </Badge>
                   </td>
-                  <td style={{ display: "flex", gap: "8px" }}>
-                    <Button
-                      size="sm"
-                      color="outline-primary"
-                      onClick={() => this.handleEditJob(job)}
+                  <td className="text-center">
+                    <Dropdown
+                      isOpen={this.state[`dropdownOpen_${job.id}`] || false}
+                      toggle={() =>
+                        this.setState((prev) => ({
+                          [`dropdownOpen_${job.id}`]: !prev[`dropdownOpen_${job.id}`],
+                        }))
+                      }
                     >
-                      Edit
-                    </Button>
+                      <DropdownToggle caret color="secondary" size="sm">
+                        ⋮
+                      </DropdownToggle>
+                      <DropdownMenu>
+                        {/* Edit */}
+                        {job.approval_status !== "Approved" && job.approval_status !== "Pending" && (
+                          <DropdownItem onClick={() => this.toggleEditModal(job.id)}>
+                            <i className="la la-edit me-2" /> Edit
+                          </DropdownItem>
+                        )}
 
-                    <Button
-                      size="sm"
-                      color="outline-danger"
-                      onClick={() => this.handleDeleteJob(job.id)}
-                    >
-                      Delete
-                    </Button>
+                        {/* Pay */}
+                        {job.approval_status === "Pending Payment" && (
+                          <DropdownItem onClick={() => this.handlePay(job)}>
+                            <i className="la la-credit-card me-2" /> Pay
+                          </DropdownItem>
+                        )}
+
+                        {/* Delete */}
+                        {job.approval_status !== "Approved" && job.approval_status !== "Pending" && (
+                          <DropdownItem onClick={() => this.handleDeleteJob(job.id)}>
+                            <i className="la la-trash me-2" /> Delete
+                          </DropdownItem>
+                        )}
+
+                        {/* Status */}
+                        <DropdownItem
+                          disabled={job.status === "Active"}
+                          onClick={() => this.handleStatusChange(job.id, "Active")}
+                        >
+                          <i className="la la-check text-success me-2" /> Active
+                        </DropdownItem>
+
+                        <DropdownItem
+                          disabled={job.status === "Inactive"}
+                          onClick={() => this.handleStatusChange(job.id, "InActive")}
+                        >
+                          <i className="la la-times text-danger me-2" /> InActive
+                        </DropdownItem>
+
+
+                      </DropdownMenu>
+                    </Dropdown>
                   </td>
+
 
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan="6" className="text-center py-4">
+                <td colSpan={this.tableHeaders.length} className="text-center py-4">
                   <strong>No record found</strong>
                 </td>
               </tr>
             )}
           </tbody>
+
+
         </Table>
 
         {/* Pagination */}
@@ -333,21 +399,57 @@ class JobListings extends Component {
             fields={this.modalFields}
           />
         )}
-
         <Modal
-          isOpen={this.state.modalEditOpen}
-          toggle={() => this.setState({ modalEditOpen: !this.state.modalEditOpen })}
+          isOpen={this.state.editModalOpen}
+          toggle={() => this.toggleEditModal()}
           size="lg"
         >
-          <ModalHeader toggle={() => this.setState({ modalEditOpen: false })}>
-            Edit Job
-          </ModalHeader>
+          <ModalHeader toggle={() => this.toggleEditModal()}>Edit Job</ModalHeader>
           <ModalBody>
-            {this.state.editSelectedJob && (
-              <PostJob jobId={this.state.editSelectedJob.id} />
+            {this.state.editingJobId && (
+              <PostJob
+                jobId={this.state.editingJobId}
+                onSuccess={() => {
+                  this.toggleEditModal();
+                  this.fetchJobData(); // Refresh table
+                }}
+              />
             )}
           </ModalBody>
         </Modal>
+
+        <Modal
+          isOpen={this.state.modalPackagesOpen}
+          toggle={() => this.setState({ modalPackagesOpen: false })}
+          size="lg"
+          centered
+        >
+          <ModalHeader toggle={() => this.setState({ modalPackagesOpen: false })}>
+            Select Package
+          </ModalHeader>
+
+          <ModalBody
+            style={{
+              maxHeight: "80vh", // limit height to 70% of viewport
+              overflowY: "auto", // enable scrolling if content overflows
+              padding: "1.5rem",
+            }}
+          >
+            <PricingForm
+              jobId={this.state.selectedJob?.id || this.state.jobId} // jobId from job list or post job page
+              userId={this.userId}
+              onPaymentSuccess={this.handlePaymentSuccess}
+              onSelectPackage={(packageData) => {
+                this.setState({
+                  modalPackagesOpen: false,
+                  modalPaymentOpen: true,
+                  selectedPackage: packageData,
+                });
+              }}
+            />
+          </ModalBody>
+        </Modal>
+
 
       </Container>
     );

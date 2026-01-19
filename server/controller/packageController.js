@@ -7,6 +7,9 @@ const addPackage = (req, res) => {
 const editPackage = (req, res) => {
   packageModel.editPackage(req, res);
 };
+const deletePackage = (req, res) => {
+    packageModel.deletePackage(req, res);
+}
 // Get all cities
 const getallPackages = (req, res) => {
   const { page = 1, limit = 15, name = "", search = "", status = "active" } = req.query;
@@ -31,14 +34,6 @@ status = status && status.trim() ? status.toLowerCase() : "all";
 };
 
 
-const deletePackage = (req, res) => {
-    packageModel.deletePackage(req, res);
-}
-
-const updatePackaeStatus=(req,res)=>{
-   packageModel.updatePackaeStatus(req, res);
-}
-
 const getCompanyPackgestatus=(req,res)=>{
   packageModel.getCompanyPackgestatus(req,res);
 }
@@ -52,7 +47,6 @@ module.exports = {
   getallPackages,
   deletePackage,
   getPackagebyCompany,
-  updatePackaeStatus,
   getCompanyPackgestatus,
-  getPackageDetail
+  getPackageDetail,
 };

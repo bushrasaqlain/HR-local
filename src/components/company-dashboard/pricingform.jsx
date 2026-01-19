@@ -1,164 +1,210 @@
 "use client";
-import axios from 'axios';
-import React, { useEffect, useState } from 'react';
-import { toast } from 'react-toastify';
-import api from '../lib/api';
-import { useRouter } from "next/navigation";
+import React, { Component } from "react";
+import axios from "axios";
+import { toast } from "react-toastify";
+import Payment from "./payment.jsx";
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  CardBody,
+  CardTitle,
+  Button,
+} from "reactstrap";
 
-const PricingForm = ({ jobId, setShowPricing }) => {
-  const router = useRouter();
+class PricingForm extends Component {
+  constructor(props) {
+    super(props);
 
-  const APIBASEURL = process.env.NEXT_PUBLIC_API_BASE_URL;
-  const [packages, setPackages] = useState(null);
-  const userId = sessionStorage.getItem("userId");
-  useEffect(() => {
-    const loadPackages = async () => {
-      const response = await axios.get(`${APIBASEURL}packages/getallpackages`)
-      
-      setPackages(response.data.packages);
+    this.APIBASEURL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+    this.state = {
+      packages: null,
+      userId: typeof window !== "undefined" ? sessionStorage.getItem("userId") : null,
+      showPayment: false,
+      selectedPackage: null,
+    };
+  }
+
+  componentDidMount() {
+    this.loadPackages();
+  }
+
+  loadPackages = async () => {
+    try {
+      const response = await axios.get(`${this.APIBASEURL}packages/getallpackages`);
+      this.setState({ packages: response.data.packages });
+    } catch (error) {
+      toast.error("Failed to load packages");
     }
+  };
 
-    loadPackages();
-  }, [])
+  addPackage = async (packageId) => {
+    const { jobId } = this.props;
+    const { userId } = this.state;
 
-   const addPackage = async (packageId) => {
     if (!jobId) {
       toast.error("Job ID not found. Please post job first.");
       return;
     }
 
-    const data = { jobId, packageId,userId };
-
-    const response = await api.put(
-      `${APIBASEURL}job/subcribepackage`,
-      data
-    );
-
-    if (response.status === 200) {
-      toast.success("Package Subscribed Successfully");
-      toast.info("Wait for admin approval");
-      setTimeout(() => {
-  router.push("/cart");   // ✅ route to cart.jsx
-}, 1000);
-
-    } else {
-      toast.error("Unable to subscribe package");
+    try {
+      const response = await axios.put(`${this.APIBASEURL}job/subcribepackage`, { jobId, packageId, userId });
+      if (response.status === 200) {
+        this.setState({ showPayment: true, selectedPackage: packageId });
+      }
+    } catch {
+      toast.error("Something went wrong");
     }
   };
-  
 
+  handlePaymentSuccess = () => {
+    this.setState({ showPayment: false, selectedPackage: null });
+    if (this.props.onPaymentSuccess) this.props.onPaymentSuccess();
+  };
 
-  return (
-    <div className="container pb-5">
-      <h2 className="text-center py-5 fw-bold" style={{ fontSize: "3rem" }}>Pricing</h2>
+  getPlanConfig = (durationUnit) => {
+    switch (durationUnit) {
+      case "Hours":
+        return {
+          cardClass: "plan-hours",
+          features: [
+            "Quick job posting for urgent needs",
+            "Job visible immediately after approval",
+            "Basic applicant tracking included",
+            "Affordable short-term exposure",
+          ],
+        };
+      case "Days":
+        return {
+          cardClass: "plan-days",
+          features: [
+            "Job listed for multiple days",
+            "Highlighted in search results",
+            "Email notifications to candidates",
+            "Access to applicant details & resumes",
+            "Standard support included",
+          ],
+        };
+      case "Months":
+        return {
+          cardClass: "plan-months",
+          features: [
+            "Extended job visibility",
+            "Boosted placement in candidate dashboards",
+            "Priority listing above short-term plans",
+            "Analytics on views and applications",
+            "Dedicated employer support",
+          ],
+        };
+      case "Years":
+        return {
+          cardClass: "plan-years",
+          features: [
+            "Premium long-term visibility",
+            "Maximum exposure across platform",
+            "Unlimited applicant management",
+            "Featured employer branding",
+            "Priority customer support",
+          ],
+        };
+      default:
+        return {
+          cardClass: "plan-default",
+          features: [
+            "Standard job posting",
+            "Candidate application tracking",
+            "Basic support included",
+          ],
+        };
+    }
+  };
 
-      <div className="row g-4 justify-content-center">
-        {packages?.map((pkg) => {
-          let cardClass = "";
-          let features = [];
+  render() {
+    const { packages, showPayment } = this.state;
 
-          // Decide card style and features based on duration
-          switch (pkg.duration_unit) {
-            case "Hours":
-              cardClass = "plan-card plan-hours";
-              features = [
-                "Quick job posting for urgent needs",
-                "Job visible immediately after approval",
-                "Basic applicant tracking included",
-                "Affordable short-term exposure",
-              ];
-              break;
-            case "Days":
-              cardClass = "plan-card plan-days";
-              features = [
-                "Job listed for multiple days",
-                "Highlighted in search results",
-                "Email notifications to candidates",
-                "Access to applicant details & resumes",
-                "Standard support included",
-              ];
-              break;
-            case "Months":
-              cardClass = "plan-card plan-months";
-              features = [
-                "Extended job visibility",
-                "Boosted placement in candidate dashboards",
-                "Priority listing above short-term plans",
-                "Analytics on views and applications",
-                "Dedicated employer support",
-              ];
-              break;
-            case "Years":
-              cardClass = "plan-card plan-years";
-              features = [
-                "Premium long-term visibility",
-                "Maximum exposure across platform",
-                "Unlimited applicant management",
-                "Featured employer branding",
-                "Priority customer support",
-              ];
-              break;
-            default:
-              cardClass = "plan-card plan-default";
-              features = [
-                "Standard job posting",
-                "Candidate application tracking",
-                "Basic support included",
-              ];
-          }
+    return (
+      <Container className="pb-5">
+        <h2 className="text-center py-5 fw-bold" style={{ fontSize: "2.5rem", color: "#333" }}>
+          Pricing Plans
+        </h2>
 
-          return (
-            <div className="col-md-4" key={pkg.id}>
-              <div className={cardClass}>
-                {/* Title */}
-                <h5 className="plan-title">
-                  {pkg.duration_unit.charAt(0).toUpperCase() +
-                    pkg.duration_unit.slice(1)}{" "}
-                  Plan
-                </h5>
+        <Row className="g-4 justify-content-center">
+          {packages?.map((pkg) => {
+            const { cardClass, features } = this.getPlanConfig(pkg.duration_unit);
 
-                {/* Price */}
-                <div className="plan-price">
-                  <span>
-                    {pkg.price} {pkg.currency}
-                  </span>
-                  <small>/ {pkg.duration_unit}</small>
-                </div>
+            return (
+            <Col key={pkg.id} xs={12} sm={6} md={6} lg={6}>
 
-                {/* Duration */}
-                <p className="plan-desc">
-                  Your Job Post will show for <br />
-                  <strong>
-                    {pkg.duration_value} {pkg.duration_unit}
-                  </strong>
-                </p>
+                <Card
+                  className={`h-100 ${cardClass}`}
+                  style={{
+                    borderRadius: "16px",
+                    boxShadow: "0 8px 20px rgba(0,0,0,0.1)",
+                    transition: "transform 0.3s, box-shadow 0.3s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-8px)";
+                    e.currentTarget.style.boxShadow = "0 16px 40px rgba(0,0,0,0.15)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.1)";
+                  }}
+                >
+                  <CardBody className="d-flex flex-column text-center p-4">
+                    <CardTitle tag="h5" className="fw-bold mb-3" style={{ fontSize: "1.25rem" }}>
+                      {pkg.duration_unit.charAt(0).toUpperCase() + pkg.duration_unit.slice(1)} Plan
+                    </CardTitle>
 
-                {/* Features */}
-                <ul className="plan-features">
-                  {features.map((feature, index) => (
-                    <li key={index}>{feature}</li>
-                  ))}
-                </ul>
+                    <div className="plan-price mb-3" style={{ fontSize: "1.5rem", fontWeight: 600 }}>
+                      {pkg.price} {pkg.currency} <span style={{ fontSize: "0.9rem", fontWeight: 400 }}>/ {pkg.duration_unit}</span>
+                    </div>
 
-                {/* Button */}
-              <button
-  type="button"   // ✅ VERY IMPORTANT
-  className="plan-btn"
-  onClick={() => addPackage(pkg.id)}
->
-  Select
-</button>
+                    <p className="plan-desc mb-3" style={{ color: "#555" }}>
+                      Your job post will show for <strong>{pkg.duration_value} {pkg.duration_unit}</strong>
+                    </p>
 
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+                    <ul className="plan-features text-start flex-grow-1 mb-3" style={{ paddingInlineStart: "1rem", color: "#555" }}>
+                      {features.map((feature, index) => (
+                        <li key={index} style={{ marginBottom: "0.5rem" }}>{feature}</li>
+                      ))}
+                    </ul>
 
+                    <Button
+                      type="button"
+                      color="primary"
+                      className="w-100 mt-auto"
+                      style={{
+                        borderRadius: "50px",
+                        padding: "0.75rem",
+                        fontWeight: "600",
+                        background: "linear-gradient(90deg, #4b6cb7, #182848)",
+                        border: "none",
+                      }}
+                      onClick={() => this.addPackage(pkg.id)}
+                    >
+                      Select Plan
+                    </Button>
+                  </CardBody>
+                </Card>
+              </Col>
+            );
+          })}
+        </Row>
 
-
-  )
+        {/* Payment Modal */}
+        <Payment
+          isOpen={showPayment}
+          toggle={() => this.setState({ showPayment: false })}
+          packageId={this.state.selectedPackage}
+          jobId={this.props.jobId}
+          onPaymentSuccess={this.handlePaymentSuccess}
+        />
+      </Container>
+    );
+  }
 }
 
-export default PricingForm
+export default PricingForm;

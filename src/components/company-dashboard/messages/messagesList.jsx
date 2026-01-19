@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 
-const ChatboxContactList = () => {
+const MessagesList = ({ onSelectContact }) => {
   const [contacts, setContacts] = useState([]);
   const [searchValue, setSearchValue] = useState("");
   const userId = sessionStorage.getItem("userId");
@@ -31,11 +31,13 @@ const ChatboxContactList = () => {
   };
 
   const formatTime = (timeString) => {
-    const date = new Date(timeString);
-    const hours = date.getHours();
-    const minutes = date.getMinutes().toString().padStart(2, "0");
-    return `${hours}:${minutes}`;
+    return new Date(timeString).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
   };
+
 
   const filteredContacts = contacts.filter((contact) =>
     contact.full_name.toLowerCase().includes(searchValue)
@@ -63,18 +65,22 @@ const ChatboxContactList = () => {
       <ul className="contacts">
         {filteredContacts.map((contact) => (
           <li key={contact.id}>
-            <a href="#">
+            <a
+              onClick={() => onSelectContact(contact.id, contact.full_name)}
+            >
               <div className="d-flex bd-highlight">
-               
                 <div className="user_info">
                   <span>{contact.full_name}</span>
-                  <p>Message: {contact.last_message} </p>
+                  <p>Message: {contact.last_message}</p>
                 </div>
                 <div>
-                <span className="info" style={{ fontSize: '13px' }}>Date: {formatTime(contact.last_message_time)}</span>
-              </div>
+                  <span className="info" style={{ fontSize: '13px' }}>
+                    Date: {formatTime(contact.last_message_time)}
+                  </span>
+                </div>
               </div>
             </a>
+
           </li>
         ))}
       </ul>
@@ -82,4 +88,4 @@ const ChatboxContactList = () => {
     </div>
   );
 };
-export default ChatboxContactList;
+export default MessagesList;

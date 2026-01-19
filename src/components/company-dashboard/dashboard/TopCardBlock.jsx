@@ -7,6 +7,9 @@ class TopCardBlock extends Component {
     super(props);
     this.state = {
       postedJobsCount: 0,
+      packageCount: 0,
+      applicantCount:0,
+      activeJobCount:0
     };
     this.apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
     this.userId = sessionStorage.getItem("userId");
@@ -19,16 +22,16 @@ class TopCardBlock extends Component {
   fetchPostedJobsCount = async () => {
     try {
       const response = await axios.get(
-        `${this.apiBaseUrl}job/getpostjobcount/${this.userId}`
+        `${this.apiBaseUrl}company-info/getCount/${this.userId}`
       );
-      this.setState({ postedJobsCount: response.data.jobPostsCount });
+      this.setState({ postedJobsCount: response.data.jobPostsCount,packageCount:response.data.packageCount,applicantCount:response.data.applicantCount,activeJobCount:response.data.activeJobCount });
     } catch (error) {
       console.error("Error fetching posted jobs count:", error);
     }
   };
 
   render() {
-    const { postedJobsCount } = this.state;
+    const { postedJobsCount ,packageCount,applicantCount,activeJobCount} = this.state;
 
     const cardContent = [
       {
@@ -41,17 +44,25 @@ class TopCardBlock extends Component {
       {
         id: 2,
         icon: "la-file-invoice",
-        countNumber: "9382",
-        metaName: "Application",
+        countNumber: activeJobCount,
+        metaName: "Active Posted Job",
         uiClass: "ui-red",
       },
       {
         id: 3,
+        icon: "la-file-invoice",
+        countNumber: packageCount,
+        metaName: "Packages",
+        uiClass: "ui-red",
+      },
+      {
+        id: 4,
         icon: "la-bookmark-o",
-        countNumber: "32",
-        metaName: "Shortlist",
+        countNumber: applicantCount,
+        metaName: "Applicant",
         uiClass: "ui-green",
       },
+      
     ];
 
     return (

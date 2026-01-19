@@ -1,8 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const connection = require("../connection");
+const authMiddleware = require("../middleware/auth.js");
+const logAudit = require("../utils/auditLogger");
 
-//create the history table in the database
+
+
 const createDbAdminHistoryTable = () => {
 const createTableQuery = `
     CREATE TABLE IF NOT EXISTS dbadminhistory (
@@ -24,7 +27,7 @@ connection.query(createTableQuery, function (err, results, fields) {
 });
 }
 
-router.get('/dbadminhistory', (req, res) => {
+const getdbHistory=(req, res) => {
   const { entity_type, entity_id } = req.query;
 
   if (!entity_id || !entity_type) {
@@ -46,10 +49,10 @@ router.get('/dbadminhistory', (req, res) => {
 
     return res.status(200).json(results);
   });
-});
+};
 
 
-router.post("/dbadminhistory", (req, res) => {
+const insertdbHistory=(req, res) => {
     const {entity_type, entity_id, action, data, changed_by } = req.query;
     if(!entity_type || !entity_id || !action || !data || !changed_by) {
         return res.status(400).json({error: "entity_type, id, actions are required."})
@@ -62,6 +65,10 @@ router.post("/dbadminhistory", (req, res) => {
         }
         return res.status(201).json({message: "data inserted successfully", id: results.insertId});
     })
-})
+}
 
-module.exports = router;
+module.exports={
+    createDbAdminHistoryTable,
+    getdbHistory,
+    insertdbHistory
+}
