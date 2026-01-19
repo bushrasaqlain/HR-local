@@ -27,7 +27,6 @@ const education = require('./routes/Education')
 const projects = require("./routes/Projects");
 const certificateAwards = require("./routes/CertificateAward");
 const jobs = require("./routes/CandidateJobs")
-// const messages = require("./routes/messages");
 
 // const singlejob = require("./routes/singlejobdata")
 
@@ -85,7 +84,9 @@ const cart= require("./routes/cartRoutes");
 const jobRoutes=require("./routes/jobRoutes");
 const licensetypesRoutes=require("./routes/licensetypesRoutes");
 const specialityRoutes=require("./routes/specialityRoutes");
+const instituteRoutes=require("./routes/instituteRoutes")
 const messages = require("./routes/messagesRoutes");
+const paymentRoutes=require("./routes/paymentRoutes")
 
 app.use("/", accountRoutes);
 app.use("/company-info", companyRoute);
@@ -108,7 +109,7 @@ app.use("/",jobtypes);
 app.use("/",profession);
 app.use("/",business_entity_type);
 app.use ("/",currency);
-
+app.use("/institute",instituteRoutes)
 
 app.use("/packages", packages);
 app.use("/", cart);

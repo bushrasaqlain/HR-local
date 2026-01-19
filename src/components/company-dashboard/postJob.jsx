@@ -218,7 +218,7 @@ class PostBoxForm extends Component {
   };
 
 
-  loadProfessions = async (inputValue) => {
+  loadSpeciality = async (inputValue) => {
     try {
       const res = await axios.get(`${this.apiBaseUrl}getallprofessions`, {
         params: { search: inputValue || "", page: 1, limit: 15 },
@@ -666,7 +666,7 @@ class PostBoxForm extends Component {
                   <AsyncSelect
                     cacheOptions
                     defaultOptions
-                    loadOptions={this.loadProfessions}
+                    loadOptions={this.loadSpeciality}
                     value={values.profession_id}
                     ref={this.refsFields.profession_id}
                     onChange={(option) => this.handleSelectChange("profession_id", option)}
