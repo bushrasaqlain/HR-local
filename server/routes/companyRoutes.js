@@ -22,4 +22,5 @@ router.put("/updateCompanyinfo", logo.single("logo"), companyController.updateCo
 
 router.put("/updateStatus/:id/:status",companyController.updateCompanySatus)
 
+router.get("/getCount/:userId",companyController.getCount)
 module.exports = router;

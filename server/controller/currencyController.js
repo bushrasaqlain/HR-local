@@ -16,9 +16,14 @@ const editCurrency = (req, res) => {
 const deleteCurrency = (req, res) => {
     currencyModel.deleteCurrency(req, res);
 }
+
+const getAllCurrenciesinPayment=(req,res)=>{
+    currencyModel.getAllCurrenciesinPayment(req,res)
+}
 module.exports = {
     addCurrency,
     getAllCurrency,
     deleteCurrency,
     editCurrency,
+    getAllCurrenciesinPayment
 }

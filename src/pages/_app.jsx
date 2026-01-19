@@ -8,6 +8,8 @@ import { store } from "../redux/store";
 import "../styles/index.scss";
 import "bootstrap/dist/css/bootstrap.min.css";
 import '../../public/scss/components/employer/pricing.scss';
+import '../../public/scss/components/employer/employer.scss';
+import '../../public/scss/components/message-box.scss'
 if (typeof window !== "undefined") {
   require("bootstrap/dist/js/bootstrap");
 }

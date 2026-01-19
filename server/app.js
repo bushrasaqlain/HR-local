@@ -50,7 +50,7 @@ const company_name = require("./routes/comapnyname");
 
 const company_update = require("./routes/updatecompanyinfo")
 
-const dbAdminHistory = require("./routes/dbAdminHistory");
+const dbAdminHistory = require("./routes/dbHistoryRoutes");
 
 // const singlejob = require("./routes/singlejobdata")
 // Use your routes
@@ -114,8 +114,9 @@ app.use("/packages", packages);
 app.use("/", cart);
 
 
-app.use('/message', messages)
 
+app.use('/message', messages)
+app.use("/payment",paymentRoutes)
 
 
 

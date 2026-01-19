@@ -6,7 +6,7 @@ import { useEffect,useState } from "react";
 import { useRouter } from "next/router";
 import { useSelector } from "react-redux";
 import ChangePasswordForm from "../form/changepassword/changepasswordform.jsx"
-import Packages from "./packages.jsx";
+import Job from "./job.jsx";
 const RegAdminDashboardArea = ({ activeTab }) => {
    const router = useRouter();
 const [userInfo, setUserInfo] = useState({ userId: null, token:null });
@@ -31,17 +31,19 @@ useEffect(() => {
         return <Candidate />;
          case "changepassword":
       return <ChangePasswordForm />;
-       case "packages":
-      return <Packages />;
+       case "job":
+      return <Job />;
         default:
           return <CompanyData />
     }
   };
 
   return (
-    <section className="user-dashboard py-2 my-4">
+     <section className="profile__area py-2 my-4">
       <div className="container">
-        <div className="profile__tab-content p-3">{renderContent()}</div>
+        <div className="profile__tab-content p-3">
+          <div>{renderContent()}</div>
+          </div>
       </div>
     </section>
   );

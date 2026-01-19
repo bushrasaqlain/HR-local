@@ -1,10 +1,51 @@
 import React, { Component } from "react";
-import { Modal, ModalHeader, ModalBody,Col } from "reactstrap";
+import { Modal, ModalHeader, ModalBody, Row, Col } from "reactstrap";
 import PropTypes from "prop-types";
 
 class DetailModal extends Component {
+  static formatValue(value) {
+    if (!value) return "-";
+
+    // Date formatting
+    const date = new Date(value);
+    if (!isNaN(date.getTime()) && /\d{4}-\d{2}-\d{2}T/.test(value)) {
+      const day = String(date.getDate()).padStart(2, "0");
+      const monthNames = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+      ];
+      return `${day}-${monthNames[date.getMonth()]}-${date.getFullYear()}`;
+    }
+
+    // Boolean
+    if (typeof value === "boolean") {
+      return (
+        <span className={`badge ${value ? "bg-success" : "bg-danger"}`}>
+          {value ? "Active" : "Inactive"}
+        </span>
+      );
+    }
+
+    // Array
+    if (Array.isArray(value)) {
+      return value.length
+        ? value.map((v, i) => (
+            <span key={i} className="badge bg-info me-1">
+              {v}
+            </span>
+          ))
+        : "-";
+    }
+
+    return value;
+  }
+
+  static formatKey(key) {
+    return key.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+  }
+
   render() {
-    const { isOpen, toggle, title, details, fields } = this.props;
+    const { isOpen, toggle, title, details, fields, customRenderers } = this.props;
 
     if (!details || !fields) return null;
 
@@ -13,60 +54,37 @@ class DetailModal extends Component {
         <ModalHeader toggle={toggle} className="bg-primary text-white">
           {title || "Details"}
         </ModalHeader>
+
         <ModalBody>
-          <div className="container-fluid">
-            {fields.map((key) => {
-              const value = details[key];
-              if (value === undefined || value === null) return null;
+          {fields.map((key, index) => {
+            const value = customRenderers?.[key]
+              ? customRenderers[key](details)
+              : details[key];
 
-              return (
-                <div
-                  key={key}
-                  className="d-flex justify-content-between align-items-center p-3 mb-2 bg-light rounded shadow-sm"
-                >
-                  <div className="fw-bold text-secondary">
-                    {DetailModal.formatKey(key)}
-                  </div>
-                  <div className="fw-medium text-dark">
-                    <Col md="8" style={{ color: "#343a40" }}>
-                      {Array.isArray(value) ? (
-                        value.length > 0 ? (
-                          value.map((v, idx) => (
-                            <span
-                              key={idx}
-                              className="badge bg-info me-1"
-                              style={{ fontSize: "0.8rem" }}
-                            >
-                              {v}
-                            </span>
-                          ))
-                        ) : (
-                          "-"
-                        )
-                      ) : typeof value === "boolean" ? (
-                        <span className={`badge ${value ? "bg-success" : "bg-danger"}`}>
-                          {value ? "Active" : "Inactive"}
-                        </span>
-                      ) : (
-                        value || "-"
-                      )}
-                    </Col>
+            if (value === undefined || value === null || value === "") return null;
 
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+            return (
+              <Row
+                key={key}
+                className={`py-2 align-items-center ${
+                  index !== fields.length - 1 ? "border-bottom" : ""
+                }`}
+              >
+                {/* Label */}
+                <Col md="4" className="fw-semibold text-muted">
+                  {DetailModal.formatKey(key)}
+                </Col>
+
+                {/* Value */}
+                <Col md="8" className="text-dark">
+                  {DetailModal.formatValue(value)}
+                </Col>
+              </Row>
+            );
+          })}
         </ModalBody>
       </Modal>
     );
-  }
-
-  // Static helper to format keys
-  static formatKey(key) {
-    return key
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (l) => l.toUpperCase());
   }
 }
 
@@ -76,6 +94,7 @@ DetailModal.propTypes = {
   title: PropTypes.string,
   details: PropTypes.object.isRequired,
   fields: PropTypes.array.isRequired,
+  customRenderers: PropTypes.object,
 };
 
 export default DetailModal;

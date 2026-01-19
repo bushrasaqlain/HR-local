@@ -1,11 +1,13 @@
 "use client";
 import React, { Component, createRef } from "react";
-import { Form, FormGroup, Label, Input, Button, Row, Col } from "reactstrap";
+import { Card, CardBody, Form, FormGroup, Label, Input, Button, Row, Col, Modal, ModalBody, ModalHeader, ModalFooter } from "reactstrap";
 import AsyncSelect from "react-select/async";
 import axios from "axios";
 import { toast } from "react-toastify";
-import PricingForm from "./PricingForm";
+import PricingForm from "./pricingform";
 import api from "../lib/api";
+import { withRouter } from "next/router";
+import AsyncCreatableSelect from "react-select/async-creatable";
 
 class PostBoxForm extends Component {
   constructor(props) {
@@ -40,7 +42,7 @@ class PostBoxForm extends Component {
       jobId: null,
       isFocused: false,
     };
-
+    this.allSkills = [];
     // Create refs for all fields
     this.refsFields = {
       job_title: createRef(),
@@ -70,7 +72,66 @@ class PostBoxForm extends Component {
       ...Array.from({ length: 20 }, (_, i) => ({ value: i + 1, label: `${i + 1} Years` })),
       { value: ">21", label: "More than 20 Years" },
     ];
+
   }
+  componentDidMount() {
+    this.loadSkills().then(() => {
+      if (this.props.jobId) {
+        this.loadJobDetails(this.props.jobId);
+      }
+    });
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.jobId !== this.props.jobId) {
+      this.loadSkills().then(() => this.loadJobDetails(this.props.jobId));
+    }
+  }
+
+
+  loadJobDetails = async (jobId) => {
+    try {
+      // Ensure skills are loaded
+      if (!this.allSkills || this.allSkills.length === 0) {
+        await this.loadSkills();
+      }
+
+      const res = await axios.get(`${this.apiBaseUrl}job/getSinglejob/${jobId}`);
+      const job = res.data;
+
+      const selectedSkills = job.skill_ids?.map(id => {
+        return this.allSkills.find(skill => skill.value === id) || { label: `Skill ${id}`, value: id };
+      }) || [];
+
+      this.setState({
+        values: {
+          ...this.state.values,
+          job_title: job.job_title || "",
+          job_description: job.job_description || "",
+          skill_ids: selectedSkills,
+          time_from: job.time_from || "",
+          time_to: job.time_to || "",
+          job_type_id: job.job_type_id ? { label: job.job_type, value: job.job_type_id } : null,
+          min_salary: job.min_salary || "",
+          max_salary: job.max_salary || "",
+          currency_id: job.currency_id ? { label: job.currency, value: job.currency_id } : null,
+          min_experience: job.min_experience || "",
+          max_experience: job.max_experience || "",
+          profession_id: job.profession_id ? { label: job.profession, value: job.profession_id } : null,
+          degree_id: job.degree_id ? { label: job.degree, value: job.degree_id } : null,
+          application_deadline: job.application_deadline?.split("T")[0] || "",
+          no_of_positions: job.no_of_positions || "",
+          industry: job.industry || "",
+        },
+        selectedCountry: job.country_id ? { label: job.country, value: job.country_id } : null,
+        selectedDistrict: job.district_id ? { label: job.district, value: job.district_id } : null,
+        selectedCity: job.city_id ? { label: job.city, value: job.city_id } : null,
+      });
+    } catch (err) {
+      console.error("Failed to load job details", err);
+    }
+  };
+
 
   // ------------------ Loaders ------------------ //
   loadCountries = async (inputValue) => {
@@ -127,15 +188,35 @@ class PostBoxForm extends Component {
 
   loadSkills = async (inputValue) => {
     try {
-      const res = await axios.get(`${this.apiBaseUrl}getallskills`, {
-        params: { search: inputValue || "", page: 1, limit: 15 },
-      });
-      return res.data.skills.map((c) => ({ label: c.name, value: c.id }));
+      if (!this.allSkills || this.allSkills.length === 0) {
+        const res = await axios.get(`${this.apiBaseUrl}getallskills`, {
+          params: { page: 1, limit: 1000 },
+        });
+
+        this.allSkills = res.data.skills.map(skill => ({
+          label: skill.name,
+          value: skill.id,
+        }));
+      }
+
+      // 🔹 Filter based on input
+      return this.allSkills.filter(skill =>
+        skill.label.toLowerCase().includes((inputValue || "").toLowerCase())
+      );
     } catch (err) {
       console.error(err);
       return [];
     }
   };
+
+
+  filterSkills = (inputValue) => {
+    if (!this.allSkills) return [];
+    return this.allSkills.filter(skill =>
+      skill.label.toLowerCase().includes(inputValue.toLowerCase())
+    );
+  };
+
 
   loadProfessions = async (inputValue) => {
     try {
@@ -242,32 +323,41 @@ class PostBoxForm extends Component {
 
     this.setState({ errors });
   };
+  validatemessage = () => {
+    const { values, selectedCountry, selectedDistrict, selectedCity } = this.state;
+    let errors = {};
+
+    if (!values.job_title) errors.job_title = "Job Title is required.";
+    if (!values.job_description) errors.job_description = "Job Description is required.";
+    if (!values.skill_ids || values.skill_ids.length === 0) errors.skill_ids = "Please select at least one skill.";
+    if (!values.time_from) errors.time_from = "Start time is required.";
+    if (!values.time_to) errors.time_to = "End time is required.";
+    if (!values.job_type_id) errors.job_type_id = "Job Type is required.";
+    if (!values.min_salary) errors.min_salary = "Minimum salary is required.";
+    if (!values.max_salary) errors.max_salary = "Maximum salary is required.";
+    if (!values.currency_id) errors.currency_id = "Currency is required.";
+    if (!values.min_experience) errors.min_experience = "Minimum experience is required.";
+    if (!values.max_experience) errors.max_experience = "Maximum experience is required.";
+    if (!values.no_of_positions) errors.no_of_positions = "Please enter number of positions.";
+    if (!values.profession_id) errors.profession_id = "Speciality is required.";
+    if (!values.degree_id) errors.degree_id = "Qualification is required.";
+    if (!selectedCountry) errors.country_id = "Country is required.";
+    if (!selectedDistrict) errors.district_id = "District is required.";
+    if (!selectedCity) errors.city_id = "City is required.";
+    if (!values.application_deadline) errors.application_deadline = "Application deadline is required.";
+    if (!values.industry) errors.industry = "Industry is required.";
+
+    return errors;
+  };
+
 
   handleSubmit = async (e) => {
+    const { router } = this.props;
     e.preventDefault();
-    const { values, selectedCountry, selectedDistrict, selectedCity } = this.state;
-
+    const { values, selectedCountry, selectedDistrict, selectedCity, jobId } = this.state;
+    const editjobid = this.props.jobId;
     // --- Validation ---
-    let newErrors = {};
-    if (!values.job_title) newErrors.job_title = "Job Title is required.";
-    if (!values.job_description) newErrors.job_description = "Job Description is required.";
-    if (!values.skill_ids || values.skill_ids.length === 0) newErrors.skill_ids = "Please select at least one skill.";
-    if (!values.time_from) newErrors.time_from = "Start time is required.";
-    if (!values.time_to) newErrors.time_to = "End time is required.";
-    if (!values.job_type_id) newErrors.job_type_id = "Job Type is required.";
-    if (!values.min_salary) newErrors.min_salary = "Minimum salary is required.";
-    if (!values.max_salary) newErrors.max_salary = "Maximum salary is required.";
-    if (!values.currency_id) newErrors.currency_id = "Currency is required.";
-    if (!values.min_experience) newErrors.min_experience = "Minimum experience is required.";
-    if (!values.max_experience) newErrors.max_experience = "Maximum experience is required.";
-    if (!values.no_of_positions) newErrors.no_of_positions = "Please enter number of positions.";
-    if (!values.profession_id) newErrors.profession_id = "Speciality is required.";
-    if (!values.degree_id) newErrors.degree_id = "Qualification is required.";
-    if (!selectedCountry) newErrors.country_id = "Country is required.";
-    if (!selectedDistrict) newErrors.district_id = "District is required.";
-    if (!selectedCity) newErrors.city_id = "City is required.";
-    if (!values.application_deadline) newErrors.application_deadline = "Application deadline is required.";
-    if (!values.industry) newErrors.industry = "Industry is required.";
+    const newErrors = this.validatemessage();
 
     this.setState({ errors: newErrors });
     if (Object.keys(newErrors).length > 0) {
@@ -294,10 +384,28 @@ class PostBoxForm extends Component {
     };
 
     try {
-      const response = await api.post(`${this.apiBaseUrl}job/postjob/${this.userId}`, payload);
-      toast.success("Job post created successfully!");
-      this.setState({ jobId: response.data.job_id, showPricing: true });
+      let response;
 
+      if (editjobid) {
+        await api.put(
+          `${this.apiBaseUrl}job/updatejob/${this.userId}/${editjobid}`,
+          payload
+        );
+
+        toast.success("Job updated successfully!");
+
+        // ✅ CLOSE MODAL
+        if (this.props.onSuccess) {
+          this.props.onSuccess();
+        }
+
+        return; // ⛔ STOP further execution
+      } else {
+        response = await api.post(`${this.apiBaseUrl}job/postjob/${this.userId}`, payload);
+        toast.success("Job post created successfully!");
+
+        this.setState({ jobId: response.data.job_id, showPricing: true });
+      }
       // Reset form
       this.setState({
         values: {
@@ -325,7 +433,6 @@ class PostBoxForm extends Component {
       });
     } catch (err) {
       console.error(err);
-      toast.error("Unable to post job");
     }
   };
 
@@ -342,371 +449,414 @@ class PostBoxForm extends Component {
       boxSizing: 'border-box'
     };
 
-    if (showPricing) {
-      return <PricingForm jobId={jobId} setShowPricing={(show) => this.setState({ showPricing: show })} />;
-    }
+
 
     return (
       <Form onSubmit={this.handleSubmit}>
-        <div className='text-danger py-4'>*  -  All fields are mandatory</div>
-        <Row>
-          {/* Job Title */}
-          <Col md="12">
-            <FormGroup>
-              <Label>Job Title <span className="text-danger">*</span></Label>
-              <Input
-                type="text"
-                name="job_title"
-                innerRef={this.refsFields.job_title}
-                value={values.job_title}
-                onChange={this.handleInputChange}
-              />
-              {errors?.job_title && <div className="text-danger">{errors.job_title}</div>}
-            </FormGroup>
-          </Col>
-
-          {/* Job Description */}
-          <Col md="12">
-            <FormGroup>
-              <Label>Job Description <span className="text-danger">*</span></Label>
-              <Input
-                type="textarea"
-                name="job_description"
-                innerRef={this.refsFields.job_description}
-                value={values.job_description}
-                placeholder="Describe your job in detail"
-                onChange={this.handleInputChange}
-              />
-              {errors?.job_description && <div className="text-danger">{errors.job_description}</div>}
-            </FormGroup>
-          </Col>
-
-          {/* Skills */}
-          <Col md="6">
-            <FormGroup>
-              <Label>Skills <span className="text-danger">*</span></Label>
-              <AsyncSelect
-                isMulti
-                cacheOptions
-                defaultOptions
-                loadOptions={this.loadSkills}
-                value={values.skill_ids || []}
-                ref={this.refsFields.skill_ids}
-                onChange={(selected) => this.setState((prev) => ({
-                  values: { ...prev.values, skill_ids: selected || [] },
-                  errors: { ...prev.errors, skill_ids: undefined },
-                }))}
-              />
-              {errors?.skill_ids && <div className="text-danger">{errors.skill_ids}</div>}
-            </FormGroup>
-          </Col>
-
-          {/* Job Timings */}
-          <Col md="6">
-            <FormGroup>
-              <Label>Job Timings <span className="text-danger">*</span></Label>
-              <Row>
-                <Col>
+        <Card>
+          <CardBody>
+            <div className='text-danger py-4'>*  -  All fields are mandatory</div>
+            <Row>
+              {/* Job Title */}
+              <Col md="12">
+                <FormGroup>
+                  <Label>Job Title <span className="text-danger">*</span></Label>
                   <Input
-                    type="time"
-                    name="time_from"
-                    innerRef={this.refsFields.time_from}
-                    value={values.time_from}
-                    onChange={this.handleInputChange}
-                    style={inputStyles}
-                  />
-                  {errors?.time_from && <div className="text-danger">{errors.time_from}</div>}
-                </Col>
-                <Col>
-                  <Input
-                    type="time"
-                    name="time_to"
-                    innerRef={this.refsFields.time_to}
-                    value={values.time_to}
-                    onChange={this.handleInputChange}
-                    style={inputStyles}
-                  />
-                  {errors?.time_to && <div className="text-danger">{errors.time_to}</div>}
-                </Col>
-              </Row>
-            </FormGroup>
-          </Col>
-
-          {/* Job Type */}
-          <Col md="6">
-            <FormGroup>
-              <Label>Job Type <span className="text-danger">*</span></Label>
-              <AsyncSelect
-                cacheOptions
-                defaultOptions
-                loadOptions={this.loadJobTypes}
-                value={values.job_type_id}
-                ref={this.refsFields.job_type_id}
-                onChange={(option) => this.handleSelectChange("job_type_id", option)}
-              />
-              {errors?.job_type_id && <div className="text-danger">{errors.job_type_id}</div>}
-            </FormGroup>
-          </Col>
-
-          {/* Salary */}
-          <Col md="6">
-            <FormGroup>
-              <Label>Salary Range <span className="text-danger">*</span></Label>
-              <Row>
-                <Col>
-                  <Input
-                    type="number"
-                    name="min_salary"
-                    innerRef={this.refsFields.min_salary}
-                    value={values.min_salary}
-                    placeholder="Min"
+                    type="text"
+                    name="job_title"
+                    innerRef={this.refsFields.job_title}
+                    value={values.job_title}
                     onChange={this.handleInputChange}
                   />
-                  {errors?.min_salary && <div className="text-danger">{errors.min_salary}</div>}
-                </Col>
-                <Col>
+                  {errors?.job_title && <div className="text-danger">{errors.job_title}</div>}
+                </FormGroup>
+              </Col>
+
+              {/* Job Description */}
+              <Col md="12">
+                <FormGroup>
+                  <Label>Job Description <span className="text-danger">*</span></Label>
                   <Input
-                    type="number"
-                    name="max_salary"
-                    innerRef={this.refsFields.max_salary}
-                    value={values.max_salary}
-                    placeholder="Max"
+                    type="textarea"
+                    name="job_description"
+                    innerRef={this.refsFields.job_description}
+                    value={values.job_description}
+                    placeholder="Describe your job in detail"
                     onChange={this.handleInputChange}
                   />
-                  {errors?.max_salary && <div className="text-danger">{errors.max_salary}</div>}
-                  {errors?.salary && <div className="text-danger">{errors.salary}</div>}
-                </Col>
-                <Col>
+                  {errors?.job_description && <div className="text-danger">{errors.job_description}</div>}
+                </FormGroup>
+              </Col>
+
+              {/* Skills */}
+              <Col md="6">
+                <FormGroup>
+                  <Label>Skills <span className="text-danger">*</span></Label>
+                  <AsyncCreatableSelect
+                    isMulti
+                    cacheOptions
+                    defaultOptions
+                    loadOptions={this.loadSkills}   // ✅ now returns options
+                    value={values.skill_ids || []}
+                    onChange={(selected) => {
+                      this.setState((prev) => ({
+                        values: { ...prev.values, skill_ids: selected || [] },
+                        errors: { ...prev.errors, skill_ids: undefined },
+                      }));
+                    }}
+                    onCreateOption={(inputValue) => {
+                      const newSkill = { label: inputValue, value: inputValue };
+                      this.setState((prev) => ({
+                        values: {
+                          ...prev.values,
+                          skill_ids: [...prev.values.skill_ids, newSkill],
+                        },
+                      }));
+                    }}
+                  />
+
+
+
+                  {errors?.skill_ids && <div className="text-danger">{errors.skill_ids}</div>}
+                </FormGroup>
+              </Col>
+
+              {/* Job Timings */}
+              <Col md="6">
+                <FormGroup>
+                  <Label>Job Timings <span className="text-danger">*</span></Label>
+                  <Row>
+                    <Col>
+                      <Input
+                        type="time"
+                        name="time_from"
+                        innerRef={this.refsFields.time_from}
+                        value={values.time_from}
+                        onChange={this.handleInputChange}
+                        style={inputStyles}
+                      />
+                      {errors?.time_from && <div className="text-danger">{errors.time_from}</div>}
+                    </Col>
+                    <Col>
+                      <Input
+                        type="time"
+                        name="time_to"
+                        innerRef={this.refsFields.time_to}
+                        value={values.time_to}
+                        onChange={this.handleInputChange}
+                        style={inputStyles}
+                      />
+                      {errors?.time_to && <div className="text-danger">{errors.time_to}</div>}
+                    </Col>
+                  </Row>
+                </FormGroup>
+              </Col>
+
+              {/* Job Type */}
+              <Col md="6">
+                <FormGroup>
+                  <Label>Job Type <span className="text-danger">*</span></Label>
                   <AsyncSelect
                     cacheOptions
                     defaultOptions
-                    loadOptions={this.loadCurrency}
-                    value={values.currency_id}
-                    ref={this.refsFields.currency_id}
-                    onChange={(option) => this.handleSelectChange("currency_id", option)}
+                    loadOptions={this.loadJobTypes}
+                    value={values.job_type_id}
+                    ref={this.refsFields.job_type_id}
+                    onChange={(option) => this.handleSelectChange("job_type_id", option)}
                   />
-                  {errors?.currency_id && <div className="text-danger">{errors.currency_id}</div>}
-                </Col>
-              </Row>
-            </FormGroup>
-          </Col>
+                  {errors?.job_type_id && <div className="text-danger">{errors.job_type_id}</div>}
+                </FormGroup>
+              </Col>
 
-          {/* Experience */}
-          <Col md="6">
-            <FormGroup>
-              <Label>Experience <span className="text-danger">*</span></Label>
-              <Row>
-                <Col>
+              {/* Salary */}
+              <Col md="6">
+                <FormGroup>
+                  <Label>Salary Range <span className="text-danger">*</span></Label>
+                  <Row>
+                    <Col>
+                      <Input
+                        type="number"
+                        name="min_salary"
+                        innerRef={this.refsFields.min_salary}
+                        value={values.min_salary}
+                        placeholder="Min"
+                        onChange={this.handleInputChange}
+                      />
+                      {errors?.min_salary && <div className="text-danger">{errors.min_salary}</div>}
+                    </Col>
+                    <Col>
+                      <Input
+                        type="number"
+                        name="max_salary"
+                        innerRef={this.refsFields.max_salary}
+                        value={values.max_salary}
+                        placeholder="Max"
+                        onChange={this.handleInputChange}
+                      />
+                      {errors?.max_salary && <div className="text-danger">{errors.max_salary}</div>}
+                      {errors?.salary && <div className="text-danger">{errors.salary}</div>}
+                    </Col>
+                    <Col>
+                      <AsyncSelect
+                        cacheOptions
+                        defaultOptions
+                        loadOptions={this.loadCurrency}
+                        value={values.currency_id}
+                        ref={this.refsFields.currency_id}
+                        onChange={(option) => this.handleSelectChange("currency_id", option)}
+                      />
+                      {errors?.currency_id && <div className="text-danger">{errors.currency_id}</div>}
+                    </Col>
+                  </Row>
+                </FormGroup>
+              </Col>
+
+              {/* Experience */}
+              <Col md="6">
+                <FormGroup>
+                  <Label>Experience <span className="text-danger">*</span></Label>
+                  <Row>
+                    <Col>
+                      <Input
+                        type="select"
+                        name="min_experience"
+                        innerRef={this.refsFields.min_experience}
+                        value={values.min_experience}
+                        onChange={this.handleInputChange}
+                      >
+                        <option value="">Min</option>
+                        {this.experienceOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </Input>
+                      {errors?.min_experience && <div className="text-danger">{errors.min_experience}</div>}
+                    </Col>
+                    <Col>
+                      <Input
+                        type="select"
+                        name="max_experience"
+                        innerRef={this.refsFields.max_experience}
+                        value={values.max_experience}
+                        onChange={this.handleInputChange}
+                      >
+                        <option value="">Max</option>
+                        {this.experienceOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </Input>
+                      {errors?.max_experience && <div className="text-danger">{errors.max_experience}</div>}
+                      {errors?.experience && <div className="text-danger">{errors.experience}</div>}
+                    </Col>
+                  </Row>
+                </FormGroup>
+              </Col>
+              <Col md="6">
+                <FormGroup>
+                  <Label>No of Positions <span className="text-danger">*</span></Label>
+                  <Input
+                    type="number"
+                    name="no_of_positions"
+                    innerRef={this.refsFields.no_of_positions}
+                    value={values.no_of_positions}
+                    onChange={this.handleInputChange}
+                  />
+                  {errors?.no_of_positions && <div className="text-danger">{errors.no_of_positions}</div>}
+                </FormGroup>
+              </Col>
+              {/* Profession */}
+              <Col md="6">
+                <FormGroup>
+                  <Label>Speciality <span className="text-danger">*</span></Label>
+                  <AsyncSelect
+                    cacheOptions
+                    defaultOptions
+                    loadOptions={this.loadProfessions}
+                    value={values.profession_id}
+                    ref={this.refsFields.profession_id}
+                    onChange={(option) => this.handleSelectChange("profession_id", option)}
+                  />
+                  {errors?.profession_id && <div className="text-danger">{errors.profession_id}</div>}
+                </FormGroup>
+              </Col>
+
+              {/* Degree */}
+              <Col md="6">
+                <FormGroup>
+                  <Label>Degree <span className="text-danger">*</span></Label>
+                  <AsyncSelect
+                    cacheOptions
+                    defaultOptions
+                    loadOptions={this.loadDegree}
+                    value={values.degree_id}
+                    ref={this.refsFields.degree_id}
+                    onChange={(option) => this.handleSelectChange("degree_id", option)}
+                  />
+                  {errors?.degree_id && <div className="text-danger">{errors.degree_id}</div>}
+                </FormGroup>
+              </Col>
+
+              {/* Country */}
+              <Col md="6">
+                <FormGroup>
+                  <Label>Country <span className="text-danger">*</span></Label>
+                  <AsyncSelect
+                    ref={this.refsFields.country_id}
+                    cacheOptions
+                    defaultOptions
+                    loadOptions={this.loadCountries}
+                    value={this.state.selectedCountry || null}
+                    onChange={(option) => this.setState({ selectedCountry: option, selectedDistrict: null, selectedCity: null })}
+                    styles={{
+                      control: (provided) => ({
+                        ...provided,
+                        minHeight: "50px",
+                        height: "60px",
+                        backgroundColor: "rgb(240, 245, 247)",
+                        border: "none",
+                      }),
+                      indicatorsContainer: (provided) => ({ ...provided, height: "38px" }),
+                    }}
+                  />
+                  {errors?.country_id && <div className="text-danger">{errors.country_id}</div>}
+                </FormGroup>
+              </Col>
+
+              {/* District */}
+              <Col md="6">
+                <FormGroup>
+                  <Label>District <span className="text-danger">*</span></Label>
+                  <AsyncSelect
+                    key={this.state.selectedCountry?.value || 'district'}
+                    ref={this.refsFields.district_id}
+                    cacheOptions
+                    defaultOptions
+                    loadOptions={this.loadDistricts}
+                    value={this.state.selectedDistrict || null}
+                    onChange={(option) => this.setState({ selectedDistrict: option, selectedCity: null })}
+                    isDisabled={!this.state.selectedCountry}
+                    styles={{
+                      control: (provided) => ({
+                        ...provided,
+                        minHeight: "50px",
+                        height: "60px",
+                        backgroundColor: "rgb(240, 245, 247)",
+                        border: "none",
+                      }),
+                      indicatorsContainer: (provided) => ({ ...provided, height: "38px" }),
+                    }}
+                  />
+                  {errors?.district_id && <div className="text-danger">{errors.district_id}</div>}
+                </FormGroup>
+              </Col>
+
+              {/* City */}
+              <Col md="6">
+                <FormGroup>
+                  <Label>City <span className="text-danger">*</span></Label>
+                  <AsyncSelect
+                    key={this.state.selectedDistrict?.value || 'city'}
+                    ref={this.refsFields.city_id}
+                    cacheOptions
+                    defaultOptions
+                    loadOptions={this.fetchCities}
+                    value={this.state.selectedCity || null}
+                    onChange={(option) => this.setState({ selectedCity: option })}
+                    isDisabled={!this.state.selectedDistrict}
+                    styles={{
+                      control: (provided) => ({
+                        ...provided,
+                        minHeight: "50px",
+                        height: "60px",
+                        backgroundColor: "rgb(240, 245, 247)",
+                        border: "none",
+                      }),
+                      indicatorsContainer: (provided) => ({ ...provided, height: "38px" }),
+                    }}
+                  />
+                  {errors?.city_id && <div className="text-danger">{errors.city_id}</div>}
+                </FormGroup>
+              </Col>
+
+
+
+
+              {/* Application Deadline */}
+              <Col md="6">
+                <FormGroup>
+                  <Label>Application Deadline <span className="text-danger">*</span></Label>
+                  <Input
+                    type="date"
+                    name="application_deadline"
+                    innerRef={this.refsFields.application_deadline}
+                    value={values.application_deadline}
+                    onChange={this.handleInputChange}
+                  />
+                  {errors?.application_deadline && <div className="text-danger">{errors.application_deadline}</div>}
+                  {errors?.deadline && <div className="text-danger">{errors.deadline}</div>}
+                </FormGroup>
+              </Col>
+
+              {/* Industry */}
+              <Col md="6">
+                <FormGroup>
+                  <Label for="industry">Industry / Facility Type</Label>
                   <Input
                     type="select"
-                    name="min_experience"
-                    innerRef={this.refsFields.min_experience}
-                    value={values.min_experience}
-                    onChange={this.handleInputChange}
+                    name="industry"
+                    id="industry"
+                    value={this.state.values.industry || ""}
+                    onChange={this.handleInputChange}   // ✅ correct handler
+                    innerRef={this.refsFields.industry}
+                    style={inputStyles}
                   >
-                    <option value="">Min</option>
-                    {this.experienceOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                    <option value="">-- Select Industry --</option>
+                    <option value="hospital_small">Hospital (Small, &lt;50 beds)</option>
+                    <option value="hospital_medium">Hospital (Medium, 50–200 beds)</option>
+                    <option value="hospital_large">Hospital (Large, 200+ beds)</option>
+                    <option value="clinic">Clinic</option>
+                    <option value="diagnostic_center">Diagnostic Center</option>
+                    <option value="medical_laboratory">Medical Laboratory</option>
+                    <option value="rehabilitation_center">Rehabilitation Center</option>
+                    <option value="medical_equipment_supplier">Medical Equipment Supplier / Distributor</option>
                   </Input>
-                  {errors?.min_experience && <div className="text-danger">{errors.min_experience}</div>}
-                </Col>
-                <Col>
-                  <Input
-                    type="select"
-                    name="max_experience"
-                    innerRef={this.refsFields.max_experience}
-                    value={values.max_experience}
-                    onChange={this.handleInputChange}
-                  >
-                    <option value="">Max</option>
-                    {this.experienceOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                  </Input>
-                  {errors?.max_experience && <div className="text-danger">{errors.max_experience}</div>}
-                  {errors?.experience && <div className="text-danger">{errors.experience}</div>}
-                </Col>
-              </Row>
-            </FormGroup>
-          </Col>
-          <Col md="6">
-            <FormGroup>
-              <Label>No of Positions <span className="text-danger">*</span></Label>
-              <Input
-                type="number"
-                name="no_of_positions"
-                innerRef={this.refsFields.no_of_positions}
-                value={values.no_of_positions}
-                onChange={this.handleInputChange}
-              />
-              {errors?.no_of_positions && <div className="text-danger">{errors.no_of_positions}</div>}
-            </FormGroup>
-          </Col>
-          {/* Profession */}
-          <Col md="6">
-            <FormGroup>
-              <Label>Speciality <span className="text-danger">*</span></Label>
-              <AsyncSelect
-                cacheOptions
-                defaultOptions
-                loadOptions={this.loadProfessions}
-                value={values.profession_id}
-                ref={this.refsFields.profession_id}
-                onChange={(option) => this.handleSelectChange("profession_id", option)}
-              />
-              {errors?.profession_id && <div className="text-danger">{errors.profession_id}</div>}
-            </FormGroup>
-          </Col>
+                  {this.state.errors?.industry && (
+                    <div className="text-danger">{this.state.errors.industry}</div>
+                  )}
+                </FormGroup>
+              </Col>
 
-          {/* Degree */}
-          <Col md="6">
-            <FormGroup>
-              <Label>Degree <span className="text-danger">*</span></Label>
-              <AsyncSelect
-                cacheOptions
-                defaultOptions
-                loadOptions={this.loadDegree}
-                value={values.degree_id}
-                ref={this.refsFields.degree_id}
-                onChange={(option) => this.handleSelectChange("degree_id", option)}
-              />
-              {errors?.degree_id && <div className="text-danger">{errors.degree_id}</div>}
-            </FormGroup>
-          </Col>
-
-          {/* Country */}
-          <Col md="6">
-            <FormGroup>
-              <Label>Country <span className="text-danger">*</span></Label>
-              <AsyncSelect
-                ref={this.refsFields.country_id}
-                cacheOptions
-                defaultOptions
-                loadOptions={this.loadCountries}
-                value={this.state.selectedCountry || null}
-                onChange={(option) => this.setState({ selectedCountry: option, selectedDistrict: null, selectedCity: null })}
-                styles={{
-                  control: (provided) => ({
-                    ...provided,
-                    minHeight: "50px",
-                    height: "60px",
-                    backgroundColor: "rgb(240, 245, 247)",
-                    border: "none",
-                  }),
-                  indicatorsContainer: (provided) => ({ ...provided, height: "38px" }),
-                }}
-              />
-              {errors?.country_id && <div className="text-danger">{errors.country_id}</div>}
-            </FormGroup>
-          </Col>
-
-          {/* District */}
-          <Col md="6">
-            <FormGroup>
-              <Label>District <span className="text-danger">*</span></Label>
-              <AsyncSelect
-                key={this.state.selectedCountry?.value || 'district'}
-                ref={this.refsFields.district_id}
-                cacheOptions
-                defaultOptions
-                loadOptions={this.loadDistricts}
-                value={this.state.selectedDistrict || null}
-                onChange={(option) => this.setState({ selectedDistrict: option, selectedCity: null })}
-                isDisabled={!this.state.selectedCountry}
-                styles={{
-                  control: (provided) => ({
-                    ...provided,
-                    minHeight: "50px",
-                    height: "60px",
-                    backgroundColor: "rgb(240, 245, 247)",
-                    border: "none",
-                  }),
-                  indicatorsContainer: (provided) => ({ ...provided, height: "38px" }),
-                }}
-              />
-              {errors?.district_id && <div className="text-danger">{errors.district_id}</div>}
-            </FormGroup>
-          </Col>
-
-          {/* City */}
-          <Col md="6">
-            <FormGroup>
-              <Label>City <span className="text-danger">*</span></Label>
-              <AsyncSelect
-                key={this.state.selectedDistrict?.value || 'city'}
-                ref={this.refsFields.city_id}
-                cacheOptions
-                defaultOptions
-                loadOptions={this.fetchCities}
-                value={this.state.selectedCity || null}
-                onChange={(option) => this.setState({ selectedCity: option })}
-                isDisabled={!this.state.selectedDistrict}
-                styles={{
-                  control: (provided) => ({
-                    ...provided,
-                    minHeight: "50px",
-                    height: "60px",
-                    backgroundColor: "rgb(240, 245, 247)",
-                    border: "none",
-                  }),
-                  indicatorsContainer: (provided) => ({ ...provided, height: "38px" }),
-                }}
-              />
-              {errors?.city_id && <div className="text-danger">{errors.city_id}</div>}
-            </FormGroup>
-          </Col>
-
-
-
-
-          {/* Application Deadline */}
-          <Col md="6">
-            <FormGroup>
-              <Label>Application Deadline <span className="text-danger">*</span></Label>
-              <Input
-                type="date"
-                name="application_deadline"
-                innerRef={this.refsFields.application_deadline}
-                value={values.application_deadline}
-                onChange={this.handleInputChange}
-              />
-              {errors?.application_deadline && <div className="text-danger">{errors.application_deadline}</div>}
-              {errors?.deadline && <div className="text-danger">{errors.deadline}</div>}
-            </FormGroup>
-          </Col>
-
-          {/* Industry */}
-          <Col md="6">
-            <FormGroup>
-              <Label for="industry">Industry / Facility Type</Label>
-              <Input
-                type="select"
-                name="industry"
-                id="industry"
-                value={this.state.values.industry || ""}
-                onChange={this.handleInputChange}   // ✅ correct handler
-                innerRef={this.refsFields.industry}
-                style={inputStyles}
+            </Row>
+            <div className="d-flex justify-content-end">
+              <Button color="primary" type="submit">
+                Next
+              </Button>
+            </div>
+            {showPricing && (
+              <Modal
+                isOpen={showPricing}
+                toggle={() => this.setState({ showPricing: false })}
+                size="lg"
+                centered
               >
-                <option value="">-- Select Industry --</option>
-                <option value="hospital_small">Hospital (Small, &lt;50 beds)</option>
-                <option value="hospital_medium">Hospital (Medium, 50–200 beds)</option>
-                <option value="hospital_large">Hospital (Large, 200+ beds)</option>
-                <option value="clinic">Clinic</option>
-                <option value="diagnostic_center">Diagnostic Center</option>
-                <option value="medical_laboratory">Medical Laboratory</option>
-                <option value="rehabilitation_center">Rehabilitation Center</option>
-                <option value="medical_equipment_supplier">Medical Equipment Supplier / Distributor</option>
-              </Input>
-              {this.state.errors?.industry && (
-                <div className="text-danger">{this.state.errors.industry}</div>
-              )}
-            </FormGroup>
-          </Col>
+                <ModalHeader toggle={() => this.setState({ showPricing: false })}>
+                  Pricing
+                </ModalHeader>
 
-        </Row>
+                <ModalBody>
+                  <PricingForm
+                    jobId={jobId}
+                    onPaymentSuccess={() => this.setState({ showPricing: false })}
+                  />
+                </ModalBody>
+              </Modal>
+            )}
 
-        <Button color="primary" type="submit">Next</Button>
+
+          </CardBody>
+        </Card>
+
+
+
       </Form>
+
     );
   }
 }
 
-export default PostBoxForm;
+export default withRouter(PostBoxForm);
