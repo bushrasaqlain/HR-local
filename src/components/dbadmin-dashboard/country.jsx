@@ -4,6 +4,7 @@ import Pagination from "../common/pagination.jsx";
 import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import MetaTags from "react-meta-tags";
+import * as XLSX from "xlsx";
 import {
   Card,
   Row,
@@ -81,84 +82,6 @@ class Country extends Component {
 
     return `${day}-${month}-${year}`;
   };
-
-  fetchHistory = async (id) => {
-    if (!id) return;
-    try {
-      const res = await axios.get(`${this.apiBaseUrl}dbadminhistory`, {
-        params: { entity_type: "country", entity_id: id },
-      });
-      this.setState({ history: res.data || [] });
-    } catch (error) {
-      console.error("Error fetching history:", error);
-    }
-  };
-
-  toggleForm = (item = null) => {
-    if (item) {
-      this.setState({
-        editId: item.id,
-        inputValue: item.name,
-        showModal: true,
-      });
-    } else {
-      this.setState({ editId: null, inputValue: "", showModal: true });
-    }
-  };
-
-  toggleHistory = (item = null) => {
-    if (item) this.fetchHistory(item.id);
-    this.setState({ showHistoryModal: true });
-  };
-
-  handleSave = async () => {
-    const { editId, inputValue } = this.state;
-    try {
-      if (editId) {
-        await api.put(`${this.apiBaseUrl}editcountry/${editId}`, {
-          name: inputValue,
-        });
-        this.setState((prevState) => ({
-          countries: prevState.countries.map((item) =>
-            item.id === editId ? { ...item, name: inputValue } : item
-          ),
-        }));
-      } else {
-        await api.post(`${this.apiBaseUrl}addcountries`, { name: inputValue });
-        this.fetchCountries(1);
-      }
-      this.setState({ showModal: false, inputValue: "", editId: null });
-    } catch (error) {
-      console.error("Error saving country:", error);
-    }
-  };
-
-  confirmDelete = (id, status) => {
-    this.setState({
-      deleteId: id,
-      deleteStatus: status, // ✅ actual row status
-      showDeleteConfirm: true,
-    });
-  };
-  handleDelete = async () => {
-    const { deleteId, isActive } = this.state;
-    try {
-      await api.delete(`${this.apiBaseUrl}deletecountry/${deleteId}`);
-      toast.success(
-        isActive === "active"
-          ? "Inactivated successfully"
-          : "Activated successfully"
-      );
-      this.setState({ showDeleteConfirm: false }, this.fetchCountries);
-    } catch (error) {
-      console.error("Error deleting country:", error);
-    }
-  };
-
-  cancelDelete = () => {
-    this.setState({ showDeleteConfirm: false, deleteId: null });
-  };
-
   handleSearch = async (e) => {
     const { name, value } = e.target;
     ["name", "created_at", "updated_at", "status",].forEach((input) => {
@@ -200,6 +123,153 @@ class Country extends Component {
     this.setState({ currentPage: page });
   };
 
+
+  handleExcelExport = () => {
+    const { institutes } = this.state;
+    if (!institutes.length) {
+      toast.info("No data to export");
+      return;
+    }
+
+    const worksheet = XLSX.utils.json_to_sheet(
+      institutes.map((inst) => ({
+        Name: inst.name,
+        Status: inst.status,
+        Created: this.formatDate(inst.created_at),
+        Updated: this.formatDate(inst.updated_at),
+      }))
+    );
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Institutes");
+
+    XLSX.writeFile(workbook, "Institutes.xlsx");
+  };
+
+  toggleForm = (item = null) => {
+    if (item) {
+      this.setState({
+        editId: item.id,
+        inputValue: item.name,
+        showModal: true,
+      });
+    } else {
+      this.setState({ editId: null, inputValue: "", showModal: true });
+    }
+  };
+  handleExcelImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const userId = sessionStorage.getItem("userId");
+
+    if (!userId) {
+      toast.error("User not logged in");
+      return;
+    }
+
+    try {
+      const reader = new FileReader();
+
+      reader.onload = async (evt) => {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+        const formattedData = jsonData
+          .map(row => ({ name: row.name?.toString().trim() }))
+          .filter(row => row.name);
+
+        if (!formattedData.length) {
+          toast.error("No valid institute names found");
+          return;
+        }
+
+        await api.post(`${this.apiBaseUrl}addcountries`, {
+          type: "csv",
+          data: formattedData,
+          userId,
+        });
+
+        toast.success("Institutes imported successfully");
+        this.fetchInstitutes(1);
+      };
+
+      reader.readAsArrayBuffer(file);
+      e.target.value = "";
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to import Excel");
+    }
+  };
+  handleSave = async () => {
+    const { editId, inputValue } = this.state;
+    try {
+      if (editId) {
+        await api.put(`${this.apiBaseUrl}editcountry/${editId}`, {
+          name: inputValue,
+        });
+        this.setState((prevState) => ({
+          countries: prevState.countries.map((item) =>
+            item.id === editId ? { ...item, name: inputValue } : item
+          ),
+        }));
+      } else {
+        await api.post(`${this.apiBaseUrl}addcountries`, { name: inputValue });
+        this.fetchCountries(1);
+      }
+      this.setState({ showModal: false, inputValue: "", editId: null });
+    } catch (error) {
+      console.error("Error saving country:", error);
+    }
+  };
+
+  toggleHistory = (item = null) => {
+    if (item) this.fetchHistory(item.id);
+    this.setState({ showHistoryModal: true });
+  };
+  fetchHistory = async (id) => {
+    if (!id) return;
+    try {
+      const res = await axios.get(`${this.apiBaseUrl}dbadminhistory`, {
+        params: { entity_type: "country", entity_id: id },
+      });
+      this.setState({ history: res.data || [] });
+    } catch (error) {
+      console.error("Error fetching history:", error);
+    }
+  };
+
+
+  confirmDelete = (id, status) => {
+    this.setState({
+      deleteId: id,
+      deleteStatus: status, // ✅ actual row status
+      showDeleteConfirm: true,
+    });
+  };
+  handleDelete = async () => {
+    const { deleteId, isActive } = this.state;
+    try {
+      await api.delete(`${this.apiBaseUrl}deletecountry/${deleteId}`);
+      toast.success(
+        isActive === "active"
+          ? "Inactivated successfully"
+          : "Activated successfully"
+      );
+      this.setState({ showDeleteConfirm: false }, this.fetchCountries);
+    } catch (error) {
+      console.error("Error deleting country:", error);
+    }
+  };
+
+  cancelDelete = () => {
+    this.setState({ showDeleteConfirm: false, deleteId: null });
+  };
+
+
   render() {
     const {
       countries,
@@ -224,33 +294,14 @@ class Country extends Component {
         <h6 className="fw-bold mb-3">Country List</h6>
         <div className="poppins-font">
           <Container fluid>
-            <div className="country-header-section">
-              <p
-                className="breadcrumb-text"
-                title="History"
-                breadcrumbItem="Activity Log"
-              />
+            <div className="institute-header-section d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
 
-              <div className="d-flex justify-content-end my-2">
-                <Button
-                  variant="dark"
-                  onClick={() => this.toggleForm()}
-                  className="add-country-btn"
-                >
-                  Add New Country
-                </Button>
-              </div>
-
-              <div className="w-100 m-2">
-                <p className="filter-label text-dark">Filter by Status</p>
+              {/* Left side: Status filter */}
+              <div className="d-flex align-items-center gap-2">
+                <span className="filter-label text-dark">Filter by Status:</span>
                 <select
                   className="rounded-square form-select p-2"
-                  style={{
-                    maxWidth: "250px",
-                    // fontFamily: "Helvetica Neue, Arial, sans-serif",
-                    color: "#666565ff",
-                    border: "1px solid #ccc",
-                  }}
+                  style={{ maxWidth: "200px" }}
                   value={isActive}
                   onChange={(e) => this.setState({ isActive: e.target.value })}
                 >
@@ -258,9 +309,45 @@ class Country extends Component {
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>
-
-
               </div>
+
+
+              {/* Right side: Buttons */}
+              <div className="d-flex align-items-end gap-2 flex-wrap">
+
+                {/* Add Institute */}
+                <Button
+                  variant="dark"
+                  onClick={() => this.toggleForm()}
+                  className="add-institute-btn"
+                >
+                  Add Country
+                </Button>
+
+                {/* Import Excel */}
+                <Button
+                  variant="secondary"
+                  onClick={() => this.fileInputRef.click()}
+                >
+                  Import Excel
+                </Button>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  ref={(ref) => (this.fileInputRef = ref)}
+                  style={{ display: "none" }}
+                  onChange={this.handleExcelImport}
+                />
+
+                {/* Export Button */}
+                <Button
+                  variant="success"
+                  onClick={this.handleExcelExport} // create this function
+                >
+                  Export
+                </Button>
+              </div>
+
             </div>
 
             <Card>
@@ -269,7 +356,7 @@ class Country extends Component {
                   <Table className="table-responsive align-middle default-table manage-job-table p-2 w-100 table table-striped custom-table">
                     <thead className="align-middle">
                       <tr>
-                       
+
                         <th
                           className="text-center"
                           style={{ borderBottom: "1px solid #ccc" }}

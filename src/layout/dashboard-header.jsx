@@ -250,6 +250,7 @@ class DashboardHeader extends Component {
             {accountType === "employer" && (
               <CompanyDashboardArea activeTab={activeTab} />
             )}
+             
           </div>
 
           <DashboardFooter className="dashboard-footer" />

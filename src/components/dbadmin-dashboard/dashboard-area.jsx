@@ -11,27 +11,28 @@ import BusinessEntityTypes from "./businessentitytype";
 import Currency from "./currency";
 import Districts from "./district";
 import ChangePasswordForm from "../form/changepassword/changepasswordform.jsx"
-import { useEffect,useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useSelector } from "react-redux";
 import Packages from "./packages.jsx";
 import LicenseType from "./licensetypes.jsx";
 import Speciality from "./speciality.jsx";
+import Institute from "./institute.jsx";
 
 const DashboardArea = ({ activeTab }) => {
   // ✅ Receive as prop
   const router = useRouter();
-const [userInfo, setUserInfo] = useState({ userId: null, token:null });
+  const [userInfo, setUserInfo] = useState({ userId: null, token: null });
 
-useEffect(() => {
+  useEffect(() => {
     const userId = sessionStorage.getItem("userId");
     const token = sessionStorage.getItem("token");
     setUserInfo({ userId, token });
 
     if (!token) {
-        router.replace("/login");
+      router.replace("/login");
     }
-}, [router]);
+  }, [router]);
 
   if (!userInfo.userId) return <div>Loading dashboard…</div>;
 
@@ -47,6 +48,8 @@ useEffect(() => {
         return <ProfessionForm />;
       case "skills":
         return <Skills />;
+      case "institute":
+        return <Institute />;
       case "degreetype":
         return <DegreeType />;
       case "degreefields":
@@ -57,14 +60,14 @@ useEffect(() => {
         return <BusinessEntityTypes />;
       case "jobtypes":
         return <Jobtype />;
-         case "packages":
+      case "packages":
         return <Packages />;
-        case "licensetypes":
-          return <LicenseType />;
-        case "speciality":
-          return <Speciality />;
-         case "changepassword":
-      return <ChangePasswordForm />;
+      case "licensetypes":
+        return <LicenseType />;
+      case "speciality":
+        return <Speciality />;
+      case "changepassword":
+        return <ChangePasswordForm />;
       default:
         return <City />;
     }

@@ -1,9 +1,6 @@
 
 require("dotenv").config();
 const mysql = require("mysql2");
-console.log('DB_USER:', process.env.DB_USER);
-console.log('DB_PASSWORD:', process.env.DB_PASSWORD ? '***' : 'undefined');
-console.log('DB_NAME:', process.env.DB_NAME);
 
 // databse connection
 var mysqlConnection = mysql.createConnection({
