@@ -7,37 +7,9 @@ const connection = require("../connection");
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-
-// Execute the queries to create the tables
-// connection.query(education, function (err, results, fields) {
-//     if (err) {
-//       console.error("Error creating Education table:", err.message);
-//     } 
-//   });
-  // POST API endpoint for adding education records
-// router.post('/education', (req, res) => {
-//   const { degreeTitle, instituteName, passingYear, educationDescription } = req.body;
-
-//   const query = `
-//     INSERT INTO education (degree_title, institute_name, passing_year, education_description)
-//     VALUES (?, ?, ?, ?)
-//   `;
-
-//   connection.query(query, [ degreeTitle, instituteName, passingYear, educationDescription], (err, result) => {
-//     if (err) {
-//       console.error('Error adding education record:', err.message);
-//       res.status(500).send({ msg: 'SERVER_ERROR' });
-//     } else {
-//       const insertedId = result.insertId;
-//       res.status(200).send({ id: insertedId, msg: 'Education record added successfully' });
-//     }
-//   });
-// });
-
-// Create the education table in the database
 const createEducationTable =()=>{
 const cv_education = `
-CREATE TABLE IF NOT EXISTS cv_education (
+CREATE TABLE IF NOT EXISTS candidate_education (
   id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
   user_id INT NOT NULL,
   FOREIGN KEY (user_id) REFERENCES account(id), -- Add foreign key constraint
@@ -111,48 +83,6 @@ router.get("/education-get/:id", (req, res) => {
   });
 });
 
-// POST API endpoint for adding or updating education records
-// router.post('/education', (req, res) => {
-//   const { user_id, degreeTitle, instituteName, passingYear, educationDescription } = req.body;
-
-//   // Check if the record already exists for the user
-//   const checkQuery = 'SELECT * FROM education WHERE user_id = ?';
-//   connection.query(checkQuery, [user_id], (checkErr, checkResults) => {
-//     if (checkErr) {
-//       console.error('Error checking existing education record:', checkErr.message);
-//       return res.status(500).send({ msg: 'SERVER_ERROR' });
-//     }
-
-//     if (checkResults.length > 0) {
-//       // If the record exists, update it
-//       const updateQuery = `
-//         UPDATE education
-//         SET degree_title = ?, institute_name = ?, passing_year = ?, education_description = ?
-//         WHERE user_id = ?
-//       `;
-//       connection.query(updateQuery, [degreeTitle, instituteName, passingYear, educationDescription, user_id], (updateErr, updateResult) => {
-//         if (updateErr) {
-//           console.error('Error updating education record:', updateErr.message);
-//           return res.status(500).send({ msg: 'SERVER_ERROR' });
-//         }
-//         res.status(200).send({ msg: 'Education record updated successfully' });
-//       });
-//     } else {
-//       // If the record does not exist, insert a new one
-//       const insertQuery = `
-//         INSERT INTO education (user_id, degree_title, institute_name, passing_year, education_description)
-//         VALUES (?, ?, ?, ?, ?)
-//       `;
-//       connection.query(insertQuery, [user_id, degreeTitle, instituteName, passingYear, educationDescription], (insertErr, insertResult) => {
-//         if (insertErr) {
-//           console.error('Error adding education record:', insertErr.message);
-//           return res.status(500).send({ msg: 'SERVER_ERROR' });
-//         }
-//         res.status(200).send({ id: insertResult.insertId, msg: 'Education record added successfully' });
-//       });
-//     }
-//   });
-// });
 
 // POST API endpoint for adding or updating education records
 router.post('/education', (req, res) => {

@@ -31,20 +31,24 @@ const getAccountDetail = (req) => {
     const userId = req.user.userId;
 
     const sql = `
-      SELECT a.id as userId, a.username, a.accountType, c.logo
+      SELECT 
+        a.id AS userId,
+        a.username,
+        a.accountType,
+        ci.passport_photo
       FROM account a
-      LEFT JOIN candidate_info c ON a.id = c.account_id
+      LEFT JOIN candidate_info ci ON a.id = ci.account_id
       WHERE a.id = ?
     `;
 
     connection.query(sql, [userId], (err, results) => {
-      if (err) return reject({ status: 500, error: "Database error", details: err });
-      if (results.length === 0) return reject({ status: 404, error: "User not found" });
+      if (err)
+        return reject({ status: 500, error: "Database error", details: err });
 
-      let logoBase64 = null;
-      if (results[0].logo) logoBase64 = Buffer.from(results[0].logo).toString("base64");
+      if (results.length === 0)
+        return reject({ status: 404, error: "User not found" });
 
-      resolve({ ...results[0], logo: logoBase64 });
+      resolve(results[0]); // no conversion needed
     });
   });
 };
