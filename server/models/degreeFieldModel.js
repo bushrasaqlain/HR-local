@@ -208,8 +208,6 @@ const editDegreeField = (id, data, userId, callback) => {
     });
 };
 
-module.exports = { editDegreeField };
-
 const deleteDegreeField = (id, userId, callback) => {
     const checkQuery = "SELECT * FROM degreefields WHERE id = ?";
     connection.query(checkQuery, [id], (err, results) => {
@@ -239,6 +237,8 @@ const deleteDegreeField = (id, userId, callback) => {
 });
         });
     });
+};
+const getDegreeFieldsDropdown = ({ degree_type_id, search = "", status = "Active" }, callback) => {
 };
 
 
