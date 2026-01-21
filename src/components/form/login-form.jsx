@@ -69,64 +69,66 @@ class FormContent extends Component {
     }));
   };
 
-handleSubmit = async (e) => {
-  e.preventDefault();
-  const { values } = this.state;
-  const { dispatch, router } = this.props;
+  handleSubmit = async (e) => {
+    e.preventDefault();
+    const { values } = this.state;
+    const { dispatch, router } = this.props;
 
-  const newErrors = {};
-  if (!values.email) newErrors.email = "Email is required";
-  if (!values.password) {
-    newErrors.password = "Password is required";
-  } else if (values.password.length < 8) {
-    newErrors.password = "Password must be at least 8 characters";
-  }
-
-  this.setState({ errors: newErrors });
-  if (Object.keys(newErrors).length > 0) return;
-
-  try {
-    // Login API
-    const res = await api.post("/login", values);
-
-    if (!res.data.success) {
-      this.setState({ loginError: "Admin has not activated you yet. Please wait!" });
-      return;
+    const newErrors = {};
+    if (!values.email) newErrors.email = "Email is required";
+    if (!values.password) {
+      newErrors.password = "Password is required";
+    } else if (values.password.length < 8) {
+      newErrors.password = "Password must be at least 8 characters";
     }
 
-    // Save token
-    sessionStorage.setItem("token", res.data.token);
+    this.setState({ errors: newErrors });
+    if (Object.keys(newErrors).length > 0) return;
 
-    // Get logged-in user info
-    const userRes = await api.get("/api/me");
-    dispatch(setUser(userRes.data));
+    try {
+      // Login API
+      const res = await api.post("/login", values);
 
-    // Save user info in session
-    sessionStorage.setItem("userId", userRes.data.userId);
-    sessionStorage.setItem("accountType", userRes.data.accountType);
-    sessionStorage.setItem("username", userRes.data.username);
+      if (!res.data.success) {
+        this.setState({
+          loginError: "Admin has not activated you yet. Please wait!",
+        });
+        return;
+      }
 
-    toast.success("Login successfully!");
+      // Save token
+      sessionStorage.setItem("token", res.data.token);
+      dispatch(setUser(res.data));
 
-    // ✅ Role-based routing
-    const { accountType } = userRes.data;
-    if (accountType === "admin") {
-      router.push("/admin/dashboard");
-    } else if (accountType === "candidate") {
-      router.push("/registercandidate");
-    } else if (accountType === "hr") {
-      router.push("/hr/dashboard");
-    } else {
-      router.push("/dashboard-header"); // fallback
+      // Save user info in session
+      sessionStorage.setItem("userId", res.data.userId);
+      sessionStorage.setItem("accountType", res.data.accountType);
+      sessionStorage.setItem("username", res.data.username);
+
+      toast.success("Login successfully!");
+
+      // ✅ Role-based routing
+      const accountType = res.data.accountType;
+      console.log(res.data.userId);
+
+      if (accountType === "admin") {
+        router.push("/admin/dashboard");
+      } else if (accountType === "candidate") {
+        router.push("/registercandidate");
+      } else if (accountType === "hr") {
+        router.push("/hr/dashboard");
+      }
+
+      // else {
+      //   router.push("/dashboard-header"); // fallback
+      // }
+    } catch (err) {
+      console.error(err);
+      this.setState({
+        loginError: "Invalid email or password, please try again.",
+      });
     }
-  } catch (err) {
-    console.error(err);
-    this.setState({ loginError: "Invalid email or password, please try again." });
-  }
-};
-
-
-
+  };
 
   render() {
     const { values, errors, showPassword, loginError } = this.state;
