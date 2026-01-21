@@ -226,6 +226,7 @@ fetchCandidateInfo = async () => {
     });
 
     const data = res.data || {}; // <-- always default to object
+    console.log("FULL API RESPONSE:", res.data);
 
     // Safe JSON parse helper
     const safeParseJSON = (val) => {
@@ -268,8 +269,8 @@ fetchCandidateInfo = async () => {
       address: data.address ?? "",
 
       passport_photoPreview: data.passport_photo
-        ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${data.passport_photo}`
-        : "",
+  ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${data.passport_photo}`
+  : "",
 
       // Ensure education array exists
       education: Array.isArray(data.Education) && data.Education.length
@@ -500,36 +501,38 @@ fetchCandidateInfo = async () => {
           <div>
             <h4>Step 1: Personal Details</h4>
             <div className="mb-3">
-              <label className="form-label">Upload Photo</label>
+  <label>Upload Photo</label>
 
-              <div className="upload-photo-row">
-                <input
-                  type="file"
-                  accept=".jpg,.jpeg,.png"
-                  className="form-control"
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                      setFieldValue("passport_photo", file);
-                      const reader = new FileReader();
-                      reader.onload = () =>
-                        setFieldValue("passport_photoPreview", reader.result);
-                      reader.readAsDataURL(file);
-                    }
-                  }}
-                />
+  <div className="d-flex align-items-center gap-3">
+    <input
+      type="file"
+      accept=".jpg,.jpeg,.png"
+      onChange={(e) => {
+        const file = e.target.files[0];
+        if (file) {
+          setFieldValue("passport_photo", file);
+          const reader = new FileReader();
+          reader.onload = () =>
+            setFieldValue("passport_photoPreview", reader.result);
+          reader.readAsDataURL(file);
+        }
+      }}
+      className="form-control"
+      style={{ maxWidth: "280px" }}
+    />
 
-                {values.passport_photoPreview && (
-                  <div className="profile-photo-wrapper">
-                    <img
-                      src={values.passport_photoPreview}
-                      alt="Profile"
-                      className="profile-photo"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
+    {values.passport_photoPreview && (
+      <div className="profile-photo-wrapper">
+        <img
+          src={values.passport_photoPreview}
+          alt="Profile"
+          className="profile-photo"
+        />
+      </div>
+    )}
+  </div>
+</div>
+
 
             <div className="row mb-3">
               {/* Full Name */}
@@ -597,7 +600,8 @@ fetchCandidateInfo = async () => {
                 <label>Email</label>
                 <Field
                   name="email"
-                  readonly="true"
+                  readOnly
+                  backgroundColor="gray"
                   placeholder="Email"
                   type="email"
                   className="form-control"
