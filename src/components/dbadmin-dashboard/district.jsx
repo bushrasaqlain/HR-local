@@ -27,15 +27,17 @@ class Districts extends Component {
       showModal: false,
       inputValue: "",
       editId: null,
-      deleteStatus: null,
-      deleteId: null,
-      showDeleteConfirm: false,
+      updateStatus: null,
+      updateId: null,
+      showUpdateStatus: false,
       showHistoryModal: false,
       history: [],
       currentPage: 1,
       totalCountries: 0,
       isActive: "all",
       selectedCountry: null,
+      isImportMode: false,
+      importFile: null,
     };
 
     this.itemsPerPage = 50;
@@ -55,6 +57,7 @@ class Districts extends Component {
       this.resetSearch();
     }
   }
+
   loadCountries = async (inputValue) => {
     try {
       const res = await api.get(`${this.apiBaseUrl}getallCountries`, {
@@ -92,6 +95,7 @@ class Districts extends Component {
       console.error("Error fetching districts:", error);
     }
   };
+
   formatDate = (dateStr) => {
     if (!dateStr) return "";
 
@@ -101,152 +105,6 @@ class Districts extends Component {
     const year = String(date.getFullYear()).slice(-2); // 25
 
     return `${day}-${month}-${year}`;
-  };
-
-  fetchHistory = async (id) => {
-    if (!id) return;
-    try {
-      const res = await axios.get(`${this.apiBaseUrl}dbadminhistory`, {
-        params: { entity_type: "district", entity_id: id },
-      });
-      this.setState({ history: res.data || [] });
-    } catch (error) {
-      console.error("Error fetching history:", error);
-    }
-  };
-
-  toggleForm = (item = null) => {
-    if (item) {
-      this.setState({
-        editId: item.id,
-        inputValue: item.name,
-        selectedCountry: item.country_id
-          ? {
-            value: item.country_id,
-            label: item.country_name,
-          }
-          : null,
-        showModal: true,
-      });
-    } else {
-      this.setState({
-        editId: null,
-        inputValue: "",
-        selectedCountry: null,
-        showModal: true,
-      });
-    }
-  };
-
-  handleExcelExport = () => {
-    const { districts } = this.state;
-
-    if (!districts || !districts.length) {
-      toast.info("No districts available to export");
-      return;
-    }
-
-    // Map data for Excel
-    const dataToExport = districts.map((district) => ({
-      "District Name": district.name,
-      "Country Name": district.country_name,
-      "Status": district.status,
-      "Created At": this.formatDate(district.created_at),
-      "Updated At": this.formatDate(district.updated_at),
-    }));
-
-    // Create worksheet
-    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-
-    // Create workbook and append worksheet
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Districts");
-
-    // Write file
-    XLSX.writeFile(workbook, "Districts.xlsx");
-
-    toast.success("Districts exported successfully");
-  };
-
-
-
-  toggleHistory = (item = null) => {
-    if (item) this.fetchHistory(item.id);
-    this.setState({ showHistoryModal: true });
-  };
-
-  handleSave = async () => {
-    const { editId, inputValue, selectedCountry } = this.state;
-
-    try {
-      if (!selectedCountry) {
-        alert("Please select a country.");
-        return;
-      }
-
-      if (editId) {
-        await api.put(`${this.apiBaseUrl}editDistrict/${editId}`, {
-          name: inputValue,
-          country_id: selectedCountry.value,
-        });
-
-        this.setState((prevState) => ({
-          districts: prevState.districts.map((item) =>
-            item.id === editId
-              ? {
-                ...item,
-                name: inputValue,
-                country_id: selectedCountry.value,
-                country_name: selectedCountry.label,
-              }
-              : item
-          ),
-        }));
-      } else {
-        await api.post(`${this.apiBaseUrl}addDistrict`, {
-          name: inputValue,
-          country_id: selectedCountry.value,
-        });
-
-        this.fetchDistricts(1);
-      }
-
-      this.setState({
-        showModal: false,
-        inputValue: "",
-        selectedCountry: null,
-        editId: null,
-      });
-    } catch (error) {
-      console.error("Error saving district:", error.response?.data || error);
-    }
-  };
-
-  confirmDelete = (id, status) => {
-    this.setState({
-      deleteId: id,
-      deleteStatus: status, // ✅ actual row status
-      showDeleteConfirm: true,
-    });
-  };
-
-  handleDelete = async () => {
-    const { deleteId, isActive } = this.state;
-    try {
-      await api.delete(`${this.apiBaseUrl}deleteDistrict/${deleteId}`);
-      toast.success(
-        isActive === "active"
-          ? "Inactivated successfully"
-          : "Activated successfully"
-      );
-      this.setState({ showDeleteConfirm: false }, this.fetchDistricts);
-    } catch (error) {
-      console.error("Error deleting district:", error);
-    }
-  };
-
-  cancelDelete = () => {
-    this.setState({ showDeleteConfirm: false, deleteId: null });
   };
 
   handleSearch = async (e) => {
@@ -290,19 +148,214 @@ class Districts extends Component {
     this.setState({ currentPage: page });
   };
 
+  toggleHistory = (item = null) => {
+    if (item) this.fetchHistory(item.id);
+    this.setState({ showHistoryModal: true });
+  };
+
+  fetchHistory = async (id) => {
+    if (!id) return;
+    try {
+      const res = await axios.get(`${this.apiBaseUrl}dbadminhistory`, {
+        params: { entity_type: "district", entity_id: id },
+      });
+      this.setState({ history: res.data || [] });
+    } catch (error) {
+      console.error("Error fetching history:", error);
+    }
+  };
+
+  handleExcelExport = () => {
+    const { districts } = this.state;
+
+    if (!districts || !districts.length) {
+      toast.info("No districts available to export");
+      return;
+    }
+
+    // Map data for Excel
+    const dataToExport = districts.map((district) => ({
+      "District Name": district.name,
+      "Country Name": district.country_name,
+      "Status": district.status,
+      "Created At": this.formatDate(district.created_at),
+      "Updated At": this.formatDate(district.updated_at),
+    }));
+
+    // Create worksheet
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+
+    // Create workbook and append worksheet
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Districts");
+
+    // Write file
+    XLSX.writeFile(workbook, "Districts.xlsx");
+
+    toast.success("Districts exported successfully");
+  };
+
+  toggleForm = (item = null) => {
+    if (item) {
+      this.setState({
+        editId: item.id,
+        inputValue: item.name,
+        selectedCountry: item.country_id
+          ? {
+            value: item.country_id,
+            label: item.country_name,
+          }
+          : null,
+        showModal: true,
+      });
+    } else {
+      this.setState({
+        editId: null,
+        inputValue: "",
+        selectedCountry: null,
+        showModal: true,
+      });
+    }
+  };
+
+  handleSave = async () => {
+    const { editId, inputValue, selectedCountry, isImportMode, importFile } = this.state;
+    const userId = sessionStorage.getItem("userId");
+
+    if (!selectedCountry) {
+      toast.error("Please select a country");
+      return;
+    }
+
+    try {
+      if (isImportMode) {
+        if (!importFile) {
+          toast.error("Please select an Excel file");
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, { type: "array" });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+          const districtsData = jsonData
+            .map(row => ({ name: row.name?.toString().trim() }))
+            .filter(row => row.name);
+
+          if (!districtsData.length) {
+            toast.error("No valid district names found in Excel");
+            return;
+          }
+
+          await api.post(`${this.apiBaseUrl}addDistrict`, {
+            type: "csv",
+            data: districtsData,
+            country_id: selectedCountry.value,
+            userId,
+          });
+
+          toast.success("Districts imported successfully");
+          this.fetchDistricts(1);
+          this.setState({ showModal: false, importFile: null, isImportMode: false, selectedCountry: null });
+        };
+
+        reader.readAsArrayBuffer(importFile);
+      } else {
+        // --- NORMAL SAVE MODE ---
+        if (editId) {
+          await api.put(`${this.apiBaseUrl}editDistrict/${editId}`, {
+            name: inputValue,
+            country_id: selectedCountry.value,
+          });
+
+          this.setState((prevState) => ({
+            districts: prevState.districts.map((item) =>
+              item.id === editId
+                ? {
+                  ...item,
+                  name: inputValue,
+                  country_id: selectedCountry.value,
+                  country_name: selectedCountry.label,
+                }
+                : item
+            ),
+          }));
+        } else {
+          await api.post(`${this.apiBaseUrl}addDistrict`, {
+            name: inputValue,
+            country_id: selectedCountry.value,
+          });
+
+          this.fetchDistricts(1);
+        }
+
+        this.setState({ showModal: false, inputValue: "", selectedCountry: null, editId: null });
+      }
+    } catch (error) {
+      console.error("Error saving district:", error.response?.data || error);
+    }
+  };
+
+  confirmUpdate = (id, status) => {
+    this.setState({
+      updateId: id,
+      updateStatus: status, // ✅ actual row status
+      showUpdateStatus: true,
+    });
+  };
+
+  handleStatus = async () => {
+    const { updateId, updateStatus, districts } = this.state;
+
+    try {
+      await api.put(`${this.apiBaseUrl}updateStatus/${updateId}`, {
+        // Pass the new status to backend
+        status: updateStatus === "active" ? "inactive" : "active",
+      });
+
+      // Update frontend state immediately
+      this.setState({
+        districts: districts.map((district) =>
+          district.id === updateId
+            ? { ...district, status: updateStatus === "active" ? "inactive" : "active" }
+            : district
+        ),
+        showUpdateStatus: false,
+        updateId: null,
+        updateStatus: null,
+      });
+
+      toast.success(
+        updateStatus === "active"
+          ? "District inactivated successfully"
+          : "District activated successfully"
+      );
+    } catch (error) {
+      console.error("Error updating district status:", error);
+    }
+  };
+
+
+  cancelUpdate = () => {
+    this.setState({ showUpdateStatus: false, updateId: null });
+  };
+
   render() {
     const {
       districts,
       showModal,
       inputValue,
-      showDeleteConfirm,
+      showUpdateStatus,
       showHistoryModal,
       history,
       currentPage,
       totalDistricts,
       isActive,
       editId,
-      deleteStatus
+      updateStatus
     } = this.state;
     const totalPages = Math.ceil(totalDistricts / this.itemsPerPage);
 
@@ -347,10 +400,11 @@ class Districts extends Component {
                 {/* Import Excel */}
                 <Button
                   variant="secondary"
-                  onClick={() => this.fileInputRef.click()}
+                  onClick={() => this.setState({ showModal: true, isImportMode: true, selectedCountry: null, importFile: null })}
                 >
                   Import Excel
                 </Button>
+
                 <input
                   type="file"
                   accept=".xlsx,.xls"
@@ -517,7 +571,7 @@ class Districts extends Component {
                               </button>
 
                               <button
-                                onClick={() => this.confirmDelete(item.id, item.status)}
+                                onClick={() => this.confirmUpdate(item.id, item.status)}
                                 className="icon-btn"
                               >
                                 {item.status === "active" ? (
@@ -560,7 +614,7 @@ class Districts extends Component {
             </Modal.Header>
 
             <Modal.Body>
-              {/* Country */}
+              {/* Country Selection */}
               <label className="mb-1">Country</label>
               <AsyncSelect
                 cacheOptions
@@ -574,33 +628,60 @@ class Districts extends Component {
                 className="mb-3"
               />
 
-              {/* District Name */}
-              <label className="mb-1">District Name</label>
-              <input
-                type="text"
-                value={this.state.inputValue}
-                onChange={(e) => this.setState({ inputValue: e.target.value })}
-                placeholder="Enter district name"
-                className="form-control"
-              />
+              {this.state.isImportMode ? (
+                <>
+                  {/* Excel file input for import */}
+                  <label className="mb-1">Select Excel File</label>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    className="form-control"
+                    onChange={(e) => this.setState({ importFile: e.target.files[0] })}
+                    disabled={
+                      !this.state.selectedCountry
+                    }
+                  />
+                  <small className="text-muted">
+                    Excel must have a column named <strong>"District Name"</strong>
+                  </small>
+                </>
+              ) : (
+                <>
+                  {/* Single district input */}
+                  <label className="mb-1">District Name</label>
+                  <input
+                    type="text"
+                    value={this.state.inputValue}
+                    onChange={(e) => this.setState({ inputValue: e.target.value })}
+                    placeholder="Enter district name"
+                    className="form-control"
+                  />
+                </>
+              )}
             </Modal.Body>
+
 
             <Modal.Footer>
               <Button
                 variant="primary"
                 onClick={this.handleSave}
-                disabled={!this.state.inputValue || !this.state.selectedCountry}
+                disabled={
+                  !this.state.selectedCountry ||
+                  (!this.state.isImportMode && !this.state.inputValue) ||
+                  (this.state.isImportMode && !this.state.importFile)
+                }
               >
                 Save
               </Button>
+
             </Modal.Footer>
           </Modal>
 
-          {/* Delete Confirmation */}
-          <Modal show={showDeleteConfirm} onHide={this.cancelDelete} centered>
+          {/* update Status Confirmation */}
+          <Modal show={showUpdateStatus} onHide={this.cancelUpdate} centered>
             <Modal.Header closeButton>
               <Modal.Title style={{ fontSize: "1rem", fontWeight: 600 }}>
-                Confirm {deleteStatus === "active" ? "Inactivate" : "Activate"}
+                Confirm {updateStatus === "active" ? "Inactivate" : "Activate"}
               </Modal.Title>
             </Modal.Header>
 
@@ -608,22 +689,22 @@ class Districts extends Component {
               <p style={{ marginBottom: 0 }}>
                 Are you sure you want to{" "}
                 <strong>
-                  {deleteStatus === "active" ? "inactivate" : "activate"}
+                  {updateStatus === "active" ? "inactivate" : "activate"}
                 </strong>{" "}
                 this District?
               </p>
             </Modal.Body>
 
             <Modal.Footer className="d-flex justify-content-end gap-2">
-              <Button variant="secondary" onClick={this.cancelDelete}>
+              <Button variant="secondary" onClick={this.cancelUpdate}>
                 Cancel
               </Button>
 
               <Button
-                variant={deleteStatus === "active" ? "danger" : "success"}
-                onClick={this.handleDelete}
+                variant={updateStatus === "active" ? "danger" : "success"}
+                onClick={this.handleStatus}
               >
-                {deleteStatus === "active" ? "Inactivate" : "Activate"}
+                {updateStatus === "active" ? "Inactivate" : "Activate"}
               </Button>
             </Modal.Footer>
           </Modal>

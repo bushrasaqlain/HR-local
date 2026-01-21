@@ -12,7 +12,7 @@ const createApplicantsTable = () => {
     cv_data LONGBLOB NOT NULL,
     cv_filename VARCHAR(255) NOT NULL,
     account_id INT,
-    status VARCHAR(50) DEFAULT 'applied',
+    status VARCHAR(50) DEFAULT 'Pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (job_id) REFERENCES job_posts(id),
     FOREIGN KEY (Account_ID) REFERENCES account(id)

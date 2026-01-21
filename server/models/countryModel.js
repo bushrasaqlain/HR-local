@@ -148,14 +148,14 @@ const editCountry = (req, res) => {
 };
 
 const getAllCountries = (
-  { page = 1, limit = 10, search = "", name = "name", status = "all" },
+  { page = 1, limit = 10, search = "", name = "", status = "all" },
   callback
 ) => {
   const offset = (page - 1) * limit;
+  console.log(name, search)
 
-  // ✅ Prevent SQL injection
   const allowedColumns = ["name", "created_at", "updated_at", "status"];
-  if (!allowedColumns.includes(name)) name = "name";
+  if (!allowedColumns.includes(name)) name = "";
 
   let whereConditions = [];
   let values = [];
@@ -167,18 +167,32 @@ const getAllCountries = (
   }
 
   // ✅ Search filter
-  if (search) {
+  if (search !== undefined && search !== null && search !== "") {
+
     if (name === "created_at" || name === "updated_at") {
+
+      // Validate YYYY-MM-DD
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(search)) {
+        console.log("❌ Invalid date received:", search);
+        return callback(new Error("Invalid date format"));
+      }
+
       whereConditions.push(`DATE(${name}) = ?`);
       values.push(search);
-    } else if (name === "status") {
+    }
+
+    else if (name === "status") {
       whereConditions.push("LOWER(status) LIKE ?");
       values.push(`%${search.toLowerCase()}%`);
-    } else {
+    }
+
+    else {
       whereConditions.push(`${name} LIKE ?`);
       values.push(`%${search}%`);
     }
   }
+
+
 
   const whereClause =
     whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
@@ -215,7 +229,8 @@ const getAllCountries = (
   });
 };
 
-const deleteCountry = (req, res) => {
+
+const updateStatus = (req, res) => {
   const { id } = req.params;
   const userId = req.user.userId;
 
@@ -255,5 +270,5 @@ module.exports = {
   addCountry,
   editCountry,
   getAllCountries,
-  deleteCountry,
+  updateStatus,
 };

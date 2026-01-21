@@ -32,7 +32,8 @@ export const dbadminmenuitem = [
   { key: "country", label: "Country" },
   { key: "district", label: "District" },
   { key: "city", label: "City" },
-  { key: "profession", label: "Profession" },
+  { key: "bank", label: "Bank" },
+  { key: "speciality", label: "Speciality" },
   { key: "skills", label: "Skills" },
   { key: "institute", label: "Institute" },
   { key: "degreetype", label: "Degree" },
@@ -42,7 +43,6 @@ export const dbadminmenuitem = [
   { key: "jobtypes", label: "Job Types" },
   { key: "packages", label: "Packages" },
   { key: "licensetypes", label: "LicenseType"},
-  { key: "speciality", label: "Speciality"},
 ];
 export const regadminmenuitem = [
   { key: "company", label: "Comapany List" },

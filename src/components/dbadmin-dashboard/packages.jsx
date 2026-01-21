@@ -4,6 +4,7 @@ import Pagination from "../common/pagination.jsx";
 import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import MetaTags from "react-meta-tags";
+import * as XLSX from "xlsx";
 import {
     Card,
     Row,
@@ -83,6 +84,28 @@ class Packages extends Component {
         }
     };
 
+    loadCurrencies = async (inputValue) => {
+        try {
+            const res = await axios.get(`${this.apiBaseUrl}getallcurrencies`, {
+                params: { search: inputValue || "", page: 1, limit: 15, status: 'active' },
+            });
+            return res.data.currencies.map((c) => ({ label: c.code, value: c.id }));
+        } catch (err) {
+            console.error(err);
+            return [];
+        }
+    };
+
+    handleCurrencyChange = (selectedCurrency) => {
+        console.log(selectedCurrency)
+        this.setState({
+            selectedCurrency,
+            errors: { ...this.state.errors, currency: "" },
+        });
+    };
+
+
+
     formatDate = (dateStr) => {
         if (!dateStr) return "";
 
@@ -94,18 +117,82 @@ class Packages extends Component {
         return `${day}-${month}-${year}`;
     };
 
-    fetchHistory = async (id) => {
-        if (!id) return;
+    handleExcelExport = () => {
+        const { packages } = this.state;
+
+        if (!packages || !packages.length) {
+            toast.info("No packages available to export");
+            return;
+        }
+
+        const dataToExport = packages.map((pkg) => ({
+            "Duration unit": pkg.duration_unit,
+            "Duration value": pkg.duration_value,
+            "Price": pkg.price,
+            "Currency": pkg.currency,
+            "Status": pkg.status,
+            "Created At": this.formatDate(pkg.created_at),
+            "Updated At": this.formatDate(pkg.updated_at),
+        }));
+
+
+        // Create worksheet
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+
+        // Create workbook and append worksheet
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Packages");
+
+        // Write file
+        XLSX.writeFile(workbook, "Packages.xlsx");
+
+        toast.success("Packages exported successfully");
+    };
+
+    handleExcelImport = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const userId = sessionStorage.getItem("userId");
+
+        if (!userId) {
+            toast.error("User not logged in");
+            return;
+        }
         try {
-            const res = await axios.get(`${this.apiBaseUrl}dbadminhistory`, {
-                params: { entity_type: "package", entity_id: id },
-            });
-            console.log("console",res.data)
-            this.setState({ history: res.data || [] });
-        } catch (error) {
-            console.error("Error fetching history:", error);
+            const reader = new FileReader();
+
+            reader.onload = async (evt) => {
+                const data = new Uint8Array(evt.target.result);
+                const workbook = XLSX.read(data, { type: "array" });
+
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+                const formatted = jsonData.map((row) => ({
+                    duration_unit: row["Duration unit"],
+                    duration_value: row["Duration value"],
+                    price: row["Price"],
+                    currency: row["Currency"],
+                }));
+
+                await api.post(`${this.apiBaseUrl}packages/`, {
+                    type: "csv",
+                    data: formatted,
+                });
+
+                toast.success("Packages imported successfully");
+                this.fetchPackages(1);
+            };
+
+            reader.readAsArrayBuffer(file);
+            e.target.value = "";
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to import Excel");
         }
     };
+
     handleInputChange = (e) => {
         const { name, value } = e.target;
 
@@ -119,140 +206,6 @@ class Packages extends Component {
                 [name]: "",
             },
         }));
-    };
-    handleCurrencyChange = (selectedCurrency) => {
-        console.log(selectedCurrency)
-        this.setState({
-            selectedCurrency,
-            errors: { ...this.state.errors, currency: "" },
-        });
-    };
-
-
-    loadCurrencies = async (inputValue) => {
-        try {
-            const res = await axios.get(`${this.apiBaseUrl}getallcurrencies`, {
-                params: { search: inputValue || "", page: 1, limit: 15, status: 'active' },
-            });
-            return res.data.currencies.map((c) => ({ label: c.code, value: c.id }));
-        } catch (err) {
-            console.error(err);
-            return [];
-        }
-    };
-
-    validateForm = () => {
-        const { FormData, selectedCurrency } = this.state;
-        let errors = {};
-
-        if (!FormData.duration) errors.duration = "Duration is required";
-        if (!FormData.package) errors.package = "Package is required";
-        if (!FormData.amount) errors.amount = "Amount is required";
-        if (!selectedCurrency) errors.currency = "Currency is required";
-
-        this.setState({ errors });
-        return Object.keys(errors).length === 0;
-    };
-
-
-    toggleForm = (item = null) => {
-        console.log(item)
-        if (item) {
-            this.setState({
-                showModal: true,
-                editId: item.id,
-                FormData: {
-                    duration: item.duration_value,
-                    package: item.duration_unit,
-                    amount: item.price,
-                },
-                selectedCurrency: {
-                    label: item.currency,
-                    value: item.currency_id,
-                },
-            });
-        } else {
-            this.setState({
-                showModal: true,
-                editId: null,
-                FormData: { duration: "", package: "", amount: "" },
-                selectedCurrency: null,
-                errors: {},
-            });
-        }
-    };
-
-
-    toggleHistory = (item = null) => {
-        if (item) this.fetchHistory(item.id);
-        this.setState({ showHistoryModal: true });
-    };
-
-    handleSubmit = async (e) => {
-        e.preventDefault();
-
-        if (!this.validateForm()) return;
-
-        const { editId, FormData, selectedCurrency } = this.state;
-
-        const payload = {
-            duration_value: FormData.duration,
-            duration_unit: FormData.package,
-            price: FormData.amount,
-            currency_id: selectedCurrency.value,
-        };
-
-        try {
-            if (editId) {
-                await api.put(`${this.apiBaseUrl}packages/${editId}`, payload);
-                toast.success("Package updated successfully");
-            } else {
-                await api.post(`${this.apiBaseUrl}packages/`, payload);
-                toast.success("Package added successfully");
-            }
-
-            this.fetchPackages(1);
-
-            this.setState({
-                showModal: false,
-                editId: null,
-                FormData: { duration: "", package: "", amount: "" },
-                selectedCurrency: null,
-                errors: {},
-            });
-        } catch (error) {
-            toast.error("Something went wrong");
-            console.error(error);
-        }
-    };
-
-
-
-
-    confirmDelete = (id, status) => {
-        this.setState({
-            deleteId: id,
-            deleteStatus: status, // ✅ actual row status
-            showDeleteConfirm: true,
-        });
-    };
-    handleDelete = async () => {
-        const { deleteId, isActive } = this.state;
-        try {
-            await api.delete(`${this.apiBaseUrl}packages/deletepackage/${deleteId}`);
-            toast.success(
-                isActive === "active"
-                    ? "Inactivated successfully"
-                    : "Activated successfully"
-            );
-            this.setState({ showDeleteConfirm: false }, this.fetchPackages);
-        } catch (error) {
-            console.error("Error deleting packages:", error);
-        }
-    };
-
-    cancelDelete = () => {
-        this.setState({ showDeleteConfirm: false, deleteId: null });
     };
 
     handleSearch = async (e) => {
@@ -296,6 +249,128 @@ class Packages extends Component {
         this.setState({ currentPage: page });
     };
 
+    toggleHistory = (item = null) => {
+        if (item) this.fetchHistory(item.id);
+        this.setState({ showHistoryModal: true });
+    };
+
+    fetchHistory = async (id) => {
+        if (!id) return;
+        try {
+            const res = await axios.get(`${this.apiBaseUrl}dbadminhistory`, {
+                params: { entity_type: "package", entity_id: id },
+            });
+            console.log("console", res.data)
+            this.setState({ history: res.data || [] });
+        } catch (error) {
+            console.error("Error fetching history:", error);
+        }
+    };
+
+    validateForm = () => {
+        const { FormData, selectedCurrency } = this.state;
+        let errors = {};
+
+        if (!FormData.duration) errors.duration = "Duration is required";
+        if (!FormData.package) errors.package = "Package is required";
+        if (!FormData.amount) errors.amount = "Amount is required";
+        if (!selectedCurrency) errors.currency = "Currency is required";
+
+        this.setState({ errors });
+        return Object.keys(errors).length === 0;
+    };
+
+    toggleForm = (item = null) => {
+        console.log(item)
+        if (item) {
+            this.setState({
+                showModal: true,
+                editId: item.id,
+                FormData: {
+                    duration: item.duration_value,
+                    package: item.duration_unit,
+                    amount: item.price,
+                },
+                selectedCurrency: {
+                    label: item.currency,
+                    value: item.currency_id,
+                },
+            });
+        } else {
+            this.setState({
+                showModal: true,
+                editId: null,
+                FormData: { duration: "", package: "", amount: "" },
+                selectedCurrency: null,
+                errors: {},
+            });
+        }
+    };
+
+    handleSubmit = async (e) => {
+        e.preventDefault();
+
+        if (!this.validateForm()) return;
+
+        const { editId, FormData, selectedCurrency } = this.state;
+
+        const payload = {
+            duration_value: FormData.duration,
+            duration_unit: FormData.package,
+            price: FormData.amount,
+            currency_id: selectedCurrency.value,
+        };
+
+        try {
+            if (editId) {
+                await api.put(`${this.apiBaseUrl}packages/${editId}`, payload);
+                toast.success("Package updated successfully");
+            } else {
+                await api.post(`${this.apiBaseUrl}packages/`, payload);
+                toast.success("Package added successfully");
+            }
+
+            this.fetchPackages(1);
+
+            this.setState({
+                showModal: false,
+                editId: null,
+                FormData: { duration: "", package: "", amount: "" },
+                selectedCurrency: null,
+                errors: {},
+            });
+        } catch (error) {
+            toast.error("Something went wrong");
+            console.error(error);
+        }
+    };
+
+    confirmDelete = (id, status) => {
+        this.setState({
+            deleteId: id,
+            deleteStatus: status,
+            showDeleteConfirm: true,
+        });
+    };
+    handleDelete = async () => {
+        const { deleteId, isActive } = this.state;
+        try {
+            await api.delete(`${this.apiBaseUrl}packages/deletepackage/${deleteId}`);
+            toast.success(
+                isActive === "active"
+                    ? "Inactivated successfully"
+                    : "Activated successfully"
+            );
+            this.setState({ showDeleteConfirm: false }, this.fetchPackages);
+        } catch (error) {
+            console.error("Error deleting packages:", error);
+        }
+    };
+
+    cancelDelete = () => {
+        this.setState({ showDeleteConfirm: false, deleteId: null });
+    };
+
     render() {
         const {
             packages,
@@ -324,33 +399,14 @@ class Packages extends Component {
                 <h6 className="fw-bold mb-3">Packages List</h6>
                 <div className="poppins-font">
                     <Container fluid>
-                        <div className="country-header-section">
-                            <p
-                                className="breadcrumb-text"
-                                title="History"
-                                breadcrumbItem="Activity Log"
-                            />
+                        <div className="institute-header-section d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
 
-                            <div className="d-flex justify-content-end my-2">
-                                <Button
-                                    variant="dark"
-                                    onClick={() => this.toggleForm()}
-                                    className="add-country-btn"
-                                >
-                                    Add New Package
-                                </Button>
-                            </div>
-
-                            <div className="w-100 m-2">
-                                <p className="filter-label text-dark">Filter by Status</p>
+                            {/* Left side: Status filter */}
+                            <div className="d-flex align-items-center gap-2">
+                                <span className="filter-label text-dark">Filter by Status:</span>
                                 <select
                                     className="rounded-square form-select p-2"
-                                    style={{
-                                        maxWidth: "250px",
-                                        // fontFamily: "Helvetica Neue, Arial, sans-serif",
-                                        color: "#666565ff",
-                                        border: "1px solid #ccc",
-                                    }}
+                                    style={{ maxWidth: "200px" }}
                                     value={isActive}
                                     onChange={(e) => this.setState({ isActive: e.target.value })}
                                 >
@@ -358,10 +414,57 @@ class Packages extends Component {
                                     <option value="active">Active</option>
                                     <option value="inactive">Inactive</option>
                                 </select>
-
-
                             </div>
+
+
+                            {/* Right side: Buttons */}
+                            <div className="d-flex align-items-end gap-2 flex-wrap">
+
+                                {/* Add Institute */}
+                                <Button
+                                    variant="dark"
+                                    onClick={() => this.toggleForm()}
+                                    className="add-institute-btn"
+                                >
+                                    Add Package
+                                </Button>
+
+                                {/* Import Excel */}
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => this.fileInputRef.click()}
+                                >
+                                    Import Excel
+                                </Button>
+
+                                <input
+                                    type="file"
+                                    accept=".xlsx,.xls"
+                                    ref={(ref) => (this.fileInputRef = ref)}
+                                    style={{ display: "none" }}
+                                    onChange={this.handleExcelImport}
+                                />
+
+
+                                <input
+                                    type="file"
+                                    accept=".xlsx,.xls"
+                                    ref={(ref) => (this.fileInputRef = ref)}
+                                    style={{ display: "none" }}
+                                    onChange={this.handleExcelImport}
+                                />
+
+                                {/* Export Button */}
+                                <Button
+                                    variant="success"
+                                    onClick={this.handleExcelExport} // create this function
+                                >
+                                    Export
+                                </Button>
+                            </div>
+
                         </div>
+
 
                         <Card>
                             <CardBody>
@@ -759,12 +862,12 @@ class Packages extends Component {
                                         fontSize: "14px",
                                     }}
                                 >
-                                    <strong> 
+                                    <strong>
                                         Price : {item.data.price},Duration {item.data.duration_value}
                                         {item.data.duration_unit}
-                                        
-                                        </strong> was{" "}
-                                    
+
+                                    </strong> was{" "}
+
                                     <span
                                         style={{
                                             color:

@@ -1,38 +1,58 @@
+import React, { Component } from "react";
+import { Row, Col, Card, CardBody, CardHeader } from "reactstrap";
 import MessagesList from "./messagesList";
 import SenderMessages from "./senderMessages";
-import { useState } from "react";
 
-const ChatBox = () => {
-  const userId = sessionStorage.getItem("userId");
-  const [selectedContactId, setSelectedContactId] = useState(null);
-  const [selectedContactName, setSelectedContactName] = useState("");
+class ChatBox extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      selectedContactId: null,
+      selectedContactName: "",
+      userId: sessionStorage.getItem("userId"),
+    };
 
-  return (
-    <div className="row">
-      <div className="contacts_column col-xl-4 col-lg-5 col-md-12 col-sm-12 chat" id="chat_contacts">
-        <div className="card contacts_card">
-          <div className="card-header">
-            <div className="card-body contacts_body">
+    // Add a ref to access MessagesList methods
+    this.messagesListRef = React.createRef();
+  }
+
+  handleSelectContact = (contactId, contactName) => {
+    this.setState({
+      selectedContactId: contactId,
+      selectedContactName: contactName,
+    });
+  };
+
+  render() {
+    const { userId, selectedContactId, selectedContactName } = this.state;
+
+    return (
+      <Row>
+        {/* Contacts Column */}
+        <Col xl="4" lg="5" md="12" sm="12" className="chat">
+          <Card className="contacts_card">
+            <CardHeader>Contacts</CardHeader>
+            <CardBody className="contacts_body">
               <MessagesList
-                onSelectContact={(contactId, contactName) => {
-                  setSelectedContactId(contactId);
-                  setSelectedContactName(contactName);
-                }}
+                ref={this.messagesListRef} // attach ref here
+                onSelectContact={this.handleSelectContact}
               />
-            </div>
-          </div>
-        </div>
-      </div>
+            </CardBody>
+          </Card>
+        </Col>
 
-      <div className="col-xl-8 col-lg-7 col-md-12 col-sm-12 chat">
-        <SenderMessages
-          userId={userId}
-          receiverId={selectedContactId}
-          receiverName={selectedContactName}
-        />
-      </div>
-    </div>
-  );
-};
+        {/* Messages Column */}
+        <Col xl="8" lg="7" md="12" sm="12" className="chat">
+          <SenderMessages
+            userId={userId}
+            receiverId={selectedContactId}
+            receiverName={selectedContactName}
+            refreshContacts={() => this.messagesListRef.current.fetchContacts()} // now works
+          />
+        </Col>
+      </Row>
+    );
+  }
+}
 
 export default ChatBox;

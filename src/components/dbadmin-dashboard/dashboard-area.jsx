@@ -1,6 +1,6 @@
 "use client";
 
-import ProfessionForm from "./profession.jsx";
+import Speciality from "./speciality.jsx";
 import City from "./city.jsx";
 import Jobtype from "./jobtypes.jsx";
 import Skills from "./skills.jsx";
@@ -10,14 +10,15 @@ import DegreeFields from "./degreefields";
 import BusinessEntityTypes from "./businessentitytype";
 import Currency from "./currency";
 import Districts from "./district";
+import Packages from "./packages.jsx";
+import LicenseType from "./licensetypes.jsx";
+import Institute from "./institute.jsx";
+import Bank from "./bank.jsx";
 import ChangePasswordForm from "../form/changepassword/changepasswordform.jsx"
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useSelector } from "react-redux";
-import Packages from "./packages.jsx";
-import LicenseType from "./licensetypes.jsx";
-import Speciality from "./speciality.jsx";
-import Institute from "./institute.jsx";
+
 
 const DashboardArea = ({ activeTab }) => {
   // ✅ Receive as prop
@@ -44,8 +45,8 @@ const DashboardArea = ({ activeTab }) => {
         return <Districts />;
       case "city":
         return <City />;
-      case "profession":
-        return <ProfessionForm />;
+      case "speciality":
+        return <Speciality />;
       case "skills":
         return <Skills />;
       case "institute":
@@ -66,6 +67,8 @@ const DashboardArea = ({ activeTab }) => {
         return <LicenseType />;
       case "speciality":
         return <Speciality />;
+      case "bank":
+        return <Bank />;
       case "changepassword":
         return <ChangePasswordForm />;
       default:

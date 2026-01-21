@@ -13,4 +13,8 @@ router.post('/postjob/:userId',jobController.postJob)
 router.put('/updatejob/:userId/:jobId',jobController.updatePostJob)
 router.put('/subcribepackage',jobController.subcribePackage)
 router.get('/getjob/:userId',jobController.getJobTitle)
+router.get("/topCompanies/:limit?",jobController.getTopCompanies)
+
+router.get("/popularcategories/:limit?",jobController.popularCategories)
+
 module.exports = router;

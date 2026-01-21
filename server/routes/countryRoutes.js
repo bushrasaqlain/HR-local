@@ -6,7 +6,7 @@ const authMiddleware = require("../middleware/auth");
 router.post("/addcountries", authMiddleware, countryController.addCountry);
 router.put("/editcountry/:id", authMiddleware, countryController.editCountry);
 router.get("/getallCountries", countryController.getAllCountries);
-router.delete("/deletecountry/:id", authMiddleware,countryController.deleteCountry);
+router.put("/updateStatus/:id", authMiddleware,countryController.updateStatus);
 
 
 module.exports = router;

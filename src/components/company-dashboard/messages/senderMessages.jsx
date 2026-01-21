@@ -1,38 +1,73 @@
-import React, { useState, useEffect, useRef } from "react";
-import { useLayoutEffect } from "react";
+import React, { Component, createRef } from "react";
+import {
+  Card,
+  CardHeader,
+  CardBody,
+  CardFooter,
+  Button,
+  Form,
+  Input,
+} from "reactstrap";
 
-const SenderMessages = ({ receiverId, receiverName }) => {
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState("");
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-  const userId = sessionStorage.getItem("userId");
+class SenderMessages extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      messages: [],
+      newMessage: "",
+      userId: sessionStorage.getItem("userId"),
+    };
 
-  const messagesEndRef = useRef(null);
+    this.apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    this.messagesEndRef = createRef();
+  }
 
-  useEffect(() => {
-    if (receiverId) fetchMessages(userId, receiverId);
-  }, [receiverId, userId]);
+  componentDidMount() {
+    this.fetchMessagesIfNeeded();
+  }
 
+  componentDidUpdate(prevProps, prevState) {
+    const { receiverId } = this.props;
+    const { userId } = this.state;
 
-  const fetchMessages = async (userId, otherUserId) => {
+    // Fetch messages if receiver changes
+    if (receiverId && receiverId !== prevProps.receiverId) {
+      this.fetchMessages(userId, receiverId);
+    }
+
+    // Scroll to bottom when messages update
+    if (prevState.messages.length !== this.state.messages.length) {
+      this.scrollToBottom();
+    }
+  }
+
+  fetchMessagesIfNeeded = () => {
+    const { receiverId } = this.props;
+    const { userId } = this.state;
+    if (receiverId) {
+      this.fetchMessages(userId, receiverId);
+    }
+  };
+
+  fetchMessages = async (userId, otherUserId) => {
     try {
       const response = await fetch(
-        `${apiBaseUrl}message/getAllmessages/${userId}/${otherUserId}`
+        `${this.apiBaseUrl}message/getAllmessages/${userId}/${otherUserId}`
       );
       if (response.ok) {
         const data = await response.json();
-        setMessages(data);
+        this.setState({ messages: data });
       }
     } catch (error) {
       console.error("Error fetching messages:", error);
     }
   };
 
-  const handleMessageSubmit = async (e) => {
+  handleMessageSubmit = async (e) => {
     e.preventDefault();
-    if (!receiverId) return;
-
-    if (newMessage.trim() === "") return;
+    const { receiverId } = this.props;
+    const { newMessage, userId } = this.state;
+    if (!receiverId || newMessage.trim() === "") return;
 
     const newMessageObj = {
       senderId: userId,
@@ -41,7 +76,7 @@ const SenderMessages = ({ receiverId, receiverName }) => {
     };
 
     try {
-      const response = await fetch(`${apiBaseUrl}message/sendmessage`, {
+      const response = await fetch(`${this.apiBaseUrl}message/sendmessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newMessageObj),
@@ -49,85 +84,86 @@ const SenderMessages = ({ receiverId, receiverName }) => {
 
       if (response.ok) {
         const data = await response.json();
-
-        setMessages((prev) => [...prev, data.savedMessage]);
-        setNewMessage("");
+        this.setState((prev) => ({
+          messages: [...prev.messages, data.savedMessage],
+          newMessage: "",
+        }));
+        if (this.props.refreshContacts) {
+          this.props.refreshContacts();
+        }
       }
-
     } catch (error) {
       console.error("Error sending message:", error);
     }
   };
 
-  const formatTime = (timeString) => {
-    return new Date(timeString).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
-  useLayoutEffect(() => {
-    const container = messagesEndRef.current?.parentElement;
+  scrollToBottom = () => {
+    const container = this.messagesEndRef.current?.parentElement;
     if (!container) return;
 
     const isAtBottom =
       container.scrollHeight - container.scrollTop <= container.clientHeight + 5;
 
     if (isAtBottom) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+      this.messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages]);
+  };
 
+  formatTime = (timeString) => {
+    return new Date(timeString).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
 
+  render() {
+    const { receiverName } = this.props;
+    const { messages, newMessage, userId } = this.state;
 
+    return (
+      <div className="chat-box-container">
+        <Card className="message-card">
+          <CardHeader className="msg_head">
+            <div className="user_info">
+              <span>Receiver: {receiverName || "Select a contact"}</span>
+            </div>
+          </CardHeader>
 
-  return (
-    <div className="chat-box-container">
-      <div className="card message-card">
-        <div className="card-header msg_head">
-          <div className="user_info">
-            <span>Receiver: {receiverName || "Select a contact"}</span>
-          </div>
-        </div>
-
-        <div className="card-body msg_card_body">
-          {messages.map((msg) => {
-            const isSender = String(msg.senderId) === String(userId);
-
-            return (
-              <div
-                key={msg.id}
-                className={`msg_cotainer ${isSender ? "msg_sent" : "msg_receive"}`}
-              >
-                <div className="msg_text">
-                  {msg.message}
+          <CardBody className="msg_card_body">
+            {messages.map((msg) => {
+              const isSender = String(msg.senderId) === String(userId);
+              return (
+                <div
+                  key={msg.id}
+                  className={`msg_cotainer ${isSender ? "msg_sent" : "msg_receive"}`}
+                >
+                  <div className="msg_text">{msg.message}</div>
+                  <div className="msg_time">{this.formatTime(msg.timestamp)}</div>
                 </div>
+              );
+            })}
+            <div ref={this.messagesEndRef} />
+          </CardBody>
 
-                <div className="msg_time">
-                  {formatTime(msg.timestamp)}
-                </div>
-              </div>
-            );
-          })}
-          <div ref={messagesEndRef} />
-        </div>
-
-        <div className="card-footer">
-          <form onSubmit={handleMessageSubmit}>
-            <textarea
-              className="form-control type_msg"
-              placeholder="Type a message..."
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-            ></textarea>
-            <button type="submit" className="btn btn-primary mt-2">
-              Send Message
-            </button>
-          </form>
-        </div>
+          <CardFooter>
+            <Form onSubmit={this.handleMessageSubmit}>
+              <Input
+                type="textarea"
+                className="type_msg"
+                placeholder="Type a message..."
+                value={newMessage}
+                onChange={(e) => this.setState({ newMessage: e.target.value })}
+              />
+              <Button type="submit" color="primary" className="mt-2">
+                Send Message
+              </Button>
+            </Form>
+          </CardFooter>
+        </Card>
       </div>
-    </div>
-  );
-};
+    );
+  }
+}
 
 export default SenderMessages;

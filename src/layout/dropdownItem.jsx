@@ -1,4 +1,4 @@
-const admindropdwonData = () => {
+const dropdownItem = () => {
   return [
     {
       id: 1,
@@ -15,4 +15,4 @@ const admindropdwonData = () => {
   ];
 };
 
-export default admindropdwonData;
+export default dropdownItem;

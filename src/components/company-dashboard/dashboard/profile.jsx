@@ -2,7 +2,6 @@ import TopCardBlock from "./TopCardBlock";
 import ProfileChart from "./ProfileChart";
 import Notification from "./Notification";
 import Applicants from "./Applicants";
-// import FormInfoBox from "../../employers-dashboard/company-profile/index";
 
 
 const Profile = () => {   

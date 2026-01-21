@@ -24,7 +24,6 @@ const createBankTable = () => {
   });
 }
 
-
 const getAllBank = ({ page, limit, name, search, status }, callback) => {
   page = parseInt(page) || 1;
   limit = parseInt(limit) || 15;
@@ -33,20 +32,34 @@ const getAllBank = ({ page, limit, name, search, status }, callback) => {
   const allowedColumns = ["name", "created_at", "updated_at"];
   if (!allowedColumns.includes(name)) name = "name";
 
-  let condition = "";
-  let values = [status];
+  let whereConditions = [];
+  let values = [];
 
-  if (name === "name") {
-    condition = " AND name LIKE ?";
-    values.push(`%${search}%`);
-  } else {
-    condition = ` AND DATE(${name}) = ?`;
-    values.push(search);
+  // ✅ Status filter ONLY if not "all"
+  if (status && status !== "all") {
+    whereConditions.push("status = ?");
+    values.push(status);
   }
+
+  // ✅ Search filter
+  if (search && search !== "") {
+    if (name === "name") {
+      whereConditions.push("name LIKE ?");
+      values.push(`%${search}%`);
+    } else {
+      whereConditions.push(`DATE(${name}) = ?`);
+      values.push(search);
+    }
+  }
+
+  const whereClause =
+    whereConditions.length > 0
+      ? `WHERE ${whereConditions.join(" AND ")}`
+      : "";
 
   const query = `
     SELECT * FROM bank_names
-    WHERE status = ? ${condition}
+    ${whereClause}
     ORDER BY id DESC
     LIMIT ? OFFSET ?
   `;
@@ -56,24 +69,24 @@ const getAllBank = ({ page, limit, name, search, status }, callback) => {
   connection.query(query, values, (err, results) => {
     if (err) return callback(err);
 
-    connection.query(
-      `SELECT COUNT(*) AS total FROM bank_names WHERE status = ? ${condition}`,
-      values.slice(0, -2),
-      (err2, countResult) => {
-        if (err2) return callback(err2);
+    const countQuery = `
+      SELECT COUNT(*) AS total
+      FROM bank_names
+      ${whereClause}
+    `;
 
-        callback(null, {
-          total: countResult[0].total,
-          page,
-          limit,
-          bank_names: results,
-        });
-      }
-    );
+    connection.query(countQuery, values.slice(0, -2), (err2, countResult) => {
+      if (err2) return callback(err2);
+
+      callback(null, {
+        total: countResult[0].total,
+        page,
+        limit,
+        bank_names: results,
+      });
+    });
   });
 };
-
-
 
 const addBank = ({ name, type, data, userId }, callback) => {
 
@@ -154,8 +167,6 @@ const addBank = ({ name, type, data, userId }, callback) => {
   }
 };
 
-
-
 const editBank=(req, res) => {
    const { id } = req.params;
   const { name } = req.body;
@@ -186,7 +197,7 @@ const editBank=(req, res) => {
   });
 }
 
-const deleteBank=(req, res) => {
+const updateStatus=(req, res) => {
    const { id } = req.params;
   const userId = req.user.userId;
 
@@ -216,12 +227,10 @@ const deleteBank=(req, res) => {
   });
 }
 
-
-
 module.exports = {
   createBankTable,
   addBank,
   getAllBank,
   editBank,
-  deleteBank
+  updateStatus
 };

@@ -13,7 +13,7 @@ router.post("/addbankname",bankController.addBank);
 
 router.get("/getallbanknames",bankController.getAllBank);
 
-router.delete("/deletebankname/:id", authMiddleware,bankController.deleteBank)
+router.put("/updateBankStatus/:id", authMiddleware,bankController.updateStatus)
 
 
 router.put("/editbankname/:id", authMiddleware,bankController.editBank);
