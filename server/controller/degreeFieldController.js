@@ -73,6 +73,25 @@ const getAllDegreeFields = (req, res) => {
     }
   );
 }
+// Function to fetch dropdown data
+const getDegreeFieldsDropdown = (req, res) => {
+  const { degree_type_id, search = "", status = "Active" } = req.query;
+
+  if (!degree_type_id) return res.json({ degreefields: [] });
+
+  degreeFieldModel.getDegreeFieldsDropdown(
+    {
+      degree_type_id: parseInt(degree_type_id),
+      search,
+      status,
+    },
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ degreefields: results });
+    }
+  );
+};
+
 const deleteDegreeField = (req, res) => {
     const { id } = req.params;
     const userId = req.user.userId;
@@ -97,5 +116,6 @@ module.exports = {
     addDegreeField,
     editDegreeField,
     getAllDegreeFields,
-    deleteDegreeField
+    deleteDegreeField,
+    getDegreeFieldsDropdown
 };  

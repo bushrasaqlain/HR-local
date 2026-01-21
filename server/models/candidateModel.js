@@ -29,29 +29,55 @@ const createCandidateAvailabilityTable = () => {
 const createCandidateTable = () => {
   const createCandidateInfoTable = `
 CREATE TABLE IF NOT EXISTS candidate_info (
-  ID INT AUTO_INCREMENT PRIMARY KEY,
-  account_id INT UNIQUE,
-  passport_photo LONGBLOB NULL,             
-  phone VARCHAR(20) NOT NULL,
-  date_of_birth DATE NOT NULL,
-  gender ENUM('male','female','other') NOT NULL,
-  marital_status ENUM('single','married','divorced','widowed') NOT NULL,
-  total_experience VARCHAR(20) NOT NULL,
+  id INT AUTO_INCREMENT PRIMARY KEY,
+
+  account_id INT UNIQUE NOT NULL,
+
+  full_name VARCHAR(255),
+  email VARCHAR(255),
+  phone VARCHAR(20),
+
+  date_of_birth DATE,
+  Age INT,
+
+  gender ENUM('male','female','other'),
+  marital_status ENUM('single','married','divorced','widowed'),
+
+  total_experience VARCHAR(20),
+  Experience VARCHAR(20),
+
   license_type VARCHAR(50),
   license_number VARCHAR(50),
+
   address TEXT,
-  country INT NOT NULL,
-  district INT NOT NULL,
-  city INT NOT NULL,
+  Complete_Address TEXT,
+
+  country INT,
+  district INT,
+  city INT,
+
   skills JSON,
-  Description TEXT,
-  Links Text,
-  profile_completed BOOLEAN DEFAULT FALSE, 
-  FOREIGN KEY (account_id) REFERENCES account(id),
+  categories JSON,
+
+  speciality JSON,
+  otherPreferredCities JSON,
+
+  Links JSON,
+
+  current_salary DECIMAL(10,2),
+  expected_salary DECIMAL(10,2),
+
+  passport_photo VARCHAR(255),
+
+  profile_completed BOOLEAN DEFAULT FALSE,
+
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE,
   FOREIGN KEY (country) REFERENCES countries(id),
   FOREIGN KEY (district) REFERENCES districts(id),
   FOREIGN KEY (city) REFERENCES cities(id)
-
 );
   `;
 
@@ -395,7 +421,6 @@ INSERT INTO candidate_info (
     district = VALUES(district),
     city = VALUES(city),
     skills = VALUES(skills),
-    \`Description\` = VALUES(\`Description\`),
     \`Links\` = VALUES(\`Links\`),
     current_salary = VALUES(current_salary),
     expected_salary = VALUES(expected_salary),
@@ -424,7 +449,6 @@ INSERT INTO candidate_info (
         district || null, // district
         city || null, // city
         skillsArr ? JSON.stringify(skillsArr) : null, // skills
-        Description || null, // Description
         linksArr ? JSON.stringify(linksArr) : null, // Links
         current_salary || null, // current_salary
         expected_salary || null, // expected_salary
@@ -479,8 +503,6 @@ const getCandidateInfo = (req, res) => {
       ci.city,
       ci.skills,
       ci.categories,
-      ci.Education,
-      ci.Description,
       ci.Links,
       ci.current_salary,
       ci.expected_salary,
@@ -499,9 +521,36 @@ const getCandidateInfo = (req, res) => {
       return res.status(500).json({ error: err.message });
     }
 
-    if (!result.length) {
-      return res.status(404).json({ error: "Candidate not found" });
-    }
+   if (!result.length) {
+  return res.status(200).json({
+    account_id: accountId,
+    full_name: "",
+    email: "",
+    phone: "",
+    date_of_birth: "",
+    gender: "",
+    marital_status: "",
+    total_experience: "",
+    license_type: "",
+    license_number: "",
+    address: "",
+    country: null,
+    district: null,
+    city: null,
+    skills: [],
+    categories: [],
+    speciality: [],
+    otherPreferredCities: [],
+    Education: [],
+    Links: [],
+    current_salary: "",
+    expected_salary: "",
+    Age: "",
+    profile_completed: false,
+    passport_photo: null,
+  });
+}
+
 
     const candidate = result[0];
 

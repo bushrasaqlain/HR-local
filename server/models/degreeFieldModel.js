@@ -81,11 +81,8 @@ const addDegreeField = ({ name, t_id, type, data, userId }, callback) => {
     });
   }
 };
-
-
-
 const getAllDegreeFields = (
-  { page = 1, limit = 0, column = "name", search = "", status = "all", degree_type_id },
+  { page = 1, limit = 15, column = "name", search = "", status = "all" },
   callback
 ) => {
   page = parseInt(page);
@@ -93,64 +90,88 @@ const getAllDegreeFields = (
   const offset = (page - 1) * limit;
 
   const allowedColumns = ["name", "created_at", "updated_at"];
-  if (!allowedColumns.includes(column)) column = "name";
 
-  const conditions = [];
-  const params = [];
-
-  // ✅ Search filter
-  if (search) {
-    const searchColumn =
-      column === "created_at" || column === "updated_at"
-        ? `DATE(d.${column})`
-        : `d.${column}`;
-    conditions.push(`${searchColumn} LIKE ?`);
-    params.push(`%${search}%`);
+  if (!allowedColumns.includes(column)) {
+    column = "name";
   }
 
-  // ✅ Status filter
+  const searchColumn =
+    column === "created_at" || column === "updated_at"
+      ? `DATE(d.${column})`
+      : `d.${column}`;
+
+  let where = `WHERE ${searchColumn} LIKE ?`;
+  let params = [`%${search}%`];
+
   if (status !== "all") {
-    conditions.push("d.status = ?");
+    where += " AND d.status = ?";
     params.push(status);
   }
 
-  // ✅ Degree type filter
-  if (degree_type_id) {
-    conditions.push("d.degree_type_id = ?");
-    params.push(degree_type_id);
-  }
-
-  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-
-  // ✅ Main query
   const query = `
-    SELECT d.*
+    SELECT 
+      d.*,
+      dt.name AS degree_type_name
     FROM degreefields d
-    ${whereClause}
+    LEFT JOIN degreetypes dt ON dt.id = d.degree_type_id
+    ${where}
     ORDER BY d.id DESC
-    ${limit > 0 ? "LIMIT ? OFFSET ?" : ""}
+    LIMIT ? OFFSET ?
   `;
-  const queryValues = limit > 0 ? [...params, limit, offset] : params;
 
-  connection.query(query, queryValues, (err, results) => {
+  connection.query(query, [...params, limit, offset], (err, results) => {
     if (err) return callback(err);
 
-    // ✅ Count query
-    const countQuery = `SELECT COUNT(*) AS total FROM degreefields d ${whereClause}`;
-    connection.query(countQuery, params, (err2, count) => {
-      if (err2) return callback(err2);
+    connection.query(
+      `
+      SELECT COUNT(*) AS total
+      FROM degreefields d
+      LEFT JOIN degreetypes dt ON dt.id = d.degree_type_id
+      ${where}
+      `,
+      params,
+      (err2, count) => {
+        if (err2) return callback(err2);
 
-      callback(null, {
-        total: count[0].total,
-        page,
-        limit,
-        degreefields: results,
-      });
-    });
+        callback(null, {
+          total: count[0].total,
+          page,
+          limit,
+          degreefields: results,
+        });
+      }
+    );
   });
 };
 
 
+const getDegreeFieldsDropdown = ({ degree_type_id, search = "", status = "Active" }, callback) => {
+  if (!degree_type_id) return callback(null, []);
+
+  let where = "WHERE d.degree_type_id = ? AND d.name LIKE ?";
+  const params = [degree_type_id, `%${search}%`];
+
+  if (status !== "all") {
+    where += " AND d.status = ?";
+    params.push(status);
+  }
+
+  const query = `
+    SELECT 
+      d.id,
+      d.name,
+      dt.name AS degree_type_name
+    FROM degreefields d
+    LEFT JOIN degreetypes dt ON dt.id = d.degree_type_id
+    ${where}
+    ORDER BY d.name ASC
+  `;
+
+  connection.query(query, params, (err, results) => {
+    if (err) return callback(err);
+    callback(null, results);
+  });
+};
 
 
 const editDegreeField = (id, data, userId, callback) => {
@@ -233,5 +254,6 @@ module.exports = {
     addDegreeField,
     getAllDegreeFields,
     editDegreeField,
-    deleteDegreeField
+    deleteDegreeField,
+    getDegreeFieldsDropdown
 };  

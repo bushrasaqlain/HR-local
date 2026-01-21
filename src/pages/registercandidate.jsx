@@ -42,11 +42,11 @@ class CandidateRegisterForm extends Component {
           {
             degree: "",
             degreeTitle: "",
-            instituteName: "",
+            degreeTitle_label: "",
+            institutes: "",
             startDate: "",
             endDate: "",
             ongoing: false,
-            description: "",
           },
         ],
 
@@ -217,54 +217,84 @@ class CandidateRegisterForm extends Component {
       toast.error("Could not load skills");
     }
   };
-  fetchCandidateInfo = async () => {
-    try {
-      const res = await api.get("/candidateProfile/candidate/", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+fetchCandidateInfo = async () => {
+  try {
+    const res = await api.get("/candidateProfile/candidate/", {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    });
 
-      const data = res.data;
+    const data = res.data || {}; // <-- always default to object
 
-      // Map formData
-      const mappedData = {
-        ...this.state.formData,
-        full_name: data.full_name || "",
-        phone: data.phone || "",
-        email: data.email || "",
-        date_of_birth: data.date_of_birth
-          ? new Date(data.date_of_birth).toISOString().slice(0, 10)
-          : "",
-        gender: data.gender || "",
-        marital_status: data.marital_status || "",
-        total_experience: data.total_experience || "",
-        license_type: data.license_type || "",
-        license_number: data.license_number || "",
-        speciality: data.speciality || "",
-        country: data.country ? String(data.country) : "",
-        district: data.district ? String(data.district) : "",
-        city: data.city ? String(data.city) : "",
-        otherPreferredCities: data.otherPreferredCities || "",
-        address: data.address || "",
-        skills: data.skills || [],
-        resume: data.resume || null,
-        passport_photoPreview: data.passport_photo
-          ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${
-              data.passport_photo
-            }`
-          : "",
-      };
+    // Safe JSON parse helper
+    const safeParseJSON = (val) => {
+      if (!val) return [];
+      if (Array.isArray(val)) return val;
+      try {
+        return JSON.parse(val);
+      } catch {
+        return [];
+      }
+    };
 
-      // 🔥 Load dependent dropdowns BEFORE setting formData
-      if (mappedData.country) await this.loadDistricts(mappedData.country);
-      if (mappedData.district) await this.loadCities(mappedData.district);
+    // Map formData safely
+    const mappedData = {
+      ...this.state.formData,
 
-      this.setState({ formData: mappedData });
-    } catch (err) {
-      console.error("Fetch failed", err);
-    }
-  };
+      full_name: data.full_name ?? "",
+      phone: data.phone ?? "",
+      email: data.email ?? "",
+
+      date_of_birth: data.date_of_birth
+        ? new Date(data.date_of_birth).toISOString().slice(0, 10)
+        : "",
+
+      gender: data.gender ?? "",
+      marital_status: data.marital_status ?? "",
+      total_experience: data.total_experience ?? "",
+
+      license_type: data.license_type ?? "",
+      license_number: data.license_number ?? "",
+
+      skills: safeParseJSON(data.skills),
+      speciality: safeParseJSON(data.speciality),
+      otherPreferredCities: safeParseJSON(data.otherPreferredCities),
+
+      country: data.country ? String(data.country) : "",
+      district: data.district ? String(data.district) : "",
+      city: data.city ? String(data.city) : "",
+
+      address: data.address ?? "",
+
+      passport_photoPreview: data.passport_photo
+        ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${data.passport_photo}`
+        : "",
+
+      // Ensure education array exists
+      education: Array.isArray(data.Education) && data.Education.length
+        ? data.Education
+        : [{
+            degree: "",
+            degreeTitle: "",
+            degreeTitle_label: "",
+            institutes: "",
+            startDate: "",
+            endDate: "",
+            ongoing: false,
+          }],
+    };
+
+    // 🔹 Load dependent dropdowns BEFORE setting formData
+    if (mappedData.country) await this.loadDistricts(mappedData.country);
+    if (mappedData.district) await this.loadCities(mappedData.district);
+
+    this.setState({ formData: mappedData });
+  } catch (err) {
+    console.error("Fetch failed", err);
+  }
+};
+
   loadDegrees = async () => {
     try {
       const res = await api.get("/getalldegreetype");
@@ -284,34 +314,44 @@ class CandidateRegisterForm extends Component {
     }
   };
 
-  loadInstitutes = async () => {
+  loadInstitutes = async (inputValue) => {
     try {
-      const res = await api.get("/getallDegreeFields"); // replace with your endpoint
-      this.setState({ degreetype: res.data || [] });
+      const res = await api.get("/institute/getallInstitute", {
+        params: {
+          search: inputValue || "",
+          status: "Active",
+        },
+      });
+
+      const institutes = Array.isArray(res.data?.institutes)
+        ? res.data.institutes
+        : [];
+
+      return institutes.map((inst) => ({
+        label: inst.name, // MUST exist
+        value: inst.id, // MUST exist
+      }));
     } catch (err) {
-      console.error("Failed to load degreetype", err);
-      toast.error("Could not load degreetype");
+      console.error("Institute load failed:", err);
+      return [];
     }
   };
-loadDegreeTitles = (degreeId) => async (inputValue) => {
-  const res = await api.get("/getallDegreeFields", {
-    params: {
-      search: inputValue || "",
-      degree_type_id: degreeId,
-      limit: 0, // return all for dropdown
-    },
-  });
 
-  return (res.data.degreefields || []).map((t) => ({
-    value: t.id,
-    label: t.name,
-  }));
-};
+  loadDegreeTitles = (degreeId) => async (inputValue) => {
+    if (!degreeId) return [];
 
+    const res = await api.get("/getDegreeFieldsDropdown", {
+      params: {
+        search: inputValue || "",
+        degree_type_id: degreeId,
+      },
+    });
 
-
-
-
+    return (res.data.degreefields || []).map((t) => ({
+      value: t.id,
+      label: t.name,
+    }));
+  };
 
   componentDidMount() {
     this.loadCountries();
@@ -820,77 +860,90 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
         return (
           <div>
             <h4>Step 2: Education</h4>
-            {/* import AsyncSelect from "react-select/async"; */}
 
             <FieldArray name="education">
-              {({ push, remove }) => (
-                <div>
-                  {values.education.map((edu, idx) => (
-                    <div key={idx} className="mb-3 border p-3 rounded">
+              {({ push, remove }) => {
+                const draft =
+  values.education && values.education.length > 0
+    ? values.education[0]
+    : {
+        degree: "",
+        degreeTitle: "",
+        degreeTitle_label: "",
+        institutes: "",
+        startDate: "",
+        endDate: "",
+        ongoing: false,
+      };
+
+
+                return (
+                  <>
+                    {/* ================= DRAFT FORM ================= */}
+                    <div className="mb-4 border p-3 rounded">
+                      <h6>Add / Edit Education</h6>
+
                       <div className="row mb-3">
                         {/* Degree */}
                         <div className="col-md-6">
                           <label>Degree</label>
-                          {console.log(
-                            "First degree item:",
-                            this.state.degreeFieldData?.[0],
-                          )}
-                         <Field
-  as="select"
-  name={`education.${idx}.degree`}
-  className="form-control"
-  onChange={(e) => {
-    const degreeId = e.target.value;
-    setFieldValue(`education.${idx}.degree`, degreeId);
-    // reset title
-    setFieldValue(`education.${idx}.degreeTitle`, "");
-    setFieldValue(`education.${idx}.degreeTitle_label`, "");
-  }}
->
-  <option value="">Select Degree</option>
-  {this.state.degreeFieldData.map((d) => (
-    <option key={d.id} value={String(d.id)}>
-      {d.name}
-    </option>
-  ))}
-</Field>
-
-
-                          <ErrorMessage
-                            name={`education.${idx}.degree`}
-                            component="div"
-                            className="text-danger"
-                          />
+                          <Field
+                            as="select"
+                            name="education.0.degree"
+                            className="form-control"
+                            onChange={(e) => {
+                              const degreeId = e.target.value;
+                              setFieldValue("education.0.degree", degreeId);
+                              setFieldValue("education.0.degreeTitle", "");
+                              setFieldValue(
+                                "education.0.degreeTitle_label",
+                                "",
+                              );
+                            }}
+                          >
+                            <option value="">Select Degree</option>
+                            {this.state.degreeFieldData.map((d) => (
+                              <option key={d.id} value={String(d.id)}>
+                                {d.name}
+                              </option>
+                            ))}
+                          </Field>
                         </div>
 
                         {/* Degree Title */}
-                    <div className="col-md-6">
-  <label>Degree Title</label>
-  {console.log(
-                            "First degree types",
-                            this.state.degreeTitle?.[0],
-                          )}
-<AsyncSelect
-  key={edu.degree || "no-degree"}   // 🔥 THIS IS THE FIX
-  cacheOptions={false}
-  defaultOptions
-  isDisabled={!edu.degree}
-  loadOptions={this.loadDegreeTitles(Number(edu.degree))}
-  value={
-    edu.degreeTitle
-      ? { value: edu.degreeTitle, label: edu.degreeTitle_label }
-      : null
-  }
-  onChange={(opt) => {
-    setFieldValue(`education.${idx}.degreeTitle`, opt?.value || "");
-    setFieldValue(`education.${idx}.degreeTitle_label`, opt?.label || "");
-  }}
-  placeholder="Select Degree Title"
-/>
-
-
-</div>
-
+                        <div className="col-md-6">
+                          <label>Degree Title</label>
+                          <AsyncSelect
+                            key={draft.degree || "no-degree"}
+                            cacheOptions={false}
+                            defaultOptions
+                            isDisabled={!draft.degree}
+                            loadOptions={
+                              draft.degree
+                                ? this.loadDegreeTitles(Number(draft.degree))
+                                : () => []
+                            }
+                            value={
+                              draft.degreeTitle
+                                ? {
+                                    value: draft.degreeTitle,
+                                    label: draft.degreeTitle_label,
+                                  }
+                                : null
+                            }
+                            onChange={(opt) => {
+                              setFieldValue(
+                                "education.0.degreeTitle",
+                                opt?.value || "",
+                              );
+                              setFieldValue(
+                                "education.0.degreeTitle_label",
+                                opt?.label || "",
+                              );
+                            }}
+                            placeholder="Select Degree Title"
+                          />
+                        </div>
                       </div>
 
                       <div className="row mb-3">
@@ -902,23 +955,19 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
                             defaultOptions
                             loadOptions={this.loadInstitutes}
                             value={
-                              edu.instituteName
+                              draft.institutes
                                 ? {
-                                    value: edu.instituteName,
-                                    label: edu.institute_label,
+                                    value: draft.institutes,
+                                    label: draft.institutes,
                                   }
                                 : null
                             }
-                            onChange={(opt) => {
+                            onChange={(opt) =>
                               setFieldValue(
-                                `education.${idx}.instituteName`,
-                                opt?.value || "",
-                              );
-                              setFieldValue(
-                                `education.${idx}.institute_label`,
+                                "education.0.institutes",
                                 opt?.label || "",
-                              );
-                            }}
+                              )
+                            }
                           />
                         </div>
 
@@ -927,7 +976,7 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
                           <label>Start Date</label>
                           <Field
                             type="date"
-                            name={`education.${idx}.startDate`}
+                            name="education.0.startDate"
                             className="form-control"
                           />
                         </div>
@@ -939,9 +988,9 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
                           <label>End Date</label>
                           <Field
                             type="date"
-                            name={`education.${idx}.endDate`}
+                            name="education.0.endDate"
                             className="form-control"
-                            disabled={edu.ongoing}
+                            disabled={draft.ongoing}
                           />
                         </div>
 
@@ -950,7 +999,7 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
                           <div className="form-check mt-4">
                             <Field
                               type="checkbox"
-                              name={`education.${idx}.ongoing`}
+                              name="education.0.ongoing"
                               className="form-check-input"
                             />
                             <label className="form-check-label">Ongoing</label>
@@ -958,55 +1007,91 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
                         </div>
                       </div>
 
-                      <div className="row mb-3">
-                        {/* Description */}
-                        <div className="col-md-12">
-                          <label>Description</label>
-                          <Field
-                            as="textarea"
-                            name={`education.${idx}.description`}
-                            className="form-control"
-                            rows="3"
-                          />
-                        </div>
-                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => {
+                          if (!draft.degree || !draft.degreeTitle) {
+                            toast.error("Please fill required fields");
+                            return;
+                          }
 
-                      {idx > 0 && (
-                        <button
-                          type="button"
-                          className="btn btn-danger btn-sm"
-                          onClick={() => remove(idx)}
-                        >
-                          Remove
-                        </button>
-                      )}
+                          push({ ...draft });
+
+                          setFieldValue("education.0", {
+                            degree: "",
+                            degreeTitle: "",
+                            degreeTitle_label: "",
+                            institutes: "",
+                            startDate: "",
+                            endDate: "",
+                            ongoing: false,
+                          });
+                        }}
+                      >
+                        Add More
+                      </button>
                     </div>
-                  ))}
 
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={() =>
-                      push({
-                        degree: "",
-                        degree_label: "",
-                        degreeTitle: "",
-                        instituteName: "",
-                        institute_label: "",
-                        startDate: "",
-                        endDate: "",
-                        ongoing: false,
-                        description: "",
-                      })
-                    }
-                  >
-                    Add More
-                  </button>
-                </div>
-              )}
+                    {/* ================= TEMP RECORDS TABLE ================= */}
+                    {values.education.length > 1 && (
+                      <table className="table table-bordered">
+                        <thead>
+                          <tr>
+                            <th>Degree</th>
+                            <th>Title</th>
+                            <th>Institute</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {values.education.slice(1).map((edu, i) => {
+                            const index = i + 1;
+
+                            // 🔹 Map ID → Name
+                            const degreeName =
+                              this.state.degreeFieldData.find(
+                                (d) => String(d.id) === String(edu.degree),
+                              )?.name || "";
+
+                            return (
+                              <tr key={index}>
+                                <td>{degreeName}</td>
+                                <td>{edu.degreeTitle_label}</td>
+                                <td>{edu.institutes}</td>
+                                <td>
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-warning me-2"
+                                    onClick={() => {
+                                      setFieldValue("education.0", edu);
+                                      remove(index);
+                                    }}
+                                  >
+                                    Edit
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-danger"
+                                    onClick={() => remove(index)}
+                                  >
+                                    Delete
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    )}
+                  </>
+                );
+              }}
             </FieldArray>
           </div>
         );
+
       case 3:
         return (
           <div>
@@ -1159,7 +1244,7 @@ loadDegreeTitles = (degreeId) => async (inputValue) => {
           return formData.full_name || formData.phone || formData.email;
         case 2:
           return formData.education.some(
-            (edu) => edu.degreeTitle || edu.instituteName,
+            (edu) => edu.degreeTitle || edu.institutes,
           );
         case 3:
           return formData.experience.some(
