@@ -1,5 +1,4 @@
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
 const countryModel = require("../models/countryModel");
 const districtModel = require("../models/districtModel");
@@ -21,6 +20,7 @@ const specialityModel=require("../models/specialityModel")
 const instituteModel=require("../models/instituteModel")
 const dbadminhistory =require("../models/dbHistoryModel")
 const paymentModel=require("../models/paymentModel")
+const candidateeducationModel=require("../models/candidateeducationModel")
 function Database() {
 
   countryModel.createCountriesTable();
@@ -47,7 +47,8 @@ function Database() {
   paymentModel.createPaymentTable()
   applicantModel.createApplicantsTable();
   historyModel.createHistoryTable();
-  messageModel.createMessagesTable()
+  messageModel.createMessagesTable();
+  candidateeducationModel.createEducationTable()
 
 }
 

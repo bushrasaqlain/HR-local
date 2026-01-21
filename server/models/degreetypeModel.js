@@ -142,14 +142,10 @@ const editDegreeType = (req, res) => {
 };
 
 const getAllDegreeTypes = (
-  { page = 1, limit = 15, name = "name", search = "", status = "active" },
+  { page = 1, limit = 0, name = "name", search = "", status = "active" },
   callback
 ) => {
-  const pageNum = parseInt(page, 10) || 1;
-  const limitNum = parseInt(limit, 10) || 15;
-  const offset = (pageNum - 1) * limitNum;
-
-  // ✅ whitelist columns to prevent SQL injection
+  // Page and limit are ignored when returning all results
   const allowedColumns = ["name", "status", "created_at", "updated_at"];
   if (!allowedColumns.includes(name)) name = "name";
 
@@ -171,7 +167,6 @@ const getAllDegreeTypes = (
       whereConditions.push("LOWER(status) LIKE ?");
       values.push(`%${search.toLowerCase()}%`);
     } else {
-      // name column
       whereConditions.push(`${name} LIKE ?`);
       values.push(`%${search}%`);
     }
@@ -180,39 +175,25 @@ const getAllDegreeTypes = (
   const whereClause =
     whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
 
-  // ✅ Main query
+  // ✅ Main query without LIMIT/OFFSET
   const query = `
     SELECT *
     FROM degreetypes
     ${whereClause}
     ORDER BY id DESC
-    LIMIT ? OFFSET ?
   `;
 
-  const queryValues = [...values, limitNum, offset];
-
-  // ✅ Count query for pagination
-  const countQuery = `
-    SELECT COUNT(*) AS total
-    FROM degreetypes
-    ${whereClause}
-  `;
-
-  connection.query(query, queryValues, (err, results) => {
+  connection.query(query, values, (err, results) => {
     if (err) return callback(err);
 
-    connection.query(countQuery, values, (err2, countResult) => {
-      if (err2) return callback(err2);
-
-      callback(null, {
-        total: countResult[0].total,
-        page: pageNum,
-        limit: limitNum,
-        degreetypes: results,
-      });
+    // Count is now just results.length
+    callback(null, {
+      total: results.length,
+      degreetypes: results,
     });
   });
 };
+
 
 const deleteDegreeType = (req, res) => {
   const { id } = req.params;

@@ -7,5 +7,6 @@ router.post("/adddegreefield", authMiddleware, degreefieldController.addDegreeFi
 router.put("/editdegreefield/:id", authMiddleware, degreefieldController.editDegreeField);
 router.get("/getallDegreeFields", degreefieldController.getAllDegreeFields);
 router.delete("/deleteDegreeField/:id", authMiddleware, degreefieldController.deleteDegreeField);
+router.get("/getDegreeFieldsDropdown", degreefieldController.getDegreeFieldsDropdown);
 
 module.exports = router;

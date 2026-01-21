@@ -90,32 +90,45 @@ class FormContent extends Component {
       const res = await api.post("/login", values);
 
       if (!res.data.success) {
-        this.setState({ loginError: "Admin has not activated you yet. Please wait!" });
+        this.setState({
+          loginError: "Admin has not activated you yet. Please wait!",
+        });
         return;
       }
 
       // Save token
       sessionStorage.setItem("token", res.data.token);
-
-      // Get logged-in user info
-      const userRes = await api.get("/api/me");
-      dispatch(setUser(userRes.data));
+      dispatch(setUser(res.data));
 
       // Save user info in session
-      sessionStorage.setItem("userId", userRes.data.userId);
-      sessionStorage.setItem("accountType", userRes.data.accountType);
-      sessionStorage.setItem("username", userRes.data.username);
+      sessionStorage.setItem("userId", res.data.userId);
+      sessionStorage.setItem("accountType", res.data.accountType);
+      sessionStorage.setItem("username", res.data.username);
 
       toast.success("Login successfully!");
-      router.push("/dashboard-header");
+
+      // ✅ Role-based routing
+      const accountType = res.data.accountType;
+      console.log(res.data.userId);
+
+      if (accountType === "admin") {
+        router.push("/admin/dashboard");
+      } else if (accountType === "candidate") {
+        router.push("/registercandidate");
+      } else if (accountType === "hr") {
+        router.push("/hr/dashboard");
+      }
+
+      // else {
+      //   router.push("/dashboard-header"); // fallback
+      // }
     } catch (err) {
       console.error(err);
-      this.setState({ loginError: "Invalid email or password, please try again." });
+      this.setState({
+        loginError: "Invalid email or password, please try again.",
+      });
     }
   };
-
-
-
 
   render() {
     const { values, errors, showPassword, loginError } = this.state;

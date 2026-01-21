@@ -10,7 +10,7 @@ const createDegreeFieldsTable = () => {
     id INT AUTO_INCREMENT PRIMARY KEY,
     degree_type_id INT NOT NULL,
     name VARCHAR(255) NOT NULL,
-    status ENUM('active', 'inactive') DEFAULT 'active',
+    status ENUM('Active', 'InActive') DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (degree_type_id) REFERENCES degreetypes(id) ON DELETE CASCADE
@@ -125,7 +125,11 @@ const getAllDegreeFields = (
     SELECT 
       d.*,
       dt.name AS degree_type_name
+    SELECT 
+      d.*,
+      dt.name AS degree_type_name
     FROM degreefields d
+    LEFT JOIN degreetypes dt ON dt.id = d.degree_type_id
     LEFT JOIN degreetypes dt ON dt.id = d.degree_type_id
     ${where}
     ORDER BY d.id DESC
@@ -136,6 +140,12 @@ const getAllDegreeFields = (
     if (err) return callback(err);
 
     connection.query(
+      `
+      SELECT COUNT(*) AS total
+      FROM degreefields d
+      LEFT JOIN degreetypes dt ON dt.id = d.degree_type_id
+      ${where}
+      `,
       `
       SELECT COUNT(*) AS total
       FROM degreefields d
@@ -208,7 +218,7 @@ const deleteDegreeField = (id, userId, callback) => {
         if (results.length === 0) return callback({ status: 404, message: "Degree field not found" });
 
         const current = results[0];
-        const newStatus = current.status === "active" ? "inactive" : "active";
+        const newStatus = current.status === "Active" ? "InActive" : "Active";
 
         const updateQuery = "UPDATE degreefields SET status = ? WHERE id = ?";
         connection.query(updateQuery, [newStatus, id], (err2) => {
@@ -237,5 +247,6 @@ module.exports = {
     addDegreeField,
     getAllDegreeFields,
     editDegreeField,
-    deleteDegreeField
+    deleteDegreeField,
+    getDegreeFieldsDropdown
 };  
