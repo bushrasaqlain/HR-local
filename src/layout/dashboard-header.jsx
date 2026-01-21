@@ -16,7 +16,7 @@ import {
   DropdownItem,
 } from "reactstrap";
 import { useRouter } from "next/router";
-import admindropdwonData from "./userdropdownitem";
+import dropdownItem from "./dropdownItem";
 import { dbadminmenuitem, regadminmenuitem, companymenuitem ,candidatesmenuitem} from "./menuitem";
 import DBAdminDashboardArea from "../components/dbadmin-dashboard/dashboard-area";
 import RegAdminDashboardArea from "../components/regadmin-dashboard/dashboard-area";
