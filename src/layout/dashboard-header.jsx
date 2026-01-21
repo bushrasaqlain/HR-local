@@ -16,8 +16,8 @@ import {
   DropdownItem,
 } from "reactstrap";
 import { useRouter } from "next/router";
-import dropdownItem from "./dropdownItem";
-import { dbadminmenuitem, regadminmenuitem, companymenuitem } from "./menuitem";
+import admindropdwonData from "./userdropdownitem";
+import { dbadminmenuitem, regadminmenuitem, companymenuitem ,candidatesmenuitem} from "./menuitem";
 import DBAdminDashboardArea from "../components/dbadmin-dashboard/dashboard-area";
 import RegAdminDashboardArea from "../components/regadmin-dashboard/dashboard-area";
 import CompanyDashboardArea from "../components/company-dashboard/dashboard-area";
@@ -250,7 +250,6 @@ class DashboardHeader extends Component {
             {accountType === "employer" && (
               <CompanyDashboardArea activeTab={activeTab} />
             )}
-             
           </div>
 
           <DashboardFooter className="dashboard-footer" />

@@ -29,29 +29,55 @@ const createCandidateAvailabilityTable = () => {
 const createCandidateTable = () => {
   const createCandidateInfoTable = `
 CREATE TABLE IF NOT EXISTS candidate_info (
-  ID INT AUTO_INCREMENT PRIMARY KEY,
-  account_id INT UNIQUE,
-  passport_photo LONGBLOB NULL,             
-  phone VARCHAR(20) NOT NULL,
-  date_of_birth DATE NOT NULL,
-  gender ENUM('male','female','other') NOT NULL,
-  marital_status ENUM('single','married','divorced','widowed') NOT NULL,
-  total_experience VARCHAR(20) NOT NULL,
+  id INT AUTO_INCREMENT PRIMARY KEY,
+
+  account_id INT UNIQUE NOT NULL,
+
+  full_name VARCHAR(255),
+  email VARCHAR(255),
+  phone VARCHAR(20),
+
+  date_of_birth DATE,
+  Age INT,
+
+  gender ENUM('male','female','other'),
+  marital_status ENUM('single','married','divorced','widowed'),
+
+  total_experience VARCHAR(20),
+  Experience VARCHAR(20),
+
   license_type VARCHAR(50),
   license_number VARCHAR(50),
+
   address TEXT,
-  country INT NOT NULL,
-  district INT NOT NULL,
-  city INT NOT NULL,
+  Complete_Address TEXT,
+
+  country INT,
+  district INT,
+  city INT,
+
   skills JSON,
-  Description TEXT,
-  Links Text,
-  profile_completed BOOLEAN DEFAULT FALSE, 
-  FOREIGN KEY (account_id) REFERENCES account(id),
+  categories JSON,
+
+  speciality JSON,
+  otherPreferredCities JSON,
+
+  Links JSON,
+
+  current_salary DECIMAL(10,2),
+  expected_salary DECIMAL(10,2),
+
+  passport_photo VARCHAR(255),
+
+  profile_completed BOOLEAN DEFAULT FALSE,
+
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE,
   FOREIGN KEY (country) REFERENCES countries(id),
   FOREIGN KEY (district) REFERENCES districts(id),
   FOREIGN KEY (city) REFERENCES cities(id)
-
 );
   `;
 
@@ -368,7 +394,7 @@ INSERT INTO candidate_info (
   city,
   skills,
   Description,
-  Links,
+ \`Links\`,
   current_salary,
   expected_salary,
   Age,
@@ -395,7 +421,6 @@ INSERT INTO candidate_info (
     district = VALUES(district),
     city = VALUES(city),
     skills = VALUES(skills),
-    \`Description\` = VALUES(\`Description\`),
     \`Links\` = VALUES(\`Links\`),
     current_salary = VALUES(current_salary),
     expected_salary = VALUES(expected_salary),
@@ -424,7 +449,6 @@ INSERT INTO candidate_info (
         district || null, // district
         city || null, // city
         skillsArr ? JSON.stringify(skillsArr) : null, // skills
-        Description || null, // Description
         linksArr ? JSON.stringify(linksArr) : null, // Links
         current_salary || null, // current_salary
         expected_salary || null, // expected_salary
@@ -461,7 +485,7 @@ const getCandidateInfo = (req, res) => {
 
   const sql = `
     SELECT
-      ci.account_id,
+      a.id AS account_id,
       a.email,
       ci.full_name,
       ci.phone,
@@ -479,17 +503,15 @@ const getCandidateInfo = (req, res) => {
       ci.city,
       ci.skills,
       ci.categories,
-      ci.Education,
-      ci.Description,
       ci.Links,
       ci.current_salary,
       ci.expected_salary,
       ci.Age,
       ci.profile_completed,
       ci.passport_photo
-    FROM candidate_info ci
-    LEFT JOIN account a ON a.id = ci.account_id
-    WHERE ci.account_id = ?
+    FROM account a
+    LEFT JOIN candidate_info ci ON a.id = ci.account_id
+    WHERE a.id = ?
     LIMIT 1
   `;
 
@@ -500,12 +522,13 @@ const getCandidateInfo = (req, res) => {
     }
 
     if (!result.length) {
-      return res.status(404).json({ error: "Candidate not found" });
+      // Should not happen, account exists if logged in
+      return res.status(404).json({ error: "Account not found" });
     }
 
     const candidate = result[0];
 
-    // Convert JSON fields back to arrays/objects
+    // Helper to parse JSON fields
     const parseJSON = (value) => {
       if (!value) return [];
       try {
@@ -516,7 +539,7 @@ const getCandidateInfo = (req, res) => {
     };
 
     const response = {
-      account_id: candidate.account_id,
+      account_id: candidate.account_id || candidate.id,
       email: candidate.email || "",
       full_name: candidate.full_name || "",
       phone: candidate.phone || "",
@@ -529,24 +552,24 @@ const getCandidateInfo = (req, res) => {
       address: candidate.address || "",
       country: candidate.country || "",
       district: candidate.district || "",
+      city: candidate.city || "",
       speciality: candidate.speciality || "",
       otherPreferredCities: parseJSON(candidate.otherPreferredCities),
-      city: candidate.city || "",
       skills: parseJSON(candidate.skills),
       categories: parseJSON(candidate.categories),
       Education: parseJSON(candidate.Education),
-      Description: candidate.Description || "",
       Links: parseJSON(candidate.Links),
       current_salary: candidate.current_salary || "",
       expected_salary: candidate.expected_salary || "",
       Age: candidate.Age || "",
-      profile_completed: candidate.profile_completed || false,
+      profile_completed: !!candidate.profile_completed,
       passport_photo: candidate.passport_photo || null,
     };
 
     res.json(response);
   });
 };
+
 
 const editCandidateInfo = (req, res) => {
   const accountId = parseInt(req.params.accountId) || req.user.userId;

@@ -23,48 +23,81 @@ updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     if (err) {
       return console.error(err.message);
     }
-    console.log('Account Table created successfully');
+    console.log("Account Table created successfully");
   });
-}
+};
 const getAccountDetail = (req) => {
   return new Promise((resolve, reject) => {
     const userId = req.user.userId;
 
     const sql = `
-      SELECT a.id as userId, a.username, a.accountType, c.logo
+      SELECT 
+        a.id AS userId,
+        a.username,
+        a.accountType,
+        ci.passport_photo
       FROM account a
-      LEFT JOIN candidate_info c ON a.id = c.account_id
+      LEFT JOIN candidate_info ci ON a.id = ci.account_id
       WHERE a.id = ?
     `;
 
     connection.query(sql, [userId], (err, results) => {
-      if (err) return reject({ status: 500, error: "Database error", details: err });
-      if (results.length === 0) return reject({ status: 404, error: "User not found" });
+      if (err)
+        return reject({ status: 500, error: "Database error", details: err });
 
-      let logoBase64 = null;
-      if (results[0].logo) logoBase64 = Buffer.from(results[0].logo).toString("base64");
+      if (results.length === 0)
+        return reject({ status: 404, error: "User not found" });
 
-      resolve({ ...results[0], logo: logoBase64 });
+      resolve(results[0]); // no conversion needed
     });
   });
 };
 
-
 const getAccountType = (req, callback) => {
   const { userId } = req.params;
 
-  const sql = 'SELECT id, accountType, username FROM account WHERE id = ?';
+  const sql = "SELECT id, accountType, username FROM account WHERE id = ?";
   connection.query(sql, [userId], (err, results) => {
     if (err) {
       console.error(err);
-      return callback({ status: 500, error: 'Internal Server Error', details: err });
+      return callback({
+        status: 500,
+        error: "Internal Server Error",
+        details: err,
+      });
     }
 
     if (results.length > 0) {
       const { accountType, username } = results[0]; // fix variable name
       return callback(null, { accountType, username });
     } else {
-      return callback({ status: 404, error: 'User not found with the specified ID' });
+      return callback({
+        status: 404,
+        error: "User not found with the specified ID",
+      });
+    }
+  });
+};
+
+const getUserName = (userId, callback) => {
+  const sql = "SELECT username FROM account WHERE id = ?";
+  connection.query(sql, [userId], (err, results) => {
+    if (err) {
+      console.error(err);
+      return callback({
+        status: 500,
+        error: "Internal Server Error",
+        details: err,
+      });
+    }
+
+    if (results.length > 0) {
+      return callback(null, { username: results[0].username });
+    } else {
+      return callback({
+        status: 404,
+        error: "User not found with the specified ID",
+      });
     }
   });
 };
@@ -88,7 +121,9 @@ const register = (req, res) => {
     connection.query(sql, values, (err, data) => {
       if (err) {
         console.error("Error creating account:", err);
-        return res.status(500).json({ error: "Internal Server Error", details: err.message });
+        return res
+          .status(500)
+          .json({ error: "Internal Server Error", details: err.message });
       }
 
       // Log audit if candidate or employer
@@ -119,36 +154,69 @@ const login = (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const sql = 'SELECT id, accountType, isActive FROM account WHERE email = ? AND password = ?';
+    const sql = `
+      SELECT 
+        a.id,
+        a.accountType,
+        a.username,
+        a.isActive,
+        ci.profile_completed
+      FROM account a
+      LEFT JOIN candidate_info ci ON a.id = ci.account_id
+      WHERE a.email = ? AND a.password = ?
+    `;
+
     connection.query(sql, [email, password], (err, results) => {
       if (err) {
-        console.error(err);
-        return res.status(500).json({ error: 'Internal Server Error' });
+        return res.status(500).json({ error: "Internal Server Error" });
       }
 
-      if (results.length === 0) {
-        return res.status(401).json({ error: 'Invalid email or password' });
+      if (!results.length) {
+        return res.status(401).json({ error: "Invalid email or password" });
       }
 
       const user = results[0];
+      const token = generateToken(user);
+      console.log(user)
 
-      if (user.isActive !== "Active") {
-        return res.json({ success: false, error: "Admin has not granted permissions yet...." })
-      }
-
-      if (user.accountType === 'candidate' || user.accountType === 'employer' || user.accountType === 'db_admin' || user.accountType === 'reg_admin') {
-        const token = generateToken(user);
-
-        return res.json({ success: true, token });
-      } else {
-        return res.json({ success: false, error: 'Invalid user type' });
-      }
+      // 🔑 ALWAYS allow login
+      return res.json({
+        success: true,
+        token,
+        userId: user.id,
+        username: user.username,
+        accountType: user.accountType,
+        isActive: user.isActive,
+        profile_completed: !!user.profile_completed,
+      });
     });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    return res.status(500).json({ error: "Internal Server Error" });
   }
-}
+};
+
+const adminLogin = (req, res) => {
+  const adminId = req.params.userId;
+  const adminType = "db_admin";
+
+  // Fetch the username of the admin user with the specified ID and type
+  const sql = "SELECT name FROM account WHERE id = ? AND accountType = ?";
+  connection.query(sql, [adminId, adminType], (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Internal Server Error" });
+    }
+
+    if (results.length > 0) {
+      const Username = results[0].name;
+      return res.status(200).json({ Username });
+    } else {
+      return res
+        .status(404)
+        .json({ error: "Admin user not found with the specified ID" });
+    }
+  });
+};
 
 const changePassword = (req, res) => {
   const userId = req.user.userId;
@@ -176,23 +244,110 @@ const changePassword = (req, res) => {
       return res.status(400).json({ error: "Passwords do not match" });
     }
 
-
     // Update both password and confirmPassword fields separately
     const updatePasswordQuery = "UPDATE account SET password = ?  WHERE id = ?";
-    connection.query(updatePasswordQuery, [newPassword, userId], (updateErr) => {
-      if (updateErr) {
-        console.error(updateErr);
-        return res.status(500).json({ error: "Internal Server Error" });
+    connection.query(
+      updatePasswordQuery,
+      [newPassword, userId],
+      (updateErr) => {
+        if (updateErr) {
+          console.error(updateErr);
+          return res.status(500).json({ error: "Internal Server Error" });
+        }
+
+        return res
+          .status(200)
+          .json({ message: "Password  updated successfully" });
+      },
+    );
+  });
+};
+
+const updateAccountStatus = (req, res) => {
+  const { accountId } = req.body;
+  const userId = req.user.userId;
+
+  if (!accountId) {
+    return res.status(400).json({ error: "accountId is required" });
+  }
+
+  const checkSql = "SELECT isActive, username FROM account WHERE id = ?";
+  connection.query(checkSql, [accountId], (err, results) => {
+    if (err) return res.status(500).json({ error: "Database error" });
+    if (results.length === 0)
+      return res.status(404).json({ error: "Account not found" });
+
+    const currentStatus = results[0].isActive;
+    const newStatus = currentStatus === "Active" ? "InActive" : "Active";
+
+    const updateSql = "UPDATE account SET isActive = ? WHERE id = ?";
+    connection.query(updateSql, [newStatus, accountId], (err2) => {
+      if (err2) return res.status(500).json({ error: "Database error" });
+
+      logAudit({
+        tableName: "history",
+        entityType: "employer",
+        entityId: accountId,
+        action: newStatus.toUpperCase(),
+        data: {
+          previousStatus: currentStatus,
+          newStatus,
+          username: results[0].username,
+        },
+        changedBy: userId,
+      });
+
+      res
+        .status(200)
+        .json({
+          message: `${newStatus} Successfully`,
+          updatedStatus: newStatus,
+        });
+    });
+  });
+};
+
+const getDetailByName = (req, res) => {
+  const name = req.query.name?.trim();
+
+  if (!name) {
+    return res.status(400).json({ error: "Username is required" });
+  }
+
+  const sql = "SELECT 1 FROM account WHERE username = ? LIMIT 1";
+  connection.query(sql, [name], (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Internal Server Error" });
+    }
+
+    return res.status(200).json({ exists: results.length > 0 });
+  });
+};
+
+const getDetailByEmail = (req) => {
+  return new Promise((resolve, reject) => {
+    const email = req.query.email?.trim();
+
+    if (!email) {
+      return reject({ status: 400, error: "Email is required" });
+    }
+
+    const sql = "SELECT 1 FROM account WHERE email = ? LIMIT 1";
+    connection.query(sql, [email], (err, results) => {
+      if (err) {
+        console.error(err);
+        return reject({
+          status: 500,
+          error: "Internal Server Error",
+          details: err,
+        });
       }
 
-      return res.status(200).json({ message: "Password  updated successfully" });
+      resolve({ exists: results.length > 0 });
     });
-
-
-
-
   });
-}
+};
 
 module.exports = {
   createAccountTable,
@@ -200,6 +355,9 @@ module.exports = {
   getAccountType,
   register,
   login,
-  changePassword
-
+  adminLogin,
+  updateAccountStatus,
+  getDetailByName,
+  getDetailByEmail,
+  changePassword,
 };
