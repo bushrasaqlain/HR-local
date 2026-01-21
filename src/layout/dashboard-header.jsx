@@ -16,7 +16,7 @@ import {
   DropdownItem,
 } from "reactstrap";
 import { useRouter } from "next/router";
-import admindropdwonData from "./userdropdownitem";
+import dropdownItem from "./dropdownItem";
 import { dbadminmenuitem, regadminmenuitem, companymenuitem ,candidatesmenuitem} from "./menuitem";
 import DBAdminDashboardArea from "../components/dbadmin-dashboard/dashboard-area";
 import RegAdminDashboardArea from "../components/regadmin-dashboard/dashboard-area";
@@ -223,7 +223,7 @@ class DashboardHeader extends Component {
                   <i className="las la-user-circle fs-2 text-white cursor-pointer"></i>
                 </DropdownToggle>
                 <DropdownMenu end>
-                  {admindropdwonData(userId).map((item) => (
+                  {dropdownItem(userId).map((item) => (
                     <DropdownItem
                       key={item.id}
                       onClick={() => this.handleUserActionClick(item)}

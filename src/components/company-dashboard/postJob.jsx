@@ -27,7 +27,7 @@ class PostBoxForm extends Component {
         max_salary: "",
         min_experience: "",
         max_experience: "",
-        profession_id: null,
+        speciality_id: null,
         degree_id: null,
         application_deadline: "",
         no_of_positions: "",
@@ -57,7 +57,7 @@ class PostBoxForm extends Component {
       min_experience: createRef(),
       max_experience: createRef(),
       no_of_positions: createRef(),
-      profession_id: createRef(),
+      speciality_id: createRef(),
       degree_id: createRef(),
       country_id: createRef(),
       district_id: createRef(),
@@ -117,7 +117,7 @@ class PostBoxForm extends Component {
           currency_id: job.currency_id ? { label: job.currency, value: job.currency_id } : null,
           min_experience: job.min_experience || "",
           max_experience: job.max_experience || "",
-          profession_id: job.profession_id ? { label: job.profession, value: job.profession_id } : null,
+          speciality_id: job.speciality_id ? { label: job.speciality, value: job.speciality_id } : null,
           degree_id: job.degree_id ? { label: job.degree, value: job.degree_id } : null,
           application_deadline: job.application_deadline?.split("T")[0] || "",
           no_of_positions: job.no_of_positions || "",
@@ -220,10 +220,10 @@ class PostBoxForm extends Component {
 
   loadSpeciality = async (inputValue) => {
     try {
-      const res = await axios.get(`${this.apiBaseUrl}getallprofessions`, {
+      const res = await axios.get(`${this.apiBaseUrl}getallspeciality`, {
         params: { search: inputValue || "", page: 1, limit: 15 },
       });
-      return res.data.professions.map((c) => ({ label: c.name, value: c.id }));
+      return res.data.speciality.map((c) => ({ label: c.name, value: c.id }));
     } catch (err) {
       console.error(err);
       return [];
@@ -339,7 +339,7 @@ class PostBoxForm extends Component {
     if (!values.min_experience) errors.min_experience = "Minimum experience is required.";
     if (!values.max_experience) errors.max_experience = "Maximum experience is required.";
     if (!values.no_of_positions) errors.no_of_positions = "Please enter number of positions.";
-    if (!values.profession_id) errors.profession_id = "Speciality is required.";
+    if (!values.speciality_id) errors.speciality_id = "Speciality is required.";
     if (!values.degree_id) errors.degree_id = "Qualification is required.";
     if (!selectedCountry) errors.country_id = "Country is required.";
     if (!selectedDistrict) errors.district_id = "District is required.";
@@ -377,7 +377,7 @@ class PostBoxForm extends Component {
       city_id: selectedCity?.value,
       job_type_id: values.job_type_id?.value,
       currency_id: values.currency_id?.value,
-      profession_id: values.profession_id?.value,
+      speciality_id: values.speciality_id?.value,
       degree_id: values.degree_id?.value,
       skill_ids: values.skill_ids.map((s) => s.value),
       application_deadline: formattedDeadline,
@@ -419,7 +419,7 @@ class PostBoxForm extends Component {
           max_salary: "",
           min_experience: "",
           max_experience: "",
-          profession_id: null,
+          speciality_id: null,
           degree_id: null,
           application_deadline: "",
           no_of_positions: "",
@@ -659,7 +659,7 @@ class PostBoxForm extends Component {
                   {errors?.no_of_positions && <div className="text-danger">{errors.no_of_positions}</div>}
                 </FormGroup>
               </Col>
-              {/* Profession */}
+              {/* speciality_id */}
               <Col md="6">
                 <FormGroup>
                   <Label>Speciality <span className="text-danger">*</span></Label>
@@ -667,11 +667,11 @@ class PostBoxForm extends Component {
                     cacheOptions
                     defaultOptions
                     loadOptions={this.loadSpeciality}
-                    value={values.profession_id}
-                    ref={this.refsFields.profession_id}
-                    onChange={(option) => this.handleSelectChange("profession_id", option)}
+                    value={values.speciality_id}
+                    ref={this.refsFields.speciality_id}
+                    onChange={(option) => this.handleSelectChange("speciality_id", option)}
                   />
-                  {errors?.profession_id && <div className="text-danger">{errors.profession_id}</div>}
+                  {errors?.speciality_id && <div className="text-danger">{errors.speciality_id}</div>}
                 </FormGroup>
               </Col>
 

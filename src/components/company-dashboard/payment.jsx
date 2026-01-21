@@ -14,7 +14,7 @@ class Payment extends Component {
 
       cvv: "",
       amount: "",
-      currency: "USD",
+      currency: "PKR",
     },
     currencies: [],
     errors: {},

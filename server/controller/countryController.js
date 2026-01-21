@@ -22,13 +22,13 @@ const getAllCountries = (req, res) => {
   });
 };
 
-const deleteCountry = (req, res) => {
- countryModel.deleteCountry(req, res);
+const updateStatus = (req, res) => {
+  countryModel.updateStatus(req, res);
 }
 
 module.exports = {
   addCountry,
   editCountry,
   getAllCountries,
-  deleteCountry
+  updateStatus
 };

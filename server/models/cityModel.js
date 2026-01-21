@@ -313,7 +313,7 @@ const editCity = (req, res) => {
   });
 };
 
-const deleteCity = (req, res) => {
+const updateStatus = (req, res) => {
   const { id } = req.params;
   const userId = req.user.userId;
 
@@ -355,5 +355,5 @@ module.exports = {
   addCity,
   getCitiesByDistrict,
   editCity,
-  deleteCity,
+  updateStatus,
 };

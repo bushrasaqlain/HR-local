@@ -4,6 +4,7 @@ import Pagination from "../common/pagination.jsx";
 import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import MetaTags from "react-meta-tags";
+import * as XLSX from "xlsx";
 import {
   Card,
   Row,
@@ -29,35 +30,37 @@ class DegreeField extends Component {
       deleteStatus: null,
       showDeleteConfirm: false,
       showHistoryModal: false,
-        degreeTypes: [],          // 👈 ADD THIS
-  selectedDegreeType: "",   // 👈 AND THIS
+      degreeTypes: [],
+      selectedDegreeType: "",
       history: [],
       currentPage: 1,
       totalDegreeFileds: 0,
+      isImportMode: false,
+      importFile: null,
       isActive: "all",
-       filters: {
-    name: "",
-    created_at: "",
-    updated_at: ""
-  }
+      filters: {
+        name: "",
+        created_at: "",
+        updated_at: ""
+      }
 
     };
 
     this.itemsPerPage = 50;
     this.apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   }
-fetchDegreeTypes = async () => {
-  try {
-    const res = await axios.get(`${this.apiBaseUrl}getalldegreetype`);
-    this.setState({ degreeTypes: res.data.degreetypes || [] });
-  } catch (err) {
-    console.error("Error fetching degree types", err);
-  }
-};
+  fetchDegreeTypes = async () => {
+    try {
+      const res = await axios.get(`${this.apiBaseUrl}getalldegreetype`);
+      this.setState({ degreeTypes: res.data.degreetypes || [] });
+    } catch (err) {
+      console.error("Error fetching degree types", err);
+    }
+  };
 
   componentDidMount() {
     this.fetchDegreeFields();
-     this.fetchDegreeTypes(); // 👈 IMPORTANT
+    this.fetchDegreeTypes(); // 👈 IMPORTANT
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -70,42 +73,42 @@ fetchDegreeTypes = async () => {
     }
   }
 
-fetchDegreeFields = async (page = this.state.currentPage, filters = {}) => {
-  try {
-    const params = {
-      page,
-      limit: this.itemsPerPage,
-    };
+  fetchDegreeFields = async (page = this.state.currentPage, filters = {}) => {
+    try {
+      const params = {
+        page,
+        limit: this.itemsPerPage,
+      };
 
-    // Status filter
-    let status = filters.status ?? this.state.isActive;
-    if (status === "all") {
-      // ✅ omit status completely for "All"
-    } else if (status.toLowerCase() === "active") {
-      params.status = "Active"; // match your backend
-    } else if (status.toLowerCase() === "inactive") {
-      params.status = "Inactive"; // match your backend
+      // Status filter
+      let status = filters.status ?? this.state.isActive;
+      if (status === "all") {
+        // ✅ omit status completely for "All"
+      } else if (status.toLowerCase() === "active") {
+        params.status = "Active"; // match your backend
+      } else if (status.toLowerCase() === "inactive") {
+        params.status = "Inactive"; // match your backend
+      }
+
+      // Only add status if not "all"
+      if (status !== "all") params.status = params.status || status;
+
+      // Add search filters
+      if (filters.name) params.name = filters.name;
+      if (filters.created_at) params.created_at = filters.created_at;
+      if (filters.updated_at) params.updated_at = filters.updated_at;
+
+      const response = await axios.get(`${this.apiBaseUrl}getallDegreeFields`, { params });
+
+      this.setState({
+        degreeFieldData: response.data.degreefields || [],
+        totalDegreeFileds: response.data.total || 0,
+        currentPage: page,
+      });
+    } catch (error) {
+      console.error("Error fetching degreeFieldData:", error);
     }
-
-    // Only add status if not "all"
-    if (status !== "all") params.status = params.status || status;
-
-    // Add search filters
-    if (filters.name) params.name = filters.name;
-    if (filters.created_at) params.created_at = filters.created_at;
-    if (filters.updated_at) params.updated_at = filters.updated_at;
-
-    const response = await axios.get(`${this.apiBaseUrl}getallDegreeFields`, { params });
-
-    this.setState({
-      degreeFieldData: response.data.degreefields || [],
-      totalDegreeFileds: response.data.total || 0,
-      currentPage: page,
-    });
-  } catch (error) {
-    console.error("Error fetching degreeFieldData:", error);
-  }
-};
+  };
 
 
 
@@ -120,6 +123,37 @@ fetchDegreeFields = async (page = this.state.currentPage, filters = {}) => {
     return `${day}-${month}-${year}`;
   };
 
+
+  handleExcelExport = () => {
+    const { degreeFieldData } = this.state;
+
+    if (!degreeFieldData || !degreeFieldData.length) {
+      toast.info("No degreeFieldData available to export");
+      return;
+    }
+
+    // Map data for Excel
+    const dataToExport = degreeFieldData.map((degreeField) => ({
+      "Degree": degreeField.degree_type_name,
+      "Degree Field": degreeField.name,
+      "Status": degreeField.status,
+      "Created At": this.formatDate(degreeField.created_at),
+      "Updated At": this.formatDate(degreeField.updated_at),
+    }));
+
+    // Create worksheet
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+
+    // Create workbook and append worksheet
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "DegreeField");
+
+    // Write file
+    XLSX.writeFile(workbook, "Degree Field.xlsx");
+
+    toast.success("Degree Field exported successfully");
+  };
+
   fetchHistory = async (id) => {
     if (!id) return;
     try {
@@ -132,23 +166,23 @@ fetchDegreeFields = async (page = this.state.currentPage, filters = {}) => {
     }
   };
 
- toggleForm = (item = null) => {
-  if (item) {
-    this.setState({
-      editId: item.id,
-      inputValue: item.name,
-      selectedDegreeType: item.degree_type_id, // 👈 EDIT MODE
-      showModal: true,
-    });
-  } else {
-    this.setState({
-      editId: null,
-      inputValue: "",
-      selectedDegreeType: "",
-      showModal: true,
-    });
-  }
-};
+  toggleForm = (item = null) => {
+    if (item) {
+      this.setState({
+        editId: item.id,
+        inputValue: item.name,
+        selectedDegreeType: item.degree_type_id, // 👈 EDIT MODE
+        showModal: true,
+      });
+    } else {
+      this.setState({
+        editId: null,
+        inputValue: "",
+        selectedDegreeType: "",
+        showModal: true,
+      });
+    }
+  };
 
 
   toggleHistory = (item = null) => {
@@ -156,97 +190,135 @@ fetchDegreeFields = async (page = this.state.currentPage, filters = {}) => {
     this.setState({ showHistoryModal: true });
   };
 
-handleSave = async () => {
-  const { editId, inputValue, selectedDegreeType } = this.state;
-
-  if (!selectedDegreeType) {
-    toast.error("Please select a Degree Type");
-    return;
-  }
-
-  try {
-    if (editId) {
-      await api.put(`${this.apiBaseUrl}editDegreeField/${editId}`, {
-        name: inputValue,
-        t_id: selectedDegreeType, // ✅ SEND DEGREE TYPE
-      });
-
-      this.setState((prevState) => ({
-        degreeFieldData: prevState.degreeFieldData.map((item) =>
-          item.id === editId
-            ? {
-                ...item,
-                name: inputValue,
-                degree_type_id: selectedDegreeType,
-              }
-            : item
-        ),
-      }));
-    } else {
-      await api.post(`${this.apiBaseUrl}adddegreefield`, {
-        name: inputValue,
-        t_id: selectedDegreeType, // ✅ SEND DEGREE TYPE
-      });
-
-      this.fetchDegreeFields(1);
+  handleSave = async () => {
+    const { editId, inputValue, selectedDegreeType, isImportMode, importFile } = this.state;
+    const userId = sessionStorage.getItem("userId");
+    if (!selectedDegreeType) {
+      toast.error("Please select a Degree Type");
+      return;
     }
 
+    try {
+      if (isImportMode) {
+        if (!importFile) {
+          toast.error("Please select an Excel file");
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, { type: "array" });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+          const degreefieldData = jsonData
+            .map(row => ({ name: row.name?.toString().trim() }))
+            .filter(row => row.name);
+
+          if (!degreefieldData.length) {
+            toast.error("No valid degreefield names found in Excel");
+            return;
+          }
+
+          await api.post(`${this.apiBaseUrl}adddegreefield`, {
+            type: "csv",
+            data: degreefieldData,
+            t_id: selectedDegreeType,
+            userId,
+          });
+
+          toast.success("degreefield imported successfully");
+          this.fetchDegreeFields(1);
+          this.setState({ showModal: false, importFile: null, isImportMode: false, selectedCountry: null });
+        };
+
+        reader.readAsArrayBuffer(importFile);
+      } else {
+        if (editId) {
+          await api.put(`${this.apiBaseUrl}editDegreeField/${editId}`, {
+            name: inputValue,
+            t_id: selectedDegreeType, // ✅ SEND DEGREE TYPE
+          });
+
+          this.setState((prevState) => ({
+            degreeFieldData: prevState.degreeFieldData.map((item) =>
+              item.id === editId
+                ? {
+                  ...item,
+                  name: inputValue,
+                  degree_type_id: selectedDegreeType,
+                }
+                : item
+            ),
+          }));
+        } else {
+          await api.post(`${this.apiBaseUrl}adddegreefield`, {
+            name: inputValue,
+            t_id: selectedDegreeType, 
+             userId,
+          });
+
+          this.fetchDegreeFields(1);
+        }
+      }
+
+      this.setState({
+        showModal: false,
+        inputValue: "",
+        selectedDegreeType: "",
+        editId: null,
+      });
+    } catch (error) {
+      console.error("Error saving Degree Field:", error);
+      toast.error(error.response?.data?.error || "Something went wrong");
+    }
+  };
+
+
+  confirmDelete = (id, status) => {
     this.setState({
-      showModal: false,
-      inputValue: "",
-      selectedDegreeType: "",
-      editId: null,
+      deleteId: id,
+      deleteStatus: status, // store actual current status of row
+      showDeleteConfirm: true,
     });
-  } catch (error) {
-    console.error("Error saving Degree Field:", error);
-    toast.error(error.response?.data?.error || "Something went wrong");
-  }
-};
+  };
 
+  handleDelete = async () => {
+    const { deleteId, deleteStatus } = this.state;
 
-confirmDelete = (id, status) => {
-  this.setState({
-    deleteId: id,
-    deleteStatus: status, // store actual current status of row
-    showDeleteConfirm: true,
-  });
-};
-
-handleDelete = async () => {
-  const { deleteId, deleteStatus } = this.state;
-
-  if (!deleteId) {
-    toast.error("Invalid Degree Field ID");
-    return;
-  }
-
-  try {
-    const response = await api.delete(
-      `${this.apiBaseUrl}deleteDegreeField/${deleteId}`
-    );
-
-    if (response.data?.success) {
-      toast.success(
-        deleteStatus === "active"
-          ? "Inactivated successfully"
-          : "Activated successfully"
-      );
-
-      // Refresh table
-      this.setState(
-        { showDeleteConfirm: false, deleteId: null, deleteStatus: null },
-        this.fetchDegreeFields
-      );
-    } else {
-      toast.error(response.data?.message || "Operation failed");
+    if (!deleteId) {
+      toast.error("Invalid Degree Field ID");
+      return;
     }
-  } catch (error) {
-    console.error("Error deleting Degree Field:", error);
-    toast.error(
-      error.response?.data?.error || "Something went wrong. Please try again."
-    );
-  }
-};
+
+    try {
+      const response = await api.delete(
+        `${this.apiBaseUrl}deleteDegreeField/${deleteId}`
+      );
+
+      if (response.data?.success) {
+        toast.success(
+          deleteStatus === "active"
+            ? "Inactivated successfully"
+            : "Activated successfully"
+        );
+
+        // Refresh table
+        this.setState(
+          { showDeleteConfirm: false, deleteId: null, deleteStatus: null },
+          this.fetchDegreeFields
+        );
+      } else {
+        toast.error(response.data?.message || "Operation failed");
+      }
+    } catch (error) {
+      console.error("Error deleting Degree Field:", error);
+      toast.error(
+        error.response?.data?.error || "Something went wrong. Please try again."
+      );
+    }
+  };
 
 
   cancelDelete = () => {
@@ -254,25 +326,25 @@ handleDelete = async () => {
   };
 
 
-handleSearch = async (e) => {
-  const { name, value } = e.target;
+  handleSearch = async (e) => {
+    const { name, value } = e.target;
 
-  const res = await axios.get(`${this.apiBaseUrl}getallDegreeFields`, {
-    params: {
-      column: name,      // ✅ column name
-      search: value,     // ✅ search value
-      status: this.state.isActive,
-      page: 1,
-      limit: this.itemsPerPage,
-    },
-  });
+    const res = await axios.get(`${this.apiBaseUrl}getallDegreeFields`, {
+      params: {
+        column: name,      // ✅ column name
+        search: value,     // ✅ search value
+        status: this.state.isActive,
+        page: 1,
+        limit: this.itemsPerPage,
+      },
+    });
 
-  this.setState({
-    degreeFieldData: res.data.degreefields || [],
-    totalDegreeFileds: res.data.total || 0,
-    currentPage: 1,
-  });
-};
+    this.setState({
+      degreeFieldData: res.data.degreefields || [],
+      totalDegreeFileds: res.data.total || 0,
+      currentPage: 1,
+    });
+  };
 
 
 
@@ -283,13 +355,13 @@ handleSearch = async (e) => {
       if (ele) ele.value = "";
     });
   };
-// Status dropdown change
-onStatusChange = (e) => {
-  const value = e.target.value;
-  this.setState({ isActive: value, currentPage: 1 }, () => {
-    this.fetchDegreeFields(1, { status: value });
-  });
-};
+  // Status dropdown change
+  onStatusChange = (e) => {
+    const value = e.target.value;
+    this.setState({ isActive: value, currentPage: 1 }, () => {
+      this.fetchDegreeFields(1, { status: value });
+    });
+  };
   handlePageChange = (page) => {
     this.setState({ currentPage: page });
   };
@@ -318,43 +390,61 @@ onStatusChange = (e) => {
         <h6 className="fw-bold mb-3">Degree Field List</h6>
         <div className="poppins-font">
           <Container fluid>
-            <div className="Degree-header-section">
-              <p
-                className="breadcrumb-text"
-                title="History"
-                breadcrumbItem="Activity Log"
-              />
+            <div className="institute-header-section d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
 
-              <div className="d-flex justify-content-end my-2">
-                <Button
-                  variant="dark"
-                  onClick={() => this.toggleForm()}
-                  className="add-Degree-btn"
-                >
-                  Add New Degree field
-                </Button>
-              </div>
-
-              <div className="w-100 m-2">
-                <p className="filter-label text-dark">Filter by Status</p>
+              {/* Left side: Status filter */}
+              <div className="d-flex align-items-center gap-2">
+                <span className="filter-label text-dark">Filter by Status:</span>
                 <select
                   className="rounded-square form-select p-2"
-                  style={{
-                    maxWidth: "250px",
-                    // fontFamily: "Helvetica Neue, Arial, sans-serif",
-                    color: "#666565ff",
-                    border: "1px solid #ccc",
-                  }}
+                  style={{ maxWidth: "200px" }}
                   value={isActive}
-                  onChange={this.onStatusChange}
+                  onChange={(e) => this.setState({ isActive: e.target.value })}
                 >
                   <option value="all">All</option>
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>
-
-
               </div>
+
+
+              {/* Right side: Buttons */}
+              <div className="d-flex align-items-end gap-2 flex-wrap">
+
+                {/* Add Institute */}
+                <Button
+                  variant="dark"
+                  onClick={() => this.toggleForm()}
+                  className="add-institute-btn"
+                >
+                  Add Degree Field
+                </Button>
+
+                {/* Import Excel */}
+                <Button
+                  variant="secondary"
+                  onClick={() => this.setState({ showModal: true, isImportMode: true, selectedCountry: null, importFile: null })}
+                >
+                  Import Excel
+                </Button>
+
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  ref={(ref) => (this.fileInputRef = ref)}
+                  style={{ display: "none" }}
+                  onChange={this.handleExcelImport}
+                />
+
+                {/* Export Button */}
+                <Button
+                  variant="success"
+                  onClick={this.handleExcelExport} // create this function
+                >
+                  Export
+                </Button>
+              </div>
+
             </div>
 
             <Card>
@@ -363,7 +453,7 @@ onStatusChange = (e) => {
                   <Table className="table-responsive align-middle default-table manage-job-table p-2 w-100 table table-striped custom-table">
                     <thead className="align-middle">
                       <tr>
-                       
+
                         <th
                           className="text-center"
                           style={{ borderBottom: "1px solid #ccc" }}
@@ -373,7 +463,7 @@ onStatusChange = (e) => {
                               className="text-dark fw-bold"
                               style={{ fontSize: "1rem" }}
                             >
-                              Degree Field 
+                              Degree Field
                             </small>
                             <input
                               type="text"
@@ -528,33 +618,59 @@ onStatusChange = (e) => {
             </Modal.Header>
             <Modal.Body style={{ paddingTop: "0.5rem" }}>
               <label style={{ marginBottom: "0.25rem" }}>Degree Type</label>
-<select
-  className="form-select mb-2"
-  value={this.state.selectedDegreeType}
-  onChange={(e) =>
-    this.setState({ selectedDegreeType: e.target.value })
-  }
->
-  <option value="">Select Degree Type</option>
-  {this.state.degreeTypes.map((type) => (
-    <option key={type.id} value={type.id}>
-      {type.name}
-    </option>
-  ))}
-</select>
+              <select
+                className="form-select mb-2"
+                value={this.state.selectedDegreeType}
+                onChange={(e) =>
+                  this.setState({ selectedDegreeType: e.target.value })
+                }
+              >
+                <option value="">Select Degree Type</option>
+                {this.state.degreeTypes.map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.name}
+                  </option>
+                ))}
+              </select>
+              {this.state.isImportMode ? (
+                <>
+                  {/* Excel file input for import */}
+                  <label className="mb-1">Select Excel File</label>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    className="form-control"
+                    onChange={(e) => this.setState({ importFile: e.target.files[0] })}
+                    disabled={
+                      !this.state.selectedDegreeType
+                    }
+                  />
+                  <small className="text-muted">
+                    Excel must have a column named <strong>"Name"</strong>
+                  </small>
+                </>
+              ) : (
+                <>
 
-              <label style={{ marginBottom: "0.25rem" }}>Name</label>
-              <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => this.setState({ inputValue: e.target.value })}
-                placeholder="Enter Degree Field"
-                className="form-control"
-              />
+                  <label style={{ marginBottom: "0.25rem" }}>Name</label>
+                  <input
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => this.setState({ inputValue: e.target.value })}
+                    placeholder="Enter Degree Field"
+                    className="form-control"
+                  />
+                </>
+              )}
             </Modal.Body>
 
             <Modal.Footer>
-              <Button variant="primary" onClick={this.handleSave}>
+              <Button variant="primary" onClick={this.handleSave}
+                disabled={
+                  !this.state.selectedDegreeType ||
+                  (!this.state.isImportMode && !this.state.inputValue) ||
+                  (this.state.isImportMode && !this.state.importFile)
+                }>
                 Save
               </Button>
             </Modal.Footer>
@@ -583,12 +699,12 @@ onStatusChange = (e) => {
                 Cancel
               </Button>
 
-             <Button
-  variant={deleteStatus === "active" ? "danger" : "success"}
-  onClick={this.handleDelete}
->
-  {deleteStatus === "active" ? "Inactivate" : "Activate"}
-</Button>
+              <Button
+                variant={deleteStatus === "active" ? "danger" : "success"}
+                onClick={this.handleDelete}
+              >
+                {deleteStatus === "active" ? "Inactivate" : "Activate"}
+              </Button>
 
             </Modal.Footer>
           </Modal>

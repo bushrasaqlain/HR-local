@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS job_posts (
   currency_id INT,
   min_experience VARCHAR(255),
   max_experience VARCHAR(255),
-  profession_id INT,
+  speciality_id INT,
   degree_id INT,
   application_deadline TIMESTAMP,
   no_of_positions INT,
@@ -32,11 +32,11 @@ CREATE TABLE IF NOT EXISTS job_posts (
   city_id INT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  approval_status ENUM( 'Pending','Pending Payment','Active','InActive') DEFAULT 'Pending',
+  approval_status ENUM( 'Pending','Pending Payment','Approved','UnApproved') DEFAULT 'Pending',
   status ENUM('Active', 'InActive') DEFAULT 'Active',
   FOREIGN KEY (account_id) REFERENCES account(id),
   FOREIGN KEY (job_type_id) REFERENCES jobtypes(id), 
-  FOREIGN KEY (profession_id) REFERENCES professions(id),
+  FOREIGN KEY (speciality_id) REFERENCES speciality(id),
   FOREIGN KEY (degree_id) REFERENCES degreetypes(id),
   FOREIGN KEY (currency_id) REFERENCES currencies(id),
   FOREIGN KEY (package_id) REFERENCES packages(id),
@@ -76,7 +76,7 @@ const getAllJobs = (req, res) => {
     ccy.code AS currency,
     jp.min_experience,
     jp.max_experience,
-    prof.name AS profession,
+    spec.name AS speciality,
     deg.name AS degree,
     jp.no_of_positions,
     jp.industry,
@@ -95,7 +95,7 @@ const getAllJobs = (req, res) => {
   LEFT JOIN jobtypes jt ON jp.job_type_id = jt.id
   LEFT JOIN currencies ccy ON jp.currency_id = ccy.id
   LEFT JOIN packages pkg ON jp.package_id = pkg.id
-  LEFT JOIN professions prof ON jp.profession_id = prof.id
+  LEFT JOIN speciality spec ON jp.speciality_id = spec.id
   LEFT JOIN degreetypes deg ON jp.degree_id = deg.id
   LEFT JOIN countries co ON jp.country_id = co.id
   LEFT JOIN districts d ON jp.district_id = d.id
@@ -196,7 +196,7 @@ const getJobbyRegAdmin = (req, res) => {
       ccy.code AS currency,
       jp.min_experience,
       jp.max_experience,
-      prof.name AS profession,
+      spec.name AS speciality,
       deg.name AS degree,
       jp.no_of_positions,
       jp.industry,
@@ -217,7 +217,7 @@ const getJobbyRegAdmin = (req, res) => {
     LEFT JOIN jobtypes jt ON jp.job_type_id = jt.id
     LEFT JOIN currencies ccy ON jp.currency_id = ccy.id
     LEFT JOIN packages pkg ON jp.package_id = pkg.id
-    LEFT JOIN professions prof ON jp.profession_id = prof.id
+    LEFT JOIN speciality spec ON jp.speciality_id = spec.id
     LEFT JOIN degreetypes deg ON jp.degree_id = deg.id
     LEFT JOIN countries co ON jp.country_id = co.id
     LEFT JOIN districts d ON jp.district_id = d.id
@@ -341,7 +341,7 @@ const getSingleJob = (req, res) => {
         jp.job_title,
         jp.job_description,
         jp.skill_ids,
-       GROUP_CONCAT(DISTINCT s.name ORDER BY s.name) AS skills,
+        GROUP_CONCAT(DISTINCT s.name ORDER BY s.name) AS skills,
         jp.time_from,
         jp.time_to,
         jt.name AS job_type,
@@ -352,8 +352,8 @@ const getSingleJob = (req, res) => {
         ccy.id AS currency_id,
         jp.min_experience,
         jp.max_experience,
-        prof.name AS profession,
-        prof.id As profession_id,
+        spec.name AS speciality,
+        spec.id As spec_id,
         deg.name AS degree,
         deg.id AS degree_id,
         jp.no_of_positions,
@@ -376,7 +376,7 @@ const getSingleJob = (req, res) => {
     LEFT JOIN jobtypes jt ON jp.job_type_id = jt.id
     LEFT JOIN currencies ccy ON jp.currency_id = ccy.id
     LEFT JOIN packages pkg ON jp.package_id = pkg.id
-    LEFT JOIN professions prof ON jp.profession_id = prof.id
+    LEFT JOIN speciality spec ON jp.speciality_id = spec.id
     LEFT JOIN degreetypes deg ON jp.degree_id = deg.id
     LEFT JOIN countries co ON jp.country_id = co.id
     LEFT JOIN districts d ON jp.district_id = d.id
@@ -450,7 +450,7 @@ const postJob = (req, res) => {
     max_salary,
     min_experience,
     max_experience,
-    profession_id,
+    speciality_id,
     degree_id,
     application_deadline,
     no_of_positions,
@@ -460,19 +460,14 @@ const postJob = (req, res) => {
     city_id,
     district_id,
     package_id,
-    bankName,
-    cardType,
-    cardholder,
-    cardNumber,
-    expiry,
-    cvv
+   
   } = req.body;
 
   const sql = `
       INSERT INTO job_posts (
         account_id, job_title, job_description, skill_ids, time_from, time_to,
           job_type_id, min_salary, max_salary, currency_id,
-          min_experience, max_experience, profession_id, degree_id,
+          min_experience, max_experience, speciality_id, degree_id,
           application_deadline, no_of_positions, industry, package_id, country_id,
            district_id, city_id,status,approval_status
       ) 
@@ -491,7 +486,7 @@ const postJob = (req, res) => {
     currency_id,
     min_experience,
     max_experience,
-    profession_id,
+    speciality_id,
     degree_id,
     application_deadline,
     no_of_positions,
@@ -528,7 +523,7 @@ const postJob = (req, res) => {
           currency_id,
           min_experience,
           max_experience,
-          profession_id,
+          speciality_id,
           degree_id,
           application_deadline,
           no_of_positions,
@@ -565,7 +560,7 @@ const updatePostJob = (req, res) => {
     max_salary,
     min_experience,
     max_experience,
-    profession_id,
+    speciality_id,
     degree_id,
     application_deadline,
     no_of_positions,
@@ -590,7 +585,7 @@ const updatePostJob = (req, res) => {
       currency_id = ?,
       min_experience = ?,
       max_experience = ?,
-      profession_id = ?,
+      speciality_id = ?,
       degree_id = ?,
       application_deadline = ?,
       no_of_positions = ?,
@@ -615,7 +610,7 @@ const updatePostJob = (req, res) => {
     currency_id,
     min_experience,
     max_experience,
-    profession_id,
+    speciality_id,
     degree_id,
     application_deadline,
     no_of_positions,
@@ -657,7 +652,7 @@ const updatePostJob = (req, res) => {
         currency_id,
         min_experience,
         max_experience,
-        profession_id,
+        speciality_id,
         degree_id,
         application_deadline,
         no_of_positions,
@@ -719,6 +714,60 @@ const getJobTitle = (req, res) => {
   });
 };
 
+const getTopCompanies = (req, res) => {
+  const limit = parseInt(req.params.limit) || 10;
+
+  if (isNaN(limit)) {
+    return res.status(400).json({ error: "Invalid limit" });
+  }
+
+  const sql = `
+      SELECT a.id, a.username, COUNT(j.id) AS total_jobs
+  FROM account a
+  JOIN job_posts j ON j.account_id = a.id
+  GROUP BY a.id, a.username
+  ORDER BY total_jobs DESC
+  LIMIT ?;
+    `;
+
+  connection.query(sql, [limit], (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Internal Server Error" });
+    }
+
+    // returns an array: [ { id: 1, company_name: 'ABC Corp', totalPosts: 12 }, ... ]
+    return res.json(results);
+  });
+}
+
+const popularCategory=(req,res)=>{
+   const limit = parseInt(req.params.limit) || 10;
+  
+    if (isNaN(limit)) {
+      return res.status(400).json({ error: "Invalid limit" });
+    }
+  
+    const sql = `
+      SELECT
+        industry,
+        COUNT(*) as totalPosts
+      FROM job_posts
+      GROUP BY industry
+      ORDER BY totalPosts DESC
+      LIMIT ?
+    `;
+  
+    connection.query(sql, [limit], (err, results) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: "Internal Server Error" });
+      }
+  
+      // returns an array:  [ { industry: 'Pathologists', totalPosts: 24 }, ... ]
+      return res.json(results);
+    });
+}
 
 
 
@@ -733,6 +782,8 @@ module.exports = {
   postJob,
   subcribePackage,
   updatePostJob,
-  getJobTitle
+  getJobTitle,
+  getTopCompanies,
+  popularCategory
 
 }

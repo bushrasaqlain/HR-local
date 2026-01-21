@@ -248,7 +248,7 @@ const getAllDistricts = (req, res) => {
 
 
 
-const deleteDistrict = (req, res) => {
+const updateStatus = (req, res) => {
   const { id } = req.params;
   const userId = req.user.userId;
 
@@ -282,5 +282,5 @@ module.exports = {
     addDistrict,
     editDistrict,
     getAllDistricts,
-    deleteDistrict
+    updateStatus
 };

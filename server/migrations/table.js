@@ -1,5 +1,4 @@
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
 const countryModel = require("../models/countryModel");
 const districtModel = require("../models/districtModel");
@@ -7,7 +6,6 @@ const cityModel = require("../models/cityModel");
 const degreetypeModel = require("../models/degreetypeModel");
 const candidateModel = require("../models/candidateModel");
 const degreeFieldModel = require("../models/degreeFieldModel");
-const professionModel = require("../models/professionModel");
 const businessentitytypeModel = require("../models/businessentitytypeModel");
 const jobtypeModel = require("../models/jobtypeModel");
 const bankModel = require("../models/bankModel");
@@ -30,13 +28,12 @@ function Database() {
   cityModel.createCitiesTable();
   degreetypeModel.createDegreeTypesTable();
   degreeFieldModel.createDegreeFieldsTable();
-  professionModel.createProfessionsTable();
   businessentitytypeModel.createbusiness_entity_typeTable();
   jobtypeModel.createJobTypeTable();
   bankModel.createBankTable();
   packageModel.createPackagesTable();
   licensetypesModel.createLicenseTypesTable();
-  specialityModel.createspecialityTable();
+  specialityModel.createSpecialityTable();
   instituteModel.createInstituteTable();
   dbadminhistory.createDbAdminHistoryTable();
 

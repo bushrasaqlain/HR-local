@@ -9,12 +9,12 @@ const editDistrict=(req,res)=>{
 const getAllDistricts=(req,res)=>{
     districtModel.getAllDistricts(req,res);
 }   
-const deleteDistrict=(req,res)=>{
-    districtModel.deleteDistrict(req,res);
+const updateStatus=(req,res)=>{
+    districtModel.updateStatus(req,res);
 }
 module.exports={
     addDistrict,
     editDistrict,
     getAllDistricts,
-    deleteDistrict
+    updateStatus
 };
