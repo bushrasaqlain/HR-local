@@ -742,3 +742,12 @@ Main Footer / Style Six
   line-height: 24px;
   color: #696969;
 }
+.dashboard-wrapper {
+  min-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-content {
+  flex: 1;
+}

@@ -1,87 +1,183 @@
-import React, { useState, useEffect } from "react";
+import React, { Component } from "react";
 import axios from "axios";
 import Pagination from "../common/pagination.jsx";
+import { toast } from "react-toastify";
+import api from "../lib/api.jsx";
+import MetaTags from "react-meta-tags";
 import AsyncSelect from "react-select/async";
-import api from '../lib/api.jsx';
+import * as XLSX from "xlsx";
+import {
+  Card,
+  Row,
+  Col,
+  Container,
+  CardBody,
+  Table,
+  Button,
+  Modal,
+  ModalBody,
+  ModalHeader,
+} from "react-bootstrap";
 
-const Districts = () => {
-  const [districts, setDistricts] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [inputValue, setInputValue] = useState("");
-  const [editId, setEditId] = useState(null);
-  const [deleteId, setDeleteId] = useState(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [selectedCountry, setSelectedCountry] = useState(null);
-    const [showHistoryModal, setShowHistoryModal] = useState(false);
-    const [history, setHistory] = useState(null);
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 15;
-  const [totalDistricts, setTotalDistricts] = useState(0);
-  const totalPages = Math.ceil(totalDistricts / itemsPerPage);
-   const [isActive, setIsActive] = useState("active");
-      
+class Districts extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      districts: [],
+      showModal: false,
+      inputValue: "",
+      editId: null,
+      deleteStatus: null,
+      deleteId: null,
+      showDeleteConfirm: false,
+      showHistoryModal: false,
+      history: [],
+      currentPage: 1,
+      totalCountries: 0,
+      isActive: "all",
+      selectedCountry: null,
+    };
 
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    this.itemsPerPage = 50;
+    this.apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  }
 
-  const fetchDistricts = async (page = currentPage, status = isActive) => {
-    axios
-      .get(`${apiBaseUrl}getalldistricts?page=${currentPage}&limit=${itemsPerPage}&status=${isActive}`)
-      .then((response) => {
-        setDistricts(response.data.districts);
-        setTotalDistricts(response.data.total);
-      })
-      .catch((error) => {
-        console.error("Error fetching districts:", error);
-      });
-  };
+  componentDidMount() {
+    this.fetchDistricts();
+  }
 
-  // Async loader for searchable countries
-  const loadCountries = async (inputValue) => {
+  componentDidUpdate(prevProps, prevState) {
+    if (
+      prevState.currentPage !== this.state.currentPage ||
+      prevState.isActive !== this.state.isActive
+    ) {
+      this.fetchDistricts();
+      this.resetSearch();
+    }
+  }
+  loadCountries = async (inputValue) => {
     try {
-      const res = await axios.get(`${apiBaseUrl}getallCountries`, {
+      const res = await api.get(`${this.apiBaseUrl}getallCountries`, {
         params: {
-          search: inputValue || "", // send search query
+          search: inputValue || "",
           page: 1,
-          limit: 15,
+          limit: 20,
+          status: "active",
         },
       });
-     
-      return res.data.countries.map((c) => ({
-        label: c.name,
-        value: c.id,
+
+      return (res.data.countries || []).map((item) => ({
+        value: item.id,
+        label: item.name,
       }));
-    } catch (error) {
-      console.error("Error loading countries:", error);
+    } catch (err) {
+      console.error("Error loading countries", err);
       return [];
     }
   };
 
-
-  useEffect(() => {
-                 fetchDistricts();
-                 resetSearch();
-               }, [currentPage, isActive]);
-  
-
-  const toggleForm = (item = null) => {
-    if (item) {
-      setEditId(item.id);
-      setInputValue(item.name);
-      setSelectedCountry(
-        item.country_id
-          ? { value: item.country_id, label: item.country_name }
-          : null
-      );
-    } else {
-      setEditId(null);
-      setInputValue("");
-      setSelectedCountry(null);
+  fetchDistricts = async (
+    page = this.state.currentPage,
+    status = this.state.isActive
+  ) => {
+    try {
+      const response = await axios.get(`${this.apiBaseUrl}getalldistricts`, {
+        params: { page, limit: this.itemsPerPage, status },
+      });
+      this.setState({
+        districts: response.data.districts || [],
+        totalCountries: response.data.total || 0,
+      });
+    } catch (error) {
+      console.error("Error fetching districts:", error);
     }
-    setShowModal(true);
+  };
+  formatDate = (dateStr) => {
+    if (!dateStr) return "";
+
+    const date = new Date(dateStr);
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = date.toLocaleString("en-US", { month: "short" }); // Sep
+    const year = String(date.getFullYear()).slice(-2); // 25
+
+    return `${day}-${month}-${year}`;
   };
 
-  const handleSave = async () => {
+  fetchHistory = async (id) => {
+    if (!id) return;
+    try {
+      const res = await axios.get(`${this.apiBaseUrl}dbadminhistory`, {
+        params: { entity_type: "district", entity_id: id },
+      });
+      this.setState({ history: res.data || [] });
+    } catch (error) {
+      console.error("Error fetching history:", error);
+    }
+  };
+
+  toggleForm = (item = null) => {
+    if (item) {
+      this.setState({
+        editId: item.id,
+        inputValue: item.name,
+        selectedCountry: item.country_id
+          ? {
+            value: item.country_id,
+            label: item.country_name,
+          }
+          : null,
+        showModal: true,
+      });
+    } else {
+      this.setState({
+        editId: null,
+        inputValue: "",
+        selectedCountry: null,
+        showModal: true,
+      });
+    }
+  };
+
+  handleExcelExport = () => {
+    const { districts } = this.state;
+
+    if (!districts || !districts.length) {
+      toast.info("No districts available to export");
+      return;
+    }
+
+    // Map data for Excel
+    const dataToExport = districts.map((district) => ({
+      "District Name": district.name,
+      "Country Name": district.country_name,
+      "Status": district.status,
+      "Created At": this.formatDate(district.created_at),
+      "Updated At": this.formatDate(district.updated_at),
+    }));
+
+    // Create worksheet
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+
+    // Create workbook and append worksheet
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Districts");
+
+    // Write file
+    XLSX.writeFile(workbook, "Districts.xlsx");
+
+    toast.success("Districts exported successfully");
+  };
+
+
+
+  toggleHistory = (item = null) => {
+    if (item) this.fetchHistory(item.id);
+    this.setState({ showHistoryModal: true });
+  };
+
+  handleSave = async () => {
+    const { editId, inputValue, selectedCountry } = this.state;
+
     try {
       if (!selectedCountry) {
         alert("Please select a country.");
@@ -89,302 +185,503 @@ const Districts = () => {
       }
 
       if (editId) {
-        await api.put(`${apiBaseUrl}editdistrict/${editId}`, {
+        await api.put(`${this.apiBaseUrl}editDistrict/${editId}`, {
           name: inputValue,
           country_id: selectedCountry.value,
         });
-        setDistricts((prevDistricts) => prevDistricts.map((district) => 
-          district.id === editId ? {...district, name: inputValue, country_id: selectedCountry.value, country_name: selectedCountry.label}: district));
+
+        this.setState((prevState) => ({
+          districts: prevState.districts.map((item) =>
+            item.id === editId
+              ? {
+                ...item,
+                name: inputValue,
+                country_id: selectedCountry.value,
+                country_name: selectedCountry.label,
+              }
+              : item
+          ),
+        }));
       } else {
-        await api.post(`${apiBaseUrl}adddistrict`, {
+        await api.post(`${this.apiBaseUrl}addDistrict`, {
           name: inputValue,
           country_id: selectedCountry.value,
         });
-        fetchDistricts();
+
+        this.fetchDistricts(1);
       }
-      setShowModal(false);
-      setInputValue("");
-      setSelectedCountry(null);
-      setEditId(null);
-      
+
+      this.setState({
+        showModal: false,
+        inputValue: "",
+        selectedCountry: null,
+        editId: null,
+      });
     } catch (error) {
-      console.error("Error saving district:", error);
+      console.error("Error saving district:", error.response?.data || error);
     }
   };
 
-  const confirmDelete = (id) => {
-    setDeleteId(id);
-    setShowDeleteConfirm(true);
+  confirmDelete = (id, status) => {
+    this.setState({
+      deleteId: id,
+      deleteStatus: status, // ✅ actual row status
+      showDeleteConfirm: true,
+    });
   };
 
-  const handleDelete = async () => {
+  handleDelete = async () => {
+    const { deleteId, isActive } = this.state;
     try {
-      await api.delete(`${apiBaseUrl}deletedistrict/${deleteId}`);
-      setShowDeleteConfirm(false);
-      setDeleteId(null);
-      fetchDistricts();
+      await api.delete(`${this.apiBaseUrl}deleteDistrict/${deleteId}`);
+      toast.success(
+        isActive === "active"
+          ? "Inactivated successfully"
+          : "Activated successfully"
+      );
+      this.setState({ showDeleteConfirm: false }, this.fetchDistricts);
     } catch (error) {
       console.error("Error deleting district:", error);
     }
   };
 
-  const cancelDelete = () => {
-    setShowDeleteConfirm(false);
-    setDeleteId(null);
+  cancelDelete = () => {
+    this.setState({ showDeleteConfirm: false, deleteId: null });
   };
 
-  const handlePageChange = async (page) => {
-    setCurrentPage(page);
+  handleSearch = async (e) => {
+    const { name, value } = e.target;
+    ["name", "country_name", "created_at", "updated_at", "status"].forEach((input) => {
+      if (input !== name) {
+        const ele = document.getElementById(input);
+        if (ele) ele.value = "";
+      }
+    });
+
+    this.setState({ currentPage: 1 });
 
     try {
-      const response = await axios.get(`${apiBaseUrl}search`, {
-        params: { name: res.name, type: "District", page, limit: itemsPerPage },
-      });
-
-      setDistricts(response.data.results);
-      setTotalDistricts(response.data.total);
-    } catch (error) {
-      console.error("Error fetching search results:", error);
-    }
-  };
-  const fetchHistory = async (id) => {
-        if (!id) return;
-        try {
-            const res = await axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}dbadminhistory`, {
-                params: { entity_type: "district", entity_id: id }
-            });
-          
-            setHistory(res.data);
-        } catch (error) {
-            console.error("Error fetching history:", error);
-        }
-    }
-    const toggleHistory = (item = null) => {
-        if (item) {
-            fetchHistory(item.id);
-        }
-        setShowHistoryModal(true);
-    }
-    const handleSearch = async (e) => {
-      setCurrentPage(1);
-      const {name, value} = e.target;
-      const inputs = ["name", "country", "created_at", "updated_at"];
-      inputs.forEach((input) => {
-        if(input !== name) {
-          const ele = document.getElementById(input);
-          if(ele) ele.value = "";
-        }
-      })
-    try {
-      const res = await axios.get(`${apiBaseUrl}getalldistricts`, {
+      const res = await axios.get(`${this.apiBaseUrl}getalldistricts`, {
         params: {
           name,
           search: value,
-          status: isActive,
+          status: this.state.isActive,
           page: 1,
-          limit: itemsPerPage
-        }
+          limit: this.itemsPerPage,
+        },
       });
-       setDistricts(res.data.districts);
-        setTotalDistricts(res.data.total);
+      this.setState({
+        districts: res.data.districts || [],
+        totalCountries: res.data.total || 0,
+      });
     } catch (error) {
-      console.error("error in search", error);
+      console.error("Error searching districts:", error);
     }
-  }
+  };
 
-  
-      const resetSearch = () => {
-          document.getElementById("name").value = "";
-          document.getElementById("country").value = "";
-          document.getElementById("created_at").value = "";
-          document.getElementById("updated_at").value = "";
-      }
-  
-      useEffect(() => {
-          resetSearch();
-      }, [isActive])
+  resetSearch = () => {
+    ["name", "created_at", "updated_at"].forEach((id) => {
+      const ele = document.getElementById(id);
+      if (ele) ele.value = "";
+    });
+  };
 
-  return (
-    <>
-      <table className="default-table manage-job-table">
-        <thead>
-          <tr>
-            <th>
-              <div><input type="text" name="name" id="name" className="py-4 px-3 mb-3 w-100 rounded-4" onChange={(e) => handleSearch(e)} /></div>
-              <div>District Name</div>
-              </th>
-            
-            <th>
-              <div><input type="text" name="country" id="country" className="py-4 px-3 mb-3 w-100 rounded-4" onChange={(e) => handleSearch(e)} /></div>
-              <div>Country</div>
-              </th>
-            <th>
-              <div><input type="date" name="created_at" id="created_at" className="py-4 px-3 mb-3 w-100 rounded-4" onChange={(e) => handleSearch(e)} max={new Date().toISOString().split('T')[0]} /></div>
-              <div>Created At</div>
-              </th>
-            <th>
-              <div><input type="date" name="updated_at" id="updated_at" className="py-4 px-3 mb-3 w-100 rounded-4" onChange={(e) => handleSearch(e)} max={new Date().toISOString().split('T')[0]} /></div>
-              <div>Updated At</div>
-              </th>
-            <th className="align-bottom">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {districts.map((item) => (
+  handlePageChange = (page) => {
+    this.setState({ currentPage: page });
+  };
+
+  render() {
+    const {
+      districts,
+      showModal,
+      inputValue,
+      showDeleteConfirm,
+      showHistoryModal,
+      history,
+      currentPage,
+      totalDistricts,
+      isActive,
+      editId,
+      deleteStatus
+    } = this.state;
+    const totalPages = Math.ceil(totalDistricts / this.itemsPerPage);
+
+    return (
+      <React.Fragment>
+        <MetaTags>
+          <title>Districts | List</title>
+        </MetaTags>
+        <h6 className="fw-bold mb-3">Districts List</h6>
+        <div className="poppins-font">
+          <Container fluid>
+            <div className="institute-header-section d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
+
+              {/* Left side: Status filter */}
+              <div className="d-flex align-items-center gap-2">
+                <span className="filter-label text-dark">Filter by Status:</span>
+                <select
+                  className="rounded-square form-select p-2"
+                  style={{ maxWidth: "200px" }}
+                  value={isActive}
+                  onChange={(e) => this.setState({ isActive: e.target.value })}
+                >
+                  <option value="all">All</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+
+
+              {/* Right side: Buttons */}
+              <div className="d-flex align-items-end gap-2 flex-wrap">
+
+                {/* Add Institute */}
+                <Button
+                  variant="dark"
+                  onClick={() => this.toggleForm()}
+                  className="add-institute-btn"
+                >
+                  Add District
+                </Button>
+
+                {/* Import Excel */}
+                <Button
+                  variant="secondary"
+                  onClick={() => this.fileInputRef.click()}
+                >
+                  Import Excel
+                </Button>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  ref={(ref) => (this.fileInputRef = ref)}
+                  style={{ display: "none" }}
+                  onChange={this.handleExcelImport}
+                />
+
+                {/* Export Button */}
+                <Button
+                  variant="success"
+                  onClick={this.handleExcelExport} // create this function
+                >
+                  Export
+                </Button>
+              </div>
+
+            </div>
+
+            <Card>
+              <CardBody>
+                <div className="table-responsive">
+                  <Table className="table-responsive align-middle default-table manage-job-table p-2 w-100 table table-striped custom-table">
+                    <thead className="align-middle">
+                      <tr>
+                        <th
+                          className="text-center"
+                          style={{ borderBottom: "1px solid #ccc" }}
+                        >
+                          <div className="d-flex flex-column align-items-center gap-1">
+                            <small
+                              className="text-dark fw-bold"
+                              style={{ fontSize: "1rem" }}
+                            >
+                              District Name
+                            </small>
+                            <input
+                              type="text"
+                              name="name"
+                              id="name"
+                              className="form-control rounded-4 text-center"
+                              placeholder="Search by name"
+                              onChange={this.handleSearch}
+                              style={{ maxWidth: "180px", borderColor: "#ccc" }}
+                            />
+                          </div>
+                        </th>
+
+                        <th
+                          className="text-center"
+                          style={{ borderBottom: "1px solid #ccc" }}
+                        >
+                          <div className="d-flex flex-column align-items-center gap-1">
+                            <small
+                              className="text-dark fw-bold"
+                              style={{ fontSize: "1rem" }}
+                            >
+                              Country Name
+                            </small>
+                            <input
+                              type="text"
+                              name="country"
+                              id="country"
+                              className="form-control rounded-4 text-center"
+                              placeholder="Search by name"
+                              onChange={this.handleSearch}
+                              style={{ maxWidth: "180px", borderColor: "#ccc" }}
+                            />
+                          </div>
+                        </th>
+
+                        <th
+                          className="text-center"
+                          style={{ borderBottom: "1px solid #ccc" }}
+                        >
+                          <div className="d-flex flex-column align-items-center gap-1">
+                            <small
+                              className="text-dark fw-bold"
+                              style={{ fontSize: "1rem" }}
+                            >
+                              Created
+                            </small>
+                            <input
+                              type="date"
+                              name="created_at"
+                              id="created_at"
+                              className="form-control rounded-4 text-center"
+                              onChange={this.handleSearch}
+                              style={{ borderColor: "#ccc" }}
+                            />
+                          </div>
+                        </th>
+
+                        <th
+                          className="text-center"
+                          style={{ borderBottom: "1px solid #ccc" }}
+                        >
+                          <div className="d-flex flex-column align-items-center gap-1">
+                            <small
+                              className="text-dark fw-bold"
+                              style={{ fontSize: "1rem" }}
+                            >
+                              Updated
+                            </small>
+                            <input
+                              type="date"
+                              name="updated_at"
+                              id="updated_at"
+                              className="form-control rounded-4 text-center"
+                              onChange={this.handleSearch}
+                              style={{ borderColor: "#ccc" }}
+                            />
+                          </div>
+                        </th>
+                        <th
+                          className="text-center"
+                          style={{ borderBottom: "1px solid #ccc" }}
+                        >
+                          <div className="d-flex flex-column align-items-center gap-1">
+                            <small
+                              className="text-dark fw-bold"
+                              style={{ fontSize: "1rem" }}
+                            >
+                              Status
+                            </small>
+                            <input
+                              type="text"
+                              name="status"
+                              id="status"
+                              className="form-control rounded-4 text-center"
+                              onChange={this.handleSearch}
+                              style={{ borderColor: "#ccc" }}
+                            />
+                          </div>
+                        </th>
+                        <th
+                          className="text-center text-dark fw-bold"
+                          style={{
+                            fontSize: "1rem",
+                            borderBottom: "1px solid #ccc",
+                          }}
+                        >
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {districts.map((item) => (
                         <tr key={item.id}>
-                            <td>{item.name}</td>
-                            <td>{item.country_name}</td>
-                            <td>{new Date(item.created_at).toISOString().split('T')[0]}</td>
-                            <td>{new Date(item.updated_at).toISOString().split('T')[0]}</td>
-                            <td className="status" style={{ padding: "21px 15px"}}>
-                                <button onClick={() => toggleForm(item)}>
-                                    <span className="la la-pencil"></span>
-                                </button>
-                                <button onClick={() => confirmDelete(item.id)} className="mx-3">
+                          <td className="text-center">{item.name}</td>
+                          <td className="text-center">{item.country_name}</td>
+                          <td className="text-center">
+                            {this.formatDate(item.created_at)}
+                          </td>
+                          <td className="text-center">
+                            {this.formatDate(item.updated_at)}
+                          </td>
+                          <td className="text-center">{item.status}</td>
+                          <td className="status text-center">
+                            <div className="d-flex justify-content-center align-items-center gap-3">
+                              <button onClick={() => this.toggleForm(item)} className="icon-btn">
+                                <span className="la la-pencil"></span>
+                              </button>
 
-                                    {item.status === "active" ?
-                                        <span className="la la-times-circle" style={{ color: "red" }}></span> :
-                                        <span className="la la-check-circle" style={{ color: "green" }}></span>
+                              <button
+                                onClick={() => this.confirmDelete(item.id, item.status)}
+                                className="icon-btn"
+                              >
+                                {item.status === "active" ? (
+                                  <span className="la la-times-circle text-danger"></span>
+                                ) : (
+                                  <span className="la la-check-circle text-success"></span>
+                                )}
+                              </button>
 
-
-                                    }
-                                </button>
-                                <button onClick={() => toggleHistory(item)}>
-
-                                    <span className="la la-history"></span>
-                                </button>
-                            </td>
+                              <button onClick={() => this.toggleHistory(item)} className="icon-btn">
+                                <span className="la la-history"></span>
+                              </button>
+                            </div>
+                          </td>
                         </tr>
-                    ))}
-        </tbody>
-      </table>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
+              </CardBody>
+            </Card>
+          </Container>
 
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={(page) => {
-          setCurrentPage(page);
-          if (res) {
-            handlePageChange(page);
-          }
-        }}
-      />
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={this.handlePageChange}
+          />
 
-      {/* Add/Edit modal */}
-      {showModal && (
-        <div className="Modal-outer-div">
-          <div className="Modal-inner-div">
-            <h4>{editId ? "Edit District" : "Add District"}</h4>
+          {/* Add/Edit Modal */}
+          <Modal
+            show={showModal}
+            onHide={() => this.setState({ showModal: false })}
+            centered
+          >
+            <Modal.Header closeButton>
+              <Modal.Title style={{ fontSize: "1rem" }}>
+                {editId ? "Edit District" : "Add New District"}
+              </Modal.Title>
+            </Modal.Header>
 
-            <label>Country</label>
-            <AsyncSelect
-              cacheOptions
-              defaultOptions
-              loadOptions={loadCountries}
-              value={selectedCountry}
-              onChange={setSelectedCountry}
-              placeholder="Select Country"
-              className="Modal-input"
-            />
+            <Modal.Body>
+              {/* Country */}
+              <label className="mb-1">Country</label>
+              <AsyncSelect
+                cacheOptions
+                defaultOptions
+                loadOptions={this.loadCountries}
+                value={this.state.selectedCountry}
+                onChange={(selectedCountry) =>
+                  this.setState({ selectedCountry })
+                }
+                placeholder="Select Country"
+                className="mb-3"
+              />
 
+              {/* District Name */}
+              <label className="mb-1">District Name</label>
+              <input
+                type="text"
+                value={this.state.inputValue}
+                onChange={(e) => this.setState({ inputValue: e.target.value })}
+                placeholder="Enter district name"
+                className="form-control"
+              />
+            </Modal.Body>
 
-            <label>District Name</label>
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Enter District name"
-              className="Modal-input"
-            />
-
-
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button
-                className="Modal-cancel-button"
-                onClick={() => setShowModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="Modal-save-button"
-                onClick={handleSave}
-                disabled={!inputValue || !selectedCountry}
+            <Modal.Footer>
+              <Button
+                variant="primary"
+                onClick={this.handleSave}
+                disabled={!this.state.inputValue || !this.state.selectedCountry}
               >
                 Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              </Button>
+            </Modal.Footer>
+          </Modal>
 
-      {/* Delete confirmation modal */}
-            {showDeleteConfirm && (
-        <div className="Modal-outer-div">
-          <div className="Modal-inner-div">
-            <h4>Confirm {isActive === "active" ? " In Activate" : " Activate"} </h4>
-            <p>Are you sure you want to {isActive} this District?</p>
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button className="Modal-cancel-button" onClick={cancelDelete}>
+          {/* Delete Confirmation */}
+          <Modal show={showDeleteConfirm} onHide={this.cancelDelete} centered>
+            <Modal.Header closeButton>
+              <Modal.Title style={{ fontSize: "1rem", fontWeight: 600 }}>
+                Confirm {deleteStatus === "active" ? "Inactivate" : "Activate"}
+              </Modal.Title>
+            </Modal.Header>
+
+            <Modal.Body className="text-center py-3">
+              <p style={{ marginBottom: 0 }}>
+                Are you sure you want to{" "}
+                <strong>
+                  {deleteStatus === "active" ? "inactivate" : "activate"}
+                </strong>{" "}
+                this District?
+              </p>
+            </Modal.Body>
+
+            <Modal.Footer className="d-flex justify-content-end gap-2">
+              <Button variant="secondary" onClick={this.cancelDelete}>
                 Cancel
-              </button>
-              <button className="Modal-save-button" onClick={handleDelete}>
-                {isActive === "active" ? " In Activate" : " Activate"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-{showHistoryModal && (
-                <div className="modal fade show" style={{ display: "block" }}>
-                    <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-                        <div className="modal-content">
+              </Button>
 
-                            <div className="modal-header">
-                                <h5 className="modal-title">History</h5>
-                                <button
-                                    type="button"
-                                    className="btn-close"
-                                    onClick={() => setShowHistoryModal(false)}
-                                ></button>
-                            </div>
+              <Button
+                variant={deleteStatus === "active" ? "danger" : "success"}
+                onClick={this.handleDelete}
+              >
+                {deleteStatus === "active" ? "Inactivate" : "Activate"}
+              </Button>
+            </Modal.Footer>
+          </Modal>
 
-                            <div className="modal-body">
-                                {history?.map((item, idx) => (
-                                    <div
-                                        key={item.id || idx}
-                                        className="p-2 mb-2 rounded"
-                                        style={{
-                                            backgroundColor: idx % 2 === 0 ? "#f8f9fa" : "#e9ecef",
-                                            border: "1px solid #dee2e6",
-                                            fontSize: "14px",
-                                        }}
-                                    >
-                                        <strong>{item.data.name}</strong> was{" "}
-                                        <span
-                                            style={{
-                                                color:
-                                                    item.action === "ADDED"
-                                                        ? "green"
-                                                        : item.action === "UPDATED"
-                                                            ? "purple"
-                                                            : item.action === "ACTIVE"
-                                                                ? "teal"
-                                                                : "red",
-                                                fontWeight: "bold",
-                                            }}
-                                        >
-                                            {item.action}
-                                        </span>{" "}
-                                        by <em>{item.changed_by_name}</em> on{" "}
-                                        {item.changed_at?.split("T")[0]}
-                                    </div>
-                                ))} </div>
-                        </div>
-                    </div>
+          {/* History Modal */}
+          <Modal
+            show={showHistoryModal}
+            onHide={() => this.setState({ showHistoryModal: false })}
+            centered
+            scrollable
+          >
+            <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
+              <Modal.Title style={{ fontSize: "1rem", marginBottom: 0 }}>
+                History
+              </Modal.Title>
+            </Modal.Header>
+
+            <Modal.Body style={{ paddingTop: "0.5rem" }}>
+              {history.map((item, idx) => (
+                <div
+                  key={item.id || idx}
+                  className="p-2 mb-2 rounded"
+                  style={{
+                    backgroundColor: idx % 2 === 0 ? "#f8f9fa" : "#e9ecef",
+                    border: "1px solid #dee2e6",
+                    fontSize: "14px",
+                  }}
+                >
+                  <strong> {item.data.name} </strong> was{" "}
+                  <span
+                    style={{
+                      color:
+                        item.action === "ADDED"
+                          ? "green"
+                          : item.action === "UPDATED"
+                            ? "purple"
+                            : item.action === "ACTIVE"
+                              ? "teal"
+                              : "red",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {item.action}
+                  </span>{" "}
+                  by{" "}
+                  <em>
+                    {" "}
+                    <strong>{item.changed_by_name}</strong>
+                  </em>{" "}
+                  on {this.formatDate(item.changed_at)}
                 </div>
-            )}
-    </>
-  );
-};
+              ))}
+            </Modal.Body>
+          </Modal>
+        </div>
+      </React.Fragment>
+    );
+  }
+}
 
 export default Districts;

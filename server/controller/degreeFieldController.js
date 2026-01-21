@@ -1,26 +1,58 @@
 const degreeFieldModel = require("../models/degreeFieldModel");
 
 
+// const degreeFieldModel = require("../models/degreeFieldModel");
+
 const addDegreeField = (req, res) => {
-    const degreeFieldData = req.body;
-    degreeFieldModel.addDegreeField(degreeFieldData, (err, result) => {
-        if (err) {
-            return res.status(500).json({ success: false, error: err.message });
-        }
-        res.json({ success: true, message: "Degree Field added successfully" });
-    });
-}
+  const userId = req.user?.userId;
+  if (!userId) return res.status(401).json({ success: false, error: "Unauthorized" });
+
+  const { name, t_id, type, data } = req.body;
+
+  if (!t_id) return res.status(400).json({ success: false, error: "Degree type ID is required" });
+  if (!name && type !== "csv") return res.status(400).json({ success: false, error: "Degree field name is required" });
+
+  degreeFieldModel.addDegreeField({ name, t_id, type, data, userId }, (err, result) => {
+    if (err) return res.status(err.status || 500).json({ success: false, error: err.message });
+    res.status(201).json({ success: true, message: "Degree field added successfully", ...result });
+  });
+};
+
 
 const editDegreeField = (req, res) => {
     const { id } = req.params;
-    const degreeFieldData = req.body;
-    degreeFieldModel.editDegreeField(id, degreeFieldData, (err, result) => {
-        if (err) {
-            return res.status(500).json({ success: false, error: err.message });
+    const { name } = req.body;
+    const userId = req.user.userId;
+
+    if (!name) {
+        return res.status(400).json({
+            success: false,
+            message: "Name is required",
+        });
+    }
+
+    degreeFieldModel.editDegreeField(
+        id,
+        { name },
+        userId,
+        (err, result) => {
+            if (err) {
+                return res.status(err.status || 500).json({
+                    success: false,
+                    message: err.message,
+                });
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: result.message,
+            });
         }
-        res.json({ success: true, message: "Degree Field updated successfully" });
-    });
-}
+    );
+};
+
+
+
 const getAllDegreeFields = (req, res) => {
   const {
     page = 1,
@@ -41,19 +73,49 @@ const getAllDegreeFields = (req, res) => {
     }
   );
 }
+// Function to fetch dropdown data
+const getDegreeFieldsDropdown = (req, res) => {
+  const { degree_type_id, search = "", status = "Active" } = req.query;
+
+  if (!degree_type_id) return res.json({ degreefields: [] });
+
+  degreeFieldModel.getDegreeFieldsDropdown(
+    {
+      degree_type_id: parseInt(degree_type_id),
+      search,
+      status,
+    },
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ degreefields: results });
+    }
+  );
+};
+
 const deleteDegreeField = (req, res) => {
     const { id } = req.params;
-    degreeFieldModel.deleteDegreeField(id, (err, result) => {
+    const userId = req.user.userId;
+
+    degreeFieldModel.deleteDegreeField(id, userId, (err, result) => {
         if (err) {
-            return res.status(500).json({ success: false, error: err.message });
+            return res.status(err.status || 500).json({
+                success: false,
+                message: err.message,
+            });
         }
 
-        res.json({ success: true, message: "Degree Field deleted successfully" });
+        return res.status(200).json({
+            success: true,
+            ...result,
+        });
     });
-}
+};
+
+
 module.exports = {
     addDegreeField,
     editDegreeField,
     getAllDegreeFields,
-    deleteDegreeField
+    deleteDegreeField,
+    getDegreeFieldsDropdown
 };  

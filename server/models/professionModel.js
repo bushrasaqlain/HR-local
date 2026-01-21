@@ -111,47 +111,61 @@ const addProfession = (req, res) => {
   });
 };
 
-const getAllProfession = ({ page = 1, limit = 15, name = "name", search = "", status = "active" }, callback) => {
-    // Ensure numeric values
-    page = parseInt(page, 10) || 1;
-    limit = parseInt(limit, 10) || 15;
-    const offset = (page - 1) * limit;
+const getAllProfession = (
+  { page = 1, limit = 15, name = "name", search = "", status = "active" },
+  callback
+) => {
+  // Ensure numeric values
+  page = parseInt(page, 10) || 1;
+  limit = parseInt(limit, 10) || 15;
+  const offset = (page - 1) * limit;
 
-    let condition = "";
-    let values = [status];
+  let condition = "";
+  let values = [];
 
-    if (name === "name") {
-        condition = " AND name LIKE ?";
-        values.push(`%${search}%`);
-    } else if (name === "created_at" || name === "updated_at") {
-        condition = ` AND DATE(${name}) = ?`;
-        values.push(search);
-    }
+  // Status filter
+  if (status !== "all") {
+    condition += " AND status = ?";
+    values.push(status);
+  }
 
-    const query = `
-        SELECT * FROM professions
-        WHERE status = ? ${condition}
-        ORDER BY id DESC
-        LIMIT ? OFFSET ?
-    `;
-    values.push(limit, offset);
+  // Search/filter
+  if (name === "name") {
+    condition += " AND name LIKE ?";
+    values.push(`%${search}%`);
+  } else if (name === "created_at" || name === "updated_at") {
+    condition += ` AND DATE(${name}) = ?`;
+    values.push(search);
+  }  else if (name === "status") {
+    condition += " AND LOWER(status) LIKE ?";
+    values.push(`%${search.toLowerCase()}%`);
+}
 
-    connection.query(query, values, (err, results) => {
-        if (err) return callback(err);
+  const query = `
+    SELECT * FROM professions
+    WHERE 1=1 ${condition}
+    ORDER BY id DESC
+    LIMIT ? OFFSET ?
+  `;
+  values.push(limit, offset);
 
-        const countQuery = `SELECT COUNT(*) AS total FROM professions WHERE status = ? ${condition}`;
-        connection.query(countQuery, values.slice(0, -2), (err2, countResult) => {
-            if (err2) return callback(err2);
+  connection.query(query, values, (err, results) => {
+    if (err) return callback(err);
 
-            callback(null, {
-                total: countResult[0].total,
-                page,
-                limit,
-                professions: results,
-            });
-        });
+    const countQuery = `SELECT COUNT(*) AS total FROM professions WHERE 1=1 ${condition}`;
+    connection.query(countQuery, values.slice(0, -2), (err2, countResult) => {
+      if (err2) return callback(err2);
+
+      callback(null, {
+        total: countResult[0].total,
+        page,
+        limit,
+        professions: results,
+      });
     });
+  });
 };
+
 
 
 const deleteProfession = (req, res) => {

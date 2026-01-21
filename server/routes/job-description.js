@@ -6,57 +6,6 @@ const logAudit = require("../utils/auditLogger");
 const checkRole = require("../middleware/checkRole");
 // Table creation SQL
 
-const createJobPostTable=()=>{
-const createjob_postsTableQuery = `
-CREATE TABLE IF NOT EXISTS job_posts (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  account_id INT, -- Foreign key referencing the account table
-  job_title VARCHAR(255),
-  job_description TEXT,
-  skill_ids JSON,
-  time_from TIME,
-  time_to TIME,
-  job_type_id INT,
-  min_salary INT,
-  max_salary INT,
-  currency_id INT,
-  min_experience VARCHAR(255),
-  max_experience VARCHAR(255),
-  profession_id INT,
-  degree_id INT,
-  application_deadline TIMESTAMP,
-  no_of_positions INT,
-  industry VARCHAR(255),
-  package_id INT,
-  country_id INT,
-  district_id INT,
-  city_id INT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  status ENUM('Active', 'InActive', 'Pending') DEFAULT 'Pending',
-  FOREIGN KEY (account_id) REFERENCES account(id),
-  FOREIGN KEY (job_type_id) REFERENCES jobtypes(id), 
-  FOREIGN KEY (profession_id) REFERENCES professions(id),
-  FOREIGN KEY (degree_id) REFERENCES degreetypes(id),
-  FOREIGN KEY (currency_id) REFERENCES currencies(id),
-  FOREIGN KEY (package_id) REFERENCES packages(id),
-  FOREIGN KEY (country_id) REFERENCES countries(id),
-  FOREIGN KEY (district_id) REFERENCES districts(id),
-  FOREIGN KEY (city_id) REFERENCES cities(id)
-
-  );
-`;
-
-// Execute the queries to create the tables
-connection.query(createjob_postsTableQuery, function (err, results, fields) {
-  if (err) {
-    return console.error(err.message);
-  }
-  console.log("job description  table created successfully");
-})
-}
-
-
 router.post('/', authMiddleware, (req, res) => {
   const accountId = req.user.userId;
   const {
@@ -204,24 +153,7 @@ router.post('/', authMiddleware, (req, res) => {
 })
 
 router.put('/updatepackageforjob', authMiddleware, (req, res) => {
-  const accountId = req.user.userId;
-  const { packageId, jobId } = req.body;
-  connection.query(`UPDATE job_posts SET package_id = ? WHERE id = ? AND account_id = ?`, [packageId, jobId, accountId], (error, result) => {
-    if (error) {
-      console.error("ERROR subscribing package:", error);
-      return res.status(500).json({ error: "database error " });
-    } else {
-      logAudit({
-        tableName: "history",
-        entityType: "job",
-        entityId: jobId,
-        action: "UPDATED",
-        data: { packageId: packageId },
-        changedBy: accountId,
-      });
-      return res.status(200).json({ message: "Subscribed Successfully" });
-    }
-  })
+ 
 })
 
 // Get ALL job posts + account info for each post

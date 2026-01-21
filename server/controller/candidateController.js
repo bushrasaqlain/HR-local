@@ -7,6 +7,16 @@ const addAvailaibility = (req, res) => {
 const addCandidateInfo = (req, res) => {
     candidateModel.addCandidateInfo(req, res);
 }
+
+const getAllCandidates=(req,res)=>{
+    candidateModel.getAllCandidates(req,res);
+}
+const updateStatus=(req,res)=>{
+     const { id, status } = req.params;
+    candidateModel.updateStatus(id,status,res);
+}
+
+
 const getCandidateInfo = (req, res) => {
     candidateModel.getCandidateInfo(req, res);
 }
@@ -26,6 +36,8 @@ const getCandidateInfobyAccountType= (req, res) => {
     candidateModel.getCandidateInfobyAccountType(req, res);
 }
 module.exports = {
+    getAllCandidates,
+    updateStatus,
     addAvailaibility,
     addCandidateInfo,
     getCandidateInfo,

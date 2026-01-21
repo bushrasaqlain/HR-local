@@ -1,115 +1,61 @@
 import Link from "next/link";
-import { isActiveLink } from "../../lib/linkActiveChecker";
+import { Nav, NavItem, NavLink, Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { isActiveLink } from "../../lib/linkActiveChecker";
+import { pageItems } from './menuitem';
+
 const HeaderNavContent = () => {
   const router = useRouter();
-  const [navbar, setNavbar] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  const changeBackground = () => {
-    if (window.scrollY >= 10) {
-      setNavbar(true);
-    } else {
-      setNavbar(false);
-    }
-  };
-
-  useEffect(() => {
-    window.addEventListener("scroll", changeBackground);
-  }, []);
+  const toggleDropdown = () => setDropdownOpen(!dropdownOpen);
 
   return (
-    <nav className="nav main-menu">
-      <ul className="navigation" id="navbar">
-        {/* Home */}
-        <li className={isActiveLink("/", router.asPath) ? "current" : ""}>
-          <Link href="/">
-            <span>Home</span>
-          </Link>
-        </li>
+    <Nav navbar className="me-auto">
+      <NavItem>
+        <NavLink active={isActiveLink("/", router.asPath)}>
+          <Link href="/">Home</Link>
+        </NavLink>
+      </NavItem>
 
-        {/* Jobs List */}
-        <li
-          className={
-            isActiveLink("/job-list/job-list-v5", router.asPath)
-              ? "current"
-              : ""
-          }
-        >
-          <Link href="/job-list/job-list-v5">Jobs List</Link>
-        </li>
+      <NavItem>
+        <NavLink active={isActiveLink("/joblist", router.asPath)}>
+          <Link href="/joblist">Jobs List</Link>
+        </NavLink>
+      </NavItem>
 
-        {/* Employers List */}
-        <li
-          className={
-            isActiveLink("/employers-list/employers-list-v1", router.asPath)
-              ? "current"
-              : ""
-          }
-        >
-          <Link href="/employers-list/employers-list-v1">Employers</Link>
-        </li>
+      <NavItem>
+        <NavLink active={isActiveLink("/employeeslist", router.asPath)}>
+          <Link href="/employeeslist">Employers</Link>
+        </NavLink>
+      </NavItem>
 
-        {/* Candidates List */}
-        <li
-          className={
-            isActiveLink("/candidates-list/candidates-list-v2", router.asPath)
-              ? "current"
-              : ""
-          }
-        >
-          <Link href="/candidates-list/candidates-list-v2">Candidates</Link>
-        </li>
+      <NavItem>
+        <NavLink active={isActiveLink("/candidateslist", router.asPath)}>
+          <Link href="/candidateslist">Candidates</Link>
+        </NavLink>
+      </NavItem>
 
-        {/* Pages Dropdown */}
-        <li className="dropdown">
-          <span>Pages</span>
-          <ul>
-            <li
-              className={isActiveLink("/about", router.asPath) ? "current" : ""}
+      {/* Single Pages Dropdown */}
+      <Dropdown nav inNavbar isOpen={dropdownOpen} toggle={toggleDropdown}>
+        <DropdownToggle nav caret>
+          Pages
+        </DropdownToggle>
+        <DropdownMenu>
+          {pageItems.map((item, index) => (
+            <DropdownItem
+              key={index}
+              tag={Link}
+              href={item.routePath}
+              active={router.asPath === item.routePath}
             >
-              <Link href="/about">About</Link>
-            </li>
-
-            <li
-              className={
-                isActiveLink("/pricing", router.asPath) ? "current" : ""
-              }
-            >
-              <Link href="/pricing">Pricing</Link>
-            </li>
-
-            <li
-              className={isActiveLink("/faq", router.asPath) ? "current" : ""}
-            >
-              <Link href="/faq">FAQ's</Link>
-            </li>
-
-            <li
-              className={isActiveLink("/terms", router.asPath) ? "current" : ""}
-            >
-              <Link href="/terms">Terms</Link>
-            </li>
-
-            <li
-              className={
-                isActiveLink("/invoice", router.asPath) ? "current" : ""
-              }
-            >
-              <Link href="/invoice">Invoice</Link>
-            </li>
-
-            <li
-              className={
-                isActiveLink("/contact", router.asPath) ? "current" : ""
-              }
-            >
-              <Link href="/contact">Contact</Link>
-            </li>
-          </ul>
-        </li>
-      </ul>
-    </nav>
+              {item.name}
+            </DropdownItem>
+          ))}
+        </DropdownMenu>
+      </Dropdown>
+    </Nav>
   );
 };
 

@@ -13,4 +13,5 @@ router.delete("/deletecurrency/:id", authMiddleware, currencyController.deleteCu
   
 router.put("/editcurrency/:id", authMiddleware, currencyController.editCurrency)
  
+router.get("/getCurrencyinPayment",currencyController.getAllCurrenciesinPayment)
 module.exports = router;
