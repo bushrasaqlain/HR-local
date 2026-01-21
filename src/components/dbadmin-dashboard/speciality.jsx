@@ -1,11 +1,10 @@
 import React, { Component } from "react";
-import Head from "next/head";
 import axios from "axios";
 import Pagination from "../common/pagination.jsx";
 import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
+import MetaTags from "react-meta-tags";
 import * as XLSX from "xlsx";
-// import MetaTags from "react-meta-tags";
 import {
   Card,
   Row,
@@ -27,14 +26,15 @@ class Speciality extends Component {
       showModal: false,
       inputValue: "",
       editId: null,
-      deleteId: null,
-      deleteStatus: null,
-      showDeleteConfirm: false,
+      updateId: null,
+      updateStatus: null,
+      showUpdateStatus: false,
       showHistoryModal: false,
       history: [],
       currentPage: 1,
-      totalspeciality: 0,
+      totalSpeciality: 0,
       isActive: "all",
+
     };
 
     this.itemsPerPage = 50;
@@ -42,7 +42,7 @@ class Speciality extends Component {
   }
 
   componentDidMount() {
-    this.fetchspeciality();
+    this.fetchSpeciality();
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -50,22 +50,22 @@ class Speciality extends Component {
       prevState.currentPage !== this.state.currentPage ||
       prevState.isActive !== this.state.isActive
     ) {
-      this.fetchspeciality();
+      this.fetchSpeciality();
       this.resetSearch();
     }
   }
 
-  fetchspeciality = async (
+  fetchSpeciality = async (
     page = this.state.currentPage,
     status = this.state.isActive
   ) => {
     try {
-      const response = await axios.get(`${this.apiBaseUrl}getAllspeciality`, {
+      const response = await axios.get(`${this.apiBaseUrl}getallspeciality`, {
         params: { page, limit: this.itemsPerPage, status },
       });
       this.setState({
         speciality: response.data.speciality || [],
-        totalspeciality: response.data.total || 0,
+        totalSpeciality: response.data.total || 0,
       });
     } catch (error) {
       console.error("Error fetching speciality:", error);
@@ -81,6 +81,122 @@ class Speciality extends Component {
     const year = String(date.getFullYear()).slice(-2); // 25
 
     return `${day}-${month}-${year}`;
+  };
+
+  handleExcelExport = () => {
+    const { speciality } = this.state;
+    if (!speciality.length) {
+      toast.info("No data to export");
+      return;
+    }
+
+    const worksheet = XLSX.utils.json_to_sheet(
+      speciality.map((inst) => ({
+        Name: inst.name,
+        Status: inst.status,
+        Created: this.formatDate(inst.created_at),
+        Updated: this.formatDate(inst.updated_at),
+      }))
+    );
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Speciality");
+
+    XLSX.writeFile(workbook, "Speciality.xlsx");
+  };
+
+  handleExcelImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const userId = sessionStorage.getItem("userId");
+
+    if (!userId) {
+      toast.error("User not logged in");
+      return;
+    }
+
+    try {
+      const reader = new FileReader();
+
+      reader.onload = async (evt) => {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+        const formattedData = jsonData
+          .map(row => ({ name: row.name?.toString().trim() }))
+          .filter(row => row.name);
+
+        if (!formattedData.length) {
+          toast.error("No valid speciality names found");
+          return;
+        }
+
+        await api.post(`${this.apiBaseUrl}addspeciality`, {
+          type: "csv",
+          data: formattedData,
+          userId,
+        });
+
+        toast.success("Speciality imported successfully");
+        this.fetchSpeciality(1);
+      };
+
+      reader.readAsArrayBuffer(file);
+      e.target.value = "";
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to import Excel");
+    }
+  };
+
+  handleSearch = async (e) => {
+    const { name, value } = e.target;
+    ["name", "created_at", "updated_at", "status"].forEach((input) => {
+      if (input !== name) {
+        const ele = document.getElementById(input);
+        if (ele) ele.value = "";
+      }
+    });
+
+    this.setState({ currentPage: 1 });
+
+    try {
+      const res = await axios.get(`${this.apiBaseUrl}getallspeciality`, {
+        params: {
+          name,
+          search: value,
+          status: this.state.isActive,
+          page: 1,
+          limit: this.itemsPerPage,
+        },
+      });
+      this.setState({
+        speciality: res.data.speciality || [],
+        total: res.data.total || 0,
+      });
+    } catch (error) {
+      console.error("Error searching speciality:", error);
+    }
+  };
+
+  resetSearch = () => {
+    ["name", "created_at", "updated_at"].forEach((id) => {
+      const ele = document.getElementById(id);
+      if (ele) ele.value = "";
+    });
+  };
+
+  handlePageChange = (page) => {
+    this.setState({ currentPage: page });
+  };
+
+  toggleHistory = (item = null) => {
+    if (item) this.fetchHistory(item.id);
+    this.setState({ showHistoryModal: true });
   };
 
   fetchHistory = async (id) => {
@@ -107,269 +223,105 @@ class Speciality extends Component {
     }
   };
 
-  toggleHistory = (item = null) => {
-    if (item) this.fetchHistory(item.id);
-    this.setState({ showHistoryModal: true });
-  };
-
   handleSave = async () => {
     const { editId, inputValue } = this.state;
-
-    if (!inputValue.trim()) {
-      toast.error("Speciality name cannot be empty");
-      return;
-    }
-
+    const userId = sessionStorage.getItem("userId");
     try {
-      let response;
-
       if (editId) {
-        response = await api.put(`/editspeciality/${editId}`, {
+        await api.put(`${this.apiBaseUrl}editspeciality/${editId}`, {
           name: inputValue,
         });
-        toast.success("Speciality updated successfully!");
-        this.setState({ showModal: false, inputValue: "", editId: null });
-        this.fetchspeciality(this.state.currentPage);
+        this.setState((prevState) => ({
+          speciality: prevState.speciality.map((item) =>
+            item.id === editId ? { ...item, name: inputValue } : item
+          ),
+        }));
       } else {
-        response = await api.post("/addspeciality", { name: inputValue });
-        toast.success(
-          response.data?.message || "Speciality added successfully!"
-        );
-        this.setState({ showModal: false, inputValue: "" });
-        this.fetchspeciality(1); // refresh first page
+        await api.post(`${this.apiBaseUrl}addspeciality`, { name: inputValue, userId });
+        this.fetchSpeciality(1);
       }
+      this.setState({ showModal: false, inputValue: "", editId: null });
     } catch (error) {
       console.error("Error saving speciality:", error);
-
-      // Handle duplicate / conflict gracefully
-      if (error.response?.status === 409) {
-        toast.error(
-          error.response.data?.message || "Speciality already exists"
-        );
-      } else {
-        toast.error(
-          error.response?.data?.error ||
-            "An error occurred while saving Speciality"
-        );
-      }
     }
   };
 
-  confirmDelete = (id, status) => {
+  confirmUpdate = (id, status) => {
     this.setState({
-      deleteId: id,
-      deleteStatus: status, // ✅ actual row status
-      showDeleteConfirm: true,
+      updateId: id,
+      updateStatus: status, // ✅ actual row status
+      showUpdateStatus: true,
     });
   };
-  handleDelete = async () => {
-    const { deleteId, isActive } = this.state;
+  cancelStatus = () => {
+    this.setState({ showUpdateStatus: false, updateId: null });
+  };
+
+  handleStatus = async () => {
+    const { updateId, updateStatus } = this.state; // use actual row status
+    if (!updateId) return;
+
     try {
-      await api.delete(`${this.apiBaseUrl}deletespeciality/${deleteId}`);
+      // Call API to update status
+      await api.put(`${this.apiBaseUrl}updatestatus/${updateId}`);
+
+      // Update the state immediately
+      this.setState((prevState) => ({
+        speciality: prevState.speciality.map((item) =>
+          item.id === updateId
+            ? { ...item, status: updateStatus === "active" ? "inactive" : "active" }
+            : item
+        ),
+        showUpdateStatus: false,
+        updateId: null,
+        updateStatus: null,
+      }));
+
+      // Show toast using actual row status
       toast.success(
-        isActive === "active"
+        updateStatus === "active"
           ? "Inactivated successfully"
           : "Activated successfully"
       );
-      this.setState({ showDeleteConfirm: false }, this.fetchspeciality);
     } catch (error) {
-      console.error("Error deleting speciality:", error);
+      console.error("Error updating status speciality:", error);
+      toast.error("Failed to update status");
     }
   };
 
-  cancelDelete = () => {
-    this.setState({ showDeleteConfirm: false, deleteId: null });
-  };
-
-  handleSearch = async (e) => {
-    const { name, value } = e.target;
-    ["name", "created_at", "updated_at", "status"].forEach((input) => {
-      if (input !== name) {
-        const ele = document.getElementById(input);
-        if (ele) ele.value = "";
-      }
-    });
-
-    this.setState({ currentPage: 1 });
-
-    try {
-      const res = await axios.get(`${this.apiBaseUrl}getAllspeciality`, {
-        params: {
-          name,
-          search: value,
-          status: this.state.isActive,
-          page: 1,
-          limit: this.itemsPerPage,
-        },
-      });
-      this.setState({
-        speciality: res.data.speciality || [],
-        totalspeciality: res.data.total || 0,
-      });
-    } catch (error) {
-      console.error("Error searching speciality:", error);
-    }
-  };
-
-  resetSearch = () => {
-    ["name", "created_at", "updated_at"].forEach((id) => {
-      const ele = document.getElementById(id);
-      if (ele) ele.value = "";
-    });
-  };
-
-  handlePageChange = (page) => {
-    this.setState({ currentPage: page });
-  };
-
-  handleExport = () => {
-    const { speciality } = this.state;
-    if (!speciality.length) {
-      toast.info("No data to export");
-      return;
-    }
-
-    // 🔹 Convert to worksheet
-    const wsData = speciality.map((item) => ({
-      Name: item.name,
-      Created: this.formatDate(item.created_at),
-      Updated: this.formatDate(item.updated_at),
-      Status: item.status,
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(wsData);
-
-    // 🔹 Create a new workbook and append sheet
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Speciality");
-
-    // 🔹 Export to file
-    XLSX.writeFile(wb, "Speciality_List.xlsx");
-  };
-
-  handleImport = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-
-    reader.onload = async (e) => {
-      const data = e.target.result;
-
-      let names = [];
-
-      // 🔹 Check file type
-      if (file.name.endsWith(".csv")) {
-        // CSV parsing
-        const text = data;
-        names = text
-          .split("\n")
-          .map((row) => row.trim())
-          .filter((row) => row); // remove empty lines
-      } else {
-        // XLSX parsing
-        const workbook = XLSX.read(data, { type: "binary" });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(sheet, { header: 1 }); // array of arrays
-        names = json.map((row) => row[0]).filter((n) => n); // first column
-      }
-
-      if (!names.length) {
-        toast.error("No valid names found in file");
-        return;
-      }
-
-      try {
-        const res = await api.post("/addspeciality", { name: names });
-        toast.success(res.data.message + ` (${res.data.inserted} inserted)`);
-        this.fetchspeciality(1); // refresh table
-      } catch (err) {
-        console.error(err);
-        toast.error(err.response?.data?.error || "Import failed");
-      }
-    };
-
-    // 🔹 Read as text for CSV, binary for XLSX
-    if (file.name.endsWith(".csv")) reader.readAsText(file);
-    else reader.readAsBinaryString(file);
-
-    // reset input
-    event.target.value = null;
-  };
 
   render() {
     const {
       speciality,
       showModal,
       inputValue,
-      showDeleteConfirm,
+      showUpdateStatus,
       showHistoryModal,
       history,
       currentPage,
-      totalspeciality,
-      deleteStatus,
+      totalSpeciality,
+      updateStatus,
       isActive,
       editId,
     } = this.state;
-    const totalPages = Math.ceil(totalspeciality / this.itemsPerPage);
+    const totalPages = Math.ceil(totalSpeciality / this.itemsPerPage);
 
     return (
       <React.Fragment>
-        <Head>
+        <MetaTags>
           <title>Speciality | List</title>
-        </Head>
+        </MetaTags>
         <h6 className="fw-bold mb-3">Speciality List</h6>
         <div className="poppins-font">
           <Container fluid>
-            <div className="d-flex justify-content-end gap-1 my-3">
-              <Button variant="outline-secondary" onClick={this.handleExport}>
-                Export
-              </Button>
+            <div className="institute-header-section d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
 
-              <Button
-                variant="outline-primary"
-                onClick={() => this.fileInput.click()}
-              >
-                Import
-              </Button>
-
-              {/* hidden file input */}
-              <input
-                type="file"
-                accept=".csv,.xlsx"
-                ref={(ref) => (this.fileInput = ref)}
-                style={{ display: "none" }}
-                onChange={this.handleImport}
-              />
-            </div>
-            <div className="speciality-header-section">
-              <p
-                className="breadcrumb-text"
-                title="History"
-                breadcrumbItem="Activity Log"
-              />
-
-              <div className="d-flex justify-content-end gap-1 my-2">
-                <Button
-                  variant="dark"
-                  onClick={() => this.toggleForm()}
-                  className="add-speciality-btn"
-                >
-                  Add Speciality
-                </Button>
-              </div>
-
-              <div className="w-100 m-2">
-                <p className="filter-label text-dark">Filter by Status</p>
+              {/* Left side: Status filter */}
+              <div className="d-flex align-items-center gap-2">
+                <span className="filter-label text-dark">Filter by Status:</span>
                 <select
                   className="rounded-square form-select p-2"
-                  style={{
-                    maxWidth: "250px",
-                    // fontFamily: "Helvetica Neue, Arial, sans-serif",
-                    color: "#666565ff",
-                    border: "1px solid #ccc",
-                  }}
+                  style={{ maxWidth: "200px" }}
                   value={isActive}
                   onChange={(e) => this.setState({ isActive: e.target.value })}
                 >
@@ -378,6 +330,44 @@ class Speciality extends Component {
                   <option value="inactive">Inactive</option>
                 </select>
               </div>
+
+
+              {/* Right side: Buttons */}
+              <div className="d-flex align-items-end gap-2 flex-wrap">
+
+                {/* Add Institute */}
+                <Button
+                  variant="dark"
+                  onClick={() => this.toggleForm()}
+                  className="add-institute-btn"
+                >
+                  Add Speciality
+                </Button>
+
+                {/* Import Excel */}
+                <Button
+                  variant="secondary"
+                  onClick={() => this.fileInputRef.click()}
+                >
+                  Import Excel
+                </Button>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  ref={(ref) => (this.fileInputRef = ref)}
+                  style={{ display: "none" }}
+                  onChange={this.handleExcelImport}
+                />
+
+                {/* Export Button */}
+                <Button
+                  variant="success"
+                  onClick={this.handleExcelExport} // create this function
+                >
+                  Export
+                </Button>
+              </div>
+
             </div>
 
             <Card>
@@ -386,6 +376,7 @@ class Speciality extends Component {
                   <Table className="table-responsive align-middle default-table manage-job-table p-2 w-100 table table-striped custom-table">
                     <thead className="align-middle">
                       <tr>
+
                         <th
                           className="text-center"
                           style={{ borderBottom: "1px solid #ccc" }}
@@ -495,21 +486,18 @@ class Speciality extends Component {
                           <td className="text-center">
                             {this.formatDate(item.updated_at)}
                           </td>
-                          <td className="text-center">{item.status}</td>
+                          <td className="text-center">
+                            {item.status}
+                          </td>
 
                           <td className="status text-center">
                             <div className="d-flex justify-content-center align-items-center gap-3">
-                              <button
-                                onClick={() => this.toggleForm(item)}
-                                className="icon-btn"
-                              >
+                              <button onClick={() => this.toggleForm(item)} className="icon-btn">
                                 <span className="la la-pencil"></span>
                               </button>
 
                               <button
-                                onClick={() =>
-                                  this.confirmDelete(item.id, item.status)
-                                }
+                                onClick={() => this.confirmUpdate(item.id, item.status)}
                                 className="icon-btn"
                               >
                                 {item.status === "active" ? (
@@ -519,14 +507,12 @@ class Speciality extends Component {
                                 )}
                               </button>
 
-                              <button
-                                onClick={() => this.toggleHistory(item)}
-                                className="icon-btn"
-                              >
+                              <button onClick={() => this.toggleHistory(item)} className="icon-btn">
                                 <span className="la la-history"></span>
                               </button>
                             </div>
                           </td>
+
                         </tr>
                       ))}
                     </tbody>
@@ -550,7 +536,7 @@ class Speciality extends Component {
           >
             <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
               <Modal.Title style={{ fontSize: "1rem", marginBottom: "0" }}>
-                {editId ? "Edit Speciality" : "Add New Speciality"}
+                {editId ? "Edit Speciality" : "Add Speciality"}
               </Modal.Title>
             </Modal.Header>
             <Modal.Body style={{ paddingTop: "0.5rem" }}>
@@ -572,10 +558,10 @@ class Speciality extends Component {
           </Modal>
 
           {/* Delete Confirmation */}
-          <Modal show={showDeleteConfirm} onHide={this.cancelDelete} centered>
+          <Modal show={showUpdateStatus} onHide={this.cancelStatus} centered>
             <Modal.Header closeButton>
               <Modal.Title style={{ fontSize: "1rem", fontWeight: 600 }}>
-                Confirm {deleteStatus === "active" ? "Inactivate" : "Activate"}
+                Confirm {updateStatus === "active" ? "Inactivate" : "Activate"}
               </Modal.Title>
             </Modal.Header>
 
@@ -583,25 +569,26 @@ class Speciality extends Component {
               <p style={{ marginBottom: 0 }}>
                 Are you sure you want to{" "}
                 <strong>
-                  {deleteStatus === "active" ? "inactivate" : "activate"}
+                  {updateStatus === "active" ? "inactivate" : "activate"}
                 </strong>{" "}
                 this Speciality?
               </p>
             </Modal.Body>
 
             <Modal.Footer className="d-flex justify-content-end gap-2">
-              <Button variant="secondary" onClick={this.cancelDelete}>
+              <Button variant="secondary" onClick={this.cancelStatus}>
                 Cancel
               </Button>
 
               <Button
-                variant={deleteStatus === "active" ? "danger" : "success"}
-                onClick={this.handleDelete}
+                variant={updateStatus === "active" ? "danger" : "success"}
+                onClick={this.handleStatus}
               >
-                {deleteStatus === "active" ? "Inactivate" : "Activate"}
+                {updateStatus === "active" ? "Inactivate" : "Activate"}
               </Button>
             </Modal.Footer>
           </Modal>
+
 
           {/* History Modal */}
           <Modal
@@ -634,10 +621,10 @@ class Speciality extends Component {
                         item.action === "ADDED"
                           ? "green"
                           : item.action === "UPDATED"
-                          ? "purple"
-                          : item.action === "ACTIVE"
-                          ? "teal"
-                          : "red",
+                            ? "purple"
+                            : item.action === "ACTIVE"
+                              ? "teal"
+                              : "red",
                       fontWeight: "bold",
                     }}
                   >

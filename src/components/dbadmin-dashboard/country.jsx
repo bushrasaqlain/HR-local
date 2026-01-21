@@ -26,9 +26,9 @@ class Country extends Component {
       showModal: false,
       inputValue: "",
       editId: null,
-      deleteId: null,
-      deleteStatus: null,
-      showDeleteConfirm: false,
+      updateId: null,
+      updateStatus: null,
+      showUpdateStatus: false,
       showHistoryModal: false,
       history: [],
       currentPage: 1,
@@ -51,7 +51,7 @@ class Country extends Component {
       prevState.isActive !== this.state.isActive
     ) {
       this.fetchCountries();
-      this.resetSearch();
+      // this.resetSearch();
     }
   }
 
@@ -82,41 +82,50 @@ class Country extends Component {
 
     return `${day}-${month}-${year}`;
   };
-  handleSearch = async (e) => {
-    const { name, value } = e.target;
-    ["name", "created_at", "updated_at", "status",].forEach((input) => {
+handleSearch = async (e) => {
+  const { name, value } = e.target;
+
+  // 🚫 Prevent invalid / empty dates
+  if (
+    (name === "created_at" || name === "updated_at") &&
+    (!value || value.length !== 10)
+  ) {
+    return;
+  }
+
+  this.setState({ currentPage: 1 });
+
+  try {
+    const res = await axios.get(`${this.apiBaseUrl}getallCountries`, {
+      params: {
+        name,
+        search: value,
+        status: this.state.isActive,
+        page: 1,
+        limit: this.itemsPerPage,
+      },
+    });
+
+    this.setState({
+      countries: res.data.countries || [],
+      totalCountries: res.data.total || 0,
+    });
+  } catch (error) {
+    console.error("Error searching countries:", error);
+  }
+};
+
+
+  resetSearch = () => {
+    const clearableFields = ["name", "status"];
+
+    clearableFields.forEach((input) => {
       if (input !== name) {
         const ele = document.getElementById(input);
         if (ele) ele.value = "";
       }
     });
 
-    this.setState({ currentPage: 1 });
-
-    try {
-      const res = await axios.get(`${this.apiBaseUrl}getallCountries`, {
-        params: {
-          name,
-          search: value,
-          status: this.state.isActive,
-          page: 1,
-          limit: this.itemsPerPage,
-        },
-      });
-      this.setState({
-        countries: res.data.countries || [],
-        totalCountries: res.data.total || 0,
-      });
-    } catch (error) {
-      console.error("Error searching countries:", error);
-    }
-  };
-
-  resetSearch = () => {
-    ["name", "created_at", "updated_at"].forEach((id) => {
-      const ele = document.getElementById(id);
-      if (ele) ele.value = "";
-    });
   };
 
   handlePageChange = (page) => {
@@ -125,14 +134,14 @@ class Country extends Component {
 
 
   handleExcelExport = () => {
-    const { institutes } = this.state;
-    if (!institutes.length) {
+    const { countries } = this.state;
+    if (!countries.length) {
       toast.info("No data to export");
       return;
     }
 
     const worksheet = XLSX.utils.json_to_sheet(
-      institutes.map((inst) => ({
+      countries.map((inst) => ({
         Name: inst.name,
         Status: inst.status,
         Created: this.formatDate(inst.created_at),
@@ -141,22 +150,12 @@ class Country extends Component {
     );
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Institutes");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Country");
 
-    XLSX.writeFile(workbook, "Institutes.xlsx");
+    XLSX.writeFile(workbook, "Country.xlsx");
   };
 
-  toggleForm = (item = null) => {
-    if (item) {
-      this.setState({
-        editId: item.id,
-        inputValue: item.name,
-        showModal: true,
-      });
-    } else {
-      this.setState({ editId: null, inputValue: "", showModal: true });
-    }
-  };
+
   handleExcelImport = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -183,7 +182,7 @@ class Country extends Component {
           .filter(row => row.name);
 
         if (!formattedData.length) {
-          toast.error("No valid institute names found");
+          toast.error("No valid countries names found");
           return;
         }
 
@@ -193,8 +192,8 @@ class Country extends Component {
           userId,
         });
 
-        toast.success("Institutes imported successfully");
-        this.fetchInstitutes(1);
+        toast.success("Country imported successfully");
+        this.fetchCountries(1);
       };
 
       reader.readAsArrayBuffer(file);
@@ -204,6 +203,19 @@ class Country extends Component {
       toast.error("Failed to import Excel");
     }
   };
+
+  toggleForm = (item = null) => {
+    if (item) {
+      this.setState({
+        editId: item.id,
+        inputValue: item.name,
+        showModal: true,
+      });
+    } else {
+      this.setState({ editId: null, inputValue: "", showModal: true });
+    }
+  };
+
   handleSave = async () => {
     const { editId, inputValue } = this.state;
     try {
@@ -243,30 +255,30 @@ class Country extends Component {
   };
 
 
-  confirmDelete = (id, status) => {
+  confirmUpdate = (id, status) => {
     this.setState({
-      deleteId: id,
-      deleteStatus: status, // ✅ actual row status
-      showDeleteConfirm: true,
+      updateId: id,
+      updateStatus: status, // ✅ actual row status
+      showUpdateStatus: true,
     });
   };
-  handleDelete = async () => {
-    const { deleteId, isActive } = this.state;
+  handleStatus = async () => {
+    const { updateId, isActive } = this.state;
     try {
-      await api.delete(`${this.apiBaseUrl}deletecountry/${deleteId}`);
+      await api.put(`${this.apiBaseUrl}updateStatus/${updateId}`);
       toast.success(
         isActive === "active"
           ? "Inactivated successfully"
           : "Activated successfully"
       );
-      this.setState({ showDeleteConfirm: false }, this.fetchCountries);
+      this.setState({ showUpdateStatus: false }, this.fetchCountries);
     } catch (error) {
-      console.error("Error deleting country:", error);
+      console.error("Error update status country:", error);
     }
   };
 
-  cancelDelete = () => {
-    this.setState({ showDeleteConfirm: false, deleteId: null });
+  cancelStatus = () => {
+    this.setState({ showUpdateStatus: false, updateId: null });
   };
 
 
@@ -275,12 +287,12 @@ class Country extends Component {
       countries,
       showModal,
       inputValue,
-      showDeleteConfirm,
+      showUpdateStatus,
       showHistoryModal,
       history,
       currentPage,
       totalCountries,
-      deleteStatus,
+      updateStatus,
       isActive,
       editId,
     } = this.state;
@@ -295,10 +307,12 @@ class Country extends Component {
         <div className="poppins-font">
           <Container fluid>
             <div className="institute-header-section d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
-
               {/* Left side: Status filter */}
               <div className="d-flex align-items-center gap-2">
-                <span className="filter-label text-dark">Filter by Status:</span>
+                <span className="filter-label text-dark">
+                  Filter by Status:
+                </span>
+
                 <select
                   className="rounded-square form-select p-2"
                   style={{ maxWidth: "200px" }}
@@ -313,22 +327,12 @@ class Country extends Component {
 
 
               {/* Right side: Buttons */}
-              <div className="d-flex align-items-end gap-2 flex-wrap">
-
-                {/* Add Institute */}
-                <Button
-                  variant="dark"
-                  onClick={() => this.toggleForm()}
-                  className="add-institute-btn"
-                >
+              <div className="d-flex align-items-center gap-2">
+                <Button variant="dark" onClick={() => this.toggleForm()} className="add-institute-btn">
                   Add Country
                 </Button>
 
-                {/* Import Excel */}
-                <Button
-                  variant="secondary"
-                  onClick={() => this.fileInputRef.click()}
-                >
+                <Button variant="secondary" onClick={() => this.fileInputRef.click()}>
                   Import Excel
                 </Button>
                 <input
@@ -339,14 +343,11 @@ class Country extends Component {
                   onChange={this.handleExcelImport}
                 />
 
-                {/* Export Button */}
-                <Button
-                  variant="success"
-                  onClick={this.handleExcelExport} // create this function
-                >
+                <Button variant="success" onClick={this.handleExcelExport}>
                   Export
                 </Button>
               </div>
+
 
             </div>
 
@@ -477,7 +478,7 @@ class Country extends Component {
                               </button>
 
                               <button
-                                onClick={() => this.confirmDelete(item.id, item.status)}
+                                onClick={() => this.confirmUpdate(item.id, item.status)}
                                 className="icon-btn"
                               >
                                 {item.status === "active" ? (
@@ -537,11 +538,11 @@ class Country extends Component {
             </Modal.Footer>
           </Modal>
 
-          {/* Delete Confirmation */}
-          <Modal show={showDeleteConfirm} onHide={this.cancelDelete} centered>
+          {/* Update Satus Confirmation */}
+          <Modal show={showUpdateStatus} onHide={this.cancelStatus} centered>
             <Modal.Header closeButton>
               <Modal.Title style={{ fontSize: "1rem", fontWeight: 600 }}>
-                Confirm {deleteStatus === "active" ? "Inactivate" : "Activate"}
+                Confirm {updateStatus === "active" ? "Inactivate" : "Activate"}
               </Modal.Title>
             </Modal.Header>
 
@@ -549,22 +550,22 @@ class Country extends Component {
               <p style={{ marginBottom: 0 }}>
                 Are you sure you want to{" "}
                 <strong>
-                  {deleteStatus === "active" ? "inactivate" : "activate"}
+                  {updateStatus === "active" ? "inactivate" : "activate"}
                 </strong>{" "}
                 this Country?
               </p>
             </Modal.Body>
 
             <Modal.Footer className="d-flex justify-content-end gap-2">
-              <Button variant="secondary" onClick={this.cancelDelete}>
+              <Button variant="secondary" onClick={this.cancelStatus}>
                 Cancel
               </Button>
 
               <Button
-                variant={deleteStatus === "active" ? "danger" : "success"}
-                onClick={this.handleDelete}
+                variant={updateStatus === "active" ? "danger" : "success"}
+                onClick={this.handleStatus}
               >
-                {deleteStatus === "active" ? "Inactivate" : "Activate"}
+                {updateStatus === "active" ? "Inactivate" : "Activate"}
               </Button>
             </Modal.Footer>
           </Modal>

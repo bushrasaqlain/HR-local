@@ -30,9 +30,16 @@ const subcribePackage = (req, res) => {
 }
 
 const getJobTitle=(req,res)=>{
-  jobModel.getJobTitle(req,res);
+  jobModel
+  .getJobTitle(req,res);
+}
+const getTopCompanies = (req, res) => {
+  jobModel.getTopCompanies(req, res)
 }
 
+const popularCategories=(req,res)=>{
+  jobModel.popularCategory(req,res)
+}
 
 module.exports = {
   getJobbyRegAdmin,
@@ -43,5 +50,7 @@ module.exports = {
   postJob,
   subcribePackage,
   updatePostJob,
-  getJobTitle
+  getJobTitle,
+  getTopCompanies,
+  popularCategories
 }

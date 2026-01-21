@@ -2,14 +2,14 @@ const degreeFieldModel = require("../models/degreeFieldModel");
 
 
 const addDegreeField = (req, res) => {
-    const degreeFieldData = req.body;
-    degreeFieldModel.addDegreeField(degreeFieldData, (err, result) => {
+    degreeFieldModel.addDegreeField(req, (err, result) => {
         if (err) {
             return res.status(500).json({ success: false, error: err.message });
         }
         res.json({ success: true, message: "Degree Field added successfully" });
     });
 }
+
 const editDegreeField = (req, res) => {
     const { id } = req.params;
     const { name } = req.body;

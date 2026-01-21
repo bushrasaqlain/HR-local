@@ -7,6 +7,6 @@ const districtController = require("../controller/districtController");
 router.post("/adddistrict", authMiddleware, districtController.addDistrict);
 router.put("/editdistrict/:id", authMiddleware, districtController.editDistrict);
 router.get("/getallDistricts", districtController.getAllDistricts);
-router.delete("/deletedistrict/:id",authMiddleware,districtController.deleteDistrict);
+router.put("/updateStatus/:id",authMiddleware,districtController.updateStatus);
 
 module.exports = router;

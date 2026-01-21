@@ -306,13 +306,13 @@ const updateCompanySatus = (id, status, res) => {
       return res.status(404).json({ success: false, message: "Company not found" });
     }
     logAudit({
-        tableName: "history",
-        entityType: "employer",
-        entityId: id,
-        action: "UPDATED",
-        data: { status },
-        changedBy: id,
-      });
+      tableName: "history",
+      entityType: "employer",
+      entityId: id,
+      action: "UPDATED",
+      data: { status },
+      changedBy: id,
+    });
 
     return res.status(200).json({ success: true, message: `Company status updated to ${status}` });
   });
@@ -393,6 +393,7 @@ const getCount = (req, res) => {
     });
   });
 };
+
 
 
 module.exports = {

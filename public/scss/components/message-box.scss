@@ -1,6 +1,54 @@
-/*==========================
-Message Box
-===========================*/
+/* Chat List Container */
+.search-box-one {
+  max-height: 600px; /* adjust as needed */
+  overflow-y: auto;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 10px 0;
+}
+
+/* Each Contact Item */
+.contact-item {
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.contact-item:hover {
+  background-color: #e9ecef;
+}
+
+/* Avatar */
+.avatar {
+  width: 40px;
+  height: 40px;
+  background-color: #6c757d;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+/* Contact Info */
+.contact-info {
+  max-width: 200px; /* control text width */
+}
+
+/* Last message preview */
+.last-message {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+/* Timestamp */
+.message-time {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 .last-message {
   max-height: 40px;
   overflow-y: auto;

@@ -4,6 +4,7 @@ import Pagination from "../common/pagination.jsx";
 import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import MetaTags from "react-meta-tags";
+import * as XLSX from "xlsx";
 import {
   Card,
   Row,
@@ -81,16 +82,74 @@ class Skills extends Component {
 
     return `${day}-${month}-${year}`;
   };
+  handleExcelExport = () => {
+    const { skills } = this.state;
+    if (!skills.length) {
+      toast.info("No data to export");
+      return;
+    }
 
-  fetchHistory = async (id) => {
-    if (!id) return;
+    const worksheet = XLSX.utils.json_to_sheet(
+      skills.map((inst) => ({
+        Name: inst.name,
+        Status: inst.status,
+        Created: this.formatDate(inst.created_at),
+        Updated: this.formatDate(inst.updated_at),
+      }))
+    );
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Skill");
+
+    XLSX.writeFile(workbook, "Skill.xlsx");
+  };
+
+
+  handleExcelImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const userId = sessionStorage.getItem("userId");
+
+    if (!userId) {
+      toast.error("User not logged in");
+      return;
+    }
+
     try {
-      const res = await axios.get(`${this.apiBaseUrl}dbadminhistory`, {
-        params: { entity_type: "skill", entity_id: id },
-      });
-      this.setState({ history: res.data || [] });
-    } catch (error) {
-      console.error("Error fetching history:", error);
+      const reader = new FileReader();
+
+      reader.onload = async (evt) => {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+        const formattedData = jsonData
+          .map(row => ({ name: row.name?.toString().trim() }))
+          .filter(row => row.name);
+
+        if (!formattedData.length) {
+          toast.error("No valid skills names found");
+          return;
+        }
+
+        await api.post(`${this.apiBaseUrl}addskill`, {
+          type: "csv",
+          data: formattedData,
+          userId,
+        });
+
+        toast.success("Skill imported successfully");
+        this.fetchSkills(1);
+      };
+
+      reader.readAsArrayBuffer(file);
+      e.target.value = "";
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to import Excel");
     }
   };
 
@@ -109,6 +168,18 @@ class Skills extends Component {
   toggleHistory = (item = null) => {
     if (item) this.fetchHistory(item.id);
     this.setState({ showHistoryModal: true });
+  };
+
+  fetchHistory = async (id) => {
+    if (!id) return;
+    try {
+      const res = await axios.get(`${this.apiBaseUrl}dbadminhistory`, {
+        params: { entity_type: "skill", entity_id: id },
+      });
+      this.setState({ history: res.data || [] });
+    } catch (error) {
+      console.error("Error fetching history:", error);
+    }
   };
 
   handleSave = async () => {
@@ -224,33 +295,16 @@ class Skills extends Component {
         <h6 className="fw-bold mb-3">Skills List</h6>
         <div className="poppins-font">
           <Container fluid>
-            <div className="Skill-header-section">
-              <p
-                className="breadcrumb-text"
-                title="History"
-                breadcrumbItem="Activity Log"
-              />
+            <div className="institute-header-section d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
+              {/* Left side: Status filter */}
+              <div className="d-flex align-items-center gap-2">
+                <span className="filter-label text-dark">
+                  Filter by Status:
+                </span>
 
-              <div className="d-flex justify-content-end my-2">
-                <Button
-                  variant="dark"
-                  onClick={() => this.toggleForm()}
-                  className="add-Skill-btn"
-                >
-                  Add New Skill
-                </Button>
-              </div>
-
-              <div className="w-100 m-2">
-                <p className="filter-label text-dark">Filter by Status</p>
                 <select
                   className="rounded-square form-select p-2"
-                  style={{
-                    maxWidth: "250px",
-                    // fontFamily: "Helvetica Neue, Arial, sans-serif",
-                    color: "#666565ff",
-                    border: "1px solid #ccc",
-                  }}
+                  style={{ maxWidth: "200px" }}
                   value={isActive}
                   onChange={(e) => this.setState({ isActive: e.target.value })}
                 >
@@ -258,9 +312,32 @@ class Skills extends Component {
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>
-
-
               </div>
+
+
+              {/* Right side: Buttons */}
+              <div className="d-flex align-items-center gap-2">
+                <Button variant="dark" onClick={() => this.toggleForm()} className="add-institute-btn">
+                  Add Skill
+                </Button>
+
+                <Button variant="secondary" onClick={() => this.fileInputRef.click()}>
+                  Import Excel
+                </Button>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  ref={(ref) => (this.fileInputRef = ref)}
+                  style={{ display: "none" }}
+                  onChange={this.handleExcelImport}
+                />
+
+                <Button variant="success" onClick={this.handleExcelExport}>
+                  Export
+                </Button>
+              </div>
+
+
             </div>
 
             <Card>
@@ -269,7 +346,7 @@ class Skills extends Component {
                   <Table className="table-responsive align-middle default-table manage-job-table p-2 w-100 table table-striped custom-table">
                     <thead className="align-middle">
                       <tr>
-                       
+
                         <th
                           className="text-center"
                           style={{ borderBottom: "1px solid #ccc" }}

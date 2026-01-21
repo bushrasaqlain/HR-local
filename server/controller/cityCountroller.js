@@ -19,8 +19,8 @@ const getAllCities = (req, res) => {
 };
 
 
-const deleteCity = (req, res) => {
-    cityModel.deleteCity(req, res);
+const updateStatus = (req, res) => {
+    cityModel.updateStatus(req, res);
 }
 const getCitiesByDistrict = (req, res) => {
     const { district_id } = req.params; 
@@ -36,6 +36,6 @@ module.exports = {
     addCity,
     editCity,
     getAllCities,
-    deleteCity,
+    updateStatus,
     getCitiesByDistrict
 };

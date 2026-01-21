@@ -1,21 +1,37 @@
-import React, { useState, useEffect } from "react";
-import Image from "next/image";
+import React, { Component } from "react";
+import {
+  Input,
+  Form,
+  FormGroup,
+  ListGroup,
+  ListGroupItem,
+  Row,
+  Col,
+} from "reactstrap";
 
-const MessagesList = ({ onSelectContact }) => {
-  const [contacts, setContacts] = useState([]);
-  const [searchValue, setSearchValue] = useState("");
-  const userId = sessionStorage.getItem("userId");
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-  useEffect(() => {
-    fetchContacts();
-  }, []);
+class MessagesList extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      contacts: [],
+      searchValue: "",
+      userId: sessionStorage.getItem("userId"),
+    };
 
-  const fetchContacts = async () => {
+    this.apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  }
+
+  componentDidMount() {
+    this.fetchContacts();
+  }
+
+  fetchContacts = async () => {
+    const { userId } = this.state;
     try {
-      const response = await fetch(`${apiBaseUrl}message/contacts/${userId}`);
+      const response = await fetch(`${this.apiBaseUrl}message/contacts/${userId}`);
       if (response.ok) {
         const data = await response.json();
-        setContacts(data);
+        this.setState({ contacts: data });
         console.log(data);
       } else {
         console.error("Failed to fetch contacts:", response.statusText);
@@ -25,12 +41,11 @@ const MessagesList = ({ onSelectContact }) => {
     }
   };
 
-  const handleChange = (e) => {
-    const searchTerm = e.target.value.toLowerCase();
-    setSearchValue(searchTerm);
+  handleChange = (e) => {
+    this.setState({ searchValue: e.target.value.toLowerCase() });
   };
 
-  const formatTime = (timeString) => {
+  formatTime = (timeString) => {
     return new Date(timeString).toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
@@ -38,54 +53,59 @@ const MessagesList = ({ onSelectContact }) => {
     });
   };
 
+  render() {
+    const { contacts, searchValue } = this.state;
+    const { onSelectContact } = this.props;
 
-  const filteredContacts = contacts.filter((contact) =>
-    contact.full_name.toLowerCase().includes(searchValue)
-  );
+    const filteredContacts = contacts.filter((contact) =>
+      contact.full_name.toLowerCase().includes(searchValue)
+    );
 
-  return (
-    <div className="search-box-one">
-      {/* Search Box */}
-      <form method="post" action="#">
-        <div className="form-group  mx-3">
-          <span className="icon flaticon-search-1"></span>
-          <input
-            type="search"
-            name="search-field"
-            placeholder="Search"
-            value={searchValue}
-            autoComplete="off"
-            onChange={handleChange}
-            required=""
-          />
-        </div>
-      </form>
+    return (
+      <div className="search-box-one">
+        {/* Search Box */}
+        <Form>
+          <FormGroup className="mx-3">
+            <Input
+              type="search"
+              placeholder="Search"
+              value={searchValue}
+              onChange={this.handleChange}
+              autoComplete="off"
+            />
+          </FormGroup>
+        </Form>
 
-      {/* Contact List */}
-      <ul className="contacts">
-        {filteredContacts.map((contact) => (
-          <li key={contact.id}>
-            <a
+        {/* Contact List */}
+        <ListGroup className="contacts list-unstyled p-0 m-0">
+          {filteredContacts.map((contact) => (
+            <ListGroupItem
+              key={contact.id}
+              tag="button"
+              action
               onClick={() => onSelectContact(contact.id, contact.full_name)}
+              className="d-flex justify-content-between align-items-center contact-item p-2 mb-1"
             >
-              <div className="d-flex bd-highlight">
-                <div className="user_info">
-                  <span>{contact.full_name}</span>
-                  <p>Message: {contact.last_message}</p>
+              <div className="d-flex align-items-center">
+                {/* Placeholder avatar */}
+                <div className="avatar me-2">
+                  {contact.full_name.charAt(0).toUpperCase()}
                 </div>
-                <div>
-                  <span className="info" style={{ fontSize: '13px' }}>
-                    Date: {formatTime(contact.last_message_time)}
-                  </span>
+                <div className="contact-info">
+                  <span className="fw-bold">{contact.full_name}</span>
+                  <p className="mb-0 text-truncate last-message">{contact.last_message}</p>
                 </div>
               </div>
-            </a>
+              <div className="message-time text-muted small">
+                {this.formatTime(contact.last_message_time)}
+              </div>
+            </ListGroupItem>
+          ))}
+        </ListGroup>
 
-          </li>
-        ))}
-      </ul>
+      </div>
+    );
+  }
+}
 
-    </div>
-  );
-};
 export default MessagesList;

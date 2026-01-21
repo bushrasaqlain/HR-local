@@ -35,7 +35,7 @@ const addCurrency =  (req, res) => {
 
     const results = [];
     data.forEach((row) => {
-      const code = row.code?.trim(); // 👈 FIXED: use code instead of name
+      const code = row.name?.trim(); // 👈 FIXED: use code instead of name
       if (code) {
         results.push([code]);
       }

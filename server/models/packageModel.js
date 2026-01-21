@@ -109,37 +109,151 @@ const getAllPackages = (
     });
   });
 };
+const getCurrencyMap = () =>
+  new Promise((resolve, reject) => {
+    connection.query(
+      "SELECT id, code FROM currencies WHERE status = 'active'",
+      (err, rows) => {
+        if (err) return reject(err);
+
+        const map = {};
+        rows.forEach((c) => {
+          map[c.code.toLowerCase()] = c.id;   // pkr → id
+        });
+
+        resolve(map);
+      }
+    );
+  });
 
 const addPackage = (req, res) => {
   const userId = req.user.userId;
-  const { duration_unit, price, duration_value, currency_id } = req.body;
+  const { type, duration_unit, price, duration_value, currency_id, data } = req.body;
 
-  if (!duration_unit || !price || !duration_value || !currency_id) {
-    return res.status(400).json({ error: "All fields are required" });
-  }
-
-  const insertSql = `INSERT INTO packages 
-                     (duration_unit, price, duration_value, currency) 
-                     VALUES (?, ?, ?, ?)`;
-
-  connection.query(insertSql, [duration_unit, price, duration_value, currency_id], (err, results) => {
-    if (err) {
-      console.error("❌ Error inserting package:", err);
-      return res.status(500).json({ error: "Database error" });
+  if (type === "csv") {
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      return res.status(400).json({ error: "CSV data is required" });
     }
 
-    logAudit({
-      tableName: "dbadminhistory",
-      entityType: "package",
-      entityId: results.insertId,
-      action: "ADDED",
-      data: { duration_unit, price, duration_value, currency_id, status: "active" },
-      changedBy: userId,
-    });
+    getCurrencyMap()
+      .then((currencyMap) => {
+        const packages = data
+          .map((row) => {
+            const unit = row.duration_unit?.trim();
+            const value = Number(row.duration_value);
+            const price = Number(row.price);
+            const currencyText = row.currency?.toLowerCase()?.trim();
 
-    res.status(201).json({ message: "Package added successfully", id: results.insertId });
-  });
-}
+            const currency_id = currencyMap[currencyText];
+
+            if (!unit || !value || !price || !currency_id) return null;
+
+            return [unit, value, price, currency_id];
+          })
+          .filter(Boolean);
+
+        if (packages.length === 0) {
+          return res
+            .status(400)
+            .json({ error: "Invalid currency or data in Excel" });
+        }
+
+        const sql = `
+        INSERT INTO packages (duration_unit, duration_value, price, currency)
+        VALUES ?
+      `;
+
+        connection.query(sql, [packages], (err, result) => {
+          if (err) return res.status(500).json({ error: "Database error" });
+
+          const startId = result.insertId;
+
+          packages.forEach((row, idx) => {
+            logAudit({
+              tableName: "dbadminhistory",
+              entityType: "package",
+              entityId: startId + idx,
+              action: "ADDED",
+              data: {
+                duration_unit: row[0],
+                duration_value: row[1],
+                price: row[2],
+                currency_id: row[3],
+                status: "active",
+              },
+              changedBy: req.user.userId,
+            });
+          });
+
+          res.json({
+            success: true,
+            inserted: result.affectedRows,
+            message: `${result.affectedRows} packages imported successfully`,
+          });
+        });
+      })
+      .catch(() => res.status(500).json({ error: "Currency lookup failed" }));
+  }
+  else {
+    if (!duration_unit || !price || !duration_value || !currency_id) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    const checkSql = `
+      SELECT id FROM packages 
+      WHERE duration_unit = ? 
+        AND duration_value = ? 
+        AND price = ? 
+        AND currency = ?
+    `;
+
+    connection.query(
+      checkSql,
+      [duration_unit, duration_value, price, currency_id],
+      (err, results) => {
+        if (err) return res.status(500).json({ error: "Database error" });
+
+        if (results.length > 0) {
+          return res.status(409).json({ message: "Package already exists" });
+        }
+
+        const insertSql = `
+          INSERT INTO packages (duration_unit, duration_value, price, currency)
+          VALUES (?, ?, ?, ?)
+        `;
+
+        connection.query(
+          insertSql,
+          [duration_unit, duration_value, price, currency_id],
+          (err2, insertRes) => {
+            if (err2) return res.status(500).json({ error: "Database error" });
+
+            logAudit({
+              tableName: "dbadminhistory",
+              entityType: "package",
+              entityId: insertRes.insertId,
+              action: "ADDED",
+              data: {
+                duration_unit,
+                duration_value,
+                price,
+                currency_id,
+                status: "active",
+              },
+              changedBy: userId,
+            });
+
+            res.status(201).json({
+              success: true,
+              message: "Package added successfully",
+              id: insertRes.insertId,
+            });
+          }
+        );
+      }
+    );
+  }
+};
 
 const editPackage = (req, res) => {
   const { id } = req.params;

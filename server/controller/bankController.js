@@ -24,8 +24,7 @@ const getAllBank = (req, res) => {
 };
 
 const addBank = (req, res) => {
-  const userId = req.user.userId;
-  const { name, type, data } = req.body;
+  const { name, type, data,userId } = req.body;
 
   BankModel.addBank(
     { name, type, data, userId },
@@ -42,14 +41,14 @@ const editBank = (req, res) => {
     BankModel.editBank(req, res);
 };
 
-const deleteBank = (req, res) => {
-    BankModel.deleteBank(req, res);
+const updateStatus = (req, res) => {
+    BankModel.updateStatus(req, res);
 }
 
 module.exports = {
     addBank,
     editBank,
     getAllBank,
-    deleteBank,
+    updateStatus,
     
 };

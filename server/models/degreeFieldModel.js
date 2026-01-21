@@ -22,87 +22,78 @@ const createDegreeFieldsTable = () => {
         console.log("✅ Degreefields Table created successfully");
     });
 }
+const addDegreeField = (req, callback) => {
+  const userId = req.user.userId;
+  const { name, t_id, type, data } = req.body;
 
-const addDegreeField = (req, res) => {
-    const userId = req.user.userId;
-    const { name, type, data, t_id } = req.body;
+  if (type === "csv") {
+    if (!t_id) return callback(new Error("degree type is required for CSV import"));
+    if (!Array.isArray(data) || data.length === 0)
+      return callback(new Error("CSV data is required"));
 
-    if (type === "csv") {
-        if (!t_id) return res.status(400).json({ error: "Degree type ID is required" });
-        if (!data || !Array.isArray(data) || data.length === 0) {
-            return res.status(400).json({ error: "CSV data is required" });
-        }
+    const degreefield = [];
+    data.forEach(row => {
+      const degreefieldName = row.name?.trim();
+      if (degreefieldName) {
+        degreefield.push([degreefieldName, t_id]);
+      }
+    });
 
-        const results = [];
-        data.forEach((row) => {
-            const fieldName = row.name?.trim();
-            if (fieldName) results.push([fieldName, t_id]);
+    if (degreefield.length === 0)
+      return callback(new Error("No valid degreefield found in CSV"));
+
+    const query = "INSERT INTO degreefields (name, degree_type_id) VALUES ?";
+    connection.query(query, [degreefield], (err, dbRes) => {
+      if (err) return callback(err);
+
+      const startId = dbRes.insertId;
+      degreefield.forEach((row, idx) => {
+        logAudit({
+          tableName: "dbadminhistory",
+          entityType: "degreefield",
+          entityId: startId + idx,
+          action: "ADDED",
+          data: { name: row[0], t_id, status: "active" },
+          changedBy: userId,
+        });
+      });
+
+      callback(null, {
+        inserted: dbRes.affectedRows,
+        message: `${dbRes.affectedRows} degreefield inserted successfully`,
+      });
+    });
+  } else {
+    if (!name || !t_id)
+      return callback(new Error("degreefield name and degree type are required"));
+
+    const checkQuery =
+      "SELECT id FROM degreefields WHERE name = ? AND degree_type_id = ?";
+    connection.query(checkQuery, [name, t_id], (err, results) => {
+      if (err) return callback(err);
+      if (results.length > 0)
+        return callback(new Error("degreefield already exists"));
+
+      const insertQuery =
+        "INSERT INTO degreefields (name, degree_type_id) VALUES (?, ?)";
+      connection.query(insertQuery, [name, t_id], (err, insertResults) => {
+        if (err) return callback(err);
+
+        logAudit({
+          tableName: "dbadminhistory",
+          entityType: "degreefield",
+          entityId: insertResults.insertId,
+          action: "ADDED",
+          data: { name, t_id, status: "active" },
+          changedBy: userId,
         });
 
-        if (results.length === 0) {
-            return res.status(400).json({ error: "No valid degree fields found in CSV." });
-        }
+        callback(null, { degreefieldId: insertResults.insertId });
+      });
+    });
+  }
+};
 
-        const query = "INSERT INTO degreefields (name, degree_type_id) VALUES ?";
-        connection.query(query, [results], (err, dbRes) => {
-            if (err) {
-                console.error("❌ Error inserting CSV degreefields:", err);
-                return res.status(500).json({ error: "Database error" });
-            }
-
-            // 🔥 Log each added degreefield
-            const startId = dbRes.insertId;
-            results.forEach((row, idx) => {
-                logAudit({
-                    tableName: "dbadminhistory",
-                    entityType: "degreefield",
-                    entityId: startId + idx,
-                    action: "ADDED",
-                    data: { name: row[0], degree_type_id: t_id, status: "active" },
-                    changedBy: userId,
-                });
-            });
-
-            res.json({
-                success: true,
-                inserted: dbRes.affectedRows,
-                message: `${dbRes.affectedRows} degree fields inserted successfully`,
-            });
-        });
-    } else {
-        if (!name) return res.status(400).json({ error: "Name is required" });
-        if (!t_id) return res.status(400).json({ error: "Degree type ID is required" });
-
-        const checkQuery =
-            "SELECT id FROM degreefields WHERE name = ? AND degree_type_id = ?";
-        connection.query(checkQuery, [name, t_id], (err, results) => {
-            if (err) return res.status(500).json({ error: "Database error" });
-            if (results.length > 0) {
-                return res.status(409).json({ message: "Degree field already exists" });
-            }
-
-            const insertQuery =
-                "INSERT INTO degreefields (name, degree_type_id) VALUES (?, ?)";
-            connection.query(insertQuery, [name, t_id], (err, insertResults) => {
-                if (err) return res.status(500).json({ error: "Database error" });
-
-                logAudit({
-                    tableName: "dbadminhistory",
-                    entityType: "degreefield",
-                    entityId: insertResults.insertId,
-                    action: "ADDED",
-                    data: { name, degree_type_id: t_id, status: "active" },
-                    changedBy: userId,
-                });
-
-                res.status(201).json({
-                    message: "Degree field added successfully",
-                    id: insertResults.insertId,
-                });
-            });
-        });
-    }
-}
 const getAllDegreeFields = (
   { page = 1, limit = 15, column = "name", search = "", status = "all" },
   callback
@@ -131,8 +122,11 @@ const getAllDegreeFields = (
   }
 
   const query = `
-    SELECT d.*
+    SELECT 
+      d.*,
+      dt.name AS degree_type_name
     FROM degreefields d
+    LEFT JOIN degreetypes dt ON dt.id = d.degree_type_id
     ${where}
     ORDER BY d.id DESC
     LIMIT ? OFFSET ?
@@ -142,7 +136,12 @@ const getAllDegreeFields = (
     if (err) return callback(err);
 
     connection.query(
-      `SELECT COUNT(*) AS total FROM degreefields d ${where}`,
+      `
+      SELECT COUNT(*) AS total
+      FROM degreefields d
+      LEFT JOIN degreetypes dt ON dt.id = d.degree_type_id
+      ${where}
+      `,
       params,
       (err2, count) => {
         if (err2) return callback(err2);
@@ -157,8 +156,6 @@ const getAllDegreeFields = (
     );
   });
 };
-
-
 
 const editDegreeField = (id, data, userId, callback) => {
     const { name } = data;

@@ -23,33 +23,80 @@ const createLicenseTypesTable = () => {
 
 // Add license type
 const addLicenseType = (req, res) => {
-  const { name } = req.body;
   const userId = req.user.userId;
+  const { name, type, data } = req.body;
 
-  if (!name) return res.status(400).json({ error: "License type name is required" });
+  if (type === "csv") {
+    if (!Array.isArray(data) || data.length === 0) {
+      return res.status(400).json({ error: "CSV data is required" });
+    }
 
-  const checkQuery = "SELECT id FROM license_types WHERE name = ?";
-  connection.query(checkQuery, [name], (err, results) => {
-    if (err) return res.status(500).json({ error: "Database error" });
-    if (results.length > 0) return res.status(409).json({ error: "License type already exists" });
+    const values = [];
+    data.forEach((row) => {
+      const licenseName = row.name?.trim();
+      if (licenseName) values.push([licenseName]);
+    });
 
-    const insertQuery = "INSERT INTO license_types (name) VALUES (?)";
-    connection.query(insertQuery, [name], (err2, insertResult) => {
-      if (err2) return res.status(500).json({ error: "Database error" });
+    if (values.length === 0) {
+      return res.status(400).json({ error: "No valid license Name found in CSV." });
+    }
 
-      const licenseTypeId = insertResult.insertId;
-      logAudit({
-        tableName: "dbadminhistory",
-        entityType: "license_types",
-        entityId: licenseTypeId,
-        action: "ADDED",
-        data: { name, status: "active" },
-        changedBy: userId,
+    const query = "INSERT INTO license_types (name) VALUES ?";
+    connection.query(query, [values], (err, dbRes) => {
+      if (err) {
+        if (err.code === "ER_DUP_ENTRY") {
+          return res.status(409).json({ error: "Some license Name already exist" });
+        }
+        return res.status(500).json({ error: "Database error" });
+      }
+
+      const startId = dbRes.insertId;
+      values.forEach((row, idx) => {
+        logAudit({
+          tableName: "dbadminhistory",
+          entityType: "license_types",
+          entityId: startId + idx,
+          action: "ADDED",
+          data: { name: row[0], status: "active" },
+          changedBy: userId,
+        });
       });
 
-      res.status(201).json({ message: "License type added successfully", licenseTypeId });
+      res.json({
+        success: true,
+        inserted: dbRes.affectedRows,
+        message: `${dbRes.affectedRows} licenseName inserted successfully`,
+      });
     });
-  });
+  } else {
+    if (!name) return res.status(400).json({ error: "licenseName name is required" });
+
+    const checkQuery = "SELECT id FROM license_types WHERE name = ?";
+    connection.query(checkQuery, [name], (err, results) => {
+      if (err) return res.status(500).json({ error: "Database error" });
+      if (results.length > 0)
+        return res.status(409).json({ message: "license Name already exists" });
+
+      const insertQuery = "INSERT INTO license_types (name) VALUES (?)";
+      connection.query(insertQuery, [name], (err, insertResults) => {
+        if (err) return res.status(500).json({ error: "Database error" });
+
+        logAudit({
+          tableName: "dbadminhistory",
+          entityType: "license_types",
+          entityId: insertResults.insertId,
+          action: "ADDED",
+          data: { name, status: "active" },
+          changedBy: userId,
+        });
+
+        res.status(201).json({
+          message: "licenseName added successfully",
+          licenseId: insertResults.insertId,
+        });
+      });
+    });
+  }
 };
 
 // Edit license type

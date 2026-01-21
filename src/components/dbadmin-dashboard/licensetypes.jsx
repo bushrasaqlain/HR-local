@@ -3,6 +3,7 @@ import axios from "axios";
 import Pagination from "../common/pagination.jsx";
 import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
+import * as XLSX from "xlsx";
 import MetaTags from "react-meta-tags";
 import {
   Card,
@@ -67,6 +68,83 @@ class LicenseType extends Component {
       });
     } catch (error) {
       console.error("Error fetching licenseTypes:", error);
+    }
+  };
+
+  handleExcelExport = () => {
+    const { licenseTypes } = this.state;
+
+    if (!licenseTypes.length) {
+      toast.info("No businesstype available to export");
+      return;
+    }
+
+    // Map data for Excel
+    const dataToExport = licenseTypes.map((licenseType) => ({
+      "Name": licenseType.name,
+      "Status": licenseType.status,
+      "Created At": this.formatDate(licenseType.created_at),
+      "Updated At": this.formatDate(licenseType.updated_at),
+    }));
+
+    // Create worksheet
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+
+    // Create workbook and append worksheet
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "licenseTypes");
+
+    // Write file
+    XLSX.writeFile(workbook, "license Types.xlsx");
+
+    toast.success("licenseTypes exported successfully");
+  };
+
+  handleExcelImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const userId = sessionStorage.getItem("userId");
+
+    if (!userId) {
+      toast.error("User not logged in");
+      return;
+    }
+
+    try {
+      const reader = new FileReader();
+
+      reader.onload = async (evt) => {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+        const formattedData = jsonData
+          .map(row => ({ name: row.name?.toString().trim() }))
+          .filter(row => row.name);
+
+        if (!formattedData.length) {
+          toast.error("No valid licenseTypes names found");
+          return;
+        }
+
+        await api.post(`${this.apiBaseUrl}addLicenseType`, {
+          type: "csv",
+          data: formattedData,
+          userId,
+        });
+
+        toast.success("licenseTypes imported successfully");
+        this.fetchlicenseTypes(1);
+      };
+
+      reader.readAsArrayBuffer(file);
+      e.target.value = "";
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to import Excel");
     }
   };
 
@@ -147,7 +225,7 @@ class LicenseType extends Component {
       } else {
         toast.error(
           error.response?.data?.error ||
-            "An error occurred while saving license type"
+          "An error occurred while saving license type"
         );
       }
     }
@@ -244,33 +322,14 @@ class LicenseType extends Component {
         <h6 className="fw-bold mb-3">LicenseType List</h6>
         <div className="poppins-font">
           <Container fluid>
-            <div className="licenseType-header-section">
-              <p
-                className="breadcrumb-text"
-                title="History"
-                breadcrumbItem="Activity Log"
-              />
+            <div className="institute-header-section d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
 
-              <div className="d-flex justify-content-end my-2">
-                <Button
-                  variant="dark"
-                  onClick={() => this.toggleForm()}
-                  className="add-licenseType-btn"
-                >
-                  Add New LicenseType
-                </Button>
-              </div>
-
-              <div className="w-100 m-2">
-                <p className="filter-label text-dark">Filter by Status</p>
+              {/* Left side: Status filter */}
+              <div className="d-flex align-items-center gap-2">
+                <span className="filter-label text-dark">Filter by Status:</span>
                 <select
                   className="rounded-square form-select p-2"
-                  style={{
-                    maxWidth: "250px",
-                    // fontFamily: "Helvetica Neue, Arial, sans-serif",
-                    color: "#666565ff",
-                    border: "1px solid #ccc",
-                  }}
+                  style={{ maxWidth: "200px" }}
                   value={isActive}
                   onChange={(e) => this.setState({ isActive: e.target.value })}
                 >
@@ -279,6 +338,41 @@ class LicenseType extends Component {
                   <option value="inactive">Inactive</option>
                 </select>
               </div>
+
+
+              {/* Right side: Buttons */}
+              <div className="d-flex align-items-end gap-2 flex-wrap">
+
+                {/* Add Institute */}
+                <Button
+                  variant="dark"
+                  onClick={() => this.toggleForm()}
+                  className="add-institute-btn"
+                >
+                  Add License Type
+                </Button>
+
+                {/* Import Excel */}
+                <Button variant="secondary" onClick={() => this.fileInputRef.click()}>
+                  Import Excel
+                </Button>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  ref={(ref) => (this.fileInputRef = ref)}
+                  style={{ display: "none" }}
+                  onChange={this.handleExcelImport}
+                />
+
+                {/* Export Button */}
+                <Button
+                  variant="success"
+                  onClick={this.handleExcelExport} // create this function
+                >
+                  Export
+                </Button>
+              </div>
+
             </div>
 
             <Card>
@@ -296,7 +390,7 @@ class LicenseType extends Component {
                               className="text-dark fw-bold"
                               style={{ fontSize: "1rem" }}
                             >
-                              License Type 
+                              License Type
                             </small>
                             <input
                               type="text"
@@ -535,10 +629,10 @@ class LicenseType extends Component {
                         item.action === "ADDED"
                           ? "green"
                           : item.action === "UPDATED"
-                          ? "purple"
-                          : item.action === "ACTIVE"
-                          ? "teal"
-                          : "red",
+                            ? "purple"
+                            : item.action === "ACTIVE"
+                              ? "teal"
+                              : "red",
                       fontWeight: "bold",
                     }}
                   >
