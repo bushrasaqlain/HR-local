@@ -5,7 +5,7 @@ const authMiddleware = require("../middleware/auth");
 const logAudit = require("../utils/auditLogger");
 
 const createDegreeFieldsTable = () => {
-    const createTableQuery = `
+  const createTableQuery = `
   CREATE TABLE IF NOT EXISTS degreefields (
     id INT AUTO_INCREMENT PRIMARY KEY,
     degree_type_id INT NOT NULL,
@@ -17,10 +17,10 @@ const createDegreeFieldsTable = () => {
   )
 `;
 
-    connection.query(createTableQuery, function (err) {
-        if (err) return console.error(err.message);
-        console.log("✅ Degreefields Table created successfully");
-    });
+  connection.query(createTableQuery, function (err) {
+    if (err) return console.error(err.message);
+    console.log("✅ Degreefields Table created successfully");
+  });
 }
 const addDegreeField = (req, callback) => {
   const userId = req.user.userId;
@@ -175,85 +175,110 @@ const getAllDegreeFields = (
 };
 
 const editDegreeField = (id, data, userId, callback) => {
-    const { name } = data;
+  const { name } = data;
 
-    const checkQuery = "SELECT * FROM degreefields WHERE id = ?";
+  const checkQuery = "SELECT * FROM degreefields WHERE id = ?";
 
-    connection.query(checkQuery, [id], (err, results) => {
-        if (err) {
-            return callback({ status: 500, message: "Database error" });
-        }
+  connection.query(checkQuery, [id], (err, results) => {
+    if (err) {
+      return callback({ status: 500, message: "Database error" });
+    }
 
-        if (results.length === 0) {
-            return callback({ status: 404, message: "Degree field not found" });
-        }
+    if (results.length === 0) {
+      return callback({ status: 404, message: "Degree field not found" });
+    }
 
-        const updateQuery =
-            "UPDATE degreefields SET name = ? WHERE id = ?";
+    const updateQuery =
+      "UPDATE degreefields SET name = ? WHERE id = ?";
 
-        connection.query(updateQuery, [name, id], (err2) => {
-            if (err2) {
-                return callback({ status: 500, message: "Database error" });
-            }
+    connection.query(updateQuery, [name, id], (err2) => {
+      if (err2) {
+        return callback({ status: 500, message: "Database error" });
+      }
 
-            logAudit({
-                tableName: "dbadminhistory",
-                entityType: "degreefield",
-                entityId: id,
-                action: "UPDATED",
-                data: {
-                    name,
-                    status: results[0].status,
-                },
-                changedBy: userId,
-            });
+      logAudit({
+        tableName: "dbadminhistory",
+        entityType: "degreefield",
+        entityId: id,
+        action: "UPDATED",
+        data: {
+          name,
+          status: results[0].status,
+        },
+        changedBy: userId,
+      });
 
-            return callback(null, {
-                message: "Degree field updated successfully",
-            });
-        });
+      return callback(null, {
+        message: "Degree field updated successfully",
+      });
     });
+  });
 };
 
 const deleteDegreeField = (id, userId, callback) => {
-    const checkQuery = "SELECT * FROM degreefields WHERE id = ?";
-    connection.query(checkQuery, [id], (err, results) => {
-        if (err) return callback({ status: 500, message: "Database error" });
+  const checkQuery = "SELECT * FROM degreefields WHERE id = ?";
+  connection.query(checkQuery, [id], (err, results) => {
+    if (err) return callback({ status: 500, message: "Database error" });
 
-        if (results.length === 0) return callback({ status: 404, message: "Degree field not found" });
+    if (results.length === 0) return callback({ status: 404, message: "Degree field not found" });
 
-        const current = results[0];
-        const newStatus = current.status === "Active" ? "InActive" : "Active";
+    const current = results[0];
+    const newStatus = current.status === "Active" ? "InActive" : "Active";
 
-        const updateQuery = "UPDATE degreefields SET status = ? WHERE id = ?";
-        connection.query(updateQuery, [newStatus, id], (err2) => {
-            if (err2) return callback({ status: 500, message: "Database error" });
+    const updateQuery = "UPDATE degreefields SET status = ? WHERE id = ?";
+    connection.query(updateQuery, [newStatus, id], (err2) => {
+      if (err2) return callback({ status: 500, message: "Database error" });
 
-            logAudit({
-                tableName: "dbadminhistory",
-                entityType: "degreefield",
-                entityId: id,
-                action: newStatus.toUpperCase(),
-                data: { name: current.name, degree_type_id: current.degree_type_id, status: newStatus },
-                changedBy: userId,
-            });
+      logAudit({
+        tableName: "dbadminhistory",
+        entityType: "degreefield",
+        entityId: id,
+        action: newStatus.toUpperCase(),
+        data: { name: current.name, degree_type_id: current.degree_type_id, status: newStatus },
+        changedBy: userId,
+      });
 
-            callback(null, {
-    status: newStatus,
-    message: `Degree field ${newStatus} successfully`,
-});
-        });
+      callback(null, {
+        status: newStatus,
+        message: `Degree field ${newStatus} successfully`,
+      });
     });
+  });
 };
 const getDegreeFieldsDropdown = ({ degree_type_id, search = "", status = "Active" }, callback) => {
+  if (!degree_type_id) return callback(null, []);
+
+  let where = "WHERE d.degree_type_id = ? AND d.name LIKE ?";
+  const params = [degree_type_id, `%${search}%`];
+
+  if (status !== "all") {
+    where += " AND d.status = ?";
+    params.push(status);
+  }
+
+  const query = `
+    SELECT 
+      d.id,
+      d.name,
+      dt.name AS degree_type_name
+    FROM degreefields d
+    LEFT JOIN degreetypes dt ON dt.id = d.degree_type_id
+    ${where}
+    ORDER BY d.name ASC
+  `;
+
+  connection.query(query, params, (err, results) => {
+    if (err) return callback(err);
+    callback(null, results);
+  });
 };
 
 
 module.exports = {
-    createDegreeFieldsTable,
-    addDegreeField,
-    getAllDegreeFields,
-    editDegreeField,
-    deleteDegreeField,
-    getDegreeFieldsDropdown
+  createDegreeFieldsTable,
+  addDegreeField,
+  getAllDegreeFields,
+  editDegreeField,
+  deleteDegreeField,
+  getDegreeFieldsDropdown
 };  

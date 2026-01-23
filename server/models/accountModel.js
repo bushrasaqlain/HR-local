@@ -54,12 +54,10 @@ const getAccountDetail = (req) => {
 };
 
 const register = (req, res) => {
-  console.log("REQ BODY:", req.body);
 
   try {
     const { accountType, email, password, isActive, username } = req.body;
 
-    // Ensure isActive is valid ENUM ('Active' or 'InActive')
     const status = isActive === "Active" ? "Active" : "InActive";
 
     const sql = `
@@ -180,7 +178,6 @@ const login = (req, res) => {
 }
 
 
-
 const changePassword = (req, res) => {
   const userId = req.user.userId;
   const { oldPassword, newPassword, confirmPassword } = req.body;
@@ -225,8 +222,6 @@ const changePassword = (req, res) => {
     );
   });
 };
-
-
 
 module.exports = {
   createAccountTable,

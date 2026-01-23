@@ -76,7 +76,7 @@ class Job extends Component {
         params,
       })
       .then((res) => {
-        console.log(res.data.data)
+        
         this.setState({
           jobData: res.data.data || [],
           totalRecords: res.data.totalRecords || 0,
@@ -347,7 +347,7 @@ class Job extends Component {
                                     style={{ width: "120px" }}
                                     value={this.state.editingStatus[item.jobpost_id]}
                                     onChange={(e) => {
-                                      console.log(item.jobpost_id)
+                                      
                                       const selectedStatus = e.target.value;
                                       // Update temp state
                                       this.setState((prevState) => ({

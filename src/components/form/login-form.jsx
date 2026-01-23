@@ -107,11 +107,17 @@ class FormContent extends Component {
       sessionStorage.setItem("username", res.data.username);
 
       toast.success("Login successfully!");
-      if (res.data.accountType === "candidate") {
+
+
+      // ✅ Role-based routing
+      const accountType = res.data.accountType;
+      console.log(res.data.userId);
+if (accountType === "candidate") {
         router.push("/registercandidate");
       }
-      else{
-      router.push("/dashboard-header");
+
+      else {
+        router.push("/dashboard-header"); // fallback
       }
     } catch (err) {
       console.error(err);
