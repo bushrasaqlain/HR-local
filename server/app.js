@@ -19,7 +19,7 @@ app.use(bodyParser.json());
 
 const projects = require("./routes/projectsRoutes");
 const certificateAwards = require("./routes/certificateawardRoutes");
-// const jobs = require("./routes/candidatejobsRoutes")
+const jobs = require("./routes/candidatejobsRoutes")
 const dbAdminHistory = require("./routes/dbHistoryRoutes");
 
 
@@ -27,7 +27,7 @@ const dbAdminHistory = require("./routes/dbHistoryRoutes");
 
 app.use('/', projects)
 app.use('/', certificateAwards)
-// app.use('/', jobs)
+app.use('/', jobs)
 
 
 const accountRoutes = require("./routes/accountRoutes");
@@ -43,7 +43,6 @@ const business_entity_type = require("./routes/businessentitytypeRoutes");
 const district = require("./routes/districtRoutes");
 const candidateRoute = require("./routes/candidateRoutes");
 const companyRoute = require("./routes/companyRoutes");
-const dbAdminHistory = require("./routes/dbHistoryRoutes");
 const history = require("./routes/historyRoutes");
 const applicantRoute = require("./routes/applicantRoutes")
 const packages = require("./routes/packagesRoutes");
