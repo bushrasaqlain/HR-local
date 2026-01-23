@@ -154,7 +154,7 @@ class RegisterCompanyform extends Component {
 
   loadDistricts = async (inputValue) => {
     const { selectedCountry } = this.state;
-    console.log("Country ID:", selectedCountry?.value);
+    
 
     if (!selectedCountry?.value) return [];
 

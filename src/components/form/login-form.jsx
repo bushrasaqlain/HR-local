@@ -110,18 +110,13 @@ class FormContent extends Component {
       // ✅ Role-based routing
       const accountType = res.data.accountType;
       console.log(res.data.userId);
-
-      if (accountType === "admin") {
-        router.push("/admin/dashboard");
-      } else if (accountType === "candidate") {
+if (accountType === "candidate") {
         router.push("/registercandidate");
-      } else if (accountType === "hr") {
-        router.push("/hr/dashboard");
       }
 
-      // else {
-      //   router.push("/dashboard-header"); // fallback
-      // }
+      else {
+        router.push("/dashboard-header"); // fallback
+      }
     } catch (err) {
       console.error(err);
       this.setState({

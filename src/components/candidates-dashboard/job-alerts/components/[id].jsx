@@ -32,10 +32,7 @@ const JobSingleDynamicV1 = () => {
   const {userId} = useSelector((state) => state.user);
   const router = useRouter();
   const {id} = router.query;
-  console.log("iddddddddddddddddddddddddddd",id)
-  console.log(router.query)
-  console.log("userrrrrrrrrrrrrrrrrrrr IDddddddddddddddddd on job-single-v1", userId)
-  
+
   const [jobDetails, setJobDetails] = useState(null);
   const [industry, setIndustry] = useState(null);
   // setJobDetails(data.jobDetails);
@@ -93,9 +90,9 @@ const JobSingleDynamicV1 = () => {
           const response = await fetch(
             `http://localhost:8080/jobsByIndustry/${industry}/${id}`
           );
-          console.log("API Response:", response);
+          
           const responseData = await response.json();
-          console.log("Response Data:", responseData);
+          
           setRelatedJobs(responseData.relatedJobs);
         } catch (error) {
           console.error("Error fetching related jobs:", error);

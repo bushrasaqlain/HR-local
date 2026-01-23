@@ -1,9 +1,6 @@
 
 const candidateModel = require("../models/candidateModel");
 
-const addAvailaibility = (req, res) => {
-    candidateModel.addAvailaibility(req, res);
-}
 const addCandidateInfo = (req, res) => {
     candidateModel.addCandidateInfo(req, res);
 }
@@ -38,7 +35,7 @@ const getCandidateInfobyAccountType= (req, res) => {
 module.exports = {
     getAllCandidates,
     updateStatus,
-    addAvailaibility,
+  
     addCandidateInfo,
     getCandidateInfo,
     editCandidateInfo,

@@ -4,28 +4,6 @@ const connection = require("../connection");
 const authMiddleware = require("../middleware/auth");
 const logAudit = require("../utils/auditLogger");
 
-const createCandidateAvailabilityTable = () => {
-  const createAvailiabilityTable = `
-    CREATE TABLE candidate_availability (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      accountId INT,
-      day ENUM('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'),
-      shift ENUM('Day Shift','Night Shift', 'Both'),
-      startTime TIME,
-      endTime TIME,
-      FOREIGN KEY (accountId) REFERENCES candidate_info(account_id) ON DELETE CASCADE
-    );
-      `;
-
-  // Execute the queries to create the tables
-  connection.query(createAvailiabilityTable, function (err, results, fields) {
-    if (err) {
-      return console.error(err.message);
-    }
-    console.log("Candidate Availiablitiy table created successfully");
-  });
-};
-
 const createCandidateTable = () => {
   const createCandidateInfoTable = `
 CREATE TABLE IF NOT EXISTS candidate_info (
@@ -68,6 +46,7 @@ CREATE TABLE IF NOT EXISTS candidate_info (
   expected_salary DECIMAL(10,2),
 
   passport_photo VARCHAR(255),
+  resume LONGBLOB NOT NULL,
 
   profile_completed BOOLEAN DEFAULT FALSE,
 
@@ -258,13 +237,13 @@ const updateStatus = (id, status, res) => {
         .json({ success: false, message: "Company not found" });
     }
     logAudit({
-            tableName: "history",
-            entityType: "candidate",
-            entityId: id,
-            action: "UPDATED",
-            data: { status },
-            changedBy: id,
-          });
+      tableName: "history",
+      entityType: "candidate",
+      entityId: id,
+      action: "UPDATED",
+      data: { status },
+      changedBy: id,
+    });
 
     return res
       .status(200)
@@ -272,37 +251,15 @@ const updateStatus = (id, status, res) => {
   });
 };
 
-const addAvailaibility = (req, res) => {
-  const availabilityData = req.body;
-  const values = availabilityData.map((item) => [
-    item.accountId,
-    item.day,
-    item.shift,
-    item.startTime,
-    item.endTime,
-  ]);
-  const sql = `
-    INSERT INTO candidate_availability (accountId, day, shift, startTime, endTime) VALUES ?
-    `;
-  connection.query(sql, [values], (err, result) => {
-    if (err) {
-      console.error("Error inserting availability data:", err);
-      return res.status(500).json({ success: false, error: err.message });
-    }
-    res.json({
-      success: true,
-      message: "Availability data saved successfully",
-    });
-  });
-};
 const addCandidateInfo = async (req, res) => {
   try {
-    const accountId = req.user.userId; // from auth middleware
+    const accountId = req.user?.userId; // from auth middleware
 
     if (!accountId) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid account id" });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid account id",
+      });
     }
 
     // 🔹 Destructure frontend fields
@@ -320,7 +277,7 @@ const addCandidateInfo = async (req, res) => {
       district,
       city,
       skills,
-      Description,
+      // Description,
       Links,
       current_salary,
       expected_salary,
@@ -332,12 +289,12 @@ const addCandidateInfo = async (req, res) => {
       otherPreferredCities,
     } = req.body;
 
-    // 🔹 Parse JSON safely
+    // 🔹 Safe JSON parser
     const parseJSON = (value) => {
       if (!value) return null;
       try {
         return typeof value === "string" ? JSON.parse(value) : value;
-      } catch {
+      } catch (err) {
         return null;
       }
     };
@@ -346,9 +303,9 @@ const addCandidateInfo = async (req, res) => {
     const linksArr = parseJSON(Links);
     const educationArr = parseJSON(Education);
     const categoriesArr = parseJSON(categories);
-    const otherCitiesArr = parseJSON(otherPreferredCities); // ✅ make sure this is here
+    const otherCitiesArr = parseJSON(otherPreferredCities);
 
-    // 🔹 Passport photo path
+    // 🔹 Passport photo
     const passportPhotoPath = req.file
       ? `/uploads/passportPhotos/${req.file.filename}`
       : null;
@@ -367,107 +324,112 @@ const addCandidateInfo = async (req, res) => {
 
     // 🔹 Get email from account table
     const getEmailSql = `SELECT email FROM account WHERE id = ? LIMIT 1`;
+
     connection.query(getEmailSql, [accountId], (err, result) => {
       if (err) {
-        console.error("Failed to fetch account email:", err);
-        return res.status(500).json({ success: false, error: err.message });
+        console.error("Email fetch error:", err);
+        return res.status(500).json({
+          success: false,
+          error: err.message,
+        });
       }
 
-      const email = result[0]?.email || null;
+      const email = result?.[0]?.email || null;
 
-      // 🔹 Insert / Update candidate_info
+      // 🔹 Insert / Update candidate info
       const sql = `
-INSERT INTO candidate_info (
-  account_id,
-  email,
-  full_name,
-  phone,
-  date_of_birth,
-  gender,
-  marital_status,
-  total_experience,
-  license_type,
-  license_number,
-  address,
-  country,
-  district,
-  city,
-  skills,
-  Description,
- \`Links\`,
-  current_salary,
-  expected_salary,
-  Age,
-  Education,
-  speciality,
-  otherPreferredCities,
-  categories,
-  passport_photo,
-  profile_completed
-)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  ON DUPLICATE KEY UPDATE
-   email = VALUES(email),
-    full_name = VALUES(full_name),
-    phone = VALUES(phone),
-    date_of_birth = VALUES(date_of_birth),
-    gender = VALUES(gender),
-    marital_status = VALUES(marital_status),
-    total_experience = VALUES(total_experience),
-    license_type = VALUES(license_type),
-    license_number = VALUES(license_number),
-    address = VALUES(address), 
-    country = VALUES(country),
-    district = VALUES(district),
-    city = VALUES(city),
-    skills = VALUES(skills),
-    \`Links\` = VALUES(\`Links\`),
-    current_salary = VALUES(current_salary),
-    expected_salary = VALUES(expected_salary),
-    Age = VALUES(Age),
-    Education = VALUES(Education),
-    speciality = VALUES(speciality),
-    otherPreferredCities = VALUES(otherPreferredCities),
-    categories = VALUES(categories),
-    passport_photo = VALUES(passport_photo),
-    profile_completed = VALUES(profile_completed)
-`;
+        INSERT INTO candidate_info (
+          account_id,
+          email,
+          full_name,
+          phone,
+          date_of_birth,
+          gender,
+          marital_status,
+          total_experience,
+          license_type,
+          license_number,
+          address,
+          country,
+          district,
+          city,
+          skills,
+          \`Links\`,
+          current_salary,
+          expected_salary,
+          Age,
+          speciality,
+          otherPreferredCities,
+          categories,
+          passport_photo,
+          profile_completed
+        )
+        VALUES (
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        )
+        ON DUPLICATE KEY UPDATE
+          email = VALUES(email),
+          full_name = VALUES(full_name),
+          phone = VALUES(phone),
+          date_of_birth = VALUES(date_of_birth),
+          gender = VALUES(gender),
+          marital_status = VALUES(marital_status),
+          total_experience = VALUES(total_experience),
+          license_type = VALUES(license_type),
+          license_number = VALUES(license_number),
+          address = VALUES(address),
+          country = VALUES(country),
+          district = VALUES(district),
+          city = VALUES(city),
+          skills = VALUES(skills),
+          \`Links\` = VALUES(\`Links\`),
+          current_salary = VALUES(current_salary),
+          expected_salary = VALUES(expected_salary),
+          Age = VALUES(Age),
+          speciality = VALUES(speciality),
+          otherPreferredCities = VALUES(otherPreferredCities),
+          categories = VALUES(categories),
+          passport_photo = VALUES(passport_photo),
+          profile_completed = VALUES(profile_completed)
+      `;
 
       const params = [
-        accountId, // account_id
-        email, // email
-        full_name || null, // full_name
-        phone || null, // phone
-        date_of_birth || null, // date_of_birth
-        gender || null, // gender
-        marital_status || null, // marital_status
-        total_experience || null, // total_experience
-        license_type || null, // license_type
-        license_number || null, // license_number
-        address || null, // address
-        country || null, // country
-        district || null, // district
-        city || null, // city
-        skillsArr ? JSON.stringify(skillsArr) : null, // skills
-        linksArr ? JSON.stringify(linksArr) : null, // Links
-        current_salary || null, // current_salary
-        expected_salary || null, // expected_salary
-        Age || null, // Age
-        educationArr ? JSON.stringify(educationArr) : null, // Education
-        speciality || null, // speciality
-        otherCitiesArr ? JSON.stringify(otherCitiesArr) : null, // otherPreferredCities
-        categoriesArr ? JSON.stringify(categoriesArr) : null, // categories
-        passportPhotoPath, // passport_photo
-        profileCompleted, // profile_completed
+        accountId,
+        email,
+        full_name,
+        phone,
+        date_of_birth,
+        gender,
+        marital_status,
+        total_experience,
+        license_type,
+        license_number,
+        address,
+        country,
+        district,
+        city,
+        skillsArr ? JSON.stringify(skillsArr) : null,
+        linksArr ? JSON.stringify(linksArr) : null,
+        current_salary,
+        expected_salary,
+        Age,
+        speciality,
+        otherCitiesArr ? JSON.stringify(otherCitiesArr) : null,
+        categoriesArr ? JSON.stringify(categoriesArr) : null,
+        passportPhotoPath,
+        profileCompleted,
       ];
 
-      connection.query(sql, params, (err2, result2) => {
+      connection.query(sql, params, (err2) => {
         if (err2) {
           console.error("DB Error:", err2);
-          return res.status(500).json({ success: false, error: err2.message });
+          return res.status(500).json({
+            success: false,
+            error: err2.message,
+          });
         }
 
-        res.json({
+        return res.json({
           success: true,
           message: "Candidate profile saved successfully",
           profile_completed: profileCompleted,
@@ -476,9 +438,13 @@ INSERT INTO candidate_info (
     });
   } catch (error) {
     console.error("Save Candidate Error:", error);
-    res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
   }
 };
+
 
 const getCandidateInfo = (req, res) => {
   const accountId = req.user.userId;
@@ -615,7 +581,7 @@ const editCandidateInfo = (req, res) => {
         if (typeof val === "string") {
           try {
             val = JSON.parse(val);
-          } catch (e) {}
+          } catch (e) { }
         }
         val = JSON.stringify(val);
       }
@@ -755,36 +721,36 @@ const getCandidateFullProfilebyId = async (req, res) => {
       ...candidateInfoResults[0],
       experiences: Array.isArray(workResults)
         ? workResults.map((exp, index) => ({
-            ...exp,
-            start_date: formatDate(exp.start_date),
-            end_date: formatDate(exp.end_date),
-            first: index === 0,
-          }))
+          ...exp,
+          start_date: formatDate(exp.start_date),
+          end_date: formatDate(exp.end_date),
+          first: index === 0,
+        }))
         : [],
 
       education: Array.isArray(educationResults)
         ? educationResults.map((edu, index) => ({
-            ...edu,
-            start_date: formatDate(edu.start_date),
-            end_date: formatDate(edu.end_date),
-            first: index === 0,
-          }))
+          ...edu,
+          start_date: formatDate(edu.start_date),
+          end_date: formatDate(edu.end_date),
+          first: index === 0,
+        }))
         : [],
 
       projects: Array.isArray(projectsResults)
         ? projectsResults.map((proj, index) => ({
-            ...proj,
-            start_date: formatDate(proj.start_date),
-            end_date: formatDate(proj.end_date),
-            first: index === 0,
-          }))
+          ...proj,
+          start_date: formatDate(proj.start_date),
+          end_date: formatDate(proj.end_date),
+          first: index === 0,
+        }))
         : [],
 
       awards: Array.isArray(awardsResults)
         ? awardsResults.map((awd, index) => ({
-            ...awd,
-            first: index === 0,
-          }))
+          ...awd,
+          first: index === 0,
+        }))
         : [],
     };
 
@@ -853,9 +819,7 @@ module.exports = {
   createCandidateTable,
   createCandidatePreferredCitiesTable,
   createCandidateSpecialityTable,
-  createCandidateAvailabilityTable,
   createsaveJobsTableQuery,
-  addAvailaibility,
   addCandidateInfo,
   getCandidateInfo,
   editCandidateInfo,

@@ -5,16 +5,17 @@ const createEducationTable = () => {
   const createTableQuery = `
     CREATE TABLE IF NOT EXISTS candidate_education (
       id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
-      user_id INT NOT NULL,
-      degree_title_id INT NOT NULL,
-      institute_name VARCHAR(255) NOT NULL,
+      candidate_id INT NOT NULL,
+      degree_id INT NOT NULL,
+      institute_id INT NOT NULL,
       start_date DATE NOT NULL,
       end_date DATE,
-      education_description TEXT,
+      is_ongoing BOOLEAN NOT NULL DEFAULT FALSE,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES account(id) ON DELETE CASCADE,
-      FOREIGN KEY (degree_title_id) REFERENCES degreetypes(id)
+      FOREIGN KEY (candidate_id) REFERENCES candidate_info(id) ON DELETE CASCADE,
+      FOREIGN KEY (degree_id) REFERENCES degreefields(id),
+      FOREIGN KEY (institute_id) REFERENCES institute(id) ON DELETE CASCADE
     );
   `;
 
@@ -27,233 +28,174 @@ const createEducationTable = () => {
   });
 };
 
+const getallcandidateeducation = (req, callback) => {
+  const user_id = req.user.userId;
+
+  const sql = `
+    SELECT 
+      ed.id,
+      ed.candidate_id,
+      ed.is_ongoing,
+      ed.start_date,
+      ed.end_date,
+      d.id AS degree_id,
+      d.name AS degreetype,
+      df.id AS degreefield_id,
+      df.name AS degreefield,
+      ins.name AS institute,
+      ins.id AS institute_id
+    FROM candidate_education ed
+    INNER JOIN candidate_info ci 
+      ON ci.id = ed.candidate_id
+    LEFT JOIN institute ins
+      ON ins.id = ed.institute_id
+    LEFT JOIN degreefields df 
+      ON ed.degree_id = df.id
+    LEFT JOIN degreetypes d 
+      ON df.degree_type_id = d.id
+    WHERE ci.account_id = ?
+  `;
+
+  connection.query(sql, [user_id], (err, results) => {
+    if (err) {
+      console.error("❌ Model Error (getallcandidateeducation):", err);
+      return callback(err, null);
+    }
+    callback(null, results);
+  });
+};
+
 
 const addcandidateeducation = (req, res) => {
-  const userId = req.user.userId; // from JWT
-  const { name, type, data } = req.body;
+  const account_id = req.user.userId;
+  let { education, mode } = req.body;
+  // parse JSON if needed
+  if (typeof education === "string") {
+    education = JSON.parse(education);
+  }
 
-  // === CSV BULK INSERT ===
-  if (type === "csv") {
-    if (!data || !Array.isArray(data) || data.length === 0) {
-      return res.status(400).json({ error: "CSV data is required" });
-    }
-
-    const results = [];
-    data.forEach((row) => {
-      const country = row.name?.trim();
-      if (country) results.push([country]);
-    });
-
-    if (results.length === 0) {
-      return res.status(400).json({ error: "No valid country found in CSV." });
-    }
-
-    const query = "INSERT INTO countries (name) VALUES ?";
-    connection.query(query, [results], (err, dbRes) => {
-      if (err) {
-        console.error("❌ Error inserting CSV countries:", err);
-        if (err.code === "ER_DUP_ENTRY") {
-          return res.status(409).json({
-            error: "Some countries already exist in the database",
-          });
-        }
-        return res.status(500).json({ error: "Database error" });
-      }
-
-      const startId = dbRes.insertId;
-      results.forEach((row, idx) => {
-        const countryName = row[0];
-        const countryId = startId + idx;
-
-        logAudit({
-          tableName: "dbadminhistory",
-          entityType: "country",
-          entityId: countryId,
-          action: "ADDED",
-          data: { name: countryName, status: "active" },
-          changedBy: userId,
-        });
-      });
-
-      res.json({
-        success: true,
-        inserted: dbRes.affectedRows,
-        message: `${dbRes.affectedRows} countries inserted successfully`,
-      });
+  // Validation for submit mode
+  if (mode === "submit" && (!Array.isArray(education) || education.length === 0)) {
+    return res.status(400).json({
+      success: false,
+      message: "Profile incomplete. Education data missing",
     });
   }
 
-  // === SINGLE INSERT ===
-  else {
-    if (!name) {
-      return res.status(400).json({ error: "Name is required" });
+
+  const candidateQuery = `
+    SELECT id FROM candidate_info WHERE account_id = ?
+  `;
+
+  connection.query(candidateQuery, [account_id], (err, candidateResult) => {
+    if (err) {
+      console.error("Candidate fetch error:", err);
+      return res.status(500).json({ msg: "SERVER_ERROR" });
     }
 
-    const checkQuery = "SELECT id FROM countries WHERE name = ?";
-    connection.query(checkQuery, [name], (err, results) => {
+    if (candidateResult.length === 0) {
+      return res.status(400).json({ msg: "Candidate not found" });
+    }
+
+    const candidate_id = candidateResult[0].id;
+
+    // Step 2: Prepare values for bulk insert
+    const insertQuery = `
+      INSERT INTO candidate_education
+      (candidate_id, degree_id, institute_id, start_date, end_date, is_ongoing)
+      VALUES ?
+    `;
+
+    const values = education.map((edu) => [
+      candidate_id,
+      edu.degreeTitle,
+      edu.institutes,
+      edu.startDate || null,
+      edu.ongoing ? null : edu.endDate,
+      edu.ongoing
+    ]);
+
+    // Step 3: Insert
+    connection.query(insertQuery, [values], (err, result) => {
       if (err) {
-        console.error("❌ Error checking country:", err);
-        return res.status(500).json({ error: "Database error" });
+        console.error("Education insert error:", err);
+        return res.status(500).json({ msg: "SERVER_ERROR" });
       }
 
-      if (results.length > 0) {
-        return res.status(409).json({ message: "Country already exists" });
-      }
-
-      const insertQuery = "INSERT INTO countries (name) VALUES (?)";
-      connection.query(insertQuery, [name], (err, insertResults) => {
-        if (err) {
-          console.error("❌ Error inserting country:", err);
-          return res.status(500).json({ error: "Database error" });
-        }
-
-        const countryId = insertResults.insertId;
-
-        logAudit({
-          tableName: "dbadminhistory",
-          entityType: "country",
-          entityId: countryId,
-          action: "ADDED",
-          data: { name, status: "active" },
-          changedBy: userId,
-        });
-
-        res.status(201).json({
-          message: "Country added successfully",
-          countryId,
-        });
+      res.status(200).json({
+        msg: "Education saved successfully",
+        inserted: result.affectedRows,
       });
     });
-  }
+  });
 };
 
 const editcandidateeducation = (req, res) => {
-  const userId = req.user.userId;
-  const { name } = req.body;
-  const id = req.params.id;
+  const { education, mode } = req.body;
+  let educationArray = education;
+  if (typeof education === "string") {
+    educationArray = JSON.parse(education);
+  }
 
-  if (!name) return res.status(400).json({ error: "Name is required" });
-
-  const updateQuery = "UPDATE countries SET name = ? WHERE id = ?";
-  connection.query(updateQuery, [name, id], (err, result) => {
-    if (err) {
-      console.error("❌ Error updating country:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
-
-    logAudit({
-      tableName: "dbadminhistory",
-      entityType: "country",
-      entityId: id,
-      action: "UPDATED",
-      data: { name },
-      changedBy: userId,
+  if (!Array.isArray(educationArray) || educationArray.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Profile incomplete. Education data missing",
     });
-
-    res.status(200).json({ message: "Country updated successfully" });
-  });
-};
-
-const getallcandidateeducation = (
-  { page = 1, limit = 10, search = "", name = "name", status = "all" },
-  callback
-) => {
-  const offset = (page - 1) * limit;
-
-  // ✅ Prevent SQL injection
-  const allowedColumns = ["name", "created_at", "updated_at", "status"];
-  if (!allowedColumns.includes(name)) name = "name";
-
-  let whereConditions = [];
-  let values = [];
-
-  // ✅ Status filter ONLY if not "all"
-  if (status && status !== "all" && status !== undefined) {
-    whereConditions.push("status = ?");
-    values.push(status);
   }
 
-  // ✅ Search filter
-  if (search) {
-    if (name === "created_at" || name === "updated_at") {
-      whereConditions.push(`DATE(${name}) = ?`);
-      values.push(search);
-    } else if (name === "status") {
-      whereConditions.push("LOWER(status) LIKE ?");
-      values.push(`%${search.toLowerCase()}%`);
-    } else {
-      whereConditions.push(`${name} LIKE ?`);
-      values.push(`%${search}%`);
-    }
-  }
+  // Use async updates for each education
+  const updatePromises = educationArray.map((edu) => {
+    return new Promise((resolve, reject) => {
+      const updateQuery = `
+        UPDATE candidate_education
+        SET degree_id = ?, institute_id = ?, start_date = ?, end_date = ?, is_ongoing = ?
+        WHERE id = ?
+      `;
+      const values = [
+        edu.degreeTitle && Number(edu.degreeTitle) > 0 ? Number(edu.degreeTitle) : null,
+        edu.institutes && Number(edu.institutes) > 0 ? Number(edu.institutes) : null,
+        edu.startDate || null,
+        edu.ongoing ? null : edu.endDate,
+        edu.ongoing ? 1 : 0,
+        edu.id
+      ];
 
-  const whereClause =
-    whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
-
-  // ✅ Decide whether to apply LIMIT/OFFSET
-  let query = `SELECT * FROM countries ${whereClause} ORDER BY id DESC`;
-  if (limit > 0) {
-    query += " LIMIT ? OFFSET ?";
-  }
-
-  const queryValues = limit > 0 ? [...values, Number(limit), Number(offset)] : values;
-
-  connection.query(query, queryValues, (err, results) => {
-    if (err) {
-      console.error("❌ Error fetching countries:", err.sqlMessage);
-      return callback(err);
-    }
-
-    // Count total matching rows
-    const countQuery = `SELECT COUNT(*) AS total FROM countries ${whereClause}`;
-    connection.query(countQuery, values, (err2, countResult) => {
-      if (err2) {
-        console.error("❌ Error counting countries:", err2.sqlMessage);
-        return callback(err2);
+      if (!values[0] || !values[1]) {
+        return reject(new Error("degree_id or institute_id is invalid or missing"));
       }
 
-      callback(null, {
-        total: countResult[0].total,
-        page,
-        limit,
-        countries: results,
+
+      connection.query(updateQuery, values, (err, result) => {
+        if (err) return reject(err);
+        resolve(result);
       });
     });
   });
+
+  Promise.all(updatePromises)
+    .then(() => {
+      res.status(200).json({ success: true, message: "All education records updated" });
+    })
+    .catch((err) => {
+      console.error("Error updating education records:", err.message);
+      res.status(500).json({ msg: "SERVER_ERROR" });
+    });
 };
 
+
 const deletecandidateeducation = (req, res) => {
-  const { id } = req.params;
-  const userId = req.user.userId;
+  const educationId = req.params.id;
 
-  const checkQuery = "SELECT * FROM countries WHERE id = ?";
-  connection.query(checkQuery, [id], (err, results) => {
-    if (err) return res.status(500).json({ error: "Database error" });
-    if (results.length === 0)
-      return res.status(404).json({ error: "Country not found" });
+  const query = 'DELETE FROM candidate_education WHERE id = ?';
 
-    const currentCountry = results[0];
-    const newStatus =
-      currentCountry.status === "active" ? "inactive" : "active";
-
-    const updateQuery = "UPDATE countries SET status = ? WHERE id = ?";
-    connection.query(updateQuery, [newStatus, id], (err2) => {
-      if (err2) return res.status(500).json({ error: "Database error" });
-
-      // 🔥 Audit log: ACTIVE / INACTIVE
-      logAudit({
-        tableName: "dbadminhistory",
-        entityType: "country",
-        entityId: id,
-        action: newStatus.toUpperCase(), // "ACTIVE" or "INACTIVE"
-        data: { name: currentCountry.name, status: newStatus },
-        changedBy: userId,
-      });
-
-      res
-        .status(200)
-        .json({ message: `Country status updated to ${newStatus}` });
-    });
+  connection.query(query, [educationId], (err, result) => {
+    if (err) {
+      console.error('Error deleting education record:', err.message);
+      res.status(500).send({ msg: 'SERVER_ERROR' });
+    } else {
+      res.status(200).send({ msg: 'Education record deleted successfully' });
+    }
   });
 };
 

@@ -1,29 +1,32 @@
-const countryModel = require("../models/countryModel");
+const candidateeducationModel = require("../models/candidateeducationModel");
 
 // Add country (single or CSV)
 const addcandidateeducation = (req, res) => {
-  countryModel.addcandidateeducation(req, res);
+  candidateeducationModel.addcandidateeducation(req, res);
 };
 
 // Edit existing country
 const editcandidateeducation = (req, res) => {
-  countryModel.editcandidateeducation(req, res);
+  candidateeducationModel.editcandidateeducation(req, res);
 };
 
 // Get all countries
 const getallcandidateeducation = (req, res) => {
-  countryModel.getallcandidateeducation(req.query, (err, data) => {
+  candidateeducationModel.getallcandidateeducation(req, (err, data) => {
     if (err) {
       console.error("❌ Controller Error (getallcandidateeducation):", err);
-      return res.status(500).json({ error: "Database error", details: err.sqlMessage || err.message });
+      return res.status(500).json({
+        error: "Database error",
+        details: err.sqlMessage || err.message
+      });
     }
 
-    res.status(200).json(data);
+    return res.status(200).json(data);
   });
 };
 
 const deletecandidateeducation = (req, res) => {
- countryModel.deletecandidateeducation(req, res);
+ candidateeducationModel.deletecandidateeducation(req, res);
 }
 
 module.exports = {

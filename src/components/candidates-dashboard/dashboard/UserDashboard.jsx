@@ -74,7 +74,7 @@ const Index = () => {
       fetchJobAlertsCount();
       fetchSavedJobsCount();
       fetchMessagesCount();
-      console.log("data:", data);
+     
   }, [userId]);
 
   return (

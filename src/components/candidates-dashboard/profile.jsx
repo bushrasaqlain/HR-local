@@ -128,7 +128,6 @@ const FormInfoBox = () => {
         );
 
         const userData = response.data;
-        console.log("User Data:", userData);
 
         if (userData && Object.keys(userData).length > 0) {
           // // If image exists
@@ -223,7 +222,6 @@ const FormInfoBox = () => {
   const handleSubmit = async (event) => {
     event.preventDefault();
     // console.log(formData);
-    console.log("Account ID:", formData.account_id); // Log the account_id
 
     const validationErrors = {};
     // Basic validations

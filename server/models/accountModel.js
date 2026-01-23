@@ -54,12 +54,10 @@ const getAccountDetail = (req) => {
 };
 
 const register = (req, res) => {
-  console.log("REQ BODY:", req.body);
 
   try {
     const { accountType, email, password, isActive, username } = req.body;
 
-    // Ensure isActive is valid ENUM ('Active' or 'InActive')
     const status = isActive === "Active" ? "Active" : "InActive";
 
     const sql = `
@@ -129,7 +127,6 @@ const login = (req, res) => {
 
       const user = results[0];
       const token = generateToken(user);
-      console.log(user)
 
       // 🔑 ALWAYS allow login
       return res.json({
@@ -143,13 +140,9 @@ const login = (req, res) => {
       });
     });
   } catch (error) {
-    console.log(error)
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
-
-
-
 
 const changePassword = (req, res) => {
   const userId = req.user.userId;
@@ -195,8 +188,6 @@ const changePassword = (req, res) => {
     );
   });
 };
-
-
 
 module.exports = {
   createAccountTable,

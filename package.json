@@ -28,7 +28,7 @@
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.13",
     "docxtemplater": "^3.65.3",
-    "dotenv": "^17.2.1",
+    "dotenv": "^17.2.3",
     "eslint": "8.28.0",
     "eslint-config-next": "13.0.5",
     "express": "^4.18.2",
