@@ -19,10 +19,6 @@ const logo = multer({
 
 // const authMiddleware = require("../middleware/auth.js");
 
-// Create the candidate_info table in the database
-
-
-router.post("/availability",candidateController.addAvailaibility)
 
 // router.post("/", logo.single("logo"), candidateController.addCandidateInfo)
 router.post("/candidate/",  authMiddleware, upload.single("passport_photo"), candidateController.addCandidateInfo);

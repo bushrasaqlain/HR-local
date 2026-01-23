@@ -12,41 +12,10 @@ const crypto = require("crypto");
 const { default: axios } = require("axios");
 const authMiddleware = require("../middleware/auth");
 
-// const PizZip = require("pizzip");
-// const Docxtemplater = require("docxtemplater");
-// const libre = require("libreoffice-convert");
-// const FormData = require('form-data');
-// const path = require("path");
-
-
 // Configure multer to handle file uploads
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-
-
-// Create the resume table in the database
-const createEducationTable =()=>{
-const resume = `
-CREATE TABLE IF NOT EXISTS resume (
-  id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
-  file_name LONGTEXT,
-  profile_hash VARCHAR(64),
-  file LONGBLOB NOT NULL,
-  created_by VARCHAR(20) NOT NULL,
-  created_on DATETIME NOT NULL
-);
-  `;
-
-// Execute the queries to create the tables
-connection.query(resume, function (err, results, fields) {
-  if (err) {
-    console.error("Error creating Resumes table:", err.message);
-  } else {
-    console.log("Resumes table created successfully");
-  }
-});
-}
 
 // Handle file upload
 // router.post('/', upload.single('file'), (req, res) => {
@@ -189,56 +158,6 @@ function parseResumeAdvanced(text) {
 
   return { education, experience, skills };
 }
-
-router.post("/", upload.single("file"), async (req, res) => {
-  const { fileName, userId } = req.body;
-
-  if (!req.file) return res.status(400).send("File data is missing.");
-
-  const fileBuffer = req.file.buffer;
-  const mimetype = req.file.mimetype;
-  const fileHash = crypto.createHash("sha256").update(fileBuffer).digest("hex");
-
-  // Check duplicate
-  connection.query(
-    "SELECT id FROM resume WHERE created_by = ? AND profile_hash = ? ORDER BY created_on DESC LIMIT 1",
-    [userId, fileHash],
-    async (err, results) => {
-      if (err) return res.status(500).send({ msg: "SERVER_ERROR" });
-
-      if (results.length > 0) {
-        return res.status(200).send({
-          msg: "File already uploaded previously",
-          id: results[0].id
-        });
-      }
-
-      // Parse resume
-      let parsedData = { education: [], experience: [], skills: [] };
-      try {
-        const text = await extractText(fileBuffer, mimetype);
-        parsedData = parseResumeAdvanced(text);
-      } catch (err) {
-        console.error("Error parsing resume:", err);
-      }
-
-      // Insert file only
-      const query = `
-        INSERT INTO resume (file_name, file, profile_hash, created_by, created_on) 
-        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-      `;
-      connection.query(query, [fileName, fileBuffer, fileHash, userId], (err, result) => {
-        if (err) return res.status(500).send({ msg: "SERVER_ERROR" });
-
-        res.status(200).send({
-          id: result.insertId,
-          msg: "File uploaded successfully",
-          ...parsedData
-        });
-      });
-    }
-  );
-});
 
 
 // POST endpoint to upload a resume

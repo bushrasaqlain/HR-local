@@ -152,7 +152,6 @@ const getAllCountries = (
   callback
 ) => {
   const offset = (page - 1) * limit;
-  console.log(name, search)
 
   const allowedColumns = ["name", "created_at", "updated_at", "status"];
   if (!allowedColumns.includes(name)) name = "";
