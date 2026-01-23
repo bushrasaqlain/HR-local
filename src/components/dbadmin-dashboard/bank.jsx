@@ -105,7 +105,7 @@ class Bank extends Component {
                 },
             });
             this.setState({
-                banks: res.data.bank_name || [],
+                banks: res.data.bank_names || [],
                 totalBanks: res.data.total || 0,
             });
         } catch (error) {

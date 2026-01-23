@@ -90,14 +90,15 @@ class FormContent extends Component {
       const res = await api.post("/login", values);
 
       if (!res.data.success) {
-        this.setState({
-          loginError: "Admin has not activated you yet. Please wait!",
-        });
+        this.setState({ loginError: "Admin has not activated you yet. Please wait!" });
         return;
       }
 
       // Save token
       sessionStorage.setItem("token", res.data.token);
+
+      // Get logged-in user info
+
       dispatch(setUser(res.data));
 
       // Save user info in session
@@ -106,27 +107,15 @@ class FormContent extends Component {
       sessionStorage.setItem("username", res.data.username);
 
       toast.success("Login successfully!");
-
-      // ✅ Role-based routing
-      const accountType = res.data.accountType;
-      console.log(res.data.userId);
-
-      if (accountType === "admin") {
-        router.push("/admin/dashboard");
-      } else if (accountType === "candidate") {
+      if (res.data.accountType === "candidate") {
         router.push("/registercandidate");
-      } else if (accountType === "hr") {
-        router.push("/hr/dashboard");
       }
-
-      // else {
-      //   router.push("/dashboard-header"); // fallback
-      // }
+      else{
+      router.push("/dashboard-header");
+      }
     } catch (err) {
       console.error(err);
-      this.setState({
-        loginError: "Invalid email or password, please try again.",
-      });
+      this.setState({ loginError: "Invalid email or password, please try again." });
     }
   };
 

@@ -34,28 +34,30 @@ const getAllPackages = (
   limit = parseInt(limit, 10);
   const offset = (page - 1) * limit;
 
-  const allowedColumns = [
-    "name",
-    "price",
-    "duration_value",
-    "duration_unit",
-    "currency",
-    "created_at",
-    "updated_at",
-    "status",
-  ];
+  // 🔒 Allowed search fields mapped to real DB columns
+  const columnMap = {
+    name: "p.name",
+    price: "p.price",
+    duration_value: "p.duration_value",
+    duration_unit: "p.duration_unit",
+    currency: "c.code",
+    created_at: "p.created_at",
+    updated_at: "p.updated_at",
+    status: "p.status",
+  };
 
-  if (!allowedColumns.includes(name)) {
-    name = "price";
-  }
-
+  // Normalize incoming column name
   if (name === "amount") name = "price";
   if (name === "duration") name = "duration_value";
+
+  if (!columnMap[name]) {
+    name = "price";
+  }
 
   let query = `
     SELECT 
       p.*,
-      c.id AS currency_code,
+      c.id AS currency_id,
       c.code AS currency
     FROM packages p
     LEFT JOIN currencies c ON c.id = p.currency
@@ -64,14 +66,29 @@ const getAllPackages = (
 
   let values = [];
 
+  // ✅ Status filter
   if (status !== "all") {
     query += ` AND p.status = ?`;
     values.push(status);
   }
 
+  // ✅ Search logic
   if (search) {
-    query += ` AND p.${name} LIKE ?`;
-    values.push(`%${search}%`);
+    // Date search
+    if (name === "created_at" || name === "updated_at") {
+      query += ` AND DATE_FORMAT(${columnMap[name]}, '%Y-%m-%d') LIKE ?`;
+      values.push(`%${search}%`);
+    }
+    // Numeric search
+    else if (name === "price" || name === "duration_value") {
+      query += ` AND ${columnMap[name]} = ?`;
+      values.push(search);
+    }
+    // Text search (includes currency)
+    else {
+      query += ` AND ${columnMap[name]} LIKE ?`;
+      values.push(`%${search}%`);
+    }
   }
 
   query += ` ORDER BY p.id DESC LIMIT ? OFFSET ?`;
@@ -80,11 +97,14 @@ const getAllPackages = (
   connection.query(query, values, (err, results) => {
     if (err) return callback(err);
 
+    // 🔢 COUNT QUERY (MUST MATCH MAIN QUERY)
     let countQuery = `
       SELECT COUNT(*) AS total
       FROM packages p
+      LEFT JOIN currencies c ON c.id = p.currency
       WHERE 1=1
     `;
+
     let countValues = [];
 
     if (status !== "all") {
@@ -93,8 +113,16 @@ const getAllPackages = (
     }
 
     if (search) {
-      countQuery += ` AND p.${name} LIKE ?`;
-      countValues.push(`%${search}%`);
+      if (name === "created_at" || name === "updated_at") {
+        countQuery += ` AND DATE_FORMAT(${columnMap[name]}, '%Y-%m-%d') LIKE ?`;
+        countValues.push(`%${search}%`);
+      } else if (name === "price" || name === "duration_value") {
+        countQuery += ` AND ${columnMap[name]} = ?`;
+        countValues.push(search);
+      } else {
+        countQuery += ` AND ${columnMap[name]} LIKE ?`;
+        countValues.push(`%${search}%`);
+      }
     }
 
     connection.query(countQuery, countValues, (err2, countResult) => {
@@ -109,6 +137,7 @@ const getAllPackages = (
     });
   });
 };
+
 const getCurrencyMap = () =>
   new Promise((resolve, reject) => {
     connection.query(

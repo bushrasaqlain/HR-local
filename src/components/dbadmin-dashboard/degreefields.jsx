@@ -325,29 +325,35 @@ class DegreeField extends Component {
     this.setState({ showDeleteConfirm: false, deleteId: null });
   };
 
+handleSearch = async (e) => {
+  const { name, value } = e.target;
+  ["name", "created_at", "updated_at"].forEach((input) => {
+    if (input !== name) {
+      const ele = document.getElementById(input);
+      if (ele) ele.value = "";
+    }
+  });
 
-  handleSearch = async (e) => {
-    const { name, value } = e.target;
+  this.setState({ currentPage: 1 });
 
+  try {
     const res = await axios.get(`${this.apiBaseUrl}getallDegreeFields`, {
       params: {
-        column: name,      // ✅ column name
-        search: value,     // ✅ search value
+        name: name,  
+        search: value,
         status: this.state.isActive,
         page: 1,
         limit: this.itemsPerPage,
       },
     });
-
     this.setState({
       degreeFieldData: res.data.degreefields || [],
       totalDegreeFileds: res.data.total || 0,
-      currentPage: 1,
     });
-  };
-
-
-
+  } catch (error) {
+    console.error("Error searching degreefield:", error);
+  }
+};
 
   resetSearch = () => {
     ["name", "created_at", "updated_at"].forEach((id) => {
@@ -577,7 +583,7 @@ class DegreeField extends Component {
                                 onClick={() => this.confirmDelete(item.id, item.status)}
                                 className="icon-btn"
                               >
-                                {item.status === "active" ? (
+                                {item.status === "Active" ? (
                                   <span className="la la-times-circle text-danger"></span>
                                 ) : (
                                   <span className="la la-check-circle text-success"></span>
@@ -680,7 +686,7 @@ class DegreeField extends Component {
           <Modal show={showDeleteConfirm} onHide={this.cancelDelete} centered>
             <Modal.Header closeButton>
               <Modal.Title style={{ fontSize: "1rem", fontWeight: 600 }}>
-                Confirm {deleteStatus === "active" ? "Inactivate" : "Activate"}
+                Confirm {deleteStatus === "Active" ? "Inactivate" : "Activate"}
               </Modal.Title>
             </Modal.Header>
 
@@ -688,9 +694,9 @@ class DegreeField extends Component {
               <p style={{ marginBottom: 0 }}>
                 Are you sure you want to{" "}
                 <strong>
-                  {deleteStatus === "active" ? "inactivate" : "activate"}
+                  {deleteStatus === "Active" ? "inactivate" : "activate"}
                 </strong>{" "}
-                this Currency?
+                this Degree Field?
               </p>
             </Modal.Body>
 
@@ -700,10 +706,10 @@ class DegreeField extends Component {
               </Button>
 
               <Button
-                variant={deleteStatus === "active" ? "danger" : "success"}
+                variant={deleteStatus === "Active" ? "danger" : "success"}
                 onClick={this.handleDelete}
               >
-                {deleteStatus === "active" ? "Inactivate" : "Activate"}
+                {deleteStatus === "Active" ? "Inactivate" : "Activate"}
               </Button>
 
             </Modal.Footer>

@@ -97,7 +97,7 @@ const createCandidateSpecialityTable = () => {
   speciality_id INT,
   PRIMARY KEY (candidate_id, speciality_id),
   FOREIGN KEY (candidate_id) REFERENCES candidate_info(ID) ON DELETE CASCADE,
-  FOREIGN KEY (speciality_id) REFERENCES professions(id)
+  FOREIGN KEY (speciality_id) REFERENCES speciality(id)
 );
 `;
 

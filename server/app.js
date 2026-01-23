@@ -19,10 +19,10 @@ app.use(bodyParser.json());
 
 const Resume = require("./routes/Resumes");
 const work_experience = require('./routes/Work &Experience')
-const education = require('./routes/Education')
-const projects = require("./routes/Projects");
-const certificateAwards = require("./routes/CertificateAward");
-const jobs = require("./routes/CandidateJobs")
+const education = require('./routes/EducationRoutes')
+const projects = require("./routes/projectsRoutes");
+const certificateAwards = require("./routes/certificateawardRoutes");
+const jobs = require("./routes/candidatejobsRoutes")
 const dbAdminHistory = require("./routes/dbHistoryRoutes");
 
 

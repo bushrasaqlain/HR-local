@@ -374,8 +374,8 @@ class Currency extends Component {
                             </small>
                             <input
                               type="text"
-                              name="name"
-                              id="name"
+                              name="code"
+                              id="code"
                               className="form-control rounded-4 text-center"
                               placeholder="Search by name"
                               onChange={this.handleSearch}
