@@ -19,7 +19,7 @@ app.use(bodyParser.json());
 
 
 
-const projects = require("./routes/Projects");
+const projects = require("./routes/pr");
 const certificateAwards = require("./routes/CertificateAward");
 const jobs = require("./routes/CandidateJobs")
 
