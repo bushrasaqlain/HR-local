@@ -20,6 +20,6 @@ const upload = multer({ storage });
 
 
 router.post("/addresume", upload.single("resume"),authMiddleware,resumeController.addResume )
-
+router.get("/getresume",authMiddleware,resumeController.getResume )
 module.exports = router;
   

@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS candidate_info (
   expected_salary DECIMAL(10,2),
 
   passport_photo VARCHAR(255),
-  resume LONGBLOB NOT NULL,
+  resume VARCHAR(255),
 
   profile_completed BOOLEAN DEFAULT FALSE,
 
