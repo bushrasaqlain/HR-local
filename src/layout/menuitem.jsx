@@ -45,7 +45,7 @@ export const dbadminmenuitem = [
   { key: "licensetypes", label: "LicenseType"},
 ];
 export const regadminmenuitem = [
-  { key: "company", label: "Comapany List" },
+  { key: "company", label: "Company List" },
   { key: "candidate", label: "Candidates List" },
   { key: "job", label: "Job List" },
 ]

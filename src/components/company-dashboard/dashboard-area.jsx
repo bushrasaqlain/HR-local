@@ -56,7 +56,7 @@ const CompanyDashboardArea = ({ activeTab }) => {
 
         // Check if userId is available before making the API call
         if (userInfo.userId) {
-            fetchUserPackageStatus();
+           // fetchUserPackageStatus();
         }
     }, [userInfo.userId]);
 
