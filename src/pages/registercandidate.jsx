@@ -83,6 +83,8 @@ class CandidateRegisterForm extends Component {
       getManager: [],
       getError: "",
       previewUrl: null,
+      entries: [],
+      editingIndex: null,
       shiftOptions: [
         { value: "morning", label: "Morning" },
         { value: "evening", label: "Evening" },
@@ -246,11 +248,26 @@ class CandidateRegisterForm extends Component {
         api.get(`${this.apiBaseUrl}candidateexperience/getexperience`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
+        api.get(`${this.apiBaseUrl}resume/getresume`, {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: "blob",
+        })
+
       ]);
 
       const data = profileRes.data || {};
       const educationList = this.mapEducation(eduRes.data || []);
       const experienceList = this.mapExperience(expRes.data?.data || []);
+      let resumeFile = null;
+      let resumePreviewUrl = null;
+
+      if (resumeRes?.data) {
+        resumeFile = new File([resumeRes.data], "resume.pdf", {
+          type: resumeRes.data.type || "application/pdf",
+        });
+
+        resumePreviewUrl = URL.createObjectURL(resumeFile);
+      }
 
 
       const safeParseJSON = (val) => {
@@ -317,6 +334,7 @@ class CandidateRegisterForm extends Component {
           },
           ...experienceList
         ],
+        resume: resumeFile,
       };
 
 
@@ -502,80 +520,80 @@ class CandidateRegisterForm extends Component {
       const payload = new FormData();
       payload.append("mode", "save");
       payload.append("current_step", this.state.step);
-      // if (this.state.step === 1) {
-      //   Object.entries(values).forEach(([key, value]) => {
-      //     if (key === "passport_photo" && value instanceof File) {
-      //       payload.append("passport_photo", value); // 👈 ensure it's sent as file
-      //     } else if (key === "resume" && value instanceof File) {
-      //       payload.append("resume", value);
-      //     } else if (Array.isArray(value)) {
-      //       payload.append(key, JSON.stringify(value));
-      //     } else if (value !== undefined && value !== null) {
-      //       payload.append(key, value);
-      //     }
-      //   });
-      //   await api.post("/candidateProfile/candidate/", payload, {
-      //     headers: {
-      //       Authorization: `Bearer ${localStorage.getItem("token")}`,
-      //     },
-      //   });
-      // }
-
-      // if (this.state.step === 2) {
-      //   const newRows = values.education
-      //     .slice(1)           // ⬅️ ignore draft row
-      //     .filter(e => !e.id);
-
-      //   const editedRows = values.education
-      //     .slice(1)
-      //     .filter(e => e.id);
-
-      //   if (this.state.isEdit) {
-      //     await api.put(`${this.apiBaseUrl}candidateeducation/editcandidateeducation`, {
-      //       education: editedRows
-      //     });
-      //   }
-      //   else {
-
-      //     await api.post(`${this.apiBaseUrl}candidateeducation/addcandidateeducation`, {
-      //       education: newRows
-      //     });
-
-      //   }
-      // }
-
-      // if (this.state.step === 3) {
-      //   await api.post(
-      //     `${this.apiBaseUrl}candidateexperience/addexperience`,
-      //     {
-      //       experience: values.experience
-      //     },
-      //     {
-      //       headers: {
-      //         Authorization: `Bearer ${localStorage.getItem("token")}`,
-      //       },
-      //     }
-      //   );
-      // }
-
-
-      // if (this.state.step === 4) {
-      //   const formData = new FormData();
-      //   formData.append("resume", values.resume); // ONLY FILE
-
-      //   await api.post(
-      //     `${this.apiBaseUrl}resume/addresume`,
-      //     formData,
-      //     {
-      //       headers: {
-      //         Authorization: `Bearer ${localStorage.getItem("token")}`,
-      //         "Content-Type": "multipart/form-data",
-      //       },
-      //     }
-      //   );
-      // }
-
       if (this.state.step === 1) {
+        Object.entries(values).forEach(([key, value]) => {
+          if (key === "passport_photo" && value instanceof File) {
+            payload.append("passport_photo", value); // 👈 ensure it's sent as file
+          } else if (key === "resume" && value instanceof File) {
+            payload.append("resume", value);
+          } else if (Array.isArray(value)) {
+            payload.append(key, JSON.stringify(value));
+          } else if (value !== undefined && value !== null) {
+            payload.append(key, value);
+          }
+        });
+        await api.post("/candidateProfile/candidate/", payload, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+      }
+
+      if (this.state.step === 2) {
+        const newRows = values.education
+          .slice(1)           // ⬅️ ignore draft row
+          .filter(e => !e.id);
+
+        const editedRows = values.education
+          .slice(1)
+          .filter(e => e.id);
+
+        if (this.state.isEdit) {
+          await api.put(`${this.apiBaseUrl}candidateeducation/editcandidateeducation`, {
+            education: editedRows
+          });
+        }
+        else {
+
+          await api.post(`${this.apiBaseUrl}candidateeducation/addcandidateeducation`, {
+            education: newRows
+          });
+
+        }
+      }
+
+      if (this.state.step === 3) {
+        await api.post(
+          `${this.apiBaseUrl}candidateexperience/addexperience`,
+          {
+            experience: values.experience
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        );
+      }
+
+
+      if (this.state.step === 4) {
+        const formData = new FormData();
+        formData.append("resume", values.resume); // ONLY FILE
+
+        await api.post(
+          `${this.apiBaseUrl}resume/addresume`,
+          formData,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+      }
+
+      if (this.state.step === 5) {
 
         await api.post(
           `${this.apiBaseUrl}resume/addresume`,
@@ -659,875 +677,871 @@ class CandidateRegisterForm extends Component {
     const { step, countries, districts, cities, skills } = this.state;
 
     switch (step) {
-      //     case 1:
-      //       return (
-      //         <div>
-      //           <h4>Step 1: Personal Details</h4>
-      //           <div className="mb-3">
-      //             <label>Upload Photo</label>
-
-      //             <div className="d-flex align-items-center gap-3">
-      //               <input
-      //                 type="file"
-      //                 accept=".jpg,.jpeg,.png"
-      //                 onChange={(e) => {
-      //                   const file = e.target.files[0];
-      //                   if (file) {
-      //                     setFieldValue("passport_photo", file);
-      //                     const reader = new FileReader();
-      //                     reader.onload = () =>
-      //                       setFieldValue("passport_photoPreview", reader.result);
-      //                     reader.readAsDataURL(file);
-      //                   }
-      //                 }}
-      //                 className="form-control"
-      //                 style={{ maxWidth: "280px" }}
-      //               />
-
-      //               {values.passport_photoPreview && (
-      //                 <div className="profile-photo-wrapper">
-      //                   <img
-      //                     src={values.passport_photoPreview}
-      //                     alt="Profile"
-      //                     className="profile-photo"
-      //                   />
-      //                 </div>
-      //               )}
-      //             </div>
-      //           </div>
-
-
-      //           <div className="row mb-3">
-      //             {/* Full Name */}
-      //             <div className="col-md-6">
-      //               <label>Enter Full Name</label>
-      //               <Field
-      //                 name="full_name"
-      //                 placeholder="Full Name"
-      //                 className="form-control"
-      //               />
-      //               <ErrorMessage
-      //                 name="full_name"
-      //                 component="div"
-      //                 className="text-danger"
-      //               />
-      //             </div>
-
-      //             {/* Phone */}
-      //             <div className="col-md-6">
-      //               <label>Contact No.</label>
-      //               <Field
-      //                 name="phone"
-      //                 placeholder="Phone"
-      //                 className="form-control"
-      //                 onChange={(e) => {
-      //                   let value = e.target.value.replace(/\D/g, ""); // remove non-digits
-
-      //                   if (value.startsWith("03")) {
-      //                     // Mobile: 03XX-XXXXXXX
-      //                     if (value.length > 4) {
-      //                       value = value.slice(0, 4) + "-" + value.slice(4, 11);
-      //                     }
-      //                     value = value.slice(0, 12); // max length 12
-      //                   } else if (value.startsWith("0")) {
-      //                     // Landline: 0XX-XXXXXXX or 0XXX-XXXXXXX
-      //                     if (value.length > 3) {
-      //                       value = value.slice(0, 3) + "-" + value.slice(3, 10);
-      //                     }
-      //                     if (value.length > 11) {
-      //                       value = value.slice(0, 11);
-      //                     }
-      //                   }
-
-      //                   setFieldValue("phone", value);
-      //                 }}
-      //               />
-
-      //               <ErrorMessage
-      //                 name="phone"
-      //                 component="div"
-      //                 className="text-danger"
-      //               />
-      //             </div>
-      //           </div>
-      //           {/* <div className="row mb-3">
-      // <div className="col-md-6">
-      //   <label>Email</label>
-      //              <Field name="email" placeholder="Email" type="email" className="form-control" />
-      //           <ErrorMessage name="email" component="div" className="text-danger" />
-      // </div>
-      // </div> */}
-      //           <div className="row mb-3">
-      //             {/* Full Name */}
-      //             <div className="col-md-6">
-      //               <label>Email</label>
-      //               <Field
-      //                 name="email"
-      //                 readOnly
-      //                 backgroundColor="gray"
-      //                 placeholder="Email"
-      //                 type="email"
-      //                 className="form-control"
-      //               />
-      //               <ErrorMessage
-      //                 name="email"
-      //                 component="div"
-      //                 className="text-danger"
-      //               />
-      //             </div>
-
-      //             {/* Phone */}
-      //             <div className="col-md-6">
-      //               <label>Date of Birth</label>
-      //               <Field
-      //                 name="date_of_birth"
-      //                 type="date"
-      //                 className="form-control"
-      //                 placeholder="Date of Birth"
-      //               />
-      //             </div>
-      //           </div>
-
-      //           <div className="row mb-3">
-      //             {/* Full Name */}
-      //             <div className="col-md-6">
-      //               <label>Gender</label>
-      //               <Field as="select" name="gender" className="form-control">
-      //                 <option value="">Select Gender</option>
-      //                 <option value="male">Male</option>
-      //                 <option value="female">Female</option>
-      //               </Field>
-      //             </div>
-
-      //             {/* Phone */}
-      //             <div className="col-md-6">
-      //               <label>Marital Status</label>
-      //               <Field
-      //                 as="select"
-      //                 name="marital_status"
-      //                 className="form-control"
-      //               >
-      //                 <option value="">Select Status</option>
-      //                 <option value="single">Single</option>
-      //                 <option value="married">Married</option>
-      //               </Field>
-      //             </div>
-      //           </div>
-
-      //           <div className="row mb-3">
-      //             {/* Full Name */}
-      //             <div className="col-md-6">
-      //               <label>License Type</label>
-      //               <Field
-      //                 as="select" // Use select for dropdown
-      //                 name="license_type" // Correct field name
-      //                 className="form-control"
-      //                 onChange={(e) =>
-      //                   setFieldValue("license_type", e.target.value)
-      //                 }
-      //               >
-      //                 <option value="">Select License Type</option>
-      //                 {(this.state.licenseTypes || []).map((l) => (
-      //                   <option key={l.id} value={String(l.id)}>
-      //                     {l.name}
-      //                   </option>
-      //                 ))}
-      //               </Field>
-      //               <ErrorMessage
-      //                 name="license_type" // Fix error message binding
-      //                 component="div"
-      //                 className="text-danger"
-      //               />
-      //             </div>
-
-      //             {/* Phone */}
-      //             <div className="col-md-6">
-      //               <label>License No.</label>
-      //               <Field
-      //                 name="license_number"
-      //                 placeholder="License Number"
-      //                 className="form-control"
-      //               />
-      //             </div>
-      //           </div>
-
-      //           <div className="row mb-3">
-      //             {/* Full Name */}
-      //             <div className="col-md-6">
-      //               <label>Total Experience</label>
-      //               <Field
-      //                 name="total_experience"
-      //                 placeholder="Total Experience"
-      //                 className="form-control"
-      //               />
-      //               <ErrorMessage
-      //                 name="email"
-      //                 component="div"
-      //                 className="text-danger"
-      //               />
-      //             </div>
-
-      //             {/* Phone */}
-      //             <div className="col-md-6">
-      //               <label>Speciality</label>
-      //               <Field
-      //                 as="select"
-      //                 name="speciality"
-      //                 className="form-control"
-      //                 onChange={(e) => setFieldValue("speciality", e.target.value)}
-      //               >
-      //                 <option value="">Select Speciality</option>
-      //                 {Array.isArray(this.state.speciality) &&
-      //                   this.state.speciality.map((s) => (
-      //                     <option key={s.id} value={String(s.id)}>
-      //                       {s.name}
-      //                     </option>
-      //                   ))}
-      //               </Field>
-      //               <ErrorMessage
-      //                 name="speciality"
-      //                 component="div"
-      //                 className="text-danger"
-      //               />
-      //             </div>
-      //           </div>
-
-      //           <div className="row mb-3">
-      //             {/* Country */}
-      //             <div className="col-md-6">
-      //               <label>Country</label>
-      //               <Field
-      //                 as="select"
-      //                 name="country"
-      //                 className="form-control"
-      //                 onChange={(e) => {
-      //                   const countryId = e.target.value;
-
-      //                   setFieldValue("country", countryId);
-      //                   setFieldValue("district", "");
-      //                   setFieldValue("city", "");
-
-      //                   this.loadDistricts(countryId); // call with countryId
-      //                 }}
-      //               >
-      //                 <option value="">Select Country</option>
-      //                 {Array.isArray(this.state.countries) &&
-      //                   this.state.countries.map((c) => (
-      //                     <option key={c.id} value={String(c.id)}>
-      //                       {c.name}
-      //                     </option>
-      //                   ))}
-      //               </Field>
-
-      //               <ErrorMessage
-      //                 name="country"
-      //                 component="div"
-      //                 className="text-danger"
-      //               />
-      //             </div>
-
-      //             {/* District */}
-      //             <div className="col-md-6">
-      //               <label>District</label>
-      //               <Field
-      //                 as="select"
-      //                 name="district"
-      //                 className="form-control"
-      //                 onChange={(e) => {
-      //                   const districtId = e.target.value; // string from select
-      //                   setFieldValue("district", districtId);
-      //                   setFieldValue("city", ""); // reset city
-      //                   this.loadCities(districtId); // make sure API accepts string or convert to int
-      //                 }}
-      //               >
-      //                 <option value="">Select District</option>
-      //                 {Array.isArray(this.state.districts) &&
-      //                   this.state.districts.map((d) => (
-      //                     <option key={d.id} value={String(d.id)}>
-      //                       {d.name}
-      //                     </option>
-      //                   ))}
-      //               </Field>
-
-      //               <ErrorMessage
-      //                 name="district"
-      //                 component="div"
-      //                 className="text-danger"
-      //               />
-      //             </div>
-      //           </div>
-
-      //           <div className="row mb-3">
-      //             {/* City */}
-      //             <div className="col-md-6">
-      //               <label>City</label>
-      //               <Field as="select" name="city" className="form-control">
-      //                 <option value="">Select City</option>
-      //                 {Array.isArray(this.state.cities) &&
-      //                   this.state.cities.map((c) => (
-      //                     <option key={c.id} value={c.id}>
-      //                       {c.name}
-      //                     </option>
-      //                   ))}
-      //               </Field>
-      //               <ErrorMessage
-      //                 name="city"
-      //                 component="div"
-      //                 className="text-danger"
-      //               />
-      //             </div>
-
-      //             {/* Other Preferred Cities */}
-      //             <div className="col-md-6">
-      //               <label>Other Preferred Cities</label>
-      //               <Select
-      //                 isMulti
-      //                 options={this.state.allCities.map((c) => ({
-      //                   value: c.id,
-      //                   label: c.name,
-      //                 }))}
-      //                 value={values.otherPreferredCities
-      //                   .map((id) => {
-      //                     const city = this.state.allCities.find(
-      //                       (c) => c.id === id,
-      //                     );
-      //                     return city ? { value: city.id, label: city.name } : null;
-      //                   })
-      //                   .filter(Boolean)}
-      //                 onChange={(selected) =>
-      //                   setFieldValue(
-      //                     "otherPreferredCities",
-      //                     selected ? selected.map((o) => o.value) : [],
-      //                   )
-      //                 }
-      //               />
-      //             </div>
-      //           </div>
-
-      //           <div className="row mb-3">
-      //             {/* Full Name */}
-      //             <div>
-      //               <label>Complete Address</label>
-      //               <Field
-      //                 as="textarea"
-      //                 name="address"
-      //                 placeholder="Complete Address"
-      //                 className="form-control"
-      //               />
-      //               <ErrorMessage
-      //                 name="address"
-      //                 component="div"
-      //                 className="text-danger"
-      //               />
-      //             </div>
-      //           </div>
-      //         </div>
-      //       );
-      //     case 2:
-      //       return (
-      //         <div>
-      //           <h4>Step 2: Education</h4>
-
-      //           <FieldArray name="education">
-      //             {({ push, remove }) => {
-      //               const draft =
-      //                 values.education && values.education.length > 0
-      //                   ? values.education[0]
-      //                   : {
-      //                     degree: "",
-      //                     degreeTitle: "",
-      //                     degreeTitle_label: "",
-      //                     institutes: "",
-      //                     startDate: "",
-      //                     endDate: "",
-      //                     ongoing: false,
-      //                   };
-
-
-      //               return (
-      //                 <>
-      //                   <div className="mb-4 border p-3 rounded">
-      //                     <h6>Add / Edit Education</h6>
-
-      //                     <div className="row mb-3">
-      //                       {/* Degree */}
-      //                       <div className="col-md-6">
-      //                         <label>Degree</label>
-      //                         <Field
-      //                           as="select"
-      //                           name="education.0.degree"
-      //                           className="form-control"
-      //                           onChange={(e) => {
-      //                             const degreeId = e.target.value;
-      //                             setFieldValue("education.0.degree", degreeId);
-      //                             setFieldValue("education.0.degreeTitle", "");
-      //                             setFieldValue(
-      //                               "education.0.degreeTitle_label",
-      //                               "",
-      //                             );
-      //                           }}
-      //                         >
-      //                           <option value="">Select Degree</option>
-      //                           {this.state.degreeFieldData.map((d) => (
-      //                             <option key={d.id} value={String(d.id)}>
-      //                               {d.name}
-      //                             </option>
-      //                           ))}
-      //                         </Field>
-      //                       </div>
-
-      //                       {/* Degree Title */}
-      //                       <div className="col-md-6">
-      //                         <label>Degree Title</label>
-      //                         <AsyncSelect
-      //                           key={draft.degree || "no-degree"}
-      //                           cacheOptions={false}
-      //                           defaultOptions
-      //                           isDisabled={!draft.degree}
-      //                           loadOptions={
-      //                             draft.degree
-      //                               ? this.loadDegreeTitles(Number(draft.degree))
-      //                               : () => []
-      //                           }
-      //                           value={
-      //                             draft.degreeTitle
-      //                               ? {
-      //                                 value: draft.degreeTitle,
-      //                                 label: draft.degreeTitle_label,
-      //                               }
-      //                               : null
-      //                           }
-      //                           onChange={(opt) => {
-      //                             setFieldValue(
-      //                               "education.0.degreeTitle",
-      //                               opt?.value || "",
-      //                             );
-      //                             setFieldValue(
-      //                               "education.0.degreeTitle_label",
-      //                               opt?.label || "",
-      //                             );
-      //                           }}
-      //                           placeholder="Select Degree Title"
-      //                         />
-      //                       </div>
-      //                     </div>
-
-      //                     <div className="row mb-3">
-      //                       {/* Institute */}
-      //                       <div className="col-md-6">
-      //                         <label>Institute</label>
-      //                         <AsyncSelect
-      //                           cacheOptions
-      //                           defaultOptions
-      //                           loadOptions={this.loadInstitutes}
-      //                           value={
-      //                             draft.institutes
-      //                               ? { value: draft.institutes, label: draft.institutes_label }
-      //                               : null
-      //                           }
-      //                           onChange={(opt) =>
-      //                             setFieldValue("education.0", {
-      //                               ...draft,
-      //                               institutes: opt?.value || "",
-      //                               institutes_label: opt?.label || "",
-      //                             })
-      //                           }
-      //                         />
-
-
-
-      //                       </div>
-
-      //                       {/* Start Date */}
-      //                       <div className="col-md-6">
-      //                         <label>Start Date</label>
-      //                         <Field
-      //                           type="date"
-      //                           name="education.0.startDate"
-      //                           className="form-control"
-      //                         />
-      //                       </div>
-      //                     </div>
-
-      //                     <div className="row mb-3">
-      //                       {/* End Date */}
-      //                       <div className="col-md-6">
-      //                         <label>End Date</label>
-      //                         <Field
-      //                           type="date"
-      //                           name="education.0.endDate"
-      //                           className="form-control"
-      //                           disabled={draft.ongoing}
-      //                         />
-      //                       </div>
-
-      //                       {/* Ongoing */}
-      //                       <div className="col-md-6 d-flex align-items-center">
-      //                         <div className="form-check mt-4">
-      //                           <Field
-      //                             type="checkbox"
-      //                             name="education.0.ongoing"
-      //                             className="form-check-input"
-      //                           />
-      //                           <label className="form-check-label">Ongoing</label>
-      //                         </div>
-      //                       </div>
-      //                     </div>
-
-      //                     <button
-      //                       type="button"
-      //                       className="btn btn-primary"
-      //                       onClick={() => {
-      //                         if (!draft.degree || !draft.degreeTitle) {
-      //                           toast.error("Please fill required fields");
-      //                           return;
-      //                         }
-      //                         if (draft.id) {
-      //                           // This is editing an existing row
-      //                           const index = values.education.findIndex((e) => e.id === draft.id);
-      //                           if (index > -1) {
-      //                             // replace the edited row
-      //                             setFieldValue(`education.${index}`, draft);
-      //                           }
-      //                         } else {
-      //                           push({ ...draft });
-      //                         }
-      //                         setFieldValue("education.0", {
-      //                           degree: "",
-      //                           degreeTitle: "",
-      //                           degreeTitle_label: "",
-      //                           institutes: "",
-      //                           startDate: "",
-      //                           endDate: "",
-      //                           ongoing: false,
-      //                           id: null
-      //                         });
-      //                         this.setState({ editID: null });
-
-      //                       }}
-      //                     >
-      //                       Add More
-      //                     </button>
-      //                   </div>
-
-      //                   {values.education.length > 1 && (
-      //                     <table className="table table-bordered">
-      //                       <thead>
-      //                         <tr>
-      //                           <th>Degree</th>
-      //                           <th>Title</th>
-      //                           <th>Institute</th>
-      //                           <th>Start Date</th>
-      //                           <th>End Date</th>
-      //                           <th>Actions</th>
-      //                         </tr>
-      //                       </thead>
-      //                       <tbody>
-      //                         {values.education.slice(1).map((edu, i) => (
-      //                           <tr key={edu.id || i}>
-      //                             <td>{edu.degreeTitle_label}</td>
-      //                             <td>{edu.degreeTitle_label}</td>
-      //                             <td>{edu.institutes_label}</td>
-      //                             <td>{edu.startDate}</td>
-      //                             <td>{edu.endDate || "-"}</td>
-      //                             <td>
-      //                               <button
-      //                                 type="button"
-      //                                 className="btn btn-sm btn-warning me-2"
-      //                                 onClick={() => {
-      //                                   setFieldValue("education.0", {
-      //                                     ...edu,
-      //                                   });
-      //                                   this.setState({ editID: edu.id, isEdit: true });
-      //                                   remove(i + 1);
-      //                                 }}
-
-
-      //                               >
-      //                                 Edit
-      //                               </button>
-
-      //                               <button
-      //                                 type="button"
-      //                                 className="btn btn-sm btn-danger"
-      //                                 onClick={() => {
-      //                                   if (edu.id) {
-      //                                     api.delete(`${this.apiBaseUrl}candidateeducation/deletecandidateeducation/${edu.id}`)
-      //                                       .then(() => {
-      //                                         toast.success("Deleted");
-      //                                         remove(i + 1);
-      //                                       });
-      //                                   } else {
-      //                                     remove(i + 1); // just remove from form, not in DB
-      //                                   }
-      //                                 }}
-
-      //                               >
-      //                                 Delete
-      //                               </button>
-      //                             </td>
-      //                           </tr>
-      //                         ))}
-      //                       </tbody>
-
-      //                     </table>
-      //                   )}
-      //                 </>
-      //               );
-      //             }}
-      //           </FieldArray>
-      //         </div>
-      //       );
-
-      // case 3:
-      //   return (
-      //     <div className="row">
-      //       <div className="text-center mt-5">
-      //         <h3>Work and Experience Form</h3>
-      //       </div>
-
-      //       <div className="col-lg-12 col-md-12 offset-lg-1 offset-md-1">
-      //         <div className="default-form">
-      //           <FieldArray name="experience">
-      //             {({ push, remove }) => (
-      //               <>
-      //                 {values.experience.map((exp, idx) => (
-      //                   <div key={idx} className="row border p-3 mb-4">
-      //                     {/* Company Name */}
-      //                     <div className="form-group col-lg-10 col-md-10">
-      //                       <label>
-      //                         Company Name <span className="text-danger">*</span>
-      //                       </label>
-      //                       <Field
-      //                         type="text"
-      //                         name={`experience.${idx}.companyName`}
-      //                         placeholder="Company Name"
-      //                         className="form-control"
-      //                       />
-      //                       <ErrorMessage
-      //                         name={`experience.${idx}.companyName`}
-      //                         component="small"
-      //                         className="text-danger"
-      //                       />
-      //                     </div>
-
-      //                     {/* Designation */}
-      //                     <div className="form-group col-lg-10 col-md-10">
-      //                       <label>
-      //                         Designation <span className="text-danger">*</span>
-      //                       </label>
-      //                       <Field
-      //                         type="text"
-      //                         name={`experience.${idx}.designation`}
-      //                         placeholder="Designation"
-      //                         className="form-control"
-      //                       />
-      //                       <ErrorMessage
-      //                         name={`experience.${idx}.designation`}
-      //                         component="small"
-      //                         className="text-danger"
-      //                       />
-      //                     </div>
-
-
-
-      //                     {/* Start Date */}
-      //                     <div className="form-group col-lg-5 col-md-5">
-      //                       <label>
-      //                         Start Date <span className="text-danger">*</span>
-      //                       </label>
-      //                       <Field
-      //                         type="date"
-      //                         name={`experience.${idx}.startDate`}
-      //                         className="form-control"
-      //                         max={new Date().toISOString().split("T")[0]}
-      //                       />
-      //                       <ErrorMessage
-      //                         name={`experience.${idx}.startDate`}
-      //                         component="small"
-      //                         className="text-danger"
-      //                       />
-      //                     </div>
-
-      //                     {/* End Date (hide if ongoing) */}
-      //                     {!exp.ongoing && (
-      //                       <div className="form-group col-lg-5 col-md-5">
-      //                         <label>
-      //                           End Date <span className="text-danger">*</span>
-      //                         </label>
-      //                         <Field
-      //                           type="date"
-      //                           name={`experience.${idx}.endDate`}
-      //                           className="form-control"
-      //                           max={new Date().toISOString().split("T")[0]}
-      //                         />
-      //                         <ErrorMessage
-      //                           name={`experience.${idx}.endDate`}
-      //                           component="small"
-      //                           className="text-danger"
-      //                         />
-      //                       </div>
-      //                     )}
-
-      //                     {/* Ongoing Checkbox */}
-      //                     <div className="form-group col-lg-10 col-md-10">
-      //                       <label>
-      //                         <Field
-      //                           type="checkbox"
-      //                           name={`experience.${idx}.ongoing`}
-      //                           className="form-check-input me-2"
-      //                           onChange={(e) => {
-      //                             const checked = e.target.checked;
-      //                             setFieldValue(
-      //                               `experience.${idx}.ongoing`,
-      //                               checked
-      //                             );
-      //                             if (checked) {
-      //                               setFieldValue(
-      //                                 `experience.${idx}.endDate`,
-      //                                 ""
-      //                               );
-      //                             }
-      //                           }}
-      //                         />
-      //                         Is this ongoing?
-      //                       </label>
-      //                     </div>
-
-      //                     {/* Remove Button */}
-      //                     {idx > 0 && (
-      //                       <div className="form-group col-lg-12">
-      //                         <button
-      //                           type="button"
-      //                           className="btn btn-danger"
-      //                           onClick={() => remove(idx)}
-      //                         >
-      //                           Remove
-      //                         </button>
-      //                       </div>
-      //                     )}
-      //                   </div>
-      //                 ))}
-
-      //                 {/* Add More */}
-      //                 <div className="form-group col-lg-12">
-      //                   <button
-      //                     type="button"
-      //                     className="theme-btn btn-style-one"
-      //                     onClick={() =>
-      //                       push({
-      //                         designation: "",
-      //                         companyName: "",
-      //                         startDate: "",
-      //                         endDate: "",
-      //                         ongoing: false,
-      //                         description: "",
-      //                       })
-      //                     }
-      //                   >
-      //                     Add More Experience
-      //                   </button>
-      //                 </div>
-      //               </>
-      //             )}
-      //           </FieldArray>
-      //         </div>
-      //       </div>
-      //     </div>
-      //   );
-
-      // case 4:
-      //   return (
-      //     <div>
-      //       <h4 className="mb-3">Step 4: Upload CV</h4>
-
-      //       <div className="text-danger text-center mb-2">
-      //         Upload only .doc, .docx, .pdf format
-      //       </div>
-
-      //       {this.state.getManager.length > 0 && (
-      //         <div className="file-preview">
-      //           {this.state.getManager.map((file, index) => (
-      //             <p className="text-center" key={index}>
-      //               <strong>Selected File:</strong>
-      //               <span
-      //                 className="text-primary text-bold me-3"
-      //                 style={{ cursor: "pointer", textDecoration: "underline" }}
-      //                 onClick={() => {
-      //                   const fileURL = URL.createObjectURL(file);
-      //                   window.open(fileURL, "_blank");
-      //                 }}
-      //               >
-      //                 {file.name}
-      //               </span>
-
-      //               <button onClick={this.deleteHandler}>
-      //                 <span className="la la-close"></span>
-      //               </button>
-      //             </p>
-      //           ))}
-      //         </div>
-      //       )}
-
-      //       {/* Upload Section */}
-      //       <div className="uploading-resume">
-      //         <div className="uploadButton">
-      //           <label className="cv-uploadButton position-relative w-100">
-      //             <input
-      //               ref={this.fileInputRef}
-      //               type="file"
-      //               accept=".doc,.docx,application/msword,application/pdf"
-      //               className="form-control position-absolute top-0 start-0 w-100 h-100 opacity-0"
-      //               onChange={this.cvManagerHandler}
-      //             />
-
-
-      //             <div className="text-center py-3 border rounded">
-      //               <strong>Click here or drop file to upload</strong>
-      //               <div className="text-muted small">
-      //                 Max 5Mb | Allowed: (.doc, .docx, .pdf)
-      //               </div>
-      //             </div>
-      //           </label>
-
-      //         </div>
-      //       </div>
-      //     </div>
-      //   );
-
       case 1:
         return (
           <div>
+            <h4>Step 1: Personal Details</h4>
+            <div className="mb-3">
+              <label>Upload Photo</label>
+
+              <div className="d-flex align-items-center gap-3">
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      setFieldValue("passport_photo", file);
+                      const reader = new FileReader();
+                      reader.onload = () =>
+                        setFieldValue("passport_photoPreview", reader.result);
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="form-control"
+                  style={{ maxWidth: "280px" }}
+                />
+
+                {values.passport_photoPreview && (
+                  <div className="profile-photo-wrapper">
+                    <img
+                      src={values.passport_photoPreview}
+                      alt="Profile"
+                      className="profile-photo"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+
+            <div className="row mb-3">
+              {/* Full Name */}
+              <div className="col-md-6">
+                <label>Enter Full Name</label>
+                <Field
+                  name="full_name"
+                  placeholder="Full Name"
+                  className="form-control"
+                />
+                <ErrorMessage
+                  name="full_name"
+                  component="div"
+                  className="text-danger"
+                />
+              </div>
+
+              {/* Phone */}
+              <div className="col-md-6">
+                <label>Contact No.</label>
+                <Field
+                  name="phone"
+                  placeholder="Phone"
+                  className="form-control"
+                  onChange={(e) => {
+                    let value = e.target.value.replace(/\D/g, ""); // remove non-digits
+
+                    if (value.startsWith("03")) {
+                      // Mobile: 03XX-XXXXXXX
+                      if (value.length > 4) {
+                        value = value.slice(0, 4) + "-" + value.slice(4, 11);
+                      }
+                      value = value.slice(0, 12); // max length 12
+                    } else if (value.startsWith("0")) {
+                      // Landline: 0XX-XXXXXXX or 0XXX-XXXXXXX
+                      if (value.length > 3) {
+                        value = value.slice(0, 3) + "-" + value.slice(3, 10);
+                      }
+                      if (value.length > 11) {
+                        value = value.slice(0, 11);
+                      }
+                    }
+
+                    setFieldValue("phone", value);
+                  }}
+                />
+
+                <ErrorMessage
+                  name="phone"
+                  component="div"
+                  className="text-danger"
+                />
+              </div>
+            </div>
+            {/* <div className="row mb-3">
+      <div className="col-md-6">
+        <label>Email</label>
+                   <Field name="email" placeholder="Email" type="email" className="form-control" />
+                <ErrorMessage name="email" component="div" className="text-danger" />
+      </div>
+      </div> */}
+            <div className="row mb-3">
+              {/* Full Name */}
+              <div className="col-md-6">
+                <label>Email</label>
+                <Field
+                  name="email"
+                  readOnly
+                  backgroundColor="gray"
+                  placeholder="Email"
+                  type="email"
+                  className="form-control"
+                />
+                <ErrorMessage
+                  name="email"
+                  component="div"
+                  className="text-danger"
+                />
+              </div>
+
+              {/* Phone */}
+              <div className="col-md-6">
+                <label>Date of Birth</label>
+                <Field
+                  name="date_of_birth"
+                  type="date"
+                  className="form-control"
+                  placeholder="Date of Birth"
+                />
+              </div>
+            </div>
+
+            <div className="row mb-3">
+              {/* Full Name */}
+              <div className="col-md-6">
+                <label>Gender</label>
+                <Field as="select" name="gender" className="form-control">
+                  <option value="">Select Gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </Field>
+              </div>
+
+              {/* Phone */}
+              <div className="col-md-6">
+                <label>Marital Status</label>
+                <Field
+                  as="select"
+                  name="marital_status"
+                  className="form-control"
+                >
+                  <option value="">Select Status</option>
+                  <option value="single">Single</option>
+                  <option value="married">Married</option>
+                </Field>
+              </div>
+            </div>
+
+            <div className="row mb-3">
+              {/* Full Name */}
+              <div className="col-md-6">
+                <label>License Type</label>
+                <Field
+                  as="select" // Use select for dropdown
+                  name="license_type" // Correct field name
+                  className="form-control"
+                  onChange={(e) =>
+                    setFieldValue("license_type", e.target.value)
+                  }
+                >
+                  <option value="">Select License Type</option>
+                  {(this.state.licenseTypes || []).map((l) => (
+                    <option key={l.id} value={String(l.id)}>
+                      {l.name}
+                    </option>
+                  ))}
+                </Field>
+                <ErrorMessage
+                  name="license_type" // Fix error message binding
+                  component="div"
+                  className="text-danger"
+                />
+              </div>
+
+              {/* Phone */}
+              <div className="col-md-6">
+                <label>License No.</label>
+                <Field
+                  name="license_number"
+                  placeholder="License Number"
+                  className="form-control"
+                />
+              </div>
+            </div>
+
+            <div className="row mb-3">
+              {/* Full Name */}
+              <div className="col-md-6">
+                <label>Total Experience</label>
+                <Field
+                  name="total_experience"
+                  placeholder="Total Experience"
+                  className="form-control"
+                />
+                <ErrorMessage
+                  name="email"
+                  component="div"
+                  className="text-danger"
+                />
+              </div>
+
+              {/* Phone */}
+              <div className="col-md-6">
+                <label>Speciality</label>
+                <Field
+                  as="select"
+                  name="speciality"
+                  className="form-control"
+                  onChange={(e) => setFieldValue("speciality", e.target.value)}
+                >
+                  <option value="">Select Speciality</option>
+                  {Array.isArray(this.state.speciality) &&
+                    this.state.speciality.map((s) => (
+                      <option key={s.id} value={String(s.id)}>
+                        {s.name}
+                      </option>
+                    ))}
+                </Field>
+                <ErrorMessage
+                  name="speciality"
+                  component="div"
+                  className="text-danger"
+                />
+              </div>
+            </div>
+
+            <div className="row mb-3">
+              {/* Country */}
+              <div className="col-md-6">
+                <label>Country</label>
+                <Field
+                  as="select"
+                  name="country"
+                  className="form-control"
+                  onChange={(e) => {
+                    const countryId = e.target.value;
+
+                    setFieldValue("country", countryId);
+                    setFieldValue("district", "");
+                    setFieldValue("city", "");
+
+                    this.loadDistricts(countryId); // call with countryId
+                  }}
+                >
+                  <option value="">Select Country</option>
+                  {Array.isArray(this.state.countries) &&
+                    this.state.countries.map((c) => (
+                      <option key={c.id} value={String(c.id)}>
+                        {c.name}
+                      </option>
+                    ))}
+                </Field>
+
+                <ErrorMessage
+                  name="country"
+                  component="div"
+                  className="text-danger"
+                />
+              </div>
+
+              {/* District */}
+              <div className="col-md-6">
+                <label>District</label>
+                <Field
+                  as="select"
+                  name="district"
+                  className="form-control"
+                  onChange={(e) => {
+                    const districtId = e.target.value; // string from select
+                    setFieldValue("district", districtId);
+                    setFieldValue("city", ""); // reset city
+                    this.loadCities(districtId); // make sure API accepts string or convert to int
+                  }}
+                >
+                  <option value="">Select District</option>
+                  {Array.isArray(this.state.districts) &&
+                    this.state.districts.map((d) => (
+                      <option key={d.id} value={String(d.id)}>
+                        {d.name}
+                      </option>
+                    ))}
+                </Field>
+
+                <ErrorMessage
+                  name="district"
+                  component="div"
+                  className="text-danger"
+                />
+              </div>
+            </div>
+
+            <div className="row mb-3">
+              {/* City */}
+              <div className="col-md-6">
+                <label>City</label>
+                <Field as="select" name="city" className="form-control">
+                  <option value="">Select City</option>
+                  {Array.isArray(this.state.cities) &&
+                    this.state.cities.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                </Field>
+                <ErrorMessage
+                  name="city"
+                  component="div"
+                  className="text-danger"
+                />
+              </div>
+
+              {/* Other Preferred Cities */}
+              <div className="col-md-6">
+                <label>Other Preferred Cities</label>
+                <Select
+                  isMulti
+                  options={this.state.allCities.map((c) => ({
+                    value: c.id,
+                    label: c.name,
+                  }))}
+                  value={values.otherPreferredCities
+                    .map((id) => {
+                      const city = this.state.allCities.find(
+                        (c) => c.id === id,
+                      );
+                      return city ? { value: city.id, label: city.name } : null;
+                    })
+                    .filter(Boolean)}
+                  onChange={(selected) =>
+                    setFieldValue(
+                      "otherPreferredCities",
+                      selected ? selected.map((o) => o.value) : [],
+                    )
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="row mb-3">
+              {/* Full Name */}
+              <div>
+                <label>Complete Address</label>
+                <Field
+                  as="textarea"
+                  name="address"
+                  placeholder="Complete Address"
+                  className="form-control"
+                />
+                <ErrorMessage
+                  name="address"
+                  component="div"
+                  className="text-danger"
+                />
+              </div>
+            </div>
+          </div>
+        );
+      case 2:
+        return (
+          <div>
+            <h4>Step 2: Education</h4>
+
+            <FieldArray name="education">
+              {({ push, remove }) => {
+                const draft =
+                  values.education && values.education.length > 0
+                    ? values.education[0]
+                    : {
+                      degree: "",
+                      degreeTitle: "",
+                      degreeTitle_label: "",
+                      institutes: "",
+                      startDate: "",
+                      endDate: "",
+                      ongoing: false,
+                    };
+
+
+                return (
+                  <>
+                    <div className="mb-4 border p-3 rounded">
+                      <h6>Add / Edit Education</h6>
+
+                      <div className="row mb-3">
+                        {/* Degree */}
+                        <div className="col-md-6">
+                          <label>Degree</label>
+                          <Field
+                            as="select"
+                            name="education.0.degree"
+                            className="form-control"
+                            onChange={(e) => {
+                              const degreeId = e.target.value;
+                              setFieldValue("education.0.degree", degreeId);
+                              setFieldValue("education.0.degreeTitle", "");
+                              setFieldValue(
+                                "education.0.degreeTitle_label",
+                                "",
+                              );
+                            }}
+                          >
+                            <option value="">Select Degree</option>
+                            {this.state.degreeFieldData.map((d) => (
+                              <option key={d.id} value={String(d.id)}>
+                                {d.name}
+                              </option>
+                            ))}
+                          </Field>
+                        </div>
+
+                        {/* Degree Title */}
+                        <div className="col-md-6">
+                          <label>Degree Title</label>
+                          <AsyncSelect
+                            key={draft.degree || "no-degree"}
+                            cacheOptions={false}
+                            defaultOptions
+                            isDisabled={!draft.degree}
+                            loadOptions={
+                              draft.degree
+                                ? this.loadDegreeTitles(Number(draft.degree))
+                                : () => []
+                            }
+                            value={
+                              draft.degreeTitle
+                                ? {
+                                  value: draft.degreeTitle,
+                                  label: draft.degreeTitle_label,
+                                }
+                                : null
+                            }
+                            onChange={(opt) => {
+                              setFieldValue(
+                                "education.0.degreeTitle",
+                                opt?.value || "",
+                              );
+                              setFieldValue(
+                                "education.0.degreeTitle_label",
+                                opt?.label || "",
+                              );
+                            }}
+                            placeholder="Select Degree Title"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="row mb-3">
+                        {/* Institute */}
+                        <div className="col-md-6">
+                          <label>Institute</label>
+                          <AsyncSelect
+                            cacheOptions
+                            defaultOptions
+                            loadOptions={this.loadInstitutes}
+                            value={
+                              draft.institutes
+                                ? { value: draft.institutes, label: draft.institutes_label }
+                                : null
+                            }
+                            onChange={(opt) =>
+                              setFieldValue("education.0", {
+                                ...draft,
+                                institutes: opt?.value || "",
+                                institutes_label: opt?.label || "",
+                              })
+                            }
+                          />
+
+
+
+                        </div>
+
+                        {/* Start Date */}
+                        <div className="col-md-6">
+                          <label>Start Date</label>
+                          <Field
+                            type="date"
+                            name="education.0.startDate"
+                            className="form-control"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="row mb-3">
+                        {/* End Date */}
+                        <div className="col-md-6">
+                          <label>End Date</label>
+                          <Field
+                            type="date"
+                            name="education.0.endDate"
+                            className="form-control"
+                            disabled={draft.ongoing}
+                          />
+                        </div>
+
+                        {/* Ongoing */}
+                        <div className="col-md-6 d-flex align-items-center">
+                          <div className="form-check mt-4">
+                            <Field
+                              type="checkbox"
+                              name="education.0.ongoing"
+                              className="form-check-input"
+                            />
+                            <label className="form-check-label">Ongoing</label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => {
+                          if (!draft.degree || !draft.degreeTitle) {
+                            toast.error("Please fill required fields");
+                            return;
+                          }
+                          if (draft.id) {
+                            // This is editing an existing row
+                            const index = values.education.findIndex((e) => e.id === draft.id);
+                            if (index > -1) {
+                              // replace the edited row
+                              setFieldValue(`education.${index}`, draft);
+                            }
+                          } else {
+                            push({ ...draft });
+                          }
+                          setFieldValue("education.0", {
+                            degree: "",
+                            degreeTitle: "",
+                            degreeTitle_label: "",
+                            institutes: "",
+                            startDate: "",
+                            endDate: "",
+                            ongoing: false,
+                            id: null
+                          });
+                          this.setState({ editID: null });
+
+                        }}
+                      >
+                        Add More
+                      </button>
+                    </div>
+
+                    {values.education.length > 1 && (
+                      <table className="table table-bordered">
+                        <thead>
+                          <tr>
+                            <th>Degree</th>
+                            <th>Title</th>
+                            <th>Institute</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {values.education.slice(1).map((edu, i) => (
+                            <tr key={edu.id || i}>
+                              <td>{edu.degreeTitle_label}</td>
+                              <td>{edu.degreeTitle_label}</td>
+                              <td>{edu.institutes_label}</td>
+                              <td>{edu.startDate}</td>
+                              <td>{edu.endDate || "-"}</td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-warning me-2"
+                                  onClick={() => {
+                                    setFieldValue("education.0", {
+                                      ...edu,
+                                    });
+                                    this.setState({ editID: edu.id, isEdit: true });
+                                    remove(i + 1);
+                                  }}
+
+
+                                >
+                                  Edit
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-danger"
+                                  onClick={() => {
+                                    if (edu.id) {
+                                      api.delete(`${this.apiBaseUrl}candidateeducation/deletecandidateeducation/${edu.id}`)
+                                        .then(() => {
+                                          toast.success("Deleted");
+                                          remove(i + 1);
+                                        });
+                                    } else {
+                                      remove(i + 1); // just remove from form, not in DB
+                                    }
+                                  }}
+
+                                >
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+
+                      </table>
+                    )}
+                  </>
+                );
+              }}
+            </FieldArray>
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="row">
+            <div className="text-center mt-5">
+              <h3>Work and Experience Form</h3>
+            </div>
+
+            <div className="col-lg-12 col-md-12 offset-lg-1 offset-md-1">
+              <div className="default-form">
+                <FieldArray name="experience">
+                  {({ push, remove }) => (
+                    <>
+                      {values.experience.map((exp, idx) => (
+                        <div key={idx} className="row border p-3 mb-4">
+                          {/* Company Name */}
+                          <div className="form-group col-lg-10 col-md-10">
+                            <label>
+                              Company Name <span className="text-danger">*</span>
+                            </label>
+                            <Field
+                              type="text"
+                              name={`experience.${idx}.companyName`}
+                              placeholder="Company Name"
+                              className="form-control"
+                            />
+                            <ErrorMessage
+                              name={`experience.${idx}.companyName`}
+                              component="small"
+                              className="text-danger"
+                            />
+                          </div>
+
+                          {/* Designation */}
+                          <div className="form-group col-lg-10 col-md-10">
+                            <label>
+                              Designation <span className="text-danger">*</span>
+                            </label>
+                            <Field
+                              type="text"
+                              name={`experience.${idx}.designation`}
+                              placeholder="Designation"
+                              className="form-control"
+                            />
+                            <ErrorMessage
+                              name={`experience.${idx}.designation`}
+                              component="small"
+                              className="text-danger"
+                            />
+                          </div>
+
+
+
+                          {/* Start Date */}
+                          <div className="form-group col-lg-5 col-md-5">
+                            <label>
+                              Start Date <span className="text-danger">*</span>
+                            </label>
+                            <Field
+                              type="date"
+                              name={`experience.${idx}.startDate`}
+                              className="form-control"
+                              max={new Date().toISOString().split("T")[0]}
+                            />
+                            <ErrorMessage
+                              name={`experience.${idx}.startDate`}
+                              component="small"
+                              className="text-danger"
+                            />
+                          </div>
+
+                          {/* End Date (hide if ongoing) */}
+                          {!exp.ongoing && (
+                            <div className="form-group col-lg-5 col-md-5">
+                              <label>
+                                End Date <span className="text-danger">*</span>
+                              </label>
+                              <Field
+                                type="date"
+                                name={`experience.${idx}.endDate`}
+                                className="form-control"
+                                max={new Date().toISOString().split("T")[0]}
+                              />
+                              <ErrorMessage
+                                name={`experience.${idx}.endDate`}
+                                component="small"
+                                className="text-danger"
+                              />
+                            </div>
+                          )}
+
+                          {/* Ongoing Checkbox */}
+                          <div className="form-group col-lg-10 col-md-10">
+                            <label>
+                              <Field
+                                type="checkbox"
+                                name={`experience.${idx}.ongoing`}
+                                className="form-check-input me-2"
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  setFieldValue(
+                                    `experience.${idx}.ongoing`,
+                                    checked
+                                  );
+                                  if (checked) {
+                                    setFieldValue(
+                                      `experience.${idx}.endDate`,
+                                      ""
+                                    );
+                                  }
+                                }}
+                              />
+                              Is this ongoing?
+                            </label>
+                          </div>
+
+                          {/* Remove Button */}
+                          {idx > 0 && (
+                            <div className="form-group col-lg-12">
+                              <button
+                                type="button"
+                                className="btn btn-danger"
+                                onClick={() => remove(idx)}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      {/* Add More */}
+                      <div className="form-group col-lg-12">
+                        <button
+                          type="button"
+                          className="theme-btn btn-style-one"
+                          onClick={() =>
+                            push({
+                              designation: "",
+                              companyName: "",
+                              startDate: "",
+                              endDate: "",
+                              ongoing: false,
+                              description: "",
+                            })
+                          }
+                        >
+                          Add More Experience
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </FieldArray>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 4:
+        return (
+          <div>
+            <h4 className="mb-3">Step 4: Upload CV</h4>
+
+            <div className="text-danger text-center mb-2">
+              Upload only .doc, .docx, .pdf format
+            </div>
+
+            {this.state.getManager.length > 0 && (
+              <div className="file-preview">
+                {this.state.getManager.map((file, index) => (
+                  <p className="text-center" key={index}>
+                    <strong>Selected File:</strong>
+                    <span
+                      className="text-primary text-bold me-3"
+                      style={{ cursor: "pointer", textDecoration: "underline" }}
+                      onClick={() => {
+                        const fileURL = URL.createObjectURL(file);
+                        window.open(fileURL, "_blank");
+                      }}
+                    >
+                      {file.name}
+                    </span>
+
+                    <button onClick={this.deleteHandler}>
+                      <span className="la la-close"></span>
+                    </button>
+                  </p>
+                ))}
+              </div>
+            )}
+
+            {/* Upload Section */}
+            <div className="uploading-resume">
+              <div className="uploadButton">
+                <label className="cv-uploadButton position-relative w-100">
+                  <input
+                    ref={this.fileInputRef}
+                    type="file"
+                    accept=".doc,.docx,application/msword,application/pdf"
+                    className="form-control position-absolute top-0 start-0 w-100 h-100 opacity-0"
+                    onChange={this.cvManagerHandler}
+                  />
+
+
+                  <div className="text-center py-3 border rounded">
+                    <strong>Click here or drop file to upload</strong>
+                    <div className="text-muted small">
+                      Max 5Mb | Allowed: (.doc, .docx, .pdf)
+                    </div>
+                  </div>
+                </label>
+
+              </div>
+            </div>
+          </div>
+        );
+
+      case 5:
+        return (
+          <div>
             <h4>Step 5: Availability</h4>
-            
-                  <div className="mb-2">
-                    <Select
-                      options={this.state.dayOptions}
-                      value={dayOptions.find((o) => o.value === values.day)}
-                      onChange={(option) => setFieldValue("day", option.value)}
-                      placeholder="Select Day"
-                    />
-                  </div>
-                  <div className="mb-2">
-                    <Select
-                      options={shiftOptions}
-                      value={shiftOptions.find((o) => o.value === values.shift)}
-                      onChange={(option) => setFieldValue("shift", option.value)}
-                      placeholder="Select Shift"
-                    />
-                  </div>
-                  <div className="mb-2">
-                    <Field name="startTime" type="time" className="form-control" />
-                  </div>
-                  <div className="mb-2">
-                    <Field name="endTime" type="time" className="form-control" />
-                  </div>
-                  <button type="submit" className="btn btn-primary">
-                    {editingIndex !== null ? "Update" : "Add"}
-                  </button>
-       
-          
-            {entries.length > 0 && (
+
+            <div className="mb-2">
+              <Select
+                options={this.state.dayOptions}
+                value={this.state.dayOptions.find((o) => o.value === values.day)}
+                onChange={(option) => setFieldValue("day", option.value)}
+                placeholder="Select Day"
+              />
+            </div>
+            <div className="mb-2">
+              <Select
+                options={this.state.shiftOptions}
+                value={this.state.shiftOptions.find((o) => o.value === values.shift)}
+                onChange={(option) => setFieldValue("shift", option.value)}
+                placeholder="Select Shift"
+              />
+            </div>
+            <div className="mb-2">
+              <Field name="startTime" type="time" className="form-control" />
+            </div>
+            <div className="mb-2">
+              <Field name="endTime" type="time" className="form-control" />
+            </div>
+
+            {this.state.entries.length > 0 && (
               <table className="table table-bordered">
                 <thead>
                   <tr>
