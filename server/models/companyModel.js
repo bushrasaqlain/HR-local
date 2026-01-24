@@ -43,24 +43,54 @@ const getAllCompanies = (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 15;
   const offset = (page - 1) * limit;
-  const search = req.query.search || "";
 
-  let status = req.query.status || null;
-  if (status !== "Active" && status !== "InActive") {
-    status = null;
-  }
+  const search = (req.query.search || "").trim();
+  const name = (req.query.name || "").trim();
+  const status = (req.query.status || "").trim(); // "Active", "InActive", "all"
 
-  // Map client column → DB column
+  // Map client column → DB column (SAFE: only from this map)
   const columnMap = {
-    name: "a.username",
+    username: "a.username",
     email: "a.email",
     phone: "c.phone",
+    password: "a.password",
     company_name: "c.company_name",
     created_at: "a.created_at",
     isActive: "a.isActive",
   };
 
-  const searchColumn = columnMap[req.query.name] || "a.email";
+  let whereConditions = [];
+  let values = [];
+
+  // base condition
+  whereConditions.push(`a.accountType = 'employer'`);
+
+  // ✅ Status filter (dropdown)
+  if (status && status.toLowerCase() !== "all") {
+    whereConditions.push(`LOWER(a.isActive) = ?`);
+    values.push(status.toLowerCase()); // compares case-insensitively
+  }
+
+  // ✅ Search filter
+  if (search) {
+    const searchColumn = columnMap[name] || "a.email";
+
+    if (name === "isActive") {
+      // IMPORTANT: prevent "Active" matching "InActive"
+      // Use prefix match so "Active" matches only "Active", not "InActive"
+      whereConditions.push(`LOWER(a.isActive) LIKE ?`);
+      values.push(`${search.toLowerCase()}%`);   // "active%" ✅, won't match "inactive"
+      // If you want EXACT only, use:
+      // whereConditions.push(`LOWER(a.isActive) = ?`);
+      // values.push(search.toLowerCase());
+    } else {
+      whereConditions.push(`${searchColumn} LIKE ?`);
+      values.push(`%${search}%`);
+    }
+  }
+
+  const whereClause =
+    whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
 
   const query = `
     SELECT a.*,
@@ -86,18 +116,14 @@ const getAllCompanies = (req, res) => {
     LEFT JOIN districts d ON c.district_id = d.id
     LEFT JOIN cities city ON c.city_id = city.id
     LEFT JOIN business_entity_type bus ON c.Business_entity_type_id = bus.id
-    WHERE a.accountType = 'employer'
-      ${status ? "AND a.isActive = ?" : ""}
-      AND ${searchColumn} LIKE ?
+    ${whereClause}
     ORDER BY a.id DESC
     LIMIT ? OFFSET ?
   `;
 
-  const queryParams = [];
-  if (status) queryParams.push(status);
-  queryParams.push(`%${search}%`, limit, offset);
+  const queryValues = [...values, limit, offset];
 
-  connection.query(query, queryParams, (err, results) => {
+  connection.query(query, queryValues, (err, results) => {
     if (err) {
       console.error("❌ Error fetching employers:", err.sqlMessage);
       return res.status(500).json({ error: "Database error" });
@@ -107,16 +133,10 @@ const getAllCompanies = (req, res) => {
       SELECT COUNT(*) AS total
       FROM account a
       LEFT JOIN company_info c ON a.id = c.account_id
-      WHERE a.accountType = 'employer'
-        ${status ? "AND a.isActive = ?" : ""}
-        AND ${searchColumn} LIKE ?
+      ${whereClause}
     `;
 
-    const countParams = [];
-    if (status) countParams.push(status);
-    countParams.push(`%${search}%`);
-
-    connection.query(countQuery, countParams, (err2, countResult) => {
+    connection.query(countQuery, values, (err2, countResult) => {
       if (err2) {
         console.error("❌ Error fetching count:", err2.sqlMessage);
         return res.status(500).json({ error: "Database error" });
@@ -147,6 +167,7 @@ const getIdFromName = async (tableName, name) => {
 };
 
 const updateCompanyinfo = async (req, res) => {
+  console.log(req);
   try {
     const accountId = parseInt(req.body.userId);
     const {
@@ -195,9 +216,9 @@ const updateCompanyinfo = async (req, res) => {
       company_name,
       business_type,
       phone,
-      country_id,
-      district_id,
-      city_id,
+      country,
+      district,
+      city,
       company_address,
       company_website,
       NTN,
@@ -247,46 +268,43 @@ const updateCompanyinfo = async (req, res) => {
 };
 
 const getcompanybyid = (req, res) => {
-  const accountId = parseInt(req.params.userId);
-
-  if (isNaN(accountId)) {
+  const accountId = Number(req.params.userId);
+  if (!Number.isInteger(accountId)) {
     return res.status(400).json({ error: "Invalid account_id" });
   }
 
   const sql = `
-      SELECT
+    SELECT
+      a.id as account_id,
+      a.username,
+      a.email,
+      a.isActive,
       ci.*,
-      c.name AS country_name,
-      d.name AS district_name,
+      c.name  AS country_name,
+      d.name  AS district_name,
       ct.name AS city_name,
-      bet.name AS business_type_name,
-      a.username, a.email
-      FROM company_info ci 
-      LEFT JOIN countries c ON ci.country_id = c.id
-      LEFT JOIN districts d ON ci.district_id = d.id
-      LEFT JOIN cities ct ON ci.city_id = ct.id
-      LEFT JOIN business_entity_type bet ON ci.Business_entity_type_id = bet.id
-      LEFT JOIN account a ON ci.account_id = a.id
-      WHERE ci.account_id = ?
-    `;
+      bet.name AS business_type_name
+    FROM account a
+    LEFT JOIN company_info ci ON ci.account_id = a.id
+    LEFT JOIN countries c ON ci.country_id = c.id
+    LEFT JOIN districts d ON ci.district_id = d.id
+    LEFT JOIN cities ct ON ci.city_id = ct.id
+    LEFT JOIN business_entity_type bet ON ci.Business_entity_type_id = bet.id
+    WHERE a.id = ? AND a.accountType = 'employer'
+    LIMIT 1
+  `;
 
   connection.query(sql, [accountId], (err, results) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ error: "Internal Server Error" });
-    }
+    if (err) return res.status(500).json({ error: "Internal Server Error" });
+    if (results.length === 0) return res.status(404).json({ error: "Employer not found" });
 
-    if (results.length === 0) {
-      return res.status(404).json({ error: "Employer not found" });
-    }
-    const employer = {
-      ...results[0],
-      logo: results[0].logo ? results[0].logo.toString("base64") : null
-    };
-
-    res.json(employer);
+    const row = results[0];
+    res.json({
+      ...row,
+      logo: row.logo ? row.logo.toString("base64") : null,
+    });
   });
-}
+};
 
 
 const updateCompanySatus = (id, status, res) => {

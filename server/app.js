@@ -17,12 +17,10 @@ app.use(cors({
 app.use(bodyParser.json());
 
 
-
-
-const projects = require("./routes/pr");
-const certificateAwards = require("./routes/CertificateAward");
-const jobs = require("./routes/CandidateJobs")
-
+const projects = require("./routes/projectsRoutes");
+const certificateAwards = require("./routes/certificateawardRoutes");
+const jobs = require("./routes/candidatejobsRoutes")
+const dbAdminHistory = require("./routes/dbHistoryRoutes");
 
 
 
@@ -45,7 +43,6 @@ const business_entity_type = require("./routes/businessentitytypeRoutes");
 const district = require("./routes/districtRoutes");
 const candidateRoute = require("./routes/candidateRoutes");
 const companyRoute = require("./routes/companyRoutes");
-const dbAdminHistory = require("./routes/dbHistoryRoutes");
 const history = require("./routes/historyRoutes");
 const applicantRoute = require("./routes/applicantRoutes")
 const packages = require("./routes/packagesRoutes");

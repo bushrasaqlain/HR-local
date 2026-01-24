@@ -32,13 +32,14 @@ router.get("/candidate/", authMiddleware , candidateController.getCandidateInfo)
 // update canidate data
 // router.put("/candidate/:accountId", authMiddleware, logo.single("logo"), candidateController.editCandidateInfo);
 
-router.get("/:accountId",candidateController.getCandidateFullProfilebyId )
+// router.get("/:accountId",candidateController.getCandidateFullProfilebyId )
 
 router.get("/logo/:accountId",candidateController.getCandidateLogobyId)
 
-router.get("/candidate/full_profile/:accountId",candidateController.getCandidateFullProfilebyId )
+// router.get("/candidate/full_profile/:accountId",candidateController.getCandidateFullProfilebyId )
 
 
 router.get("/", candidateController.getCandidateInfobyAccountType)
+router.get("/getallcandidates", candidateController.getAllCandidates)
 
 module.exports = router;

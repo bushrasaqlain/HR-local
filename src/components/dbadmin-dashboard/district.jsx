@@ -63,6 +63,7 @@ class Districts extends Component {
       const res = await api.get(`${this.apiBaseUrl}getallCountries`, {
         params: {
           search: inputValue || "",
+          name:"name",
           page: 1,
           limit: 20,
           status: "active",

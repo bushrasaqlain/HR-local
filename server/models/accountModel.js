@@ -99,12 +99,40 @@ const register = (req, res) => {
   }
 };
 
-
 const login = (req, res) => {
   try {
-    const { email, password } = req.body;
 
-    const sql = `
+    const { email, password } = req.body;
+    const sql = 'SELECT id,username, accountType, isActive FROM account WHERE email = ? AND password = ?';
+    connection.query(sql, [email, password], (err, results) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Internal Server Error' });
+      }
+
+      if (results.length === 0) {
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
+
+      const user = results[0];
+
+      if (user.isActive !== "Active") {
+        return res.json({ success: false, error: "Admin has not granted permissions yet...." })
+      }
+
+      if (user.accountType === 'employer' || user.accountType === 'db_admin' || user.accountType === 'reg_admin') {
+        const token = generateToken(user);
+
+        return res.json({
+          success: true, token,
+          userId: user.id,
+          username: user.username,
+          accountType: user.accountType,
+          isActive: user.isActive
+        });
+      }
+      else if (user.accountType === 'candidate') {
+        const sql = `
       SELECT 
         a.id,
         a.accountType,
@@ -115,34 +143,40 @@ const login = (req, res) => {
       LEFT JOIN candidate_info ci ON a.id = ci.account_id
       WHERE a.email = ? AND a.password = ?
     `;
+        connection.query(sql, [email, password], (err, results) => {
+          if (err) {
+            return res.status(500).json({ error: "Internal Server Error" });
+          }
 
-    connection.query(sql, [email, password], (err, results) => {
-      if (err) {
-        return res.status(500).json({ error: "Internal Server Error" });
-      }
+          if (!results.length) {
+            return res.status(401).json({ error: "Invalid email or password" });
+          }
 
-      if (!results.length) {
-        return res.status(401).json({ error: "Invalid email or password" });
-      }
+          const user = results[0];
+          const token = generateToken(user);
 
-      const user = results[0];
-      const token = generateToken(user);
-
-      // 🔑 ALWAYS allow login
-      return res.json({
-        success: true,
-        token,
-        userId: user.id,
-        username: user.username,
-        accountType: user.accountType,
-        isActive: user.isActive,
-        profile_completed: !!user.profile_completed,
-      });
+          // 🔑 ALWAYS allow login
+          return res.json({
+            success: true,
+            token,
+            userId: user.id,
+            username: user.username,
+            accountType: user.accountType,
+            isActive: user.isActive,
+            profile_completed: !!user.profile_completed,
+          });
+        })
+      
+        }else {
+          return res.json({ success: false, error: 'Invalid user type' });
+        }
     });
   } catch (error) {
-    return res.status(500).json({ error: "Internal Server Error" });
+    console.error(error);
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
-};
+}
+
 
 const changePassword = (req, res) => {
   const userId = req.user.userId;

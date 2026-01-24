@@ -1,6 +1,6 @@
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 const countryModel = require("../models/countryModel");
 const districtModel = require("../models/districtModel");
 const cityModel = require("../models/cityModel");
@@ -22,6 +22,11 @@ const instituteModel=require("../models/instituteModel")
 const dbadminhistory =require("../models/dbHistoryModel")
 const paymentModel=require("../models/paymentModel")
 const candidateeducationModel=require("../models/candidateeducationModel")
+
+const accountModel=require("../models/accountModel")
+const currency=require ("../models/currencyModel");
+const skills=require("../models/skillsModel")
+
 const candidateexperience=require("../models/candidateexperienceModel")
 const candidateAvailabilityModel = require("../models/candidateAvailabilityModel");
 function Database() {
@@ -39,12 +44,14 @@ function Database() {
   specialityModel.createSpecialityTable();
   instituteModel.createInstituteTable();
   dbadminhistory.createDbAdminHistoryTable();
-
+  skills.createSkillsTable();
+currency.createCurrenciesTable();
+  accountModel.createAccountTable();
   emplyeeModel.createCompanyInfoTable();
   candidateModel.createCandidateTable();
   candidateModel.createCandidateSpecialityTable();
   candidateModel.createCandidatePreferredCitiesTable();
-  candidateModel.createsaveJobsTableQuery();
+  // candidateModel.createsaveJobsTableQuery();
   jobModel.createJobPostTable()
   paymentModel.createPaymentTable()
   applicantModel.createApplicantsTable();

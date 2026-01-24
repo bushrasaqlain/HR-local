@@ -550,7 +550,7 @@ class Packages extends Component {
                                                             Currency
                                                         </small>
                                                         <input
-                                                            type="number"
+                                                            type="text"
                                                             name="currency"
                                                             id="currency"
                                                             className="form-control rounded-4 text-center"

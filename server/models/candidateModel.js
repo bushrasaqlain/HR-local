@@ -76,7 +76,7 @@ const createCandidateSpecialityTable = () => {
   speciality_id INT,
   PRIMARY KEY (candidate_id, speciality_id),
   FOREIGN KEY (candidate_id) REFERENCES candidate_info(ID) ON DELETE CASCADE,
-  FOREIGN KEY (speciality_id) REFERENCES professions(id)
+  FOREIGN KEY (speciality_id) REFERENCES speciality(id)
 );
 `;
 
@@ -134,34 +134,67 @@ const getAllCandidates = (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 15;
   const offset = (page - 1) * limit;
-  const search = req.query.search || "";
-  const status = req.query.status || "";
 
-  // Map client-provided column names -> actual DB columns
+  const search = (req.query.search || "").trim();
+  const name = (req.query.name || "").trim();
+  const status = (req.query.status || "").trim(); // "Active", "InActive", "all"
+
+  // Map client-provided column names -> actual DB columns (SAFE)
   const columnMap = {
-    name: "a.username",
+    username: "a.username",
     email: "a.email",
     phone: "c.phone",
-    // company_name: "c.company_name",
-    created_at: "a.created_at", // choose one table explicitly
+    password: "a.password",
+    created_at: "a.created_at",
     isActive: "a.isActive",
   };
 
-  const searchColumn = columnMap[req.query.name] || "a.email"; // fallback
+  let whereConditions = [];
+  let values = [];
+
+  // base filter
+  whereConditions.push(`a.accountType = 'candidate'`);
+
+  // ✅ Status dropdown filter (exact match, case-insensitive)
+  if (status && status.toLowerCase() !== "all") {
+    whereConditions.push(`LOWER(a.isActive) = ?`);
+    values.push(status.toLowerCase());
+  }
+
+  // ✅ Search filter
+  if (search) {
+    const searchColumn = columnMap[name] || "a.email";
+
+    if (name === "isActive") {
+      // IMPORTANT: prevent "Active" matching "InActive"
+      whereConditions.push(`LOWER(a.isActive) LIKE ?`);
+      values.push(`${search.toLowerCase()}%`); // "active%" won't match "inactive"
+      // If you want exact only, replace with:
+      // whereConditions.push(`LOWER(a.isActive) = ?`);
+      // values.push(search.toLowerCase());
+    } else {
+      whereConditions.push(`${searchColumn} LIKE ?`);
+      values.push(`%${search}%`);
+    }
+  }
+
+  const whereClause =
+    whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
 
   const query = `
-    SELECT a.*, 
-           c.account_id, 
+    SELECT a.*,
+           c.account_id,
            c.id as candidate_id,
-           c.phone,date_of_birth,
+           c.phone,
+           c.date_of_birth,
            c.gender,
            c.marital_status,
            c.total_experience,
            c.license_type,
            c.license_number,
-           c.profile_completed,     
-           ctry.name AS country_name, 
-           d.name AS district_name, 
+           c.profile_completed,
+           ctry.name AS country_name,
+           d.name AS district_name,
            city.name AS city_name,
            c.address
     FROM account a
@@ -169,38 +202,27 @@ const getAllCandidates = (req, res) => {
     LEFT JOIN countries ctry ON c.country = ctry.id
     LEFT JOIN districts d ON c.district = d.id
     LEFT JOIN cities city ON c.city = city.id
-    WHERE a.accountType = 'candidate'
-      ${status ? "AND a.isActive = ?" : ""}
-      AND ${searchColumn} LIKE ?
+    ${whereClause}
     ORDER BY a.id DESC
     LIMIT ? OFFSET ?
   `;
 
-  const queryParams = [];
-  if (status) queryParams.push(status);
-  queryParams.push(`%${search}%`, limit, offset);
+  const queryParams = [...values, limit, offset];
 
   connection.query(query, queryParams, (err, results) => {
     if (err) {
-      console.error("❌ Error fetching employers:", err.sqlMessage);
+      console.error("❌ Error fetching candidates:", err.sqlMessage);
       return res.status(500).json({ error: "Database error" });
     }
 
-    // Count query
     const countQuery = `
-  SELECT COUNT(*) AS total
-  FROM account a
-  LEFT JOIN candidate_info c ON a.id = c.account_id
-  WHERE a.accountType = 'candidate'
-    ${status ? "AND a.isActive = ?" : ""}
-    AND ${searchColumn} LIKE ?
-`;
+      SELECT COUNT(*) AS total
+      FROM account a
+      LEFT JOIN candidate_info c ON a.id = c.account_id
+      ${whereClause}
+    `;
 
-    const countParams = [];
-    if (status) countParams.push(status);
-    countParams.push(`%${search}%`);
-
-    connection.query(countQuery, countParams, (err2, countResult) => {
+    connection.query(countQuery, values, (err2, countResult) => {
       if (err2) {
         console.error("❌ Error fetching count:", err2.sqlMessage);
         return res.status(500).json({ error: "Database error" });
@@ -215,7 +237,6 @@ const getAllCandidates = (req, res) => {
     });
   });
 };
-
 const updateStatus = (id, status, res) => {
   if (!id || !status) {
     return res
@@ -686,30 +707,30 @@ const getCandidateFullProfilebyId = async (req, res) => {
         [accountId]
       ),
       queryPromise(
-        `SELECT  City, Phone as phone, skills, Description, Links
+        `SELECT  City, Phone as phone, skills, Links
          FROM candidate_info WHERE Account_ID = ?`,
         [accountId]
       ),
-      queryPromise(
-        `SELECT id, degree_title, field_of_study, institute_name, start_date, end_date, education_description
-         FROM cv_education WHERE user_id = ?`,
-        [accountId]
-      ),
-      queryPromise(
-        `SELECT id, company_name, designation, start_date, end_date, description 
-         FROM cv_work_experience WHERE user_id = ?`,
-        [accountId]
-      ),
-      queryPromise(
-        `SELECT id, title, institute_name, description, passing_year 
-         FROM cv_certificateawards WHERE user_id = ?`,
-        [accountId]
-      ),
-      queryPromise(
-        `SELECT id, project_title, role, project_description, skills_used, project_link
-         FROM cv_projects WHERE user_id = ?`,
-        [accountId]
-      ),
+      // queryPromise(
+      //   `SELECT id, degree_title, field_of_study, institute_name, start_date, end_date, education_description
+      //    FROM cv_education WHERE user_id = ?`,
+      //   [accountId]
+      // ),
+      // queryPromise(
+      //   `SELECT id, company_name, designation, start_date, end_date, description 
+      //    FROM cv_work_experience WHERE user_id = ?`,
+      //   [accountId]
+      // ),
+      // queryPromise(
+      //   `SELECT id, title, institute_name, description, passing_year 
+      //    FROM cv_certificateawards WHERE user_id = ?`,
+      //   [accountId]
+      // ),
+      // queryPromise(
+      //   `SELECT id, project_title, role, project_description, skills_used, project_link
+      //    FROM cv_projects WHERE user_id = ?`,
+      //   [accountId]
+      // ),
     ]);
 
     if (profileResults.length === 0) {

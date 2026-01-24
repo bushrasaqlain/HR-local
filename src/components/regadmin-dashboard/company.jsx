@@ -319,8 +319,17 @@ class CompanyData extends Component {
                             );
                           }
 
+                          return (
+                            <td key={header.key} className="text-center">
+                              {item[header.key] !== null &&
+                                item[header.key] !== undefined &&
+                                item[header.key] !== ""
+                                ? item[header.key]
+                                : "-"}
+                            </td>
+                          );
 
-                          return <td key={header.key}>{item[header.key]}</td>;
+                          // return <td key={header.key}>{item[header.key]}</td>;
                         })}
 
                       </tr>

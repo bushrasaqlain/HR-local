@@ -163,7 +163,7 @@ class LicenseType extends Component {
     if (!id) return;
     try {
       const res = await axios.get(`${this.apiBaseUrl}dbadminhistory`, {
-        params: { entity_type: "licenseType", entity_id: id },
+        params: { entity_type: "license_types", entity_id: id },
       });
       this.setState({ history: res.data || [] });
     } catch (error) {
@@ -258,35 +258,40 @@ class LicenseType extends Component {
   };
 
   handleSearch = async (e) => {
-    const { name, value } = e.target;
-    ["name", "created_at", "updated_at", "status"].forEach((input) => {
-      if (input !== name) {
-        const ele = document.getElementById(input);
-        if (ele) ele.value = "";
-      }
-    });
-
-    this.setState({ currentPage: 1 });
-
-    try {
-      const res = await axios.get(`${this.apiBaseUrl}getAllLicenseTypes`, {
-        params: {
-          name,
-          search: value,
-          status: this.state.isActive,
-          page: 1,
-          limit: this.itemsPerPage,
-        },
-      });
-      this.setState({
-        licenseTypes: res.data.licenseTypes || [],
-        totallicenseTypes: res.data.total || 0,
-      });
-    } catch (error) {
-      console.error("Error searching licenseTypes:", error);
+  const { name, value } = e.target;
+  
+  // Clear other search inputs
+  ["name", "created_at", "updated_at", "status"].forEach((input) => {
+    if (input !== name) {
+      const ele = document.getElementById(input);
+      if (ele) ele.value = "";
     }
-  };
+  });
 
+  this.setState({ currentPage: 1 });
+
+  try {
+    const res = await axios.get(`${this.apiBaseUrl}getAllLicenseTypes`, {
+      params: {
+        name,  // Column to search in
+        search: value,  // Search term
+        status: this.state.isActive,
+        page: 1,
+        limit: this.itemsPerPage,
+      },
+    });
+    
+    this.setState({
+      licenseTypes: res.data.licenseTypes || [],
+      totallicenseTypes: res.data.total || 0,
+    });
+  } catch (error) {
+    console.error("Error searching licenseTypes:", error);
+    if (error.response) {
+      console.error("Error details:", error.response.data);
+    }
+  }
+};
   resetSearch = () => {
     ["name", "created_at", "updated_at"].forEach((id) => {
       const ele = document.getElementById(id);

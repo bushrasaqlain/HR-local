@@ -3,7 +3,7 @@ import React, { Component } from "react";
 import api from "../lib/api";
 import Pagination from "../common/pagination";
 import { toast } from "react-toastify";
-import {Card,CardBody, Table, Input, Button, FormGroup, Label, Row, Col, Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
+import { Card, CardBody, Table, Input, Button, FormGroup, Label, Row, Col, Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
 import DetailModal from "../common/DetailModal";
 import HistoryModal from "../common/HistoryModal";
 class CandidateData extends Component {
@@ -93,7 +93,7 @@ class CandidateData extends Component {
   };
 
 
- getHistory = (id) => {
+  getHistory = (id) => {
     const accountType = "candidate";
     const apiUrl = `${this.apibasurl}gethistory/${id}/${accountType}`;
     const token = localStorage.getItem("token");
@@ -103,7 +103,7 @@ class CandidateData extends Component {
       .then((res) => {
         const filteredHistory = (res.data.history || []).map((item) => {
           if (item.data) {
-            const { logo, ...restData } = item.data; 
+            const { logo, ...restData } = item.data;
             return { ...item, data: restData };
           }
           return item;
@@ -178,7 +178,7 @@ class CandidateData extends Component {
         {/* Status Filter */}
         <Row className="mb-4 align-items-center">
           <Col>
-          <h6 className="fw-bold mb-3">Candidate List</h6>
+            <h6 className="fw-bold mb-3">Candidate List</h6>
           </Col>
           <Col className="text-end">
             <FormGroup className="d-inline-block mb-0">
@@ -319,8 +319,17 @@ class CandidateData extends Component {
                             );
                           }
 
+                          return (
+                            <td key={header.key} className="text-center">
+                              {item[header.key] !== null &&
+                                item[header.key] !== undefined &&
+                                item[header.key] !== ""
+                                ? item[header.key]
+                                : "-"}
+                            </td>
+                          );
 
-                          return <td key={header.key}>{item[header.key]}</td>;
+                          // return <td key={header.key}>{item[header.key]}</td>;
                         })}
 
                       </tr>
