@@ -137,7 +137,7 @@ class PostBoxForm extends Component {
   loadCountries = async (inputValue) => {
     try {
       const res = await axios.get(`${this.apiBaseUrl}getallCountries`, {
-        params: { search: inputValue || "", page: 1, limit: 0 },
+        params: { search: inputValue || "", page: 1, limit: 200 },
       });
       return res.data.countries.map((c) => ({ label: c.name, value: c.id }));
     } catch (err) {
