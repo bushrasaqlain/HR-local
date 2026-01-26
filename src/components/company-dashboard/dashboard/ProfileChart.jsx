@@ -77,15 +77,24 @@ class ProfileChart extends Component {
     }
   };
 
-  handleFilterChange = (e) => {
-    const val = e.target.value;
-    if (val === "6" || val === "12" || val === "24") {
-      this.setState({ filter: { type: "month", value: parseInt(val) } });
-    } else {
-      this.setState({ filter: { type: "year", value: parseInt(val) } });
-    }
-  };
-
+  // handleFilterChange = (e) => {
+  //   const val = e.target.value;
+  //   if (val === "6" || val === "12" || val === "24") {
+  //     this.setState({ filter: { type: "month", value: parseInt(val) } });
+  //   } else {
+  //     this.setState({ filter: { type: "year", value: parseInt(val) } });
+  //   }
+  // };
+handleFilterChange = (e) => {
+  const val = parseInt(e.target.value);
+  if (val <= 12) {
+    // All values up to 12 are months
+    this.setState({ filter: { type: "month", value: val } });
+  } else {
+    // Values above 12 are years
+    this.setState({ filter: { type: "year", value: val } });
+  }
+};
   render() {
     const { labels, chartData, filter } = this.state;
 

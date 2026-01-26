@@ -41,6 +41,7 @@ const popularCategories=(req,res)=>{
   jobModel.popularCategory(req,res)
 }
 
+
 const getTotalJobPosts = async (req, res) => {
   try {
     const accountId = req.params.userId;

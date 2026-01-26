@@ -1,6 +1,45 @@
 const path = require('path');
-
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+
+// code to add extra column in specific table 
+const connection = require("../connection"); // ✅ Correct path (assuming table.js is in server/migrations/)
+
+function addColumn(tableName, columnName, dataType) {
+  return new Promise((resolve) => {
+    const checkSql = `
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_SCHEMA = '${process.env.DB_NAME}' 
+        AND TABLE_NAME = '${tableName}' 
+        AND COLUMN_NAME = '${columnName}'
+    `;
+
+    connection.query(checkSql, (err, results) => {
+      if (err) {
+        console.log(`❌ Error checking ${tableName}.${columnName}:`, err.message);
+        resolve();
+        return;
+      }
+
+      if (results.length === 0) {
+        const sql = `ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${dataType}`;
+        connection.query(sql, (err2, result) => {
+          if (err2) {
+            console.log(`❌ ${tableName}.${columnName} ->`, err2.message);
+          } else {
+            console.log(`✅ ${tableName}.${columnName} added`);
+          }
+          resolve();
+        });
+      } else {
+        console.log(`✅ ${tableName}.${columnName} already exists`);
+        resolve();
+      }
+    });
+  });
+}
+
+// ends here 
 const countryModel = require("../models/countryModel");
 const districtModel = require("../models/districtModel");
 const cityModel = require("../models/cityModel");
@@ -61,6 +100,9 @@ currency.createCurrenciesTable();
   candidateexperience.createExperienceTable()
   candidateAvailabilityModel.createCandidateAvailabilityTable();
 
+
+  // adding extra column in job_posts table
+  //  addColumn("test", "newkuchb", "VARCHAR(255)");
 }
 
 Database();

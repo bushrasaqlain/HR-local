@@ -11,38 +11,60 @@ class Payment extends Component {
       cardNumber: "",
       cardHolder: "",
       expiry: "",
-
       cvv: "",
       amount: "",
-      currency: "PKR",
+      currency: "",
     },
     currencies: [],
     errors: {},
     loading: false,
     userId: null,
   };
+
   getCurrencies = async () => {
     try {
       const res = await axios.get(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}getCurrencyinPayment`
       );
-
-      // 👇 FIX IS HERE
       this.setState({ currencies: res.data.currencies });
-
     } catch (error) {
       toast.error("Failed to load currencies");
     }
   };
 
-
   componentDidMount() {
     const userId = sessionStorage.getItem("userId");
     this.setState({ userId });
     this.getCurrencies();
+    
+    // Set amount and currency from props
+    const { amount, currency } = this.props;
+    if (amount && currency) {
+      this.setState(prev => ({
+        paymentData: {
+          ...prev.paymentData,
+          amount: amount,
+          currency: currency,
+        }
+      }));
+    }
   }
 
-
+  componentDidUpdate(prevProps) {
+    // Update amount and currency if props change
+    if (prevProps.amount !== this.props.amount || prevProps.currency !== this.props.currency) {
+      const { amount, currency } = this.props;
+      if (amount && currency) {
+        this.setState(prev => ({
+          paymentData: {
+            ...prev.paymentData,
+            amount: amount,
+            currency: currency,
+          }
+        }));
+      }
+    }
+  }
 
   handleChange = (e) => {
     let { name, value } = e.target;
@@ -67,7 +89,6 @@ class Payment extends Component {
 
   validate = () => {
     const { paymentData } = this.state;
-    const { packageId } = this.props;
     const errors = {};
     const {
       cardNumber,
@@ -75,6 +96,7 @@ class Payment extends Component {
       expiry,
       cvv,
       amount,
+      currency,
     } = paymentData;
 
     if (!/^\d{16}$/.test(cardNumber)) {
@@ -86,17 +108,16 @@ class Payment extends Component {
     }
 
     const expiryRegex = /^(0[1-9]|1[0-2])\/\d{2}$/;
-    if (!expiryRegex.test(paymentData.expiry)) {
+    if (!expiryRegex.test(expiry)) {
       errors.expiry = "Expiry must be MM/YY";
     } else {
-      const [month, year] = paymentData.expiry.split("/").map(Number);
+      const [month, year] = expiry.split("/").map(Number);
       const currentDate = new Date();
       const expiryDate = new Date(2000 + year, month);
       if (expiryDate <= currentDate) {
         errors.expiry = "Card is expired";
       }
     }
-
 
     if (!/^\d{3,4}$/.test(cvv)) {
       errors.cvv = "CVV must be 3 or 4 digits";
@@ -105,10 +126,10 @@ class Payment extends Component {
     if (Number(amount) <= 0) {
       errors.amount = "Amount must be greater than 0";
     }
-    if (!paymentData.currency) {
+
+    if (!currency) {
       errors.currency = "Currency is required";
     }
-
 
     this.setState({ errors });
     return Object.keys(errors).length === 0;
@@ -133,31 +154,28 @@ class Payment extends Component {
 
       toast.success("Payment successful");
 
-      // ✅ CLOSE MODAL
+      // Close modal
       this.props.toggle();
 
-      // ✅ CLOSE PRICING + REDIRECT
-     if (this.props.onPaymentSuccess) {
-    this.props.onPaymentSuccess(); // closes pricing modal
-  }
+      // Close pricing + redirect
+      if (onPaymentSuccess) {
+        onPaymentSuccess();
+      }
     } catch (err) {
       console.error("Payment error:", err.response?.data || err.message);
       toast.error("Payment failed: " + (err.response?.data?.message || err.message));
-    }
-    finally {
+    } finally {
       this.setState({ loading: false });
     }
   };
-
-
-
-
 
   render() {
     const { isOpen, toggle } = this.props;
     const { paymentData, loading, errors, currencies } = this.state;
 
+    
     return (
+      
       <Modal isOpen={isOpen} toggle={toggle} centered>
         <ModalHeader toggle={toggle}>
           Payment Details
@@ -171,6 +189,8 @@ class Payment extends Component {
                 name="cardNumber"
                 value={paymentData.cardNumber}
                 onChange={this.handleChange}
+                placeholder="Enter 16 digit card number"
+                maxLength="16"
               />
               {errors.cardNumber && (
                 <div className="text-danger small">{errors.cardNumber}</div>
@@ -179,7 +199,12 @@ class Payment extends Component {
 
             <FormGroup>
               <Label>Card Holder</Label>
-              <Input name="cardHolder" value={paymentData.cardHolder} onChange={this.handleChange} />
+              <Input 
+                name="cardHolder" 
+                value={paymentData.cardHolder} 
+                onChange={this.handleChange}
+                placeholder="Enter Card Holder Name"
+              />
               {errors.cardHolder && <div className="text-danger small">{errors.cardHolder}</div>}
             </FormGroup>
 
@@ -197,42 +222,45 @@ class Payment extends Component {
               )}
             </FormGroup>
 
-
             <FormGroup>
               <Label>CVV</Label>
-              <Input type="password" name="cvv" value={paymentData.cvv} onChange={this.handleChange} />
+              <Input 
+                type="password" 
+                name="cvv" 
+                value={paymentData.cvv} 
+                onChange={this.handleChange}
+                placeholder="123"
+                maxLength="4"
+              />
               {errors.cvv && <div className="text-danger small">{errors.cvv}</div>}
             </FormGroup>
 
             <FormGroup>
               <Label>Amount</Label>
-              <Input type="number" name="amount" value={paymentData.amount} onChange={this.handleChange} />
+              <Input 
+                type="number" 
+                name="amount" 
+                value={paymentData.amount} 
+                onChange={this.handleChange}
+                readOnly
+                style={{ backgroundColor: '#f0f0f0' }}
+              />
               {errors.amount && <div className="text-danger small">{errors.amount}</div>}
             </FormGroup>
+
             <FormGroup>
               <Label>Currency</Label>
               <Input
-                type="select"
+                type="text"
                 name="currency"
                 value={paymentData.currency}
-                onChange={this.handleChange}
-              >
-                <option value="">Select Currency</option>
-                {Array.isArray(currencies) &&
-                  currencies.map((c) => (
-                    <option key={c.id} value={c.code}>
-                      {c.code}
-                    </option>
-                  ))
-                }
-
-              </Input>
-
+                readOnly
+                style={{ backgroundColor: '#f0f0f0' }}
+              />
               {errors.currency && (
                 <div className="text-danger small">{errors.currency}</div>
               )}
             </FormGroup>
-
           </Form>
         </ModalBody>
 
@@ -247,9 +275,8 @@ class Payment extends Component {
             onClick={this.handlePayment}
             disabled={loading}
           >
-            {loading ? "Processing..." : "Pay"}
+            {loading ? "Processing..." : `Pay ${paymentData.amount} ${paymentData.currency}`}
           </Button>
-
         </ModalFooter>
       </Modal>
     );
