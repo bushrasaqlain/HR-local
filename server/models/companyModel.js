@@ -167,7 +167,6 @@ const getIdFromName = async (tableName, name) => {
 };
 
 const updateCompanyinfo = async (req, res) => {
-  console.log(req);
   try {
     const accountId = parseInt(req.body.userId);
     const {

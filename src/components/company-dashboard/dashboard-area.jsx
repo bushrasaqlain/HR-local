@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useSelector } from "react-redux";
-import AllApplicants from "./allApplicants.jsx";
+import AllApplicants from "./applicants/allApplicants.jsx";
 import CompanyProfile from "./companyProfile.jsx";
 import ChangePasswordForm from "../form/changepassword/changepasswordform.jsx"
 import ChatBox from "./messages/chatBox.jsx";

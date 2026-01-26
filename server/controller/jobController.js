@@ -41,6 +41,27 @@ const popularCategories=(req,res)=>{
   jobModel.popularCategory(req,res)
 }
 
+const getTotalJobPosts = async (req, res) => {
+  try {
+    const accountId = req.params.userId;
+    const { type, value } = req.query;
+
+    const result = await jobModel.getTotalJobPosts(
+      accountId,
+      type,
+      parseInt(value)
+    );
+
+    const labels = result.map(i => i.label);
+    const data = result.map(i => i.total);
+
+    res.status(200).json({ labels, data });
+  } catch (err) {
+    console.log(err)
+    res.status(500).json({ msg: "SERVER_ERROR" ,});
+  }
+};
+
 module.exports = {
   getJobbyRegAdmin,
   updateJobPostStatus,
@@ -52,5 +73,6 @@ module.exports = {
   updatePostJob,
   getJobTitle,
   getTopCompanies,
-  popularCategories
+  popularCategories,
+  getTotalJobPosts
 }

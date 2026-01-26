@@ -30,10 +30,10 @@ CREATE TABLE IF NOT EXISTS job_posts (
   country_id INT,
   district_id INT,
   city_id INT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   approval_status ENUM( 'Pending','Pending Payment','Approved','UnApproved') DEFAULT 'Pending',
   status ENUM('Active', 'InActive') DEFAULT 'Active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (account_id) REFERENCES account(id),
   FOREIGN KEY (job_type_id) REFERENCES jobtypes(id), 
   FOREIGN KEY (speciality_id) REFERENCES speciality(id),
@@ -768,9 +768,48 @@ const popularCategory=(req,res)=>{
       return res.json(results);
     });
 }
+const getTotalJobPosts = (accountId, type, value) => {
+  return new Promise((resolve, reject) => {
+    let query = "";
+    let params = [accountId];
 
+    if (type === "month") {
+      query = `
+        SELECT 
+          DATE_FORMAT(created_at, '%Y-%m') AS label,
+          COUNT(id) AS total
+        FROM job_posts
+        WHERE account_id = ?
+          AND created_at >= DATE_SUB(CURDATE(), INTERVAL ? MONTH)
+        GROUP BY label
+        ORDER BY label ASC
+      `;
+      params.push(value);
+    }
 
+    if (type === "year") {
+      query = `
+        SELECT 
+          DATE_FORMAT(created_at, '%b') AS label,
+          COUNT(id) AS total
+        FROM job_posts
+        WHERE account_id = ?
+          AND YEAR(created_at) = ?
+        GROUP BY MONTH(created_at)
+        ORDER BY MONTH(created_at) ASC
+      `;
+      params.push(value);
+    }
 
+    connection.query(query, params, (err, results) => {
+      if (err){
+        console.log(err)
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
 
 module.exports = {
   createJobPostTable,
@@ -784,6 +823,7 @@ module.exports = {
   updatePostJob,
   getJobTitle,
   getTopCompanies,
-  popularCategory
+  popularCategory,
+  getTotalJobPosts
 
 }

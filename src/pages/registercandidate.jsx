@@ -52,6 +52,7 @@ class CandidateRegisterForm extends Component {
         experience: [
           {
             companyName: "",
+            speciality_id: "",
             designation: "",
             startDate: "",
             endDate: "",
@@ -80,6 +81,8 @@ class CandidateRegisterForm extends Component {
       degreeFieldData: [], // must exist
       editID: "",
       isEdit: false,
+      editexpID: "",
+      isExpEdit: false,
       getManager: [],
       getError: "",
       previewUrl: null,
@@ -248,26 +251,16 @@ class CandidateRegisterForm extends Component {
         api.get(`${this.apiBaseUrl}candidateexperience/getexperience`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        api.get(`${this.apiBaseUrl}resume/getresume`, {
-          headers: { Authorization: `Bearer ${token}` },
-          responseType: "blob",
-        })
+        // api.get(`${this.apiBaseUrl}resume/getresume`, {
+        //   headers: { Authorization: `Bearer ${token}` },
+        //   responseType: "blob",
+        // })
 
       ]);
 
       const data = profileRes.data || {};
       const educationList = this.mapEducation(eduRes.data || []);
       const experienceList = this.mapExperience(expRes.data?.data || []);
-      let resumeFile = null;
-      let resumePreviewUrl = null;
-
-      if (resumeRes?.data) {
-        resumeFile = new File([resumeRes.data], "resume.pdf", {
-          type: resumeRes.data.type || "application/pdf",
-        });
-
-        resumePreviewUrl = URL.createObjectURL(resumeFile);
-      }
 
 
       const safeParseJSON = (val) => {
@@ -314,6 +307,7 @@ class CandidateRegisterForm extends Component {
 
         education: [
           {
+            degree: "",
             degreeTitle: "",
             degreeTitle_label: "",
             institutes: "",
@@ -327,14 +321,15 @@ class CandidateRegisterForm extends Component {
           {
             companyName: "",
             designation: "",
+            speciality_id: "",
             startDate: "",
             endDate: "",
             ongoing: false,
-
+            id: null,
           },
           ...experienceList
         ],
-        resume: resumeFile,
+        //resume: resumeFile,
       };
 
 
@@ -370,6 +365,7 @@ class CandidateRegisterForm extends Component {
       id: exp.id,
       designation: exp.designation || "",
       companyName: exp.company_name || "",
+      speciality_id: exp.speciality_id || "",
       startDate: exp.start_date
         ? new Date(exp.start_date).toISOString().slice(0, 10)
         : "",
@@ -482,7 +478,6 @@ class CandidateRegisterForm extends Component {
     }
   };
 
-
   handleSubmit = async (values, { setSubmitting }) => {
     try {
       const token = localStorage.getItem("token");
@@ -515,6 +510,7 @@ class CandidateRegisterForm extends Component {
       setSubmitting(false);
     }
   };
+
   handleSaveAndNext = async (values) => {
     try {
       const payload = new FormData();
@@ -563,18 +559,29 @@ class CandidateRegisterForm extends Component {
       }
 
       if (this.state.step === 3) {
-        await api.post(
-          `${this.apiBaseUrl}candidateexperience/addexperience`,
-          {
-            experience: values.experience
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
+        const experienceToSend = values.experience.slice(1); // Exclude draft
+
+        if (this.state.editexpID) {
+          // Find the edited row
+          const editedRow = experienceToSend.find(e => e.id === this.state.editexpID);
+          if (editedRow) {
+            await api.put(
+              `${this.apiBaseUrl}candidateexperience/updateexperience/${this.state.editexpID}`,
+              editedRow
+            );
           }
-        );
+        } else {
+          // Add new experiences
+          await api.post(
+            `${this.apiBaseUrl}candidateexperience/addexperience`,
+            { experience: experienceToSend },
+            {
+              headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+            }
+          );
+        }
       }
+
 
 
       if (this.state.step === 4) {
@@ -606,16 +613,15 @@ class CandidateRegisterForm extends Component {
           }
         );
       }
+
       this.setState({ formData: values }, this.nextStep);
-      this.setState({ editID: null });
+      this.setState({ editID: null, editexpID });
       toast.success("Saved");
     } catch (err) {
       console.error(err);
       toast.error("Save failed", err);
     }
   };
-
-
 
   // Validation Schemas for each step
   stepSchemas = [
@@ -1299,158 +1305,231 @@ class CandidateRegisterForm extends Component {
 
       case 3:
         return (
-          <div className="row">
-            <div className="text-center mt-5">
-              <h3>Work and Experience Form</h3>
-            </div>
+          <div>
+            <h4>Step 3: Experience</h4>
 
-            <div className="col-lg-12 col-md-12 offset-lg-1 offset-md-1">
-              <div className="default-form">
-                <FieldArray name="experience">
-                  {({ push, remove }) => (
-                    <>
-                      {values.experience.map((exp, idx) => (
-                        <div key={idx} className="row border p-3 mb-4">
-                          {/* Company Name */}
-                          <div className="form-group col-lg-10 col-md-10">
-                            <label>
-                              Company Name <span className="text-danger">*</span>
-                            </label>
-                            <Field
-                              type="text"
-                              name={`experience.${idx}.companyName`}
-                              placeholder="Company Name"
-                              className="form-control"
-                            />
-                            <ErrorMessage
-                              name={`experience.${idx}.companyName`}
-                              component="small"
-                              className="text-danger"
-                            />
-                          </div>
+            <FieldArray name="experience">
+              {({ push, remove }) => {
+                const draft =
+                  values.experience && values.experience.length > 0
+                    ? values.experience[0]
+                    : {
+                      companyName: "",
+                      designation: "",
+                      speciality_id: "",
+                      startDate: "",
+                      endDate: "",
+                      ongoing: false,
+                      id: null,
+                    };
 
-                          {/* Designation */}
-                          <div className="form-group col-lg-10 col-md-10">
-                            <label>
-                              Designation <span className="text-danger">*</span>
-                            </label>
-                            <Field
-                              type="text"
-                              name={`experience.${idx}.designation`}
-                              placeholder="Designation"
-                              className="form-control"
-                            />
-                            <ErrorMessage
-                              name={`experience.${idx}.designation`}
-                              component="small"
-                              className="text-danger"
-                            />
-                          </div>
+                return (
+                  <>
+                    <div className="mb-4 border p-3 rounded">
+                      <h6>Add / Edit Experience</h6>
 
-
-
-                          {/* Start Date */}
-                          <div className="form-group col-lg-5 col-md-5">
-                            <label>
-                              Start Date <span className="text-danger">*</span>
-                            </label>
-                            <Field
-                              type="date"
-                              name={`experience.${idx}.startDate`}
-                              className="form-control"
-                              max={new Date().toISOString().split("T")[0]}
-                            />
-                            <ErrorMessage
-                              name={`experience.${idx}.startDate`}
-                              component="small"
-                              className="text-danger"
-                            />
-                          </div>
-
-                          {/* End Date (hide if ongoing) */}
-                          {!exp.ongoing && (
-                            <div className="form-group col-lg-5 col-md-5">
-                              <label>
-                                End Date <span className="text-danger">*</span>
-                              </label>
-                              <Field
-                                type="date"
-                                name={`experience.${idx}.endDate`}
-                                className="form-control"
-                                max={new Date().toISOString().split("T")[0]}
-                              />
-                              <ErrorMessage
-                                name={`experience.${idx}.endDate`}
-                                component="small"
-                                className="text-danger"
-                              />
-                            </div>
-                          )}
-
-                          {/* Ongoing Checkbox */}
-                          <div className="form-group col-lg-10 col-md-10">
-                            <label>
-                              <Field
-                                type="checkbox"
-                                name={`experience.${idx}.ongoing`}
-                                className="form-check-input me-2"
-                                onChange={(e) => {
-                                  const checked = e.target.checked;
-                                  setFieldValue(
-                                    `experience.${idx}.ongoing`,
-                                    checked
-                                  );
-                                  if (checked) {
-                                    setFieldValue(
-                                      `experience.${idx}.endDate`,
-                                      ""
-                                    );
-                                  }
-                                }}
-                              />
-                              Is this ongoing?
-                            </label>
-                          </div>
-
-                          {/* Remove Button */}
-                          {idx > 0 && (
-                            <div className="form-group col-lg-12">
-                              <button
-                                type="button"
-                                className="btn btn-danger"
-                                onClick={() => remove(idx)}
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          )}
+                      <div className="row mb-3">
+                        {/* Company Name */}
+                        <div className="col-md-6">
+                          <label>Company Name</label>
+                          <Field
+                            type="text"
+                            name="experience.0.companyName"
+                            placeholder="Company Name"
+                            className="form-control"
+                          />
                         </div>
-                      ))}
 
-                      {/* Add More */}
-                      <div className="form-group col-lg-12">
-                        <button
-                          type="button"
-                          className="theme-btn btn-style-one"
-                          onClick={() =>
-                            push({
-                              designation: "",
-                              companyName: "",
-                              startDate: "",
-                              endDate: "",
-                              ongoing: false,
-                              description: "",
-                            })
-                          }
-                        >
-                          Add More Experience
-                        </button>
+                        {/* Designation */}
+                        <div className="col-md-6">
+                          <label>Designation</label>
+                          <Field
+                            type="text"
+                            name="experience.0.designation"
+                            placeholder="Designation"
+                            className="form-control"
+                          />
+                        </div>
                       </div>
-                    </>
-                  )}
-                </FieldArray>
-              </div>
-            </div>
+
+                      <div className="row mb-3">
+                        {/* Speciality */}
+                        <div className="col-md-6">
+                          <label>Speciality</label>
+                          <Field
+                            as="select"
+                            name="experience.0.speciality_id"
+                            className="form-control"
+                          >
+
+                            <option value="">Select Speciality</option>
+                            {Array.isArray(this.state.speciality) &&
+                              this.state.speciality.map((s) => (
+                                <option key={s.id} value={String(s.id)}>
+                                  {s.name}
+                                </option>
+                              ))}
+                          </Field>
+
+                          <ErrorMessage
+                            name="experience.0.speciality"
+                            component="div"
+                            className="text-danger"
+                          />
+                        </div>
+
+                        {/* Start Date */}
+                        <div className="col-md-6">
+                          <label>Start Date</label>
+                          <Field
+                            type="date"
+                            name="experience.0.startDate"
+                            className="form-control"
+                            max={new Date().toISOString().split("T")[0]}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="row mb-3">
+                        {/* End Date */}
+                        <div className="col-md-6">
+                          <label>End Date</label>
+                          <Field
+                            type="date"
+                            name="experience.0.endDate"
+                            className="form-control"
+                            disabled={draft.ongoing}
+                            max={new Date().toISOString().split("T")[0]}
+                          />
+                        </div>
+
+                        {/* Ongoing */}
+                        <div className="col-md-6 d-flex align-items-center">
+                          <div className="form-check mt-4">
+                            <Field
+                              type="checkbox"
+                              name="experience.0.ongoing"
+                              className="form-check-input"
+                            />
+                            <label className="form-check-label">Ongoing</label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => {
+                          if (!draft.companyName || !draft.designation || !draft.startDate) {
+                            toast.error("Please fill required fields");
+                            return;
+                          }
+
+                          if (this.state.editexpID) {
+                            // Editing → just push back edited record
+                            push({ ...draft, id: this.state.editexpID });
+                          } else {
+                            // New → normal add
+                            push({ ...draft });
+                          }
+
+                          // Reset draft
+                          setFieldValue("experience.0", {
+                            companyName: "",
+                            designation: "",
+                            speciality_id: "",
+                            startDate: "",
+                            endDate: "",
+                            ongoing: false,
+                            id: null,
+                          });
+                        }}
+
+
+                      >
+                        Add More
+                      </button>
+                    </div>
+
+                    {/* Table for existing experiences */}
+                    {values.experience.length > 1 && (
+                      <table className="table table-bordered">
+                        <thead>
+                          <tr>
+                            <th>Company Name</th>
+                            <th>Designation</th>
+                            <th>Speciality</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {values.experience.slice(1).map((exp, i) => (
+                            <tr key={exp.id || i}>
+                              <td>{exp.companyName}</td>
+                              <td>{exp.designation}</td>
+                              <td>
+                                {
+                                  this.state.speciality.find(
+                                    s => s.id === exp.speciality_id
+                                  )?.name
+                                }
+                              </td>
+
+                              <td>{exp.startDate}</td>
+                              <td>{exp.endDate || "-"}</td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-warning me-2"
+                                  onClick={() => {
+                                    // Load into draft
+                                    setFieldValue("experience.0", { ...exp });
+
+                                    // Remove from table immediately
+                                    remove(i + 1);
+
+                                    this.setState({
+                                      editexpID: exp.id,
+                                      isExpEdit: true
+                                    });
+                                  }}
+                                >
+                                  Edit
+                                </button>
+
+
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-danger"
+                                  onClick={() => {
+                                    if (exp.id) {
+                                      api
+                                        .delete(
+                                          `${this.apiBaseUrl}candidateexperience/deleteexperience/${exp.id}`
+                                        )
+                                        .then(() => {
+                                          toast.success("Deleted");
+                                          remove(i + 1);
+                                        });
+                                    } else {
+                                      remove(i + 1);
+                                    }
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </>
+                );
+              }}
+            </FieldArray>
           </div>
         );
 
@@ -1604,9 +1683,10 @@ class CandidateRegisterForm extends Component {
             );
 
         case 3:
-          return formData.experience.some(
-            (exp) => exp.designation || exp.companyName,
-          );
+          return formData.experience.slice(1) // 👈 ignore draft row
+            .some(
+              (exp) => exp.designation || exp.companyName,
+            );
         case 4:
           return formData.resume !== null;
         case 5:

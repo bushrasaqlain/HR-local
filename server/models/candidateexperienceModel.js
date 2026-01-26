@@ -29,98 +29,110 @@ CREATE TABLE IF NOT EXISTS candidate_experience (
 }
 
 const addcandidateExperience = (req, res) => {
-  const account_id = req.user.userId;
-  const experiences = req.body.experience; // 👈 array
+    const account_id = req.user.userId;
+    const experiences = req.body.experience; // 👈 array
 
-  if (!Array.isArray(experiences) || experiences.length === 0) {
-    return res.status(400).json({ msg: "Experience data missing" });
-  }
+    if (!Array.isArray(experiences) || experiences.length === 0) {
+        return res.status(400).json({ msg: "Experience data missing" });
+    }
 
-  const candidateQuery = `
+    const candidateQuery = `
     SELECT id FROM candidate_info WHERE account_id = ?
   `;
 
-  connection.query(candidateQuery, [account_id], (err, candidateResult) => {
-    if (err) {
-      console.error("Candidate fetch error:", err);
-      return res.status(500).json({ msg: "SERVER_ERROR" });
-    }
+    connection.query(candidateQuery, [account_id], (err, candidateResult) => {
+        if (err) {
+            console.error("Candidate fetch error:", err);
+            return res.status(500).json({ msg: "SERVER_ERROR" });
+        }
 
-    if (candidateResult.length === 0) {
-      return res.status(400).json({ msg: "Candidate not found" });
-    }
+        if (candidateResult.length === 0) {
+            return res.status(400).json({ msg: "Candidate not found" });
+        }
 
-    const candidate_id = candidateResult[0].id;
+        const candidate_id = candidateResult[0].id;
 
-    const insertQuery = `
+        const insertQuery = `
       INSERT INTO candidate_experience
-      (candidate_id, company_name, designation, start_date, end_date)
+      (candidate_id, speciality_id,company_name, designation, start_date, end_date,is_ongoing)
       VALUES ?
     `;
 
-    const values = experiences.map(exp => [
-      candidate_id,
-      exp.companyName,
-      exp.designation,
-      exp.startDate,
-      exp.ongoing ? null : exp.endDate
-    ]);
+        const values = experiences.map(exp => [
+            candidate_id,
+            exp.speciality_id || null,
+            exp.companyName || null,
+            exp.designation || null,
+            exp.startDate || null,   // <-- convert empty string to null
+            exp.ongoing ? null : (exp.endDate || null),
+            exp.ongoing ? 1 : 0
+        ]);
 
-    connection.query(insertQuery, [values], (err, result) => {
-      if (err) {
-        console.error("Error adding work experience:", err);
-        return res.status(500).json({ msg: "SERVER_ERROR" });
-      }
+        connection.query(insertQuery, [values], (err, result) => {
+            if (err) {
+                console.error("Error adding work experience:", err);
+                return res.status(500).json({ msg: err });
+            }
 
-      res.status(200).json({
-        msg: "Work experience added successfully",
-        insertedRows: result.affectedRows
-      });
+            res.status(200).json({
+                msg: "Work experience added successfully",
+                insertedRows: result.affectedRows
+            });
+        });
     });
-  });
 };
-
 const updatecandidateExperience = (req, res) => {
-    const { designation, startDate, endDate, company_name, description } = req.body;
+    const {
+        companyName,
+        designation,
+        startDate,
+        endDate,
+        speciality_id,
+        is_ongoing
+    } = req.body;
+
     const workExperienceId = req.params.id;
 
     const query = `
-    UPDATE cv_work_experience
-    SET job_title_id = ?, start_date = ?, end_date = ?, company_name = ?, description = ?
+    UPDATE candidate_experience
+    SET 
+      start_date = ?,
+      end_date = ?,
+      company_name = ?,
+      designation = ?,
+      speciality_id = ?,
+      is_ongoing = ?
     WHERE id = ?
   `;
 
     connection.query(
         query,
-        [designation, startDate, endDate, company_name, description, workExperienceId],
+        [
+            startDate || null,
+            endDate || null,
+            companyName || null,
+            designation || null,
+            speciality_id || null,
+            is_ongoing ? 1 : 0,
+            workExperienceId
+        ],
         (err, result) => {
             if (err) {
-                console.error('Error updating work experience:', err.message);
+                console.error('Error updating work experience:', err);
                 return res.status(500).send({ msg: 'SERVER_ERROR' });
             }
 
-            // Fetch the updated record
-            connection.query(
-                `SELECT we.*,
-    jt.name AS job_title
-    FROM cv_work_experience we 
-    LEFT JOIN jobtitle jt ON we.job_title_id = jt.id
-    WHERE we.id = ?`,
-                [workExperienceId],
-                (err2, rows) => {
-                    if (err2) {
-                        console.error('Error fetching updated record:', err2.message);
-                        return res.status(500).send({ msg: 'SERVER_ERROR' });
-                    }
-                    res.status(200).send({
-                        msg: 'Work experience updated successfully',
-                        record: rows[0]
-                    });
-                }
-            );
+            if (result.affectedRows === 0) {
+                return res.status(404).send({ msg: 'Experience not found' });
+            }
+
+            res.status(200).send({
+                msg: 'Work experience updated successfully',
+            });
         }
     );
-}
+};
+
 
 const getcandidateExperience = (req, callback) => {
     const account_id = req.user.userId;
@@ -129,6 +141,7 @@ const getcandidateExperience = (req, callback) => {
     SELECT exp.*
     FROM candidate_experience exp
     INNER JOIN candidate_info ci ON ci.id = exp.candidate_id
+    LEFT JOIN speciality sp ON exp.speciality_id = sp.id
     WHERE ci.account_id = ?
   `;
 
@@ -136,7 +149,6 @@ const getcandidateExperience = (req, callback) => {
         if (err) {
             return callback(err);
         }
-
         callback(null, {
             success: true,
             data: results
@@ -147,12 +159,12 @@ const getcandidateExperience = (req, callback) => {
 const deletecandidateExperience = (req, res) => {
     const workExperienceId = req.params.id;
 
-    const query = 'DELETE FROM cv_work_experience WHERE id = ?';
+    const query = 'DELETE FROM candidate_experience WHERE id = ?';
 
     connection.query(query, [workExperienceId], (err, result) => {
         if (err) {
             console.error('Error deleting work experience:', err.message);
-            res.status(500).send({ msg: 'SERVER_ERROR' });
+            res.status(500).send({ msg: err });
         } else {
             res.status(200).send({ msg: 'Work experience deleted successfully' });
         }

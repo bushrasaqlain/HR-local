@@ -69,7 +69,7 @@ useEffect(() => {
         if (response.status === 200) {
           setWorkExperienceData(response.data);
           setExperiences(response.data) // Update the parent component's state
-          // console.log("mmmmmmmmmmmm", workExperienceData)
+          
         } else {
           console.error(
             "Failed to fetch work experience data:",

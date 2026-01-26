@@ -6,44 +6,40 @@ const logAudit = require("../utils/auditLogger");
 
 const createCandidateTable = () => {
   const createCandidateInfoTable = `
-CREATE TABLE IF NOT EXISTS candidate_info (
+  CREATE TABLE IF NOT EXISTS candidate_info (
   id INT AUTO_INCREMENT PRIMARY KEY,
-
   account_id INT UNIQUE NOT NULL,
 
   full_name VARCHAR(255),
-  email VARCHAR(255),
   phone VARCHAR(20),
 
   date_of_birth DATE,
-  Age INT,
 
   gender ENUM('male','female','other'),
   marital_status ENUM('single','married','divorced','widowed'),
 
   total_experience VARCHAR(20),
-  Experience VARCHAR(20),
 
-  license_type VARCHAR(50),
+  license_type INT,
   license_number VARCHAR(50),
 
-  address TEXT,
-  Complete_Address TEXT,
+  skills JSON,
+  categories JSON,
+  speciality JSON,
+
+  
+  current_salary DECIMAL(10,2),
+  expected_salary DECIMAL(10,2),
+
+  Links JSON, 
 
   country INT,
   district INT,
   city INT,
-
-  skills JSON,
-  categories JSON,
-
-  speciality JSON,
+  address TEXT,
   otherPreferredCities JSON,
 
-  Links JSON,
 
-  current_salary DECIMAL(10,2),
-  expected_salary DECIMAL(10,2),
 
   passport_photo VARCHAR(255),
   resume VARCHAR(255),
@@ -132,7 +128,7 @@ const createsaveJobsTableQuery = () => {
 
 const getAllCandidates = (req, res) => {
   const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 15;
+  const limit = parseInt(req.query.limit) || 100;
   const offset = (page - 1) * limit;
 
   const search = (req.query.search || "").trim();
@@ -185,6 +181,7 @@ const getAllCandidates = (req, res) => {
     SELECT a.*,
            c.account_id,
            c.id as candidate_id,
+           c.full_name,
            c.phone,
            c.date_of_birth,
            c.gender,

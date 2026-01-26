@@ -110,7 +110,7 @@ const addSpeciality = (req, res) => {
 };
 
 const getAllSpeciality = (
-  { page = 1, limit = 15, name = "name", search = "", status = "active" },
+  { page = 1, limit = 100, name = "name", search = "", status = "active" },
   callback
 ) => {
   // Ensure numeric values

@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-
+const authMiddleware = require("../middleware/auth.js");
 const jobController=require('../controller/jobController')
 
 router.get('/getJobbyRegAdmin',jobController.getJobbyRegAdmin)
@@ -13,6 +13,7 @@ router.post('/postjob/:userId',jobController.postJob)
 router.put('/updatejob/:userId/:jobId',jobController.updatePostJob)
 router.put('/subcribepackage',jobController.subcribePackage)
 router.get('/getjob/:userId',jobController.getJobTitle)
+router.get("/gettotaljob/:userId",jobController.getTotalJobPosts);
 router.get("/topCompanies/:limit?",jobController.getTopCompanies)
 
 router.get("/popularcategories/:limit?",jobController.popularCategories)

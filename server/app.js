@@ -4,7 +4,7 @@ const bodyParser = require("body-parser");
 // Import the cors middleware
 const cors = require("cors");
 const connection = require("./connection");
-require("./cron"); // This will start the cron job automatically
+require("./cron"); 
 
 const app = express();
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -15,20 +15,6 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(bodyParser.json());
-
-
-const projects = require("./routes/projectsRoutes");
-const certificateAwards = require("./routes/certificateawardRoutes");
-const jobs = require("./routes/candidatejobsRoutes")
-const dbAdminHistory = require("./routes/dbHistoryRoutes");
-
-
-
-
-app.use('/', projects)
-app.use('/', certificateAwards)
-app.use('/', jobs)
-
 
 const accountRoutes = require("./routes/accountRoutes");
 const bank = require("./routes/bankRoutes");
@@ -57,6 +43,15 @@ const candidate_educationRoutes = require("./routes/candidateeducationRoutes")
 const candidate_experienceRoutes = require('./routes/candidateexperienceRoutes')
 const resumeRoute = require("./routes/resumeRoutes");
 
+
+const projects = require("./routes/projectsRoutes");
+const certificateAwards = require("./routes/certificateawardRoutes");
+const candidatejobs = require("./routes/candidatejobsRoutes")
+const dbAdminHistory = require("./routes/dbHistoryRoutes");
+
+
+
+
 app.use("/", accountRoutes);
 app.use("/", countries);
 app.use("/", district);
@@ -74,6 +69,9 @@ app.use("/", licensetypesRoutes);
 app.use("/packages", packages);
 app.use("/", cart);
 
+app.use('/', projects)
+app.use('/', certificateAwards)
+app.use('/', candidatejobs)
 app.use("/", history);
 app.use("/", dbAdminHistory);
 

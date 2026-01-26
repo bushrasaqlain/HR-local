@@ -77,9 +77,6 @@ const Education = ({ userId }) => {
   }, [userId]);
 
 
-  useEffect(() => {
-    console.log("education datat", educationData);
-  }, [educationData])
   return (
     <>
       {/* <div className="resume-outer">
