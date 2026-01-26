@@ -253,7 +253,7 @@ class Job extends Component {
                           const price = item.packageprice ? Number(item.packageprice) : 0;
                           return (
                             <td key={header.key} className="text-center">
-                              {item.currency || "-"} {price.toLocaleString()}
+                              {item.packagecurrency || "-"} {price.toLocaleString()}
                             </td>
                           );
                         }
@@ -424,4 +424,4 @@ class Job extends Component {
   }
 }
 
-export default Job;;
+export default Job;

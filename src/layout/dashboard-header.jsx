@@ -17,7 +17,7 @@ import {
 } from "reactstrap";
 import { useRouter } from "next/router";
 import dropdownItem from "./dropdownItem";
-import { dbadminmenuitem, regadminmenuitem, companymenuitem ,candidatesmenuitem} from "./menuitem";
+import { dbadminmenuitem, regadminmenuitem, companymenuitem, candidatesmenuitem } from "./menuitem";
 import DBAdminDashboardArea from "../components/dbadmin-dashboard/dashboard-area";
 import RegAdminDashboardArea from "../components/regadmin-dashboard/dashboard-area";
 import CompanyDashboardArea from "../components/company-dashboard/dashboard-area";
@@ -32,6 +32,7 @@ class DashboardHeader extends Component {
       menuDropdownOpen: false,
       activeTab: null,
       userInfo: { userId: null, username: "User", accountType: null },
+       jobListFilterStatus: null,
     };
   }
 
@@ -83,6 +84,14 @@ class DashboardHeader extends Component {
     }
     this.setState({ userDropdownOpen: false });
   };
+
+  // Add this method to handle tab changes from child components
+ handleTabChange = (tabKey, filterStatus = null) => {
+  this.setState({ 
+    activeTab: tabKey,
+    jobListFilterStatus: filterStatus 
+  });
+};
 
   render() {
     const { navbar, userDropdownOpen, menuDropdownOpen, activeTab, userInfo } =
@@ -172,10 +181,10 @@ class DashboardHeader extends Component {
                         color="dark"
                         outline
                         className={`text-white ${activeTab === item.key
-                          ? "border-bottom border-white"
+                          ? "border-bottom border-white border-2"
                           : ""
                           }`}
-                        onClick={() => this.setState({ activeTab: item.key })}
+                        onClick={() => this.setState({ activeTab: item.key , jobListFilterStatus: null })}
                       >
                         <i className={`las ${item.icon} me-1`}></i>
                         {item.label}
@@ -184,18 +193,15 @@ class DashboardHeader extends Component {
                   ))}
                 </Nav>
               )}
-              { accountType === "candidate" && (
+              {accountType === "candidate" && (
                 <Nav className="d-flex gap-2">
-                  {(accountType === "reg_admin"
-                    ? regadminmenuitem
-                    : candidatesmenuitem 
-                  ).map((item) => (
+                  {candidatesmenuitem.map((item) => (
                     <NavItem key={item.key}>
                       <Button
                         color="dark"
                         outline
                         className={`text-white ${activeTab === item.key
-                          ? "border-bottom border-white"
+                          ? "border-bottom border-white border-2"
                           : ""
                           }`}
                         onClick={() => this.setState({ activeTab: item.key })}
@@ -242,13 +248,23 @@ class DashboardHeader extends Component {
         <div className="dashboard-wrapper">
           <div className="dashboard-content">
             {accountType === "db_admin" && (
-              <DBAdminDashboardArea activeTab={activeTab} />
+              <DBAdminDashboardArea 
+                activeTab={activeTab} 
+                onTabChange={this.handleTabChange}
+              />
             )}
             {accountType === "reg_admin" && (
-              <RegAdminDashboardArea activeTab={activeTab} />
+              <RegAdminDashboardArea 
+                activeTab={activeTab} 
+                onTabChange={this.handleTabChange}
+              />
             )}
             {accountType === "employer" && (
-              <CompanyDashboardArea activeTab={activeTab} />
+              <CompanyDashboardArea 
+                activeTab={activeTab} 
+                onTabChange={this.handleTabChange}
+                jobListFilterStatus={this.state.jobListFilterStatus} 
+              />
             )}
           </div>
 
@@ -260,5 +276,4 @@ class DashboardHeader extends Component {
   }
 }
 
-// Use withRouter HOC to get router inside class component
 export default DashboardHeader;

@@ -104,6 +104,7 @@ class PostBoxForm extends Component {
       }) || [];
 
       this.setState({
+        
         values: {
           ...this.state.values,
           job_title: job.job_title || "",
@@ -137,7 +138,13 @@ class PostBoxForm extends Component {
   loadCountries = async (inputValue) => {
     try {
       const res = await axios.get(`${this.apiBaseUrl}getallCountries`, {
-        params: { search: inputValue || "", page: 1, limit: 200 },
+        params: {
+          search: inputValue || "",
+          name: "name",
+          page: 1,
+          limit: 200
+        }
+
       });
       return res.data.countries.map((c) => ({ label: c.name, value: c.id }));
     } catch (err) {
@@ -153,7 +160,9 @@ class PostBoxForm extends Component {
       const res = await axios.get(`${this.apiBaseUrl}getalldistricts`, {
         params: { country_id: selectedCountry.value },
       });
+
       return res.data.districts.map((d) => ({ label: d.name, value: d.id }));
+
     } catch (err) {
       console.error(err);
       return [];
@@ -624,7 +633,7 @@ class PostBoxForm extends Component {
                         onChange={this.handleInputChange}
                       >
                         <option value="">Min</option>
-                        {this.experienceOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                        {this.experienceOptions.map((opt) => <option key={opt.value} value={opt.label}>{opt.label}</option>)}
                       </Input>
                       {errors?.min_experience && <div className="text-danger">{errors.min_experience}</div>}
                     </Col>
@@ -637,7 +646,7 @@ class PostBoxForm extends Component {
                         onChange={this.handleInputChange}
                       >
                         <option value="">Max</option>
-                        {this.experienceOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                        {this.experienceOptions.map((opt) => <option key={opt.value} value={opt.label}>{opt.label}</option>)}
                       </Input>
                       {errors?.max_experience && <div className="text-danger">{errors.max_experience}</div>}
                       {errors?.experience && <div className="text-danger">{errors.experience}</div>}

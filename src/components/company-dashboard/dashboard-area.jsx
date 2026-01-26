@@ -11,10 +11,13 @@ import JobListings from "./jobList.jsx";
 import PackagesList from "./packagesList.jsx";
 import PostJob from "./postJob.jsx";
 import Profile from "./dashboard/profile.jsx";
-const CompanyDashboardArea = ({ activeTab }) => {
+import TopCardBlock from "./dashboard/TopCardBlock.jsx";
+
+const CompanyDashboardArea = ({ activeTab, onTabChange, jobListFilterStatus }) => {
     const router = useRouter();
     const [userInfo, setUserInfo] = useState({ userId: null, token: null });
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    
     useEffect(() => {
         if (typeof window !== "undefined") {
             const userId = sessionStorage.getItem("userId");
@@ -27,7 +30,6 @@ const CompanyDashboardArea = ({ activeTab }) => {
             setUserInfo({ userId, token });
         }
     }, [router]);
-
 
     const [hasActivePackage, setHasActivePackage] = useState(false);
     useEffect(() => {
@@ -47,19 +49,16 @@ const CompanyDashboardArea = ({ activeTab }) => {
                 const data = await response.json();
                 console.log('API Response:', data);
 
-                // Assuming 'data.packageStatus' is the correct property
                 setHasActivePackage(data.packageStatus === "active");
             } catch (error) {
                 console.error('Error checking user package status:', error);
             }
         };
 
-        // Check if userId is available before making the API call
         if (userInfo.userId) {
            // fetchUserPackageStatus();
         }
     }, [userInfo.userId]);
-
 
     if (!userInfo.userId) return <div>Loading dashboard…</div>;
 
@@ -76,7 +75,7 @@ const CompanyDashboardArea = ({ activeTab }) => {
             case "allApplicants":
                 return <AllApplicants />
             case "jobList":
-                return <JobListings />;
+                return <JobListings filterStatus={jobListFilterStatus} />;
 
             case "packagesList":
                 return <PackagesList />;
@@ -95,6 +94,12 @@ const CompanyDashboardArea = ({ activeTab }) => {
     return (
         <section className="user-dashboard py-2 my-4">
             <div className="container">
+                {/* Add TopCardBlock here - it will hide itself when not on profile tab */}
+                <TopCardBlock 
+                    onTabChange={onTabChange} 
+                    activeTab={activeTab} 
+                />
+                
                 <div className="profile__tab-content p-3">{renderContent()}</div>
             </div>
         </section>

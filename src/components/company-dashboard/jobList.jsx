@@ -41,6 +41,8 @@ class JobListings extends Component {
       selectedJob: null,
       editModalOpen: false,
       editingJobId: null,
+      statusFilterOpen: false, // For status dropdown filter
+      quickStatusFilter: "", // Separate filter for top dropdown
 
     };
     this.tableHeaders = [
@@ -49,7 +51,7 @@ class JobListings extends Component {
       { key: "no_of_positions", label: "Positions", placeholder: "No. of Positions", minWidth: "100px" },
       { key: "application_deadline", label: "Deadline", placeholder: "Deadline", minWidth: "130px" },
       { key: "approval_status", label: "Approval Status", placeholder: "Approval Status", minWidth: "100px" },
-      { key: "status", label: "Status", placeholder: "Status", minWidth: "100px" },
+      { key: "status", label: "Status", placeholder: "Search Status", minWidth: "100px" },
       { key: "action", label: "Action", minWidth: "180px" } // No filter for action
     ];
 
@@ -63,6 +65,7 @@ class JobListings extends Component {
       "country",
       "district",
       "city",
+      "package_amount",
       "packageprice",
       "packagecurrency",
       "job_description",
@@ -78,12 +81,29 @@ class JobListings extends Component {
     ];
   }
 
-  componentDidMount() {
-    if (this.userId) {
-      this.fetchData(this.userId);
-    }
+ componentDidMount() {
+  if (this.userId) {
+    this.fetchData(this.userId);
   }
+  
+  // Set initial filter from props
+  if (this.props.filterStatus) {
+    this.setState({ 
+      quickStatusFilter: this.props.filterStatus 
+    });
+  }
+}
 
+componentDidUpdate(prevProps) {
+  
+
+  if (this.props.filterStatus !== prevProps.filterStatus) {
+    console.log('Setting quickStatusFilter to:', this.props.filterStatus || "");
+    this.setState({ 
+      quickStatusFilter: this.props.filterStatus || "" 
+    });
+  }
+}
   fetchData = async (userId) => {
     try {
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -110,6 +130,7 @@ class JobListings extends Component {
 
   // Open modal when clicking job title
   handleTitleClick = (job) => {
+    
     this.setState({ selectedJob: job, modalOpen: true });
   };
 
@@ -126,6 +147,11 @@ class JobListings extends Component {
     }));
   };
 
+  toggleStatusFilter = () => {
+    this.setState((prev) => ({
+      statusFilterOpen: !prev.statusFilterOpen,
+    }));
+  };
 
   handleDeleteJob = async (jobId) => {
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -192,6 +218,7 @@ class JobListings extends Component {
   filterJobs = (jobs) => {
     const { title, industry, no_of_positions, application_deadline, status } =
       this.state.filters;
+    const { quickStatusFilter } = this.state;
 
     return jobs.filter((job) => {
       const jobTitle = job.job_title ? job.job_title.toLowerCase() : "";
@@ -216,7 +243,8 @@ class JobListings extends Component {
         jobIndustry.includes(industry.toLowerCase()) &&
         jobPositions.includes(no_of_positions.toLowerCase()) &&
         jobDeadline.includes(application_deadline.toLowerCase()) &&
-        (status === "" || jobStatus.includes(status.toLowerCase()))
+        (status === "" || jobStatus.includes(status.toLowerCase())) &&
+        (quickStatusFilter === "" || jobStatus === quickStatusFilter.toLowerCase())
 
       );
     });
@@ -231,6 +259,7 @@ class JobListings extends Component {
       filters,
       modalOpen,
       selectedJob,
+      statusFilterOpen,
     } = this.state;
 
     const filteredJobs = this.filterJobs(jobListings);
@@ -239,9 +268,41 @@ class JobListings extends Component {
     const currentJobs = filteredJobs.slice(indexOfFirst, indexOfLast);
     const totalPages = Math.ceil(filteredJobs.length / jobsPerPage);
 
+  
     return (
       <Container className="mt-4">
-        <h4 className="mb-3">Job Lists</h4>
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h4 className="mb-0">Job Lists</h4>
+          
+          <Dropdown
+            isOpen={statusFilterOpen}
+            toggle={this.toggleStatusFilter}
+          >
+            <DropdownToggle caret color="dark">
+              Status: {this.state.quickStatusFilter === "" ? "All" : this.state.quickStatusFilter}
+            </DropdownToggle>
+            <DropdownMenu end>
+              <DropdownItem 
+                onClick={() => this.setState({ quickStatusFilter: "" })}
+                active={this.state.quickStatusFilter === ""}
+              >
+                All
+              </DropdownItem>
+              <DropdownItem 
+                onClick={() => this.setState({ quickStatusFilter: "Active" })}
+                active={this.state.quickStatusFilter === "Active"}
+              >
+                Active
+              </DropdownItem>
+              <DropdownItem 
+                onClick={() => this.setState({ quickStatusFilter: "InActive" })}
+                active={this.state.quickStatusFilter === "InActive"}
+              >
+                InActive
+              </DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
+        </div>
 
         <Table bordered hover responsive className="job-table">
           <thead className="table-light text-center align-middle">

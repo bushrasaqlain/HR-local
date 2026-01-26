@@ -24,6 +24,8 @@ class PricingForm extends Component {
       userId: typeof window !== "undefined" ? sessionStorage.getItem("userId") : null,
       showPayment: false,
       selectedPackage: null,
+      selectedPrice: null,
+      selectedCurrency: null,
     };
   }
 
@@ -42,17 +44,25 @@ class PricingForm extends Component {
 
   addPackage = async (packageId) => {
     const { jobId } = this.props;
-    const { userId } = this.state;
+    const { userId, packages } = this.state;
 
     if (!jobId) {
       toast.error("Job ID not found. Please post job first.");
       return;
     }
 
+    // Find the selected package BEFORE making the API call
+    const selectedPkg = packages.find(pkg => pkg.id === packageId);
+
     try {
       const response = await axios.put(`${this.APIBASEURL}job/subcribepackage`, { jobId, packageId, userId });
       if (response.status === 200) {
-        this.setState({ showPayment: true, selectedPackage: packageId });
+        this.setState({ 
+          showPayment: true, 
+          selectedPackage: packageId,
+          selectedPrice: selectedPkg?.price,
+          selectedCurrency: selectedPkg?.currency
+        });
       }
     } catch {
       toast.error("Something went wrong");
@@ -60,7 +70,12 @@ class PricingForm extends Component {
   };
 
   handlePaymentSuccess = () => {
-    this.setState({ showPayment: false, selectedPackage: null });
+    this.setState({ 
+      showPayment: false, 
+      selectedPackage: null,
+      selectedPrice: null,
+      selectedCurrency: null
+    });
     if (this.props.onPaymentSuccess) this.props.onPaymentSuccess();
   };
 
@@ -122,7 +137,7 @@ class PricingForm extends Component {
   };
 
   render() {
-    const { packages, showPayment } = this.state;
+    const { packages, showPayment, selectedPackage, selectedPrice, selectedCurrency } = this.state;
 
     return (
       <Container className="pb-5">
@@ -135,8 +150,7 @@ class PricingForm extends Component {
             const { cardClass, features } = this.getPlanConfig(pkg.duration_unit);
 
             return (
-            <Col key={pkg.id} xs={12} sm={6} md={6} lg={6}>
-
+              <Col key={pkg.id} xs={12} sm={6} md={6} lg={6}>
                 <Card
                   className={`h-100 ${cardClass}`}
                   style={{
@@ -198,8 +212,10 @@ class PricingForm extends Component {
         <Payment
           isOpen={showPayment}
           toggle={() => this.setState({ showPayment: false })}
-          packageId={this.state.selectedPackage}
+          packageId={selectedPackage}
           jobId={this.props.jobId}
+          amount={selectedPrice}
+          currency={selectedCurrency}
           onPaymentSuccess={this.handlePaymentSuccess}
         />
       </Container>

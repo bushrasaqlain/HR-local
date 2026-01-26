@@ -9,9 +9,9 @@ const Profile = () => {
       <section className="user-dashboard">
         <div className="dashboard-outer">
 
-          <div className="row">
+          {/* <div className="row">
             <TopCardBlock />
-          </div>
+          </div> */}
 
           <div className="row">
             <div className="col-xl-7 col-lg-12">
