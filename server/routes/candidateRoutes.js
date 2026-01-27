@@ -21,7 +21,7 @@ const logo = multer({
 
 
 // router.post("/", logo.single("logo"), candidateController.addCandidateInfo)
-router.post("/candidate/",  authMiddleware, upload.single("passport_photo"), candidateController.addCandidateInfo);
+router.post("/candidate/passport-photo",  authMiddleware, upload.single("passport_photo"), candidateController.addCandidateInfo);
 
 router.put("/candidate/:accountId", authMiddleware, upload.single("passportPhoto"), candidateController.editCandidateInfo);
 

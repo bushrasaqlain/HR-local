@@ -4,6 +4,7 @@ import React, { Component, createRef } from "react";
 import Select from "react-select";
 import AsyncSelect from "react-select/async";
 import { Button, Col, Container, Form } from "reactstrap";
+
 import { Formik, Field, ErrorMessage, FieldArray } from "formik";
 import * as Yup from "yup";
 import { toast } from "react-toastify";
@@ -38,6 +39,7 @@ class CandidateRegisterForm extends Component {
         speciality: "",
         degreeFieldData: [],
         address: "",
+        skills: [],
         education: [
           {
             degree: "",
@@ -74,7 +76,7 @@ class CandidateRegisterForm extends Component {
       countries: [], // <-- move here
       districts: [], // <-- move here
       cities: [], // <-- move here
-      skills: [], // <-- move here
+      skillsOptions: [], // <-- move here
       allCities: [],
       degree: [],
       degreeTitles: [], // { [degreeId]: [ {id, name} ] }
@@ -210,6 +212,7 @@ class CandidateRegisterForm extends Component {
       toast.error("Could not load speciality");
     }
   };
+
   loadLicenseTypes = async () => {
     try {
       const res = await api.get("/getAllLicenseTypes"); // your API endpoint
@@ -230,12 +233,15 @@ class CandidateRegisterForm extends Component {
   loadSkills = async () => {
     try {
       const res = await api.get("/getAllskills"); // replace with your endpoint
-      this.setState({ skills: res.data || [] });
+      const skillsArray = Array.isArray(res.data.skills) ? res.data.skills : [];
+      this.setState({ skillsOptions: skillsArray });
     } catch (err) {
       console.error("Failed to load skills", err);
       toast.error("Could not load skills");
     }
   };
+
+
 
   fetchCandidateInfo = async () => {
     try {
@@ -478,83 +484,80 @@ class CandidateRegisterForm extends Component {
     }
   };
 
-  handleSubmit = async (values, { setSubmitting }) => {
-    try {
-      const token = localStorage.getItem("token");
-      const payload = new FormData();
-      payload.append("mode", "submit");
-
-      Object.entries(values).forEach(([key, value]) => {
-        if (key === "passport_photo" && value instanceof File) {
-          payload.append("passport_photo", value);
-        } else if (key === "resume" && value instanceof File) {
-          payload.append("resume", value);
-        } else if (Array.isArray(value)) {
-          payload.append(key, JSON.stringify(value));
-        } else if (value !== undefined && value !== null) {
-          payload.append(key, value);
-        }
-      });
-
-      const response = await api.post("/candidateProfile/candidate/", payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.status === 200 || response.status === 201) {
-        toast.success("Profile submitted successfully!");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Submission failed!");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   handleSaveAndNext = async (values) => {
     try {
       const payload = new FormData();
       payload.append("mode", "save");
       payload.append("current_step", this.state.step);
-      if (this.state.step === 1) {
-        Object.entries(values).forEach(([key, value]) => {
-          if (key === "passport_photo" && value instanceof File) {
-            payload.append("passport_photo", value); // 👈 ensure it's sent as file
-          } else if (key === "resume" && value instanceof File) {
-            payload.append("resume", value);
-          } else if (Array.isArray(value)) {
-            payload.append(key, JSON.stringify(value));
-          } else if (value !== undefined && value !== null) {
-            payload.append(key, value);
-          }
-        });
-        await api.post("/candidateProfile/candidate/", payload, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
+      if (this.state.step === 1 || this.state.step === 3) {
+      const payload = new FormData();
+      payload.append("mode", "save");
+      payload.append("current_step", this.state.step);
+
+      const fields = [
+        "full_name",
+        "phone",
+        "email",
+        "date_of_birth",
+        "gender",
+        "marital_status",
+        "license_type",
+        "license_number",
+        "total_experience",
+        "speciality",
+        "country",
+        "district",
+        "city",
+        "otherPreferredCities",
+        "address",
+      ];
+
+      fields.forEach((field) => {
+        const value = values[field];
+        if (Array.isArray(value)) {
+          payload.append(field, JSON.stringify(value));
+        } else if (value !== undefined && value !== null) {
+          payload.append(field, value);
+        }
+      });
+
+      // Skills
+      if (values.skills && Array.isArray(values.skills)) {
+        payload.append("skills", JSON.stringify(values.skills));
       }
 
+      // Call Step 1 API
+      await api.post(`${this.apiBaseUrl}candidateProfile/candidate/passport-photo`, payload, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+    }
+
+
       if (this.state.step === 2) {
+        // ignore the draft row at index 0
         const newRows = values.education
-          .slice(1)           // ⬅️ ignore draft row
-          .filter(e => !e.id);
+          .slice(1)
+          .filter((e) => !e.id && e.degreeTitle && e.startDate);
 
         const editedRows = values.education
           .slice(1)
-          .filter(e => e.id);
+          .filter((e) => e.id && e.degreeTitle && e.startDate);
 
-        if (this.state.isEdit) {
+        // Edit existing rows
+        if (this.state.isEdit && editedRows.length > 0) {
           await api.put(`${this.apiBaseUrl}candidateeducation/editcandidateeducation`, {
-            education: editedRows
+            education: editedRows,
           });
         }
-        else {
 
+        // Add new rows
+        if (newRows.length > 0) {
           await api.post(`${this.apiBaseUrl}candidateeducation/addcandidateeducation`, {
-            education: newRows
+            education: newRows,
+            mode: "save",
           });
-
         }
       }
 
@@ -582,46 +585,61 @@ class CandidateRegisterForm extends Component {
         }
       }
 
-
-
       if (this.state.step === 4) {
-        const formData = new FormData();
-        formData.append("resume", values.resume); // ONLY FILE
+        if (values.resume && values.resume instanceof File) {
+          const formData = new FormData();
+          formData.append("resume", values.resume);
 
-        await api.post(
-          `${this.apiBaseUrl}resume/addresume`,
-          formData,
-          {
+          const res = await api.post(`${this.apiBaseUrl}resume/addresume`, formData, {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
               "Content-Type": "multipart/form-data",
             },
-          }
-        );
+          });
+
+          console.log("Resume response:", res.data);
+        } else {
+          console.warn("No resume file found");
+        }
       }
 
       if (this.state.step === 5) {
+        if (this.state.entries.length === 0) {
+          toast.error("Please add at least one availability entry before proceeding");
+          return;
+        }
+
+        const payload = {
+          availability: this.state.entries.map(e => ({
+            day: e.day,
+            shift: e.shift,
+            start_time: e.startTime,
+            end_time: e.endTime,
+          }))
+        };
 
         await api.post(
-          `${this.apiBaseUrl}resume/addresume`,
-          formData,
+          `${this.apiBaseUrl}candidate_availability/addavailability`,
+          payload,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
-              "Content-Type": "multipart/form-data",
             },
           }
         );
-      }
 
+        toast.success("Availability saved successfully");
+      }
       this.setState({ formData: values }, this.nextStep);
-      this.setState({ editID: null, editexpID });
+      this.setState({ editID: null });
       toast.success("Saved");
     } catch (err) {
       console.error(err);
       toast.error("Save failed", err);
     }
   };
+
+
 
   // Validation Schemas for each step
   stepSchemas = [
@@ -1450,7 +1468,48 @@ class CandidateRegisterForm extends Component {
                         Add More
                       </button>
                     </div>
+                    <div className="mb-4 border p-3 rounded">
+                      <h6>Add Skills</h6>
 
+                      <div className="mb-4">
+                        <h4>Step 3: Skills</h4>
+
+                        <label>Select Skills</label>
+                        <Field name="skills">
+                          {({ field, form }) => {
+                            const handleChange = (selectedOptions) => {
+                              // selectedOptions is array of { value, label }
+                              const values = selectedOptions ? selectedOptions.map(opt => opt.value) : [];
+                              form.setFieldValue("skills", values);
+                            };
+
+                            const selectedOptions = field.value?.map((val) => {
+                              const skillObj = this.state.skillsOptions.find((s) => s.id === val);
+                              return skillObj ? { value: skillObj.id, label: skillObj.name } : null;
+                            }).filter(Boolean);
+
+                            const options = Array.isArray(this.state.skillsOptions)
+                              ? this.state.skillsOptions.map((s) => ({ value: s.id, label: s.name }))
+                              : [];
+
+
+                            return (
+                              <Select
+                                isMulti
+                                value={selectedOptions}
+                                onChange={handleChange}
+                                options={options}
+                                className="basic-multi-select"
+                                classNamePrefix="select"
+                                placeholder="Select skills"
+                              />
+                            );
+                          }}
+                        </Field>
+
+                        <ErrorMessage name="skills" component="div" className="text-danger" />
+                      </div>
+                    </div>
                     {/* Table for existing experiences */}
                     {values.experience.length > 1 && (
                       <table className="table table-bordered">

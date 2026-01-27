@@ -316,7 +316,7 @@ const addCandidateInfo = async (req, res) => {
         return null;
       }
     };
-
+    console.log("skill", skills)
     const skillsArr = parseJSON(skills);
     const linksArr = parseJSON(Links);
     const educationArr = parseJSON(Education);
