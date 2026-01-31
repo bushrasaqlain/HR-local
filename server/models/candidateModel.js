@@ -12,23 +12,19 @@ CREATE TABLE IF NOT EXISTS candidate_info (
   account_id INT UNIQUE NOT NULL,
 
   full_name VARCHAR(255),
-  email VARCHAR(255),
   phone VARCHAR(20),
 
   date_of_birth DATE,
-  Age INT,
 
   gender ENUM('male','female','other'),
   marital_status ENUM('single','married','divorced','widowed'),
 
   total_experience VARCHAR(20),
-  Experience VARCHAR(20),
 
   license_type VARCHAR(50),
   license_number VARCHAR(50),
 
   address TEXT,
-  Complete_Address TEXT,
 
   country INT,
   district INT,
@@ -42,8 +38,8 @@ CREATE TABLE IF NOT EXISTS candidate_info (
 
   Links JSON,
 
-  current_salary DECIMAL(10,2),
-  expected_salary DECIMAL(10,2),
+  current_salary INT,
+  expected_salary INT,
 
   passport_photo VARCHAR(255),
   resume VARCHAR(255),
@@ -281,9 +277,6 @@ const addCandidateInfo = async (req, res) => {
       Links,
       current_salary,
       expected_salary,
-      Age,
-      Education,
-      categories,
       mode,
       speciality,
       otherPreferredCities,
@@ -301,15 +294,21 @@ const addCandidateInfo = async (req, res) => {
 
     const skillsArr = parseJSON(skills);
     const linksArr = parseJSON(Links);
-    const educationArr = parseJSON(Education);
-    const categoriesArr = parseJSON(categories);
     const otherCitiesArr = parseJSON(otherPreferredCities);
 
     // 🔹 Passport photo
-    const passportPhotoPath = req.file
-      ? `/uploads/passportPhotos/${req.file.filename}`
-      : null;
+    // 🔹 Determine which file was uploaded
+let passportPhotoPath;
+let resumePath;
 
+if (req.file) {
+  if (req.file.fieldname === "passport_photo") {
+    passportPhotoPath = `/uploads/passportPhotos/${req.file.filename}`;
+  }
+  if (req.file.fieldname === "resume") {
+    resumePath = `/uploads/resume/${req.file.filename}`;
+  }
+}
     // 🔹 Profile completion check
     let profileCompleted = false;
     if (mode === "submit") {
@@ -340,7 +339,6 @@ const addCandidateInfo = async (req, res) => {
       const sql = `
         INSERT INTO candidate_info (
           account_id,
-          email,
           full_name,
           phone,
           date_of_birth,
@@ -354,21 +352,18 @@ const addCandidateInfo = async (req, res) => {
           district,
           city,
           skills,
-          \`Links\`,
+          Links,
           current_salary,
           expected_salary,
-          Age,
-          speciality,
           otherPreferredCities,
-          categories,
           passport_photo,
-          profile_completed
+          profile_completed,
+          resume
         )
         VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
         ON DUPLICATE KEY UPDATE
-          email = VALUES(email),
           full_name = VALUES(full_name),
           phone = VALUES(phone),
           date_of_birth = VALUES(date_of_birth),
@@ -382,20 +377,17 @@ const addCandidateInfo = async (req, res) => {
           district = VALUES(district),
           city = VALUES(city),
           skills = VALUES(skills),
-          \`Links\` = VALUES(\`Links\`),
+          Links = VALUES(Links),
           current_salary = VALUES(current_salary),
           expected_salary = VALUES(expected_salary),
-          Age = VALUES(Age),
-          speciality = VALUES(speciality),
           otherPreferredCities = VALUES(otherPreferredCities),
-          categories = VALUES(categories),
-          passport_photo = VALUES(passport_photo),
+          passport_photo = COALESCE(VALUES(passport_photo), passport_photo),
+          resume = COALESCE(VALUES(resume), resume),
           profile_completed = VALUES(profile_completed)
       `;
 
       const params = [
         accountId,
-        email,
         full_name,
         phone,
         date_of_birth,
@@ -412,12 +404,10 @@ const addCandidateInfo = async (req, res) => {
         linksArr ? JSON.stringify(linksArr) : null,
         current_salary,
         expected_salary,
-        Age,
-        speciality,
         otherCitiesArr ? JSON.stringify(otherCitiesArr) : null,
-        categoriesArr ? JSON.stringify(categoriesArr) : null,
         passportPhotoPath,
         profileCompleted,
+        resumePath // 👈 add this
       ];
 
       connection.query(sql, params, (err2) => {
@@ -445,14 +435,15 @@ const addCandidateInfo = async (req, res) => {
   }
 };
 
-
 const getCandidateInfo = (req, res) => {
   const accountId = req.user.userId;
 
-  const sql = `
+  // Step 1: fetch candidate info
+  const candidateSql = `
     SELECT
       a.id AS account_id,
       a.email,
+      ci.id AS candidate_id,
       ci.full_name,
       ci.phone,
       ci.date_of_birth,
@@ -462,81 +453,102 @@ const getCandidateInfo = (req, res) => {
       ci.license_type,
       ci.license_number,
       ci.otherPreferredCities,
-      ci.speciality,
       ci.address,
       ci.country,
       ci.district,
       ci.city,
       ci.skills,
-      ci.categories,
       ci.Links,
       ci.current_salary,
       ci.expected_salary,
-      ci.Age,
       ci.profile_completed,
-      ci.passport_photo
+      ci.passport_photo,
+      ci.resume,
+      ci.skills
     FROM account a
     LEFT JOIN candidate_info ci ON a.id = ci.account_id
     WHERE a.id = ?
     LIMIT 1
   `;
 
-  connection.query(sql, [accountId], (err, result) => {
-    if (err) {
-      console.error("DB Error:", err);
-      return res.status(500).json({ error: err.message });
-    }
+  connection.query(candidateSql, [accountId], (err, candidateResult) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!candidateResult.length) return res.status(404).json({ error: "Candidate not found" });
 
-    if (!result.length) {
-      // Should not happen, account exists if logged in
-      return res.status(404).json({ error: "Account not found" });
-    }
+    const candidate = candidateResult[0];
+    console.log("✅ Candidate info fetched:", candidate); // log candidate info
 
-    const candidate = result[0];
+    // Step 2: fetch all availability rows
+    const availabilitySql = `
+      SELECT day, shift, startTime, endTime
+      FROM candidate_availability
+      WHERE candidate_id = ?
+    `;
+    connection.query(availabilitySql, [candidate.candidate_id], (err, availabilityRows) => {
+      if (err) return res.status(500).json({ error: err.message });
 
-    // Helper to parse JSON fields
-    const parseJSON = (value) => {
-      if (!value) return [];
-      try {
-        return typeof value === "string" ? JSON.parse(value) : value;
-      } catch {
-        return [];
-      }
-    };
+      console.log("✅ Availability rows fetched:", availabilityRows); // log availability rows
 
-    const response = {
-      account_id: candidate.account_id || candidate.id,
-      email: candidate.email || "",
-      full_name: candidate.full_name || "",
-      phone: candidate.phone || "",
-      date_of_birth: candidate.date_of_birth || "",
-      gender: candidate.gender || "",
-      marital_status: candidate.marital_status || "",
-      total_experience: candidate.total_experience || "",
-      license_type: candidate.license_type || "",
-      license_number: candidate.license_number || "",
-      address: candidate.address || "",
-      country: candidate.country || "",
-      district: candidate.district || "",
-      city: candidate.city || "",
-      speciality: candidate.speciality || "",
-      otherPreferredCities: parseJSON(candidate.otherPreferredCities),
-      skills: parseJSON(candidate.skills),
-      categories: parseJSON(candidate.categories),
-      Education: parseJSON(candidate.Education),
-      Links: parseJSON(candidate.Links),
-      current_salary: candidate.current_salary || "",
-      expected_salary: candidate.expected_salary || "",
-      Age: candidate.Age || "",
-      profile_completed: !!candidate.profile_completed,
-      passport_photo: candidate.passport_photo || null,
-    };
+      // Step 3: group shifts by day
+      const availabilityData = {};
+      availabilityRows.forEach(row => {
+        if (!availabilityData[row.day]) availabilityData[row.day] = [];
+        availabilityData[row.day].push({
+          shift: row.shift,
+          startTime: row.startTime,
+          endTime: row.endTime
+        });
+      });
 
-    res.json(response);
+      // Convert grouped object into an array
+      const availabilityArray = Object.entries(availabilityData).map(([day, shifts]) => ({
+        day,
+        shifts
+      }));
+
+      console.log("✅ Grouped availability data:", availabilityArray); // log final grouped data
+
+      const parseJSON = (value) => {
+        if (!value) return [];
+        try {
+          return typeof value === "string" ? JSON.parse(value) : value;
+        } catch {
+          return [];
+        }
+      };
+
+      const response = {
+        account_id: candidate.account_id || candidate.id,
+        email: candidate.email || "",
+        full_name: candidate.full_name || "",
+        phone: candidate.phone || "",
+        date_of_birth: candidate.date_of_birth || "",
+        gender: candidate.gender || "",
+        marital_status: candidate.marital_status || "",
+        total_experience: candidate.total_experience || "",
+        license_type: candidate.license_type || "",
+        license_number: candidate.license_number || "",
+        address: candidate.address || "",
+        country: candidate.country || "",
+        district: candidate.district || "",
+        city: candidate.city || "",
+        // speciality: candidate.speciality || "",
+        otherPreferredCities: parseJSON(candidate.otherPreferredCities),
+        skills: parseJSON(candidate.skills),
+        Education: parseJSON(candidate.Education),
+        Links: parseJSON(candidate.Links),
+        current_salary: candidate.current_salary || "",
+        expected_salary: candidate.expected_salary || "",
+        profile_completed: !!candidate.profile_completed,
+        passport_photo: candidate.passport_photo || null,
+        resume: candidate.resume || null,
+        availabilityData: availabilityArray, // ✅ use grouped array
+      };
+
+      res.json(response);
+    });
   });
 };
-
-
 const editCandidateInfo = (req, res) => {
   const accountId = parseInt(req.params.accountId) || req.user.userId;
   if (isNaN(accountId))
@@ -545,6 +557,7 @@ const editCandidateInfo = (req, res) => {
   const passport_photoPath = req.file
     ? `/uploads/passport_photos/${req.file.filename}`
     : null;
+  const resumePath = req.file ? `/uploads/resume/${req.file.filename}` : null;
 
   const fieldMap = {
     phone: "phone",
@@ -813,6 +826,28 @@ const getCandidateInfobyAccountType = (req, res) => {
     return res.json(results);
   });
 };
+const addResume = (userId, resumePath, res) => {
+  const query = `
+    UPDATE candidate_info
+    SET resume = ?
+    WHERE account_id = ?
+  `;
+
+  connection.query(query, [resumePath, userId], (err) => {
+    if (err) {
+      console.error("DB Error:", err);
+      return res.status(500).json({ msg: "SERVER_ERROR" });
+    }
+
+    res.status(200).json({
+      msg: "Resume uploaded successfully",
+      resume: resumePath,
+    });
+  });
+};
+
+
+
 module.exports = {
   getAllCandidates,
   updateStatus,
@@ -827,4 +862,5 @@ module.exports = {
   getCandidatepassport_photobyId,
   getCandidateFullProfilebyId,
   getCandidateInfobyAccountType,
+  addResume,
 };

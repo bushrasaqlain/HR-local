@@ -2,7 +2,7 @@ import SearchBox from "./SearchBox";
 import ContactList from "./ContactList";
 import ContentField from "./ContentField";
 import { useDispatch } from "react-redux";
-import { chatSidebarToggle } from "../../../../../features/toggle/toggleSlice";
+import { chatSidebarToggle } from "../../../../features/toggle/toggleSlice";
 
 const ChatBox = ({userId}) => {
   const dispatch = useDispatch();

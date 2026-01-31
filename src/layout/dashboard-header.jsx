@@ -21,6 +21,7 @@ import { dbadminmenuitem, regadminmenuitem, companymenuitem ,candidatesmenuitem}
 import DBAdminDashboardArea from "../components/dbadmin-dashboard/dashboard-area";
 import RegAdminDashboardArea from "../components/regadmin-dashboard/dashboard-area";
 import CompanyDashboardArea from "../components/company-dashboard/dashboard-area";
+import CandidateDashboardArea from "../components/candidate-dashboard/dashboard-area";
 import DashboardFooter from "./dashboard-footer";
 
 class DashboardHeader extends Component {
@@ -52,6 +53,8 @@ class DashboardHeader extends Component {
             this.setState({ activeTab: "company" });
           else if (accountType === "employer")
             this.setState({ activeTab: "profile" });
+          else if ( accountType === "candidate")
+            this.setState({ activeTab: "Dashboard"});
         }
       }
     );
@@ -249,6 +252,9 @@ class DashboardHeader extends Component {
             )}
             {accountType === "employer" && (
               <CompanyDashboardArea activeTab={activeTab} />
+            )}
+            {accountType === "candidate" && (
+              <CandidateDashboardArea activeTab={activeTab} />
             )}
           </div>
 

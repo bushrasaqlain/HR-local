@@ -56,7 +56,7 @@ class CandidateRegisterForm extends Component {
             startDate: "",
             endDate: "",
             ongoing: false,
-
+            id: null,
           },
         ],
         resume: null,
@@ -69,6 +69,10 @@ class CandidateRegisterForm extends Component {
           },
         ],
       },
+      fileData: { // 👈 add this
+passport_photo: null,
+resume: null,
+},
       isNewImageUploaded: false,
       countries: [], // <-- move here
       districts: [], // <-- move here
@@ -115,13 +119,21 @@ class CandidateRegisterForm extends Component {
   nextStep = () => this.setState((prev) => ({ step: prev.step + 1 }));
   prevStep = () => this.setState((prev) => ({ step: prev.step - 1 }));
 
-  handleFileChange = (event, fieldName, setFieldValue) => {
-    const file = event.target.files[0];
-    if (file) {
-      setFieldValue(fieldName, file);
-    }
-  };
+handleFileChange = (event, fieldName, setFieldValue) => {
+  const file = event.target.files[0];
+  if (!file) return;
 
+  // 1️⃣ Formik
+  setFieldValue(fieldName, file);
+
+  // 2️⃣ Component state (THIS WAS MISSING)
+  this.setState(prev => ({
+    fileData: {
+      ...prev.fileData,
+      [fieldName]: file
+    }
+  }));
+};
   loadCountries = async () => {
     try {
       // Set limit = 0 to fetch all countries
@@ -195,7 +207,6 @@ class CandidateRegisterForm extends Component {
     try {
       const res = await api.get("/getAllspeciality");
 
-
       // Extract the array from the object
       const specialityArray = Array.isArray(res.data.speciality)
         ? res.data.speciality
@@ -211,7 +222,6 @@ class CandidateRegisterForm extends Component {
     try {
       const res = await api.get("/getAllLicenseTypes"); // your API endpoint
 
-
       const licenseArray = Array.isArray(res.data.licenseTypes)
         ? res.data.licenseTypes
         : res.data.results || []; // adjust if API returns results
@@ -224,129 +234,106 @@ class CandidateRegisterForm extends Component {
   };
 
   // Load skills from API
-  loadSkills = async () => {
+loadSkills = async () => {
     try {
       const res = await api.get("/getAllskills"); // replace with your endpoint
-      this.setState({ skills: res.data || [] });
+      const skillsArray = Array.isArray(res.data.skills) ? res.data.skills : [];
+      this.setState({ skillsOptions: skillsArray });
     } catch (err) {
       console.error("Failed to load skills", err);
       toast.error("Could not load skills");
     }
   };
 
-  fetchCandidateInfo = async () => {
-    try {
-      const token = localStorage.getItem("token");
+ fetchCandidateInfo = async () => {
+  try {
+    const token = localStorage.getItem("token");
 
-      const [profileRes, eduRes, expRes] = await Promise.all([
-        api.get("/candidateProfile/candidate", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        api.get(`${this.apiBaseUrl}candidateeducation/getallcandidateeducation`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        api.get(`${this.apiBaseUrl}candidateexperience/getexperience`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        api.get(`${this.apiBaseUrl}resume/getresume`, {
-          headers: { Authorization: `Bearer ${token}` },
-          responseType: "blob",
-        })
+    const [profileRes, eduRes, expRes] = await Promise.all([
+      api.get("/candidateProfile/candidate", {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+      api.get(`${this.apiBaseUrl}candidateeducation/getallcandidateeducation`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+      api.get(`${this.apiBaseUrl}candidateexperience/getexperience`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    ]);
 
-      ]);
+    const data = profileRes.data || {};
+    console.log("RAW backend data:", data);
 
-      const data = profileRes.data || {};
-      const educationList = this.mapEducation(eduRes.data || []);
-      const experienceList = this.mapExperience(expRes.data?.data || []);
-      let resumeFile = null;
-      let resumePreviewUrl = null;
+    // Map availability from backend
+const entriesFromBackend = (data.availabilityData || []).flatMap(daySlot =>
+  (daySlot.shifts || []).map(shift => ({
+    day: daySlot.day,
+    shift: shift.shift,
+    startTime: shift.startTime,
+    endTime: shift.endTime,
+  }))
+);
 
-      if (resumeRes?.data) {
-        resumeFile = new File([resumeRes.data], "resume.pdf", {
-          type: resumeRes.data.type || "application/pdf",
-        });
+    console.log("Mapped entries for table:", entriesFromBackend);
 
-        resumePreviewUrl = URL.createObjectURL(resumeFile);
-      }
+    const finalEntries = entriesFromBackend.length > 0
+      ? entriesFromBackend
+      : [{ day: "", shift: "", startTime: "", endTime: "" }];
 
+    // Map education & experience
+    const educationList = this.mapEducation(eduRes.data || []);
+    const experienceList = this.mapExperience(expRes.data?.data || []);
 
-      const safeParseJSON = (val) => {
-        if (!val) return [];
-        if (Array.isArray(val)) return val;
-        try {
-          return JSON.parse(val);
-        } catch {
-          return [];
-        }
-      };
+    const mappedData = {
+      ...this.state.formData,
+      full_name: data.full_name ?? "",
+      phone: data.phone ?? "",
+      email: data.email ?? "",
+      date_of_birth: data.date_of_birth
+        ? new Date(data.date_of_birth).toISOString().slice(0, 10)
+        : "",
+      gender: data.gender ?? "",
+      marital_status: data.marital_status ?? "",
+      total_experience: data.total_experience ?? "",
+      license_type: data.license_type ?? "",
+      license_number: data.license_number ?? "",
+       current_salary: data.current_salary ?? "",
+      expected_salary: data.expected_salary ?? "",
+      skills: Array.isArray(data.skills) ? data.skills : [],
+      // speciality: Array.isArray(data.speciality) ? data.speciality : [],
+      otherPreferredCities: Array.isArray(data.otherPreferredCities) ? data.otherPreferredCities : [],
+      country: data.country ? String(data.country) : "",
+      district: data.district ? String(data.district) : "",
+      city: data.city ? String(data.city) : "",
+      address: data.address ?? "",
+      passport_photoPreview: data.passport_photo
+        ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${data.passport_photo}`
+        : "",
+      education: [{ degreeTitle: "", degreeTitle_label: "", institutes: "", startDate: "", endDate: "", ongoing: false }, ...educationList],
+      experience: [{ companyName: "", speciality: "", designation: "", startDate: "", endDate: "", ongoing: false }, ...experienceList],
+      passport_photo: data.passport_photo || null, // ✅ keep DB value
+resume: data.resume || null,
+      resumePreviewUrl: data.resume
+        ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${data.resume}`
+        : "",
+      availability: entriesFromBackend,
+    };
 
-      const mappedData = {
-        ...this.state.formData,
+    console.log("Final mapped formData:", mappedData);
 
-        full_name: data.full_name ?? "",
-        phone: data.phone ?? "",
-        email: data.email ?? "",
+    this.setState({
+      formData: mappedData,
+      entries: finalEntries,
+    });
 
-        date_of_birth: data.date_of_birth
-          ? new Date(data.date_of_birth).toISOString().slice(0, 10)
-          : "",
+    // load dependent dropdowns
+    if (mappedData.country) await this.loadDistricts(mappedData.country);
+    if (mappedData.district) await this.loadCities(mappedData.district);
 
-        gender: data.gender ?? "",
-        marital_status: data.marital_status ?? "",
-        total_experience: data.total_experience ?? "",
-
-        license_type: data.license_type ?? "",
-        license_number: data.license_number ?? "",
-
-        skills: safeParseJSON(data.skills),
-        speciality: safeParseJSON(data.speciality),
-        otherPreferredCities: safeParseJSON(data.otherPreferredCities),
-
-        country: data.country ? String(data.country) : "",
-        district: data.district ? String(data.district) : "",
-        city: data.city ? String(data.city) : "",
-
-        address: data.address ?? "",
-
-        passport_photoPreview: data.passport_photo
-          ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${data.passport_photo}`
-          : "",
-
-        education: [
-          {
-            degreeTitle: "",
-            degreeTitle_label: "",
-            institutes: "",
-            startDate: "",
-            endDate: "",
-            ongoing: false,
-          },
-          ...educationList,
-        ],
-        experience: [
-          {
-            companyName: "",
-            designation: "",
-            startDate: "",
-            endDate: "",
-            ongoing: false,
-
-          },
-          ...experienceList
-        ],
-        resume: resumeFile,
-      };
-
-
-      // load dependent dropdowns
-      if (mappedData.country) await this.loadDistricts(mappedData.country);
-      if (mappedData.district) await this.loadCities(mappedData.district);
-
-      this.setState({ formData: mappedData });
-    } catch (err) {
-      console.error("Fetch failed", err);
-    }
-  };
+  } catch (err) {
+    console.error("Fetch failed", err);
+  }
+};
 
   mapEducation = (list = []) =>
     list.map((edu) => ({
@@ -369,6 +356,7 @@ class CandidateRegisterForm extends Component {
     list.map((exp) => ({
       id: exp.id,
       designation: exp.designation || "",
+      speciality_id: exp.speciality_id || "",
       companyName: exp.company_name || "",
       startDate: exp.start_date
         ? new Date(exp.start_date).toISOString().slice(0, 10)
@@ -379,17 +367,13 @@ class CandidateRegisterForm extends Component {
       ongoing: exp.is_ongoing === 1,
     }));
 
-
   loadDegrees = async () => {
     try {
       const res = await api.get("/getalldegreetype");
 
-
       const degreeArray = Array.isArray(res.data?.degreetypes)
         ? res.data.degreetypes
         : [];
-
-
 
       this.setState({ degreeFieldData: degreeArray });
     } catch (err) {
@@ -455,7 +439,7 @@ class CandidateRegisterForm extends Component {
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ];
-    return files.every(file => allowedTypes.includes(file.type));
+    return files.every((file) => allowedTypes.includes(file.type));
   }
 
   cvManagerHandler = (e) => {
@@ -482,140 +466,293 @@ class CandidateRegisterForm extends Component {
     }
   };
 
+handleSubmit = async (values, { setSubmitting }) => {
+  try {
+    const { step, fileData, formData, entries } = this.state;
 
-  handleSubmit = async (values, { setSubmitting }) => {
-    try {
-      const token = localStorage.getItem("token");
-      const payload = new FormData();
-      payload.append("mode", "submit");
+    const payload = new FormData();
 
-      Object.entries(values).forEach(([key, value]) => {
-        if (key === "passport_photo" && value instanceof File) {
-          payload.append("passport_photo", value);
-        } else if (key === "resume" && value instanceof File) {
-          payload.append("resume", value);
-        } else if (Array.isArray(value)) {
-          payload.append(key, JSON.stringify(value));
-        } else if (value !== undefined && value !== null) {
-          payload.append(key, value);
-        }
-      });
+    // mode: save | submit
+    payload.append("mode", step === 5 ? "submit" : "save");
+    payload.append("current_step", step);
 
-      const response = await api.post("/candidateProfile/candidate/", payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+    /* ================= STEP 1 FIELDS ================= */
+    const fields = [
+      "full_name",
+      "phone",
+      "email",
+      "date_of_birth",
+      "gender",
+      "marital_status",
+      "license_type",
+      "license_number",
+      "total_experience",
+      "speciality",
+      "country",
+      "district",
+      "city",
+      "address",
+      "current_salary",
+      "expected_salary",
+    ];
 
-      if (response.status === 200 || response.status === 201) {
-        toast.success("Profile submitted successfully!");
+    fields.forEach((field) => {
+      const value = values[field];
+      if (value !== undefined && value !== null) {
+        payload.append(field, value);
       }
-    } catch (err) {
-      console.error(err);
-      toast.error("Submission failed!");
-    } finally {
-      setSubmitting(false);
+    });
+
+    /* ================= ARRAY / JSON FIELDS ================= */
+    if (values.skills?.length) {
+      payload.append("skills", JSON.stringify(values.skills));
     }
-  };
-  handleSaveAndNext = async (values) => {
-    try {
-      const payload = new FormData();
-      payload.append("mode", "save");
-      payload.append("current_step", this.state.step);
-      if (this.state.step === 1) {
-        Object.entries(values).forEach(([key, value]) => {
-          if (key === "passport_photo" && value instanceof File) {
-            payload.append("passport_photo", value); // 👈 ensure it's sent as file
-          } else if (key === "resume" && value instanceof File) {
-            payload.append("resume", value);
-          } else if (Array.isArray(value)) {
-            payload.append(key, JSON.stringify(value));
-          } else if (value !== undefined && value !== null) {
-            payload.append(key, value);
-          }
+
+    if (values.Links?.length) {
+      payload.append("Links", JSON.stringify(values.Links));
+    }
+
+    if (values.otherPreferredCities?.length) {
+      payload.append(
+        "otherPreferredCities",
+        JSON.stringify(values.otherPreferredCities),
+      );
+    }
+
+    /* ================= AVAILABILITY ================= */
+    if (Array.isArray(entries)) {
+      payload.append("availability", JSON.stringify(entries));
+    }
+
+    /* ================= PASSPORT PHOTO ================= */
+    if (fileData.passport_photo instanceof File) {
+      // new file selected
+      payload.append("passport_photo", fileData.passport_photo);
+    } else if (formData.passport_photo) {
+      // keep existing DB value
+      payload.append("passport_photo", formData.passport_photo);
+    }
+
+    /* ================= RESUME ================= */
+    if (fileData.resume instanceof File) {
+      payload.append("resume", fileData.resume);
+    } else if (formData.resume) {
+      payload.append("resume", formData.resume);
+    }
+
+    /* ================= API CALL ================= */
+    await api.post("/candidateProfile/candidate/passport-photo", payload, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    toast.success(
+      step === 5
+        ? "Profile submitted successfully"
+        : "Profile saved successfully",
+    );
+  } catch (error) {
+    console.error("Submit Error:", error);
+    toast.error("Something went wrong while saving profile");
+  } finally {
+    setSubmitting(false);
+  }
+};
+handleSaveAndNext = async (values) => {
+  try {
+    // Base FormData for Step 1 only
+    let formDataStep1 = null;
+    if (this.state.step === 1) {
+const formData = new FormData();
+formData.append("mode", "save");
+formData.append("current_step", this.state.step);
+
+
+// Append regular fields
+const fields = [
+"full_name", "phone", "date_of_birth", "gender",
+"marital_status", "license_type", "license_number",
+"total_experience", "country",
+"district", "city", "otherPreferredCities", "address",
+"current_salary", "expected_salary"
+];
+
+
+fields.forEach((field) => {
+const value = values[field];
+if (Array.isArray(value)) {
+formData.append(field, JSON.stringify(value));
+} else if (value !== undefined && value !== null) {
+formData.append(field, value);
+}
+});
+
+
+// Skills
+if (values.skills && Array.isArray(values.skills)) {
+formData.append("skills", JSON.stringify(values.skills));
+}
+
+
+// Files
+if (values.passport_photo instanceof File) {
+formData.append("passport_photo", values.passport_photo);
+console.log("Passport photo appended:", values.passport_photo);
+}
+
+
+if (values.resume instanceof File) {
+formData.append("resume", values.resume);
+console.log("Resume appended:", values.resume);
+}
+
+
+// Send to backend
+await api.post(`${this.apiBaseUrl}candidateProfile/candidate/passport-photo`, formData, {
+headers: {
+Authorization: `Bearer ${localStorage.getItem("token")}`,
+"Content-Type": "multipart/form-data",
+},
+});
+
+
+toast.success("Step 1 saved successfully");
+}
+
+    // Step 2: Education
+    if (this.state.step === 2) {
+      const newRows = values.education
+        .slice(1)
+        .filter((e) => !e.id && e.degreeTitle && e.startDate);
+
+      const editedRows = values.education
+        .slice(1)
+        .filter((e) => e.id && e.degreeTitle && e.startDate);
+
+      // Edit existing rows
+      if (this.state.isEdit && editedRows.length > 0) {
+        await api.put(`${this.apiBaseUrl}candidateeducation/editcandidateeducation`, {
+          education: editedRows,
         });
-        await api.post("/candidateProfile/candidate/", payload, {
+      }
+
+      // Add new rows
+      if (newRows.length > 0) {
+        await api.post(`${this.apiBaseUrl}candidateeducation/addcandidateeducation`, {
+          education: newRows,
+          mode: "save",
+        });
+      }
+    }
+
+if (this.state.step === 3) {
+
+  // Only rows that are REALLY new
+const newExperiences = values.experience.slice(1)
+  .filter(e => !e.id && e.companyName && e.designation && e.startDate)
+  .map(e => ({
+    ...e,
+    speciality_id: e.speciality_id || null   // <-- use the correct field
+  }));
+  // UPDATE existing experience
+  if (this.state.editexpID) {
+    const editedRow = values.experience.find(e => e.id === this.state.editexpID);
+
+if (editedRow) {
+  await api.put(
+    `${this.apiBaseUrl}candidateexperience/updateexperience/${this.state.editexpID}`,
+    {
+      ...editedRow,
+      speciality_id: editedRow.speciality_id || null  // <-- use correct field
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    }
+  );
+}
+  }
+
+  // ADD new experience
+  if (newExperiences.length > 0) {
+    await api.post(
+      `${this.apiBaseUrl}candidateexperience/addexperience`,
+      { experience: newExperiences },
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    // 🔥 MANDATORY: REFRESH FROM BACKEND
+    const res = await api.get(
+      `${this.apiBaseUrl}candidateexperience/getexperience`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    // 🔥 Update source of truth
+    this.setState({
+      experienceData: res.data,
+      editexpID: null,
+    });
+  }
+}
+
+    // Step 4: Resume
+    if (this.state.step === 4) {
+      if (values.resume && values.resume instanceof File) {
+        const formData = new FormData();
+        formData.append("resume", values.resume);
+
+        const res = await api.post(`${this.apiBaseUrl}resume/addresume`, formData, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "Content-Type": "multipart/form-data",
           },
         });
+
+        console.log("Resume response:", res.data);
+      } else {
+        console.warn("No resume file found");
       }
-
-      if (this.state.step === 2) {
-        const newRows = values.education
-          .slice(1)           // ⬅️ ignore draft row
-          .filter(e => !e.id);
-
-        const editedRows = values.education
-          .slice(1)
-          .filter(e => e.id);
-
-        if (this.state.isEdit) {
-          await api.put(`${this.apiBaseUrl}candidateeducation/editcandidateeducation`, {
-            education: editedRows
-          });
-        }
-        else {
-
-          await api.post(`${this.apiBaseUrl}candidateeducation/addcandidateeducation`, {
-            education: newRows
-          });
-
-        }
-      }
-
-      if (this.state.step === 3) {
-        await api.post(
-          `${this.apiBaseUrl}candidateexperience/addexperience`,
-          {
-            experience: values.experience
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
-        );
-      }
-
-
-      if (this.state.step === 4) {
-        const formData = new FormData();
-        formData.append("resume", values.resume); // ONLY FILE
-
-        await api.post(
-          `${this.apiBaseUrl}resume/addresume`,
-          formData,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-              "Content-Type": "multipart/form-data",
-            },
-          }
-        );
-      }
-
-      if (this.state.step === 5) {
-
-        await api.post(
-          `${this.apiBaseUrl}resume/addresume`,
-          formData,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-              "Content-Type": "multipart/form-data",
-            },
-          }
-        );
-      }
-      this.setState({ formData: values }, this.nextStep);
-      this.setState({ editID: null });
-      toast.success("Saved");
-    } catch (err) {
-      console.error(err);
-      toast.error("Save failed", err);
     }
-  };
 
+    // Step 5: Availability
+    if (this.state.step === 5) {
+      if (!this.state.entries || this.state.entries.length === 0) {
+        toast.error("Please add at least one availability entry before proceeding");
+        return;
+      }
 
+      const payload = {
+        availability: this.state.entries.map(e => ({
+          day: e.day,
+          shift: e.shift,
+          start_time: e.startTime,
+          end_time: e.endTime,
+        })),
+      };
+
+      await api.post(`${this.apiBaseUrl}candidate_availability/addavailability`, payload, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+
+      toast.success("Availability saved successfully");
+    }
+
+    // Update state & move to next step
+    this.setState({ formData: values, editID: null }, this.nextStep);
+    toast.success("Saved");
+  } catch (err) {
+    console.error(err);
+    toast.error("Save failed", err);
+  }
+};
 
   // Validation Schemas for each step
   stepSchemas = [
@@ -647,8 +784,7 @@ class CandidateRegisterForm extends Component {
         .required("License number is required"),
     }),
     Yup.object().shape({
-      education: Yup.array()
-        .min(2, "At least one education is required") // because index 0 is draft
+      education: Yup.array().min(2, "At least one education is required"), // because index 0 is draft
     }),
     Yup.object().shape({
       experience: Yup.array().of(
@@ -687,6 +823,7 @@ class CandidateRegisterForm extends Component {
               <div className="d-flex align-items-center gap-3">
                 <input
                   type="file"
+                  name="passport_photo"
                   accept=".jpg,.jpeg,.png"
                   onChange={(e) => {
                     const file = e.target.files[0];
@@ -713,7 +850,6 @@ class CandidateRegisterForm extends Component {
                 )}
               </div>
             </div>
-
 
             <div className="row mb-3">
               {/* Full Name */}
@@ -868,7 +1004,75 @@ class CandidateRegisterForm extends Component {
                 />
               </div>
             </div>
+<div className="row mb-3">
+  {/* Current Salary */}
+  <div className="col-md-6">
+    <label>Current Salary</label>
+    <Field name="current_salary">
+  {({ field, form }) => {
+    const handleChange = (e) => {
+      // Remove non-digit characters to get raw number
+      const rawValue = e.target.value.replace(/\D/g, "");
 
+      // Store plain number in Formik
+      form.setFieldValue("current_salary", rawValue);
+
+      // Update input value with commas for display
+      e.target.value = rawValue.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    };
+
+    return (
+      <input
+        {...field}
+        placeholder="Current Salary"
+        className="form-control"
+        onChange={handleChange}
+      />
+    );
+  }}
+</Field>
+
+<ErrorMessage
+  name="current_salary"
+  component="div"
+  className="text-danger"
+/>
+  </div>
+
+  {/* Expected Salary */}
+  <div className="col-md-6">
+    <label>Expected Salary</label>
+    <Field name="expected_salary">
+  {({ field, form }) => {
+    const handleChange = (e) => {
+      // Remove non-digit characters for storage
+      const rawValue = e.target.value.replace(/\D/g, "");
+
+      // Store plain number in Formik (safe for INT column)
+      form.setFieldValue("expected_salary", rawValue);
+
+      // Show formatted number with commas for user
+      e.target.value = rawValue.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    };
+
+    return (
+      <input
+        {...field}
+        placeholder="Expected Salary"
+        className="form-control"
+        onChange={handleChange}
+      />
+    );
+  }}
+</Field>
+
+<ErrorMessage
+  name="expected_salary"
+  component="div"
+  className="text-danger"
+/>
+  </div>
+</div>
             <div className="row mb-3">
               {/* Full Name */}
               <div className="col-md-6">
@@ -886,28 +1090,7 @@ class CandidateRegisterForm extends Component {
               </div>
 
               {/* Phone */}
-              <div className="col-md-6">
-                <label>Speciality</label>
-                <Field
-                  as="select"
-                  name="speciality"
-                  className="form-control"
-                  onChange={(e) => setFieldValue("speciality", e.target.value)}
-                >
-                  <option value="">Select Speciality</option>
-                  {Array.isArray(this.state.speciality) &&
-                    this.state.speciality.map((s) => (
-                      <option key={s.id} value={String(s.id)}>
-                        {s.name}
-                      </option>
-                    ))}
-                </Field>
-                <ErrorMessage
-                  name="speciality"
-                  component="div"
-                  className="text-danger"
-                />
-              </div>
+              
             </div>
 
             <div className="row mb-3">
@@ -1052,15 +1235,14 @@ class CandidateRegisterForm extends Component {
                   values.education && values.education.length > 0
                     ? values.education[0]
                     : {
-                      degree: "",
-                      degreeTitle: "",
-                      degreeTitle_label: "",
-                      institutes: "",
-                      startDate: "",
-                      endDate: "",
-                      ongoing: false,
-                    };
-
+                        degree: "",
+                        degreeTitle: "",
+                        degreeTitle_label: "",
+                        institutes: "",
+                        startDate: "",
+                        endDate: "",
+                        ongoing: false,
+                      };
 
                 return (
                   <>
@@ -1110,9 +1292,9 @@ class CandidateRegisterForm extends Component {
                             value={
                               draft.degreeTitle
                                 ? {
-                                  value: draft.degreeTitle,
-                                  label: draft.degreeTitle_label,
-                                }
+                                    value: draft.degreeTitle,
+                                    label: draft.degreeTitle_label,
+                                  }
                                 : null
                             }
                             onChange={(opt) => {
@@ -1140,7 +1322,10 @@ class CandidateRegisterForm extends Component {
                             loadOptions={this.loadInstitutes}
                             value={
                               draft.institutes
-                                ? { value: draft.institutes, label: draft.institutes_label }
+                                ? {
+                                    value: draft.institutes,
+                                    label: draft.institutes_label,
+                                  }
                                 : null
                             }
                             onChange={(opt) =>
@@ -1151,9 +1336,6 @@ class CandidateRegisterForm extends Component {
                               })
                             }
                           />
-
-
-
                         </div>
 
                         {/* Start Date */}
@@ -1202,7 +1384,9 @@ class CandidateRegisterForm extends Component {
                           }
                           if (draft.id) {
                             // This is editing an existing row
-                            const index = values.education.findIndex((e) => e.id === draft.id);
+                            const index = values.education.findIndex(
+                              (e) => e.id === draft.id,
+                            );
                             if (index > -1) {
                               // replace the edited row
                               setFieldValue(`education.${index}`, draft);
@@ -1218,10 +1402,9 @@ class CandidateRegisterForm extends Component {
                             startDate: "",
                             endDate: "",
                             ongoing: false,
-                            id: null
+                            id: null,
                           });
                           this.setState({ editID: null });
-
                         }}
                       >
                         Add More
@@ -1256,11 +1439,12 @@ class CandidateRegisterForm extends Component {
                                     setFieldValue("education.0", {
                                       ...edu,
                                     });
-                                    this.setState({ editID: edu.id, isEdit: true });
+                                    this.setState({
+                                      editID: edu.id,
+                                      isEdit: true,
+                                    });
                                     remove(i + 1);
                                   }}
-
-
                                 >
                                   Edit
                                 </button>
@@ -1270,7 +1454,10 @@ class CandidateRegisterForm extends Component {
                                   className="btn btn-sm btn-danger"
                                   onClick={() => {
                                     if (edu.id) {
-                                      api.delete(`${this.apiBaseUrl}candidateeducation/deletecandidateeducation/${edu.id}`)
+                                      api
+                                        .delete(
+                                          `${this.apiBaseUrl}candidateeducation/deletecandidateeducation/${edu.id}`,
+                                        )
                                         .then(() => {
                                           toast.success("Deleted");
                                           remove(i + 1);
@@ -1279,7 +1466,6 @@ class CandidateRegisterForm extends Component {
                                       remove(i + 1); // just remove from form, not in DB
                                     }
                                   }}
-
                                 >
                                   Delete
                                 </button>
@@ -1287,7 +1473,6 @@ class CandidateRegisterForm extends Component {
                             </tr>
                           ))}
                         </tbody>
-
                       </table>
                     )}
                   </>
@@ -1297,291 +1482,517 @@ class CandidateRegisterForm extends Component {
           </div>
         );
 
-      case 3:
+case 3:
         return (
-          <div className="row">
-            <div className="text-center mt-5">
-              <h3>Work and Experience Form</h3>
-            </div>
+          <div>
+            <h4>Step 3: Experience</h4>
 
-            <div className="col-lg-12 col-md-12 offset-lg-1 offset-md-1">
-              <div className="default-form">
-                <FieldArray name="experience">
-                  {({ push, remove }) => (
-                    <>
-                      {values.experience.map((exp, idx) => (
-                        <div key={idx} className="row border p-3 mb-4">
-                          {/* Company Name */}
-                          <div className="form-group col-lg-10 col-md-10">
-                            <label>
-                              Company Name <span className="text-danger">*</span>
-                            </label>
-                            <Field
-                              type="text"
-                              name={`experience.${idx}.companyName`}
-                              placeholder="Company Name"
-                              className="form-control"
-                            />
-                            <ErrorMessage
-                              name={`experience.${idx}.companyName`}
-                              component="small"
-                              className="text-danger"
-                            />
-                          </div>
+            <FieldArray name="experience">
+              {({ push, remove }) => {
+                const draft =
+                  values.experience && values.experience.length > 0
+                    ? values.experience[0]
+                    : {
+                      companyName: "",
+                      designation: "",
+                      speciality_id: "",
+                      startDate: "",
+                      endDate: "",
+                      ongoing: false,
+                      id: null,
+                    };
 
-                          {/* Designation */}
-                          <div className="form-group col-lg-10 col-md-10">
-                            <label>
-                              Designation <span className="text-danger">*</span>
-                            </label>
-                            <Field
-                              type="text"
-                              name={`experience.${idx}.designation`}
-                              placeholder="Designation"
-                              className="form-control"
-                            />
-                            <ErrorMessage
-                              name={`experience.${idx}.designation`}
-                              component="small"
-                              className="text-danger"
-                            />
-                          </div>
+                return (
+                  <>
+                    <div className="mb-4 border p-3 rounded">
+                      <h6>Add / Edit Experience</h6>
 
-
-
-                          {/* Start Date */}
-                          <div className="form-group col-lg-5 col-md-5">
-                            <label>
-                              Start Date <span className="text-danger">*</span>
-                            </label>
-                            <Field
-                              type="date"
-                              name={`experience.${idx}.startDate`}
-                              className="form-control"
-                              max={new Date().toISOString().split("T")[0]}
-                            />
-                            <ErrorMessage
-                              name={`experience.${idx}.startDate`}
-                              component="small"
-                              className="text-danger"
-                            />
-                          </div>
-
-                          {/* End Date (hide if ongoing) */}
-                          {!exp.ongoing && (
-                            <div className="form-group col-lg-5 col-md-5">
-                              <label>
-                                End Date <span className="text-danger">*</span>
-                              </label>
-                              <Field
-                                type="date"
-                                name={`experience.${idx}.endDate`}
-                                className="form-control"
-                                max={new Date().toISOString().split("T")[0]}
-                              />
-                              <ErrorMessage
-                                name={`experience.${idx}.endDate`}
-                                component="small"
-                                className="text-danger"
-                              />
-                            </div>
-                          )}
-
-                          {/* Ongoing Checkbox */}
-                          <div className="form-group col-lg-10 col-md-10">
-                            <label>
-                              <Field
-                                type="checkbox"
-                                name={`experience.${idx}.ongoing`}
-                                className="form-check-input me-2"
-                                onChange={(e) => {
-                                  const checked = e.target.checked;
-                                  setFieldValue(
-                                    `experience.${idx}.ongoing`,
-                                    checked
-                                  );
-                                  if (checked) {
-                                    setFieldValue(
-                                      `experience.${idx}.endDate`,
-                                      ""
-                                    );
-                                  }
-                                }}
-                              />
-                              Is this ongoing?
-                            </label>
-                          </div>
-
-                          {/* Remove Button */}
-                          {idx > 0 && (
-                            <div className="form-group col-lg-12">
-                              <button
-                                type="button"
-                                className="btn btn-danger"
-                                onClick={() => remove(idx)}
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          )}
+                      <div className="row mb-3">
+                        {/* Company Name */}
+                        <div className="col-md-6">
+                          <label>Company Name</label>
+                          <Field
+                            type="text"
+                            name="experience.0.companyName"
+                            placeholder="Company Name"
+                            className="form-control"
+                          />
                         </div>
-                      ))}
 
-                      {/* Add More */}
-                      <div className="form-group col-lg-12">
-                        <button
-                          type="button"
-                          className="theme-btn btn-style-one"
-                          onClick={() =>
-                            push({
-                              designation: "",
-                              companyName: "",
-                              startDate: "",
-                              endDate: "",
-                              ongoing: false,
-                              description: "",
-                            })
-                          }
-                        >
-                          Add More Experience
-                        </button>
+                        {/* Designation */}
+                        <div className="col-md-6">
+                          <label>Designation</label>
+                          <Field
+                            type="text"
+                            name="experience.0.designation"
+                            placeholder="Designation"
+                            className="form-control"
+                          />
+                        </div>
                       </div>
-                    </>
-                  )}
-                </FieldArray>
-              </div>
-            </div>
+
+                      <div className="row mb-3">
+                        {/* Speciality */}
+                        <div className="col-md-6">
+                          <label>Speciality</label>
+                          <Field
+                            as="select"
+                            name="experience.0.speciality_id"
+                            className="form-control"
+                          >
+
+                            <option value="">Select Speciality</option>
+                            {Array.isArray(this.state.speciality) &&
+                              this.state.speciality.map((s) => (
+                                <option key={s.id} value={String(s.id)}>
+                                  {s.name}
+                                </option>
+                              ))}
+                          </Field>
+
+                          <ErrorMessage
+                            name="experience.0.speciality"
+                            component="div"
+                            className="text-danger"
+                          />
+                        </div>
+
+                        {/* Start Date */}
+                        <div className="col-md-6">
+                          <label>Start Date</label>
+                          <Field
+                            type="date"
+                            name="experience.0.startDate"
+                            className="form-control"
+                            max={new Date().toISOString().split("T")[0]}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="row mb-3">
+                        {/* End Date */}
+                        <div className="col-md-6">
+                          <label>End Date</label>
+                          <Field
+                            type="date"
+                            name="experience.0.endDate"
+                            className="form-control"
+                            disabled={draft.ongoing}
+                            max={new Date().toISOString().split("T")[0]}
+                          />
+                        </div>
+
+                        {/* Ongoing */}
+                        <div className="col-md-6 d-flex align-items-center">
+                          <div className="form-check mt-4">
+                            <Field
+                              type="checkbox"
+                              name="experience.0.ongoing"
+                              className="form-check-input"
+                            />
+                            <label className="form-check-label">Ongoing</label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+type="button"
+className="btn btn-primary"
+onClick={() => {
+if (!draft.companyName || !draft.designation || !draft.startDate) {
+toast.error("Please fill required fields");
+return;
+}
+
+
+const experienceToPush = {
+...draft,
+speciality_id: draft.speciality_id ? Number(draft.speciality_id) : ""
+};
+
+
+if (this.state.editexpID) {
+// Editing → push edited row
+push({ ...experienceToPush, id: this.state.editexpID });
+} else {
+// New → push normally
+push(experienceToPush);
+}
+
+
+// Reset draft
+setFieldValue("experience.0", {
+companyName: "",
+designation: "",
+speciality_id: "",
+startDate: "",
+endDate: "",
+ongoing: false,
+id: null,
+});
+
+
+// Clear edit ID
+this.setState({ editexpID: null });
+}}
+>
+Add More
+</button>
+                    </div>
+                    <div className="mb-4 border p-3 rounded">
+                      <h6>Add Skills</h6>
+
+                      <div className="mb-4">
+
+                        <label>Select Skills</label>
+                        <Field name="skills">
+                          {({ field, form }) => {
+                            const handleChange = (selectedOptions) => {
+                              // selectedOptions is array of { value, label }
+                              const values = selectedOptions ? selectedOptions.map(opt => opt.value) : [];
+                              form.setFieldValue("skills", values);
+                            };
+
+                            const selectedOptions = field.value?.map((val) => {
+                              const skillObj = this.state.skillsOptions.find((s) => s.id === val);
+                              return skillObj ? { value: skillObj.id, label: skillObj.name } : null;
+                            }).filter(Boolean);
+
+                            const options = Array.isArray(this.state.skillsOptions)
+                              ? this.state.skillsOptions.map((s) => ({ value: s.id, label: s.name }))
+                              : [];
+
+
+                            return (
+                              <Select
+                                isMulti
+                                value={selectedOptions}
+                                onChange={handleChange}
+                                options={options}
+                                className="basic-multi-select"
+                                classNamePrefix="select"
+                                placeholder="Select skills"
+                              />
+                            );
+                          }}
+                        </Field>
+
+                        <ErrorMessage name="skills" component="div" className="text-danger" />
+                      </div>
+                    </div>
+                    {/* Table for existing experiences */}
+                    {values.experience.length > 1 && (
+                      <table className="table table-bordered">
+                        <thead>
+                          <tr>
+                            <th>Company Name</th>
+                            <th>Designation</th>
+                            <th>Speciality</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {values.experience.slice(1).map((exp, i) => (
+                            <tr key={exp.id || i}>
+                              <td>{exp.companyName}</td>
+                              <td>{exp.designation}</td>
+                              <td>
+                                {this.state.speciality.find((s) => s.id === exp.speciality_id)?.name || "-"}
+                              </td>
+
+                              <td>{exp.startDate}</td>
+                              <td>{exp.endDate || "-"}</td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-warning me-2"
+                                  onClick={() => {
+                                    // Load into draft
+                                    setFieldValue("experience.0", { ...exp });
+
+                                    // Remove from table immediately
+                                    remove(i + 1);
+
+                                    this.setState({
+                                      editexpID: exp.id,
+                                      isExpEdit: true
+                                    });
+                                  }}
+                                >
+                                  Edit
+                                </button>
+
+
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-danger"
+                                  onClick={() => {
+                                    if (exp.id) {
+                                      api
+                                        .delete(
+                                          `${this.apiBaseUrl}candidateexperience/deleteexperience/${exp.id}`
+                                        )
+                                        .then(() => {
+                                          toast.success("Deleted");
+                                          remove(i + 1);
+                                        });
+                                    } else {
+                                      remove(i + 1);
+                                    }
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </>
+                );
+              }}
+            </FieldArray>
           </div>
         );
+
 
       case 4:
         return (
           <div>
-            <h4 className="mb-3">Step 4: Upload CV</h4>
+          {values.resumePreviewUrl && !values.resume && (
+  <div className="file-preview text-center mb-3">
+    <p>
+      <strong>Uploaded Resume:</strong>{" "}
+      <a
+        href={values.resumePreviewUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary text-decoration-underline"
+      >
+        View Resume
+      </a>
+    </p>
+  </div>
+)}
+  <h4 className="mb-3">Step 4: Upload CV</h4>
 
-            <div className="text-danger text-center mb-2">
-              Upload only .doc, .docx, .pdf format
-            </div>
+  <div className="text-danger text-center mb-2">
+    Upload only .doc, .docx, .pdf format
+  </div>
 
-            {this.state.getManager.length > 0 && (
-              <div className="file-preview">
-                {this.state.getManager.map((file, index) => (
-                  <p className="text-center" key={index}>
-                    <strong>Selected File:</strong>
-                    <span
-                      className="text-primary text-bold me-3"
-                      style={{ cursor: "pointer", textDecoration: "underline" }}
-                      onClick={() => {
-                        const fileURL = URL.createObjectURL(file);
-                        window.open(fileURL, "_blank");
-                      }}
-                    >
-                      {file.name}
-                    </span>
+  {/* Resume Preview */}
+  {values.resume && (
+    <div className="file-preview text-center mb-3">
+      <p>
+        <strong>Selected File:</strong>{" "}
+        <span
+          className="text-primary"
+          style={{ cursor: "pointer", textDecoration: "underline" }}
+          onClick={() => {
+            const fileURL = URL.createObjectURL(values.resume);
+            window.open(fileURL, "_blank");
+          }}
+        >
+          {values.resume.name}
+        </span>
 
-                    <button onClick={this.deleteHandler}>
-                      <span className="la la-close"></span>
-                    </button>
-                  </p>
-                ))}
-              </div>
-            )}
+        <button
+          type="button"
+          className="btn btn-sm ms-2"
+          onClick={() => setFieldValue("resume", null)}
+        >
+          <span className="la la-close"></span>
+        </button>
+      </p>
+    </div>
+  )}
 
-            {/* Upload Section */}
-            <div className="uploading-resume">
-              <div className="uploadButton">
-                <label className="cv-uploadButton position-relative w-100">
-                  <input
-                    ref={this.fileInputRef}
-                    type="file"
-                    accept=".doc,.docx,application/msword,application/pdf"
-                    className="form-control position-absolute top-0 start-0 w-100 h-100 opacity-0"
-                    onChange={this.cvManagerHandler}
-                  />
+  {/* Upload Section */}
+  <div className="uploading-resume">
+    <div className="uploadButton">
+      <label className="cv-uploadButton position-relative w-100">
+        <input
+          type="file"
+          name="resume"
+          accept=".doc,.docx,application/msword,application/pdf"
+          className="form-control position-absolute top-0 start-0 w-100 h-100 opacity-0"
+          onChange={(e) => {
+            const file = e.target.files[0];
+            if (file) {
+              setFieldValue("resume", file);
+            }
+          }}
+        />
 
-
-                  <div className="text-center py-3 border rounded">
-                    <strong>Click here or drop file to upload</strong>
-                    <div className="text-muted small">
-                      Max 5Mb | Allowed: (.doc, .docx, .pdf)
-                    </div>
-                  </div>
-                </label>
-
-              </div>
-            </div>
+        <div className="text-center py-3 border rounded">
+          <strong>Click here or drop file to upload</strong>
+          <div className="text-muted small">
+            Max 5MB | Allowed: (.doc, .docx, .pdf)
           </div>
+        </div>
+      </label>
+    </div>
+  </div>
+</div>
         );
 
-      case 5:
-        return (
-          <div>
-            <h4>Step 5: Availability</h4>
+case 5:
+  return (
+    <div>
+      <h4>Step 5: Availability</h4>
 
-            <div className="mb-2">
-              <Select
-                options={this.state.dayOptions}
-                value={this.state.dayOptions.find((o) => o.value === values.day)}
-                onChange={(option) => setFieldValue("day", option.value)}
-                placeholder="Select Day"
-              />
-            </div>
-            <div className="mb-2">
-              <Select
-                options={this.state.shiftOptions}
-                value={this.state.shiftOptions.find((o) => o.value === values.shift)}
-                onChange={(option) => setFieldValue("shift", option.value)}
-                placeholder="Select Shift"
-              />
-            </div>
-            <div className="mb-2">
-              <Field name="startTime" type="time" className="form-control" />
-            </div>
-            <div className="mb-2">
-              <Field name="endTime" type="time" className="form-control" />
-            </div>
+      {/* Days Multi-Select */}
+      <div className="mb-2">
+        <Select
+          isMulti
+          options={this.state.dayOptions}
+          value={this.state.dayOptions.filter(o =>
+            (this.state.currentEntry?.day ? [this.state.currentEntry.day] : []).includes(o.value)
+          )}
+          onChange={(selectedOptions) => {
+            this.setState(prev => ({
+              currentEntry: {
+                ...prev.currentEntry,
+                day: selectedOptions ? selectedOptions.map(o => o.value) : []
+              }
+            }));
+          }}
+          placeholder="Select Days (Friday, Sunday, Monday...)"
+        />
+      </div>
 
-            {this.state.entries.length > 0 && (
-              <table className="table table-bordered">
-                <thead>
-                  <tr>
-                    <th>Day</th>
-                    <th>Shift</th>
-                    <th>Start Time</th>
-                    <th>End Time</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {entries.map((entry, idx) => (
-                    <tr key={idx}>
-                      <td>{entry.day}</td>
-                      <td>{entry.shift}</td>
-                      <td>{entry.startTime}</td>
-                      <td>{entry.endTime}</td>
-                      <td>
-                        <button
-                          className="btn btn-sm btn-warning me-2"
-                          onClick={() => setEditingIndex(idx)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="btn btn-sm btn-danger"
-                          onClick={() =>
-                            setEntries(entries.filter((_, i) => i !== idx))
-                          }
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        );
+      {/* Shift Select */}
+      <div className="mb-2">
+        <Select
+          options={this.state.shiftOptions}
+          value={this.state.shiftOptions.find(o => o.value === this.state.currentEntry?.shift)}
+          onChange={(option) => {
+            this.setState(prev => ({
+              currentEntry: { ...prev.currentEntry, shift: option.value }
+            }));
+          }}
+          placeholder="Select Shift"
+        />
+      </div>
+
+      {/* Start & End Time */}
+      <div className="mb-2">
+        <Field
+          name="startTime"
+          type="time"
+          className="form-control"
+          value={this.state.currentEntry?.startTime || ""}
+          onChange={(e) => this.setState(prev => ({
+            currentEntry: { ...prev.currentEntry, startTime: e.target.value }
+          }))}
+        />
+      </div>
+
+      <div className="mb-2">
+        <Field
+          name="endTime"
+          type="time"
+          className="form-control"
+          value={this.state.currentEntry?.endTime || ""}
+          onChange={(e) => this.setState(prev => ({
+            currentEntry: { ...prev.currentEntry, endTime: e.target.value }
+          }))}
+        />
+      </div>
+
+      {/* Add Availability Button */}
+      <button
+        type="button"
+        className="btn btn-primary mb-3"
+        onClick={() => {
+          const { currentEntry } = this.state;
+          if (!currentEntry || !currentEntry.day || !currentEntry.shift || !currentEntry.startTime || !currentEntry.endTime) {
+            alert("Please fill all fields");
+            return;
+          }
+
+          // Add multiple days if multi-select
+          const newEntries = currentEntry.day.map(dayValue => ({
+            day: dayValue,
+            shift: currentEntry.shift,
+            startTime: currentEntry.startTime,
+            endTime: currentEntry.endTime,
+          }));
+
+          this.setState(prev => {
+  const updatedEntries = [...prev.entries, ...newEntries];
+
+  return {
+    entries: updatedEntries,
+    formData: {
+      ...prev.formData,
+      availability: updatedEntries, // 🔑 sync here
+    },
+    currentEntry: { day: [], shift: "", startTime: "", endTime: "" },
+  };
+});
+        }}
+      >
+        Add Availability
+      </button>
+
+      {/* Availability Table */}
+      {this.state.entries.length > 0 && (
+        <table className="table table-bordered">
+          <thead>
+            <tr>
+              <th>Day</th>
+              <th>Shift</th>
+              <th>Start</th>
+              <th>End</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+         <tbody>
+  {this.state.entries.length > 0 ? (
+    this.state.entries.map((e, i) => (
+      <tr key={i}>
+        <td>{e.day}</td>
+        <td>{e.shift}</td>
+        <td>{e.startTime}</td>
+        <td>{e.endTime}</td>
+        <td>
+          <button
+            type="button"
+            className="btn btn-sm btn-danger"
+            onClick={() =>
+              this.setState(prev => ({
+                entries: prev.entries.filter((_, idx) => idx !== i)
+              }))
+            }
+          >
+            Delete
+          </button>
+        </td>
+      </tr>
+    ))
+  ) : (
+    <tr>
+      <td colSpan={5} className="text-center">No availability added</td>
+    </tr>
+  )}
+</tbody>
+        </table>
+      )}
+
+      {/* Save & Next */}
+      <button
+        type="button"
+        className="btn btn-success mt-3"
+        onClick={() => this.handleSaveAndNext({ ...this.state.formData, availability: this.state.entries })}
+      >
+        Save & Next
+      </button>
+    </div>
+  );
 
       default:
         return null;
@@ -1590,7 +2001,7 @@ class CandidateRegisterForm extends Component {
   // Add this function inside your class
   renderStepper = () => {
     const { step, formData } = this.state;
-    console.log("data", formData)
+    console.log("data", formData);
     // Check if step is "filled" for clickability
     const isStepFilled = (stepNumber) => {
       switch (stepNumber) {
@@ -1599,16 +2010,14 @@ class CandidateRegisterForm extends Component {
         case 2:
           return formData.education
             .slice(1) // 👈 ignore draft row
-            .some(
-              (edu) => edu.degreeTitle || edu.institutes
-            );
+            .some((edu) => edu.degreeTitle || edu.institutes);
 
         case 3:
           return formData.experience.some(
-            (exp) => exp.designation || exp.companyName,
+            (exp) => exp.designation || exp.companyName || exp.speciality_id,
           );
         case 4:
-          return formData.resume !== null;
+  return Boolean(formData.resume || formData.resumePreviewUrl);
         case 5:
           return formData.availability.some((av) => av.day || av.shift);
         default:
@@ -1636,12 +2045,13 @@ class CandidateRegisterForm extends Component {
           return (
             <div
               key={index}
-              className={`step-indicator p-2 text-center ${step === stepNumber
-                ? "current-step"
-                : filled
-                  ? "completed-step"
-                  : "inactive-step"
-                }`}
+              className={`step-indicator p-2 text-center ${
+                step === stepNumber
+                  ? "current-step"
+                  : filled
+                    ? "completed-step"
+                    : "inactive-step"
+              }`}
               style={{
                 cursor: filled ? "pointer" : "default",
                 flex: "1 1 120px", // minimum width + flexibility
@@ -1682,57 +2092,61 @@ class CandidateRegisterForm extends Component {
             </Col>
           </div>
 
-          <Formik
-            enableReinitialize={true}
-            innerRef={this.formikRef}
-            initialValues={formData}
-            validationSchema={this.stepSchemas[step - 1]}
-            onSubmit={this.handleSubmit}
-          >
-            {({ values, setFieldValue, handleSubmit }) => (
-              <Form onSubmit={handleSubmit}>
-                {this.renderStep(values, setFieldValue)}
+            <Formik
+              enableReinitialize={true}
+              innerRef={this.formikRef}
+              initialValues={formData}
+              validationSchema={this.stepSchemas[step - 1]}
+              onSubmit={this.handleSubmit}
+            >
+              {({ values, setFieldValue, handleSubmit }) => (
+                <Form onSubmit={handleSubmit}>
+                  {this.renderStep(values, setFieldValue)}
 
-                <div className="m-3 d-flex gap-2">
-                  {step > 1 && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={this.prevStep}
-                    >
-                      Previous
-                    </button>
-                  )}
-
-                  {step < 5 && (
-                    <>
-                      {/* <Button
-        className="btn-success"
-        type="button"
-        onClick={this.nextStep}
-      >
-        Next
-      </Button> */}
-
-                      <Button
+                  <div className="m-3 d-flex gap-2">
+                    {step > 1 && (
+                      <button
                         type="button"
-                        className="btn-info"
-                        onClick={() => this.handleSaveAndNext(values)}
+                        className="btn btn-secondary"
+                        onClick={this.prevStep}
                       >
-                        Save & Next
-                      </Button>
-                    </>
-                  )}
+                        Previous
+                      </button>
+                    )}
 
-                  {step === 5 && (
-                    <button type="submit" className="btn btn-primary">
-                      Submit
-                    </button>
-                  )}
-                </div>
-              </Form>
-            )}
-          </Formik>
+                    {step < 5 && (
+                      <>
+                        {/* <Button
+          className="btn-success"
+          type="button"
+          onClick={this.nextStep}
+        >
+          Next
+        </Button> */}
+
+                        <Button
+                          type="button"
+                          className="btn-info"
+                          onClick={() => this.handleSaveAndNext(values)}
+                        >
+                          Save & Next
+                        </Button>
+                      </>
+                    )}
+
+                 {step === 5 && (
+  <button
+    type="submit"
+    className="btn btn-primary"
+    // disabled={!this.state.reviewed} // only enable if checkbox checked
+  >
+    Submit
+  </button>
+)}
+                  </div>
+                </Form>
+              )}
+            </Formik>
         </Container>
       </div>
     );

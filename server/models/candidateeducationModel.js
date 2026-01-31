@@ -69,53 +69,60 @@ const getallcandidateeducation = (req, callback) => {
 const addcandidateeducation = (req, res) => {
   const account_id = req.user.userId;
   let { education, mode } = req.body;
-  // parse JSON if needed
+
   if (typeof education === "string") {
     education = JSON.parse(education);
   }
 
-  // Validation for submit mode
-  if (mode === "submit" && (!Array.isArray(education) || education.length === 0)) {
+  if (!Array.isArray(education)) {
+    return res.status(400).json({ msg: "Invalid education payload" });
+  }
+
+  // ✅ HARD FILTER — backend must protect itself
+  const cleanEducation = education.filter(
+    (edu) =>
+      edu.degreeTitle &&
+      edu.institutes &&
+      edu.startDate &&
+      String(edu.startDate).trim() !== ""
+  );
+
+  // submit mode requires at least one valid entry
+  if (mode === "submit" && cleanEducation.length === 0) {
     return res.status(400).json({
       success: false,
       message: "Profile incomplete. Education data missing",
     });
   }
 
+  // nothing new to insert → silently succeed
+  if (cleanEducation.length === 0) {
+    return res.status(200).json({ msg: "Nothing to insert" });
+  }
 
-  const candidateQuery = `
-    SELECT id FROM candidate_info WHERE account_id = ?
-  `;
+  const candidateQuery = `SELECT id FROM candidate_info WHERE account_id = ?`;
 
-  connection.query(candidateQuery, [account_id], (err, candidateResult) => {
-    if (err) {
-      console.error("Candidate fetch error:", err);
-      return res.status(500).json({ msg: "SERVER_ERROR" });
-    }
+  connection.query(candidateQuery, [account_id], (err, result) => {
+    if (err) return res.status(500).json({ msg: "SERVER_ERROR" });
+    if (!result.length) return res.status(404).json({ msg: "Candidate not found" });
 
-    if (candidateResult.length === 0) {
-      return res.status(400).json({ msg: "Candidate not found" });
-    }
+    const candidate_id = result[0].id;
 
-    const candidate_id = candidateResult[0].id;
-
-    // Step 2: Prepare values for bulk insert
     const insertQuery = `
       INSERT INTO candidate_education
       (candidate_id, degree_id, institute_id, start_date, end_date, is_ongoing)
       VALUES ?
     `;
 
-    const values = education.map((edu) => [
+    const values = cleanEducation.map((edu) => [
       candidate_id,
       edu.degreeTitle,
       edu.institutes,
-      edu.startDate || null,
+      edu.startDate,
       edu.ongoing ? null : edu.endDate,
-      edu.ongoing
+      !!edu.ongoing,
     ]);
 
-    // Step 3: Insert
     connection.query(insertQuery, [values], (err, result) => {
       if (err) {
         console.error("Education insert error:", err);

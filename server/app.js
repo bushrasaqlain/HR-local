@@ -4,7 +4,7 @@ const bodyParser = require("body-parser");
 // Import the cors middleware
 const cors = require("cors");
 const connection = require("./connection");
-require("./cron"); // This will start the cron job automatically
+require("./cron"); 
 
 const app = express();
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -15,22 +15,6 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(bodyParser.json());
-
-
-
-
-const projects = require("./routes/Projects");
-const certificateAwards = require("./routes/CertificateAward");
-const jobs = require("./routes/CandidateJobs")
-
-
-
-
-
-app.use('/', projects)
-app.use('/', certificateAwards)
-app.use('/', jobs)
-
 
 const accountRoutes = require("./routes/accountRoutes");
 const bank = require("./routes/bankRoutes");
@@ -45,7 +29,6 @@ const business_entity_type = require("./routes/businessentitytypeRoutes");
 const district = require("./routes/districtRoutes");
 const candidateRoute = require("./routes/candidateRoutes");
 const companyRoute = require("./routes/companyRoutes");
-const dbAdminHistory = require("./routes/dbHistoryRoutes");
 const history = require("./routes/historyRoutes");
 const applicantRoute = require("./routes/applicantRoutes")
 const packages = require("./routes/packagesRoutes");
@@ -59,6 +42,16 @@ const paymentRoutes = require("./routes/paymentRoutes")
 const candidate_educationRoutes = require("./routes/candidateeducationRoutes")
 const candidate_experienceRoutes = require('./routes/candidateexperienceRoutes')
 const resumeRoute = require("./routes/resumeRoutes");
+const candidate_availabilityRoutes= require("./routes/candidateAvailabilityRoutes")
+
+
+const projects = require("./routes/projectsRoutes");
+const certificateAwards = require("./routes/certificateawardRoutes");
+const jobs = require("./routes/candidatejobsRoutes")
+const dbAdminHistory = require("./routes/dbHistoryRoutes");
+
+
+
 
 app.use("/", accountRoutes);
 app.use("/", countries);
@@ -77,6 +70,9 @@ app.use("/", licensetypesRoutes);
 app.use("/packages", packages);
 app.use("/", cart);
 
+app.use('/', projects)
+app.use('/', certificateAwards)
+app.use('/', jobs)
 app.use("/", history);
 app.use("/", dbAdminHistory);
 
@@ -84,6 +80,7 @@ app.use("/candidateProfile", candidateRoute);
 app.use("/candidateeducation", candidate_educationRoutes)
 app.use("/candidateexperience", candidate_experienceRoutes)
 app.use("/resume", resumeRoute)
+app.use("/candidate_availability", candidate_availabilityRoutes)
 
 
 app.use("/company-info", companyRoute);

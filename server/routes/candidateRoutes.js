@@ -10,6 +10,7 @@ const checkRole = require("../middleware/checkRole");
 const logAudit = require("../utils/auditLogger");
 const candidateController = require("../controller/candidateController.js");
 const upload = require("../middleware/upload"); // <--- Add this line
+const { uploadPassportPhoto, uploadResume } = require("../middleware/upload");
 
 
 const storage = multer.memoryStorage(); // Use memory storage for handling base64
@@ -19,12 +20,31 @@ const logo = multer({
 
 // const authMiddleware = require("../middleware/auth.js");
 
+// Add candidate info with passport photo and resume
+// Step 1: Upload passport photo
+router.post(
+  "/candidate/passport-photo",
+  authMiddleware,
+  uploadPassportPhoto.single("passport_photo"),
+  candidateController.addCandidateInfo
+);
 
-// router.post("/", logo.single("logo"), candidateController.addCandidateInfo)
-router.post("/candidate/",  authMiddleware, upload.single("passport_photo"), candidateController.addCandidateInfo);
+// // Step 4: Upload resume
+// router.post(
+//   "/candidate/resume",
+//   authMiddleware,
+//   uploadResume.single("resume"),
+//   candidateController.addResume
+// );
 
-router.put("/candidate/:accountId", authMiddleware, upload.single("passportPhoto"), candidateController.editCandidateInfo);
-
+// Edit candidate info with passport photo and resume
+router.put(
+"/candidate/:accountId",
+authMiddleware,
+uploadPassportPhoto.single("passport_photo"),
+uploadResume.single("resume"),
+candidateController.editCandidateInfo
+);
 
 router.get("/candidate/", authMiddleware , candidateController.getCandidateInfo)
 

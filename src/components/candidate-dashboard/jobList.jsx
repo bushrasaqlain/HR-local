@@ -4,17 +4,22 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import api from "../../../lib/api";
 
-const JobListingsTable = () => {
+const JobListings = () => {
   const [jobApplications, setJobApplications] = useState([]);
   const [filteredJobs, setFilteredJobs] = useState([]); // For displaying filtered results
   const [selectedFilter, setSelectedFilter] = useState("This Month"); // Default filter
 
   useEffect(() => {
+     const userId = sessionStorage.getItem("userId");
+     const token = localStorage.getItem("token");
+     
+        
     const fetchJobApplications = async () => {
       try {
-        const response = await api.get(
-          `http://localhost:8080/applications/`
-        );
+         const res = await api.get(`/candidateProfile//user-applications/${userId}`, {
+             headers: { Authorization: `Bearer ${token}` },
+           });
+        
         setJobApplications(response.data.jobDetails);
       } catch (error) {
         console.error("Error fetching job applications:", error);
@@ -162,4 +167,4 @@ const JobListingsTable = () => {
   );
 };
 
-export default JobListingsTable;
+export default JobListings;
