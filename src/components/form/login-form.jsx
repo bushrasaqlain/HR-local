@@ -98,24 +98,24 @@ class FormContent extends Component {
 
       // Save token
       sessionStorage.setItem("token", res.data.token);
-      dispatch(setUser(res.data));
 
       // Save user info in session
+      sessionStorage.setItem("token", res.data.token);
       sessionStorage.setItem("userId", res.data.userId);
       sessionStorage.setItem("accountType", res.data.accountType);
       sessionStorage.setItem("username", res.data.username);
-
+      dispatch(setUser(res.data));
       toast.success("Login successfully!");
 
       // ✅ Role-based routing
-      const accountType = res.data.accountType;
+      const { accountType, profile_completed } = res.data;
       console.log(res.data.userId);
-if (accountType === "candidate") {
-        router.push("/registercandidate");
-      }
-
-      else {
-        router.push("/dashboard-header"); // fallback
+      if (accountType === "candidate") {
+        if (profile_completed) {
+          router.push("/dashboard-header"); // candidate dashboard
+        } else {
+          router.push("/registercandidate"); // complete profile
+        }
       }
     } catch (err) {
       console.error(err);

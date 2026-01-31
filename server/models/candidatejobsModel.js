@@ -110,6 +110,7 @@ const getUserApplications = ({ userId }, callback) => {
   });
 };
 
+
 // Get new jobs (latest 3 active jobs)
 const getNewJobs = (callback) => {
   const query = `

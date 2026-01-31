@@ -1,9 +1,10 @@
+// controllers/candidateAvailabilityController.js
 const candidateAvailabilityModel = require("../models/candidateAvailabilityModel");
 
-const addAvailaibility = (req, res) => {
-    candidateAvailabilityModel.addAvailaibility(req, res);
-}
+const addavailability = (req, res) => {
+  candidateAvailabilityModel.addavailability(req, res);
+};
 
 module.exports = {
-    addAvailaibility
-}
+  addavailability,
+};

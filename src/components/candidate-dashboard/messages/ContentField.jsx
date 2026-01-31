@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import ChatHamburger from "../../../employers-dashboard/messages/components/ChatHamburger";
+
 
 const ChatBoxContentField = ({ userId }) => {
   const [messages, setMessages] = useState([]);
@@ -149,7 +149,7 @@ const getFormattedTime = (timestamp) => {
             <button className="dlt-chat" onClick={handleDeleteConversation}>
               Delete Conversation
             </button>
-            <ChatHamburger />
+          
           </div>
         </div>
         <div className="card-body msg_card_body">
