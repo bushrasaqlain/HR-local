@@ -105,7 +105,7 @@ class FormContent extends Component {
       sessionStorage.setItem("token", res.data.token);
       sessionStorage.setItem("userId", res.data.userId);
       sessionStorage.setItem("accountType", res.data.accountType);
-      sessionStorage.setItem("username", res.data.username);
+      sessionStorage.setItem("displayName", res.data.displayName);
       sessionStorage.setItem("profile_completed", res.data.profile_completed);
       dispatch(setUser(res.data));
       toast.success("Login successfully!");

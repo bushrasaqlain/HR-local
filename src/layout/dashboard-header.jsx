@@ -43,7 +43,7 @@ class DashboardHeader extends Component {
       activeTab: null,
       profileGroup: false,
       jobsGroup: false,
-      userInfo: { userId: null, username: "User", accountType: null },
+      userInfo: { userId: null, displayName: "User", accountType: null },
       jobListFilterStatus: null,
       openDesktopDropdown: null,
     };
@@ -51,7 +51,7 @@ class DashboardHeader extends Component {
 
   componentDidMount() {
     const userId = sessionStorage.getItem("userId");
-    const username = sessionStorage.getItem("username") || "User";
+    const displayName = sessionStorage.getItem("displayName") || "User";
     const accountType = sessionStorage.getItem("accountType");
     const profileCompleted =
       sessionStorage.getItem("profile_completed") === "true";
@@ -63,7 +63,7 @@ class DashboardHeader extends Component {
 
     // ✅ Set all user info at once
     this.setState({
-      userInfo: { userId, username, accountType, profileCompleted },
+      userInfo: { userId, displayName, accountType, profileCompleted },
       activeTab:
         accountType === "db_admin"
           ? "country"
@@ -252,7 +252,7 @@ class DashboardHeader extends Component {
   render() {
     const { navbar, userDropdownOpen, menuDropdownOpen, activeTab, userInfo } =
       this.state;
-    const { accountType, username, userId } = userInfo;
+    const { accountType, displayName, userId } = userInfo;
 
     if (!accountType) {
       return (
@@ -301,29 +301,37 @@ class DashboardHeader extends Component {
 
           {/* Right: User */}
           {/* Right: User */}
-          <div className="d-flex align-items-center gap-3 flex-nowrap position-relative">
-            <span className="text-white d-none d-lg-inline">
-              Welcome <strong>{username || "Admin"}</strong>
-            </span>
-            <Dropdown
-              isOpen={userDropdownOpen}
-              toggle={this.toggleUserDropdown}
-            >
-              <DropdownToggle tag="span">
-                <i className="las la-user-circle fs-2 text-white cursor-pointer"></i>
-              </DropdownToggle>
-              <DropdownMenu end>
-                {dropdownItem(userId).map((item) => (
-                  <DropdownItem
-                    key={item.id}
-                    onClick={() => this.handleUserActionClick(item)}
-                  >
-                    <i className={`la ${item.icon} me-2`}></i>
-                    {item.name}
-                  </DropdownItem>
-                ))}
-              </DropdownMenu>
-            </Dropdown>
+          <div className="d-flex align-items-center flex-nowrap ms-auto">
+            {/* Welcome text */}
+            <div className="d-none d-md-flex d-lg-flex align-items-center gap-2">
+              <span className="text-white text-end">
+                <div>
+                  <strong>{displayName || "Admin"}</strong>
+                </div>
+              </span>
+
+              {/* Desktop icon dropdown */}
+              {/* User icon */}
+              <Dropdown
+                isOpen={userDropdownOpen}
+                toggle={this.toggleUserDropdown}
+              >
+                <DropdownToggle tag="span">
+                  <i className="las la-user-circle fs-2 text-white cursor-pointer"></i>
+                </DropdownToggle>
+                <DropdownMenu end>
+                  {dropdownItem(userId).map((item) => (
+                    <DropdownItem
+                      key={item.id}
+                      onClick={() => handleUserActionClick(item)}
+                    >
+                      <i className={`la ${item.icon} me-2`}></i>
+                      {item.name}
+                    </DropdownItem>
+                  ))}
+                </DropdownMenu>
+              </Dropdown>
+            </div>
           </div>
 
           {/* Mobile Menu */}
@@ -338,7 +346,29 @@ class DashboardHeader extends Component {
                 zIndex: 999,
               }}
             >
+              {/* Mobile menu items */}
               {this.renderMenuItems(true)}
+
+              {/* Welcome + Name */}
+              <div className="my-2 px-2 p-2 border-top border-bottom border-secondary">
+                <div>
+                  <strong>{displayName || "Admin"}</strong>
+                </div>
+              </div>
+
+              {/* Mobile user actions */}
+              <div className="mt-3">
+                {dropdownItem(userId).map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-2 text-white cursor-pointer"
+                    onClick={() => this.handleUserActionClick(item)}
+                  >
+                    <i className={`la ${item.icon} me-2`}></i>
+                    {item.name}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </Navbar>

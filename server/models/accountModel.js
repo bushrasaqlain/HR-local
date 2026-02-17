@@ -228,9 +228,12 @@ const login = (req, res) => {
         a.username,
         a.accountType,
         a.isActive,
-        ci.profile_completed
+        ci.profile_completed,
+        ci.full_name,
+        comp.company_name
       FROM account a
       LEFT JOIN candidate_info ci ON a.id = ci.account_id
+      LEFT JOIN company_info comp ON a.id = comp.account_id
       WHERE a.email = ? AND a.password = ?
       LIMIT 1
     `;
@@ -247,7 +250,16 @@ const login = (req, res) => {
 
       const user = results[0];
 
-      // Normalize isActive to handle whitespace or buffer issues
+      // ✅ Define displayName for ALL account types
+      let displayName = user.username; // default fallback
+      if (user.accountType === "candidate") {
+        displayName = user.full_name || user.username;
+      } else if (user.accountType === "employer") {
+        displayName = user.company_name || user.username;
+      }
+      // db_admin and reg_admin will automatically use username
+
+      // Normalize isActive
       const isActiveNormalized = (user.isActive || "").toString().trim();
 
       // Admins can login even if not Active
@@ -264,7 +276,7 @@ const login = (req, res) => {
           success: true,
           token,
           userId: user.id,
-          username: user.username,
+          displayName,
           accountType: user.accountType,
           isActive: isActiveNormalized,
           profile_completed: !!user.profile_completed,
@@ -277,6 +289,7 @@ const login = (req, res) => {
           success: true,
           token,
           userId: user.id,
+          displayName,      // ✅ use displayName here
           username: user.username,
           accountType: user.accountType,
           isActive: isActiveNormalized,
@@ -291,6 +304,7 @@ const login = (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 
 
 const changePassword = (req, res) => {
