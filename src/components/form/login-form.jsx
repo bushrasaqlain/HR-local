@@ -90,38 +90,43 @@ class FormContent extends Component {
       const res = await api.post("/login", values);
 
       if (!res.data.success) {
-        this.setState({
-          loginError: "Admin has not activated you yet. Please wait!",
-        });
+        this.setState({ loginError: "Admin has not activated you yet. Please wait!" });
         return;
       }
 
       // Save token
       sessionStorage.setItem("token", res.data.token);
 
+      // Get logged-in user info
+
+      dispatch(setUser(res.data));
+
       // Save user info in session
       sessionStorage.setItem("token", res.data.token);
       sessionStorage.setItem("userId", res.data.userId);
       sessionStorage.setItem("accountType", res.data.accountType);
       sessionStorage.setItem("username", res.data.username);
+      sessionStorage.setItem("profile_completed", res.data.profile_completed);
       dispatch(setUser(res.data));
       toast.success("Login successfully!");
 
+
       // ✅ Role-based routing
-      const { accountType, profile_completed } = res.data;
-      console.log(res.data.userId);
-      if (accountType === "candidate") {
-        if (profile_completed) {
-          router.push("/dashboard-header"); // candidate dashboard
-        } else {
-          router.push("/registercandidate"); // complete profile
-        }
-      }
+     const { accountType, profile_completed } = res.data;
+
+if (accountType === "candidate") {
+  if (profile_completed) {
+    router.push("/dashboard-header"); // candidate dashboard
+  } else {
+    router.push("/dashboard-header"); // complete profile
+  }
+} else {
+  router.push("/dashboard-header"); // other account types
+}
+
     } catch (err) {
       console.error(err);
-      this.setState({
-        loginError: "Invalid email or password, please try again.",
-      });
+      this.setState({ loginError: "Invalid email or password, please try again." });
     }
   };
 

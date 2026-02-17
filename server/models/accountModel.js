@@ -54,44 +54,77 @@ const getAccountDetail = (req) => {
 };
 
 const register = (req, res) => {
-
   try {
-    const { accountType, email, password, isActive, username } = req.body;
-
+    const { accountType, email, password, isActive, username, company_name } = req.body;
     const status = isActive === "Active" ? "Active" : "InActive";
 
     const sql = `
       INSERT INTO account (username, email, password, isActive, accountType)
       VALUES (?, ?, ?, ?, ?)
     `;
-
     const values = [username, email, password, status, accountType];
 
     connection.query(sql, values, (err, data) => {
       if (err) {
         console.error("Error creating account:", err);
-        return res
-          .status(500)
-          .json({ error: "Internal Server Error", details: err.message });
-      }
-
-      // Log audit if candidate or employer
-      if (accountType === "candidate" || accountType === "employer") {
-        logAudit({
-          tableName: "history",
-          entityType: accountType,
-          entityId: data.insertId,
-          action: "ADDED",
-          data: { username, email, password, isActive: status, accountType },
-          changedBy: data.insertId, // or req.user.userId if logged in
+        return res.status(500).json({
+          error: "Internal Server Error",
+          details: err.message,
         });
       }
 
-      return res.status(201).json({
-        success: true,
-        message: "Account created successfully",
-        accountId: data.insertId,
+      const accountId = data.insertId;
+
+      // ✅ Candidate logic
+      if (accountType === "candidate") {
+        const candidateSql = `
+          INSERT INTO candidate_info (account_id, profile_completed)
+          VALUES (?, ?)
+        `;
+        connection.query(candidateSql, [accountId, false], (err2) => {
+          if (err2) {
+            console.error("Error creating candidate:", err2);
+            return res.status(500).json({
+              error: "Failed to create candidate profile",
+              details: err2.message,
+            });
+          }
+
+          return res.status(201).json({
+            success: true,
+            message: "Candidate account created successfully",
+            accountId,
+          });
+        });
+
+      // ✅ Employer logic
+      } else if (accountType === "employer") {
+  const companySql = `
+    INSERT INTO company_info (account_id)
+    VALUES (?)
+  `;
+  connection.query(companySql, [accountId], (err2) => {
+    if (err2) {
+      console.error("Error creating company info:", err2);
+      return res.status(500).json({
+        error: "Failed to create company info",
+        details: err2.message,
       });
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Employer account created successfully (minimal info)",
+      accountId,
+    });
+  });
+} else {
+        return res.status(201).json({
+          success: true,
+          message: "Account created successfully",
+          accountId,
+        });
+      }
     });
   } catch (error) {
     console.error("Unexpected error:", error.message);
@@ -100,24 +133,111 @@ const register = (req, res) => {
 };
 
 
+
+
+// const login = (req, res) => {
+//   try {
+
+//     const { email, password } = req.body;
+//     const sql = 'SELECT id,username, accountType, isActive FROM account WHERE email = ? AND password = ?';
+//     connection.query(sql, [email, password], (err, results) => {
+//       if (err) {
+//         console.error(err);
+//         return res.status(500).json({ error: 'Internal Server Error' });
+//       }
+
+//       if (results.length === 0) {
+//         return res.status(401).json({ error: 'Invalid email or password' });
+//       }
+
+//       const user = results[0];
+
+//       const isActiveNormalized = (user.isActive || "").trim().toLowerCase();
+// if (isActiveNormalized !== "active") {
+//   return res.json({ success: false, error: "Admin has not granted permissions yet...." });
+// }
+
+
+//       if (user.accountType === 'employer' || user.accountType === 'db_admin' || user.accountType === 'reg_admin') {
+//         const token = generateToken(user);
+
+//         return res.json({
+//           success: true, token,
+//           userId: user.id,
+//           username: user.username,
+//           accountType: user.accountType,
+//           isActive: user.isActive
+//         });
+//       }
+//       else if (user.accountType === 'candidate') {
+//         const sql = `
+//       SELECT 
+//         a.id,
+//         a.accountType,
+//         a.username,
+//         a.isActive,
+//         ci.profile_completed
+//       FROM account a
+//       LEFT JOIN candidate_info ci ON a.id = ci.account_id
+//       WHERE a.email = ? AND a.password = ?
+//     `;
+//         connection.query(sql, [email, password], (err, results) => {
+//           if (err) {
+//             return res.status(500).json({ error: "Internal Server Error" });
+//           }
+
+//           if (!results.length) {
+//             return res.status(401).json({ error: "Invalid email or password" });
+//           }
+
+//           const user = results[0];
+//           const token = generateToken(user);
+
+//           // 🔑 ALWAYS allow login
+//           return res.json({
+//             success: true,
+//             token,
+//             userId: user.id,
+//             username: user.username,
+//             accountType: user.accountType,
+//             isActive: user.isActive,
+//             profile_completed: !!user.profile_completed,
+//           });
+//         })
+      
+//         }else {
+//           return res.json({ success: false, error: 'Invalid user type' });
+//         }
+//     });
+//   } catch (error) {
+//     console.error(error);
+//     return res.status(500).json({ error: 'Internal Server Error' });
+//   }
+// }
 const login = (req, res) => {
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
+    }
+
     const sql = `
       SELECT 
         a.id,
-        a.accountType,
         a.username,
+        a.accountType,
         a.isActive,
         ci.profile_completed
       FROM account a
       LEFT JOIN candidate_info ci ON a.id = ci.account_id
       WHERE a.email = ? AND a.password = ?
+      LIMIT 1
     `;
 
     connection.query(sql, [email, password], (err, results) => {
       if (err) {
+        console.error("Login DB error:", err);
         return res.status(500).json({ error: "Internal Server Error" });
       }
 
@@ -126,23 +246,52 @@ const login = (req, res) => {
       }
 
       const user = results[0];
-      const token = generateToken(user);
 
-      // 🔑 ALWAYS allow login
-      return res.json({
-        success: true,
-        token,
-        userId: user.id,
-        username: user.username,
-        accountType: user.accountType,
-        isActive: user.isActive,
-        profile_completed: !!user.profile_completed,
-      });
+      // Normalize isActive to handle whitespace or buffer issues
+      const isActiveNormalized = (user.isActive || "").toString().trim();
+
+      // Admins can login even if not Active
+      const adminTypes = ["db_admin", "reg_admin"];
+      if (user.accountType === "employer" && isActiveNormalized !== "Active") {
+        return res.json({ success: false, error: "Admin has not granted permissions yet...." });
+      }
+
+      const token = generateToken(user); // your JWT function
+
+      // Candidate login: include profile_completed
+      if (user.accountType === "candidate") {
+        return res.json({
+          success: true,
+          token,
+          userId: user.id,
+          username: user.username,
+          accountType: user.accountType,
+          isActive: isActiveNormalized,
+          profile_completed: !!user.profile_completed,
+        });
+      }
+
+      // Admin or Employer login
+      if (user.accountType === "employer" || adminTypes.includes(user.accountType)) {
+        return res.json({
+          success: true,
+          token,
+          userId: user.id,
+          username: user.username,
+          accountType: user.accountType,
+          isActive: isActiveNormalized,
+        });
+      }
+
+      // Fallback for unknown accountType
+      return res.status(400).json({ success: false, error: "Invalid user type" });
     });
   } catch (error) {
+    console.error("Login error:", error);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 
 const changePassword = (req, res) => {
   const userId = req.user.userId;

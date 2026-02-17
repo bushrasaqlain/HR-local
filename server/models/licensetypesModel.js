@@ -132,10 +132,76 @@ const editLicenseType = (req, res) => {
 
 // Get all license types
 const getAllLicenseTypes = (req, res) => {
-  const query = "SELECT * FROM license_types ORDER BY id DESC";
-  connection.query(query, (err, results) => {
-    if (err) return res.status(500).json({ error: "Database error" });
-    res.status(200).json({ licenseTypes: results });
+  const { page = 1, limit = 15, name = "name", search = "", status = "all" } = req.query;
+
+  const currentPage = parseInt(page);
+  const itemsPerPage = parseInt(limit);
+  const offset = (currentPage - 1) * itemsPerPage;
+
+  const allowedColumns = ["name", "created_at", "updated_at", "status"];
+  let column = allowedColumns.includes(name) ? name : "name";
+
+  const whereConditions = [];
+  const values = [];
+
+  // Status filter
+  if (status && status !== "all") {
+    whereConditions.push("status = ?");
+    values.push(status);
+  }
+
+  // Search filter
+  if (search && search.trim() !== "") {
+    if (column === "created_at" || column === "updated_at") {
+      whereConditions.push(`DATE(${column}) = ?`);
+      values.push(search);
+    } else if (column === "status") {
+      whereConditions.push("LOWER(status) LIKE ?");
+      values.push(`%${search.toLowerCase()}%`);
+    } else {
+      whereConditions.push(`${column} LIKE ?`);
+      values.push(`%${search}%`);
+    }
+  }
+
+  const whereClause =
+    whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
+
+  // Main query with pagination
+  const query = `
+    SELECT * 
+    FROM license_types
+    ${whereClause}
+    ORDER BY id DESC
+    LIMIT ? OFFSET ?
+  `;
+
+  connection.query(query, [...values, itemsPerPage, offset], (err, results) => {
+    if (err) {
+      console.error("Query Error:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    // Count query
+    const countQuery = `
+      SELECT COUNT(*) AS total
+      FROM license_types
+      ${whereClause}
+    `;
+
+    connection.query(countQuery, values, (err2, count) => {
+      if (err2) {
+        console.error("Count Query Error:", err2);
+        return res.status(500).json({ error: "Database error" });
+      }
+
+      res.status(200).json({
+        total: count[0].total,
+        page: currentPage,
+        limit: itemsPerPage,
+        licenseTypes: results,
+      });
+    });
   });
 };
 

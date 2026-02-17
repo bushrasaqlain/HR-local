@@ -76,7 +76,7 @@ class Job extends Component {
         params,
       })
       .then((res) => {
-        
+
         this.setState({
           jobData: res.data.data || [],
           totalRecords: res.data.totalRecords || 0,
@@ -253,7 +253,7 @@ class Job extends Component {
                           const price = item.packageprice ? Number(item.packageprice) : 0;
                           return (
                             <td key={header.key} className="text-center">
-                              {item.currency || "-"} {price.toLocaleString()}
+                              {item.packagecurrency || "-"} {price.toLocaleString()}
                             </td>
                           );
                         }
@@ -347,7 +347,7 @@ class Job extends Component {
                                     style={{ width: "120px" }}
                                     value={this.state.editingStatus[item.jobpost_id]}
                                     onChange={(e) => {
-                                      
+
                                       const selectedStatus = e.target.value;
                                       // Update temp state
                                       this.setState((prevState) => ({
@@ -370,8 +370,17 @@ class Job extends Component {
                           );
                         }
 
+                        return (
+                          <td key={header.key} className="text-center">
+                            {item[header.key] !== null &&
+                              item[header.key] !== undefined &&
+                              item[header.key] !== ""
+                              ? item[header.key]
+                              : "-"}
+                          </td>
+                        );
 
-                        return <td key={header.key}>{item[header.key]}</td>;
+                        // return <td key={header.key}>{item[header.key]}</td>;
                       })}
 
                     </tr>
@@ -415,4 +424,4 @@ class Job extends Component {
   }
 }
 
-export default Job;;
+export default Job;

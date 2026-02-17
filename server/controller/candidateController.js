@@ -26,14 +26,17 @@ const getCandidateInfo = (req, res) => {
     candidateModel.getCandidateInfo(req, res);
 }
 const editCandidateInfo = (req, res) => {
-    const passportPhotoFile = req.files?.passport_photo?.[0];
-const resumeFile = req.files?.resume?.[0];
+  if (req.files?.passport_photo?.[0]) {
+    req.passportPhotoPath = req.files.passport_photo[0].path;
+  }
 
+  if (req.files?.resume?.[0]) {
+    req.resumePath = req.files.resume[0].path;
+  }
 
-req.passportPhotoPath = passportPhotoFile ? passportPhotoFile.path : null;
-req.resumePath = resumeFile ? resumeFile.path : null;
-    candidateModel.editCandidateInfo(req, res);
-}   
+  candidateModel.editCandidateInfo(req, res);
+};
+ 
 const getCandidateInfobyId = (req, res) => {
     candidateModel.getCandidateInfobyId(req, res);
 }

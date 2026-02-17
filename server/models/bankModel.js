@@ -29,14 +29,14 @@ const getAllBank = ({ page, limit, name, search, status }, callback) => {
   limit = parseInt(limit) || 15;
   const offset = (page - 1) * limit;
 
-  const allowedColumns = ["name", "created_at", "updated_at"];
+  const allowedColumns = ["name", "created_at", "updated_at", "status"];  // ✅ Add status to allowed columns
   if (!allowedColumns.includes(name)) name = "name";
 
   let whereConditions = [];
   let values = [];
 
-  // ✅ Status filter ONLY if not "all"
-  if (status && status !== "all") {
+  // ✅ Status filter ONLY if not "all" AND not searching by status column
+  if (status && status !== "all" && name !== "status") {
     whereConditions.push("status = ?");
     values.push(status);
   }
@@ -46,6 +46,9 @@ const getAllBank = ({ page, limit, name, search, status }, callback) => {
     if (name === "name") {
       whereConditions.push("name LIKE ?");
       values.push(`%${search}%`);
+    } else if (name === "status") {
+      whereConditions.push("status LIKE ?");
+      values.push(`%${search}%`);  // ✅ Use 'search', not 'status'
     } else {
       whereConditions.push(`DATE(${name}) = ?`);
       values.push(search);

@@ -108,7 +108,6 @@ const JobSingleDynamicV1 = () => {
   const [isModalOpen, setIsModalOpen] = useState(true);
   const handleApplyClick = () => {
    
-    console.log("clickeddddddddddddddddd")
     setIsModalOpen(true);
   };
   // <a

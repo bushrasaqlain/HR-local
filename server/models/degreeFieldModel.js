@@ -95,75 +95,82 @@ const addDegreeField = (req, callback) => {
 };
 
 const getAllDegreeFields = (
-  { page = 1, limit = 15, column = "name", search = "", status = "all" },
+  { page = 1, limit = 15, name = "name", search = "", status = "all" },
   callback
 ) => {
   page = parseInt(page);
   limit = parseInt(limit);
   const offset = (page - 1) * limit;
-
-  const allowedColumns = ["name", "created_at", "updated_at"];
-
-  if (!allowedColumns.includes(column)) {
-    column = "name";
+  const allowedColumns = ["name", "created_at", "updated_at", "status"];
+  if (!allowedColumns.includes(name)) {
+    name = "name";
   }
 
-  const searchColumn =
-    column === "created_at" || column === "updated_at"
-      ? `DATE(d.${column})`
-      : `d.${column}`;
+  const whereConditions = [];
+  const values = [];
 
-  let where = `WHERE ${searchColumn} LIKE ?`;
-  let params = [`%${search}%`];
-
-  if (status !== "all") {
-    where += " AND d.status = ?";
-    params.push(status);
+  // Status filter
+  if (status && status !== "all") {
+    whereConditions.push("d.status = ?");
+    values.push(status);
   }
 
+  // Search filter
+  if (search && search.trim() !== "") {
+    if (name === "created_at" || name === "updated_at") {
+      whereConditions.push(`DATE(d.${name}) = ?`);
+      values.push(search);
+    } else if (name === "status") {
+      whereConditions.push("LOWER(d.status) LIKE ?");
+      values.push(`%${search.toLowerCase()}%`);
+    } else {
+      whereConditions.push(`d.${name} LIKE ?`);
+      values.push(`%${search}%`);
+    }
+  }
+
+  const whereClause =
+    whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
+
+  // Main query with pagination
   const query = `
-    SELECT 
-      d.*,
-      dt.name AS degree_type_name
     SELECT 
       d.*,
       dt.name AS degree_type_name
     FROM degreefields d
     LEFT JOIN degreetypes dt ON dt.id = d.degree_type_id
-    LEFT JOIN degreetypes dt ON dt.id = d.degree_type_id
-    ${where}
+    ${whereClause}
     ORDER BY d.id DESC
     LIMIT ? OFFSET ?
   `;
 
-  connection.query(query, [...params, limit, offset], (err, results) => {
-    if (err) return callback(err);
+  connection.query(query, [...values, limit, offset], (err, results) => {
+    if (err) {
+      console.error("Query Error:", err);
+      return callback(err);
+    }
 
-    connection.query(
-      `
+    // Count query with same WHERE conditions
+    const countQuery = `
       SELECT COUNT(*) AS total
       FROM degreefields d
       LEFT JOIN degreetypes dt ON dt.id = d.degree_type_id
-      ${where}
-      `,
-      `
-      SELECT COUNT(*) AS total
-      FROM degreefields d
-      LEFT JOIN degreetypes dt ON dt.id = d.degree_type_id
-      ${where}
-      `,
-      params,
-      (err2, count) => {
-        if (err2) return callback(err2);
+      ${whereClause}
+    `;
 
-        callback(null, {
-          total: count[0].total,
-          page,
-          limit,
-          degreefields: results,
-        });
+    connection.query(countQuery, values, (err2, count) => {
+      if (err2) {
+        console.error("Count Query Error:", err2);
+        return callback(err2);
       }
-    );
+
+      callback(null, {
+        total: count[0].total,
+        page,
+        limit,
+        degreefields: results,
+      });
+    });
   });
 };
 

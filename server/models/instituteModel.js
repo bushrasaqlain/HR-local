@@ -30,7 +30,7 @@ const getAllInstitute = ({ page, limit, name, search, status }, callback) => {
     limit = parseInt(limit) || 15;
     const offset = (page - 1) * limit;
 
-    const allowedColumns = ["name", "created_at", "updated_at"];
+    const allowedColumns = ["name", "created_at", "updated_at","status"];
     if (!allowedColumns.includes(name)) name = "name";
 
     let condition = "WHERE 1=1";
@@ -47,7 +47,10 @@ const getAllInstitute = ({ page, limit, name, search, status }, callback) => {
         if (name === "name") {
             condition += " AND name LIKE ?";
             values.push(`%${search}%`);
-        } else {
+        }else if (name === "status") {  // ✅ Added status search handling
+            condition += " AND status LIKE ?";
+            values.push(`%${search}%`);
+        }  else {
             condition += ` AND DATE(${name}) = ?`;
             values.push(search);
         }

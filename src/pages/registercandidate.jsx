@@ -4,6 +4,7 @@ import React, { Component, createRef } from "react";
 import Select from "react-select";
 import AsyncSelect from "react-select/async";
 import { Button, Col, Container, Form } from "reactstrap";
+
 import { Formik, Field, ErrorMessage, FieldArray } from "formik";
 import * as Yup from "yup";
 import { toast } from "react-toastify";
@@ -38,6 +39,7 @@ class CandidateRegisterForm extends Component {
         speciality: "",
         degreeFieldData: [],
         address: "",
+        skills: [],
         education: [
           {
             degree: "",
@@ -52,6 +54,7 @@ class CandidateRegisterForm extends Component {
         experience: [
           {
             companyName: "",
+            speciality_id: "",
             designation: "",
             startDate: "",
             endDate: "",
@@ -77,13 +80,15 @@ resume: null,
       countries: [], // <-- move here
       districts: [], // <-- move here
       cities: [], // <-- move here
-      skills: [], // <-- move here
+      skillsOptions: [], // <-- move here
       allCities: [],
       degree: [],
       degreeTitles: [], // { [degreeId]: [ {id, name} ] }
       degreeFieldData: [], // must exist
       editID: "",
       isEdit: false,
+      editexpID: "",
+      isExpEdit: false,
       getManager: [],
       getError: "",
       previewUrl: null,
@@ -218,6 +223,7 @@ handleFileChange = (event, fieldName, setFieldValue) => {
       toast.error("Could not load speciality");
     }
   };
+
   loadLicenseTypes = async () => {
     try {
       const res = await api.get("/getAllLicenseTypes"); // your API endpoint
@@ -300,7 +306,6 @@ const entriesFromBackend = (data.availabilityData || []).flatMap(daySlot =>
        current_salary: data.current_salary ?? "",
       expected_salary: data.expected_salary ?? "",
       skills: Array.isArray(data.skills) ? data.skills : [],
-      // speciality: Array.isArray(data.speciality) ? data.speciality : [],
       otherPreferredCities: Array.isArray(data.otherPreferredCities) ? data.otherPreferredCities : [],
       country: data.country ? String(data.country) : "",
       district: data.district ? String(data.district) : "",
@@ -358,6 +363,7 @@ resume: data.resume || null,
       designation: exp.designation || "",
       speciality_id: exp.speciality_id || "",
       companyName: exp.company_name || "",
+      speciality_id: exp.speciality_id || "",
       startDate: exp.start_date
         ? new Date(exp.start_date).toISOString().slice(0, 10)
         : "",

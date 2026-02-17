@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const connection = require("../connection");
 const logAudit = require("../utils/auditLogger.js");
+const { CompanyModule } = require("@faker-js/faker");
 
 
 
@@ -30,10 +31,10 @@ CREATE TABLE IF NOT EXISTS job_posts (
   country_id INT,
   district_id INT,
   city_id INT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   approval_status ENUM( 'Pending','Pending Payment','Approved','UnApproved') DEFAULT 'Pending',
   status ENUM('Active', 'InActive') DEFAULT 'Active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (account_id) REFERENCES account(id),
   FOREIGN KEY (job_type_id) REFERENCES jobtypes(id), 
   FOREIGN KEY (speciality_id) REFERENCES speciality(id),
@@ -67,7 +68,6 @@ const getAllJobs = (req, res) => {
     jp.job_title,
     jp.job_description,
     jp.skill_ids,
-    GROUP_CONCAT(s.name) AS skills,  
     jp.time_from,
     jp.time_to,
     jt.name AS job_type,
@@ -80,8 +80,7 @@ const getAllJobs = (req, res) => {
     deg.name AS degree,
     jp.no_of_positions,
     jp.industry,
-    pkg.price AS packageprice,
-    pkg.currency AS packagecurrency,
+   CONCAT(pkg.price, ' ', pkgccy.code) AS package_amount,
     co.name AS country,
     d.name AS district,
     ci.name AS city,
@@ -95,34 +94,58 @@ const getAllJobs = (req, res) => {
   LEFT JOIN jobtypes jt ON jp.job_type_id = jt.id
   LEFT JOIN currencies ccy ON jp.currency_id = ccy.id
   LEFT JOIN packages pkg ON jp.package_id = pkg.id
+  LEFT JOIN currencies pkgccy ON pkg.currency = pkgccy.id  -- added
   LEFT JOIN speciality spec ON jp.speciality_id = spec.id
   LEFT JOIN degreetypes deg ON jp.degree_id = deg.id
   LEFT JOIN countries co ON jp.country_id = co.id
   LEFT JOIN districts d ON jp.district_id = d.id
   LEFT JOIN cities ci ON jp.city_id = ci.id
-  LEFT JOIN skills s ON FIND_IN_SET(s.id, jp.skill_ids)
   WHERE jp.account_id = ?
-  GROUP BY jp.id
   ORDER BY jp.created_at DESC
 `;
-
-
-  connection.query(jobPostsQuery, [userId], (err, results) => {
+  connection.query(jobPostsQuery, [userId], async (err, results) => {
     if (err) {
       console.error('Error fetching job posts:', err);
       return res.status(500).json({ error: 'Internal Server Error' });
     }
 
-    const transformedResults = results.map(job => ({
-      ...job,
-      skill_ids: Array.isArray(job.skill_ids)
-        ? job.skill_ids
-        : job.skill_ids && typeof job.skill_ids === 'string'
-          ? job.skill_ids.split(',').map(id => parseInt(id))
-          : [],
-      skills: job.skills ? job.skills.split(',') : [], // array of skill names
-    }));
+    // Fetch skills for each job post
+    const transformedResults = await Promise.all(results.map(async (job) => {
+      let skillNames = [];
+      
+      if (job.skill_ids) {
+        // Convert skill_ids to array if it's a string
+        const skillIdsArray = typeof job.skill_ids === 'string' 
+          ? job.skill_ids.split(',').map(id => parseInt(id.trim()))
+          : job.skill_ids;
 
+        if (skillIdsArray.length > 0) {
+          // Query to get skill names
+          const skillQuery = `SELECT name FROM skills WHERE id IN (?)`;
+          
+          try {
+            const skillResults = await new Promise((resolve, reject) => {
+              connection.query(skillQuery, [skillIdsArray], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+              });
+            });
+            
+            skillNames = skillResults.map(row => row.name);
+          } catch (error) {
+            console.error('Error fetching skills for job', job.id, error);
+          }
+        }
+      }
+
+      return {
+        ...job,
+        skill_ids: typeof job.skill_ids === 'string' 
+          ? job.skill_ids.split(',').map(id => parseInt(id.trim()))
+          : job.skill_ids || [],
+        skills: skillNames
+      };
+    }));
 
     res.status(200).json(transformedResults);
   });
@@ -137,7 +160,11 @@ const getJobbyRegAdmin = (req, res) => {
 
   // Status filter
   if (status) {
-    whereClause += " AND jp.status = ?";
+    if (['Approved', 'Pending', 'UnApproved'].includes(status)) {
+      whereClause += " AND jp.approval_status = ?";
+    } else {
+      whereClause += " AND jp.status = ?";
+    }
     params.push(status);
   }
 
@@ -166,12 +193,39 @@ const getJobbyRegAdmin = (req, res) => {
     }
 
     // numeric check
-    if (["pkg.price", "pkg.duration_value"].includes(column)) {
-      const num = Number(search);
-      if (!isNaN(num)) {
-        whereClause += ` AND ${column} = ?`;
-        params.push(num);
-      }
+   if (name === "packageprice") {
+  const num = Number(search);
+  
+  if (!isNaN(num) && search.trim() !== '') {
+    // Numeric search: search in both currency and price
+    whereClause += ` AND (pkg_ccy.code LIKE ? OR pkg.price LIKE ?)`;
+    params.push(`%${search}%`, `%${search}%`);
+  } else {
+    // Text search: prefix match on currency code (starts with)
+    whereClause += ` AND pkg_ccy.code LIKE ?`;
+    params.push(`${search}%`); // Only trailing wildcard
+  }
+}
+else if (name === "duration_unit") {
+     whereClause += ` AND pkg.duration_unit LIKE ?`;
+     params.push(`${search}%`); // Prefix match
+   }
+   else if (name === "duration_value") {
+     const num = Number(search);
+     
+     if (!isNaN(num) && search.trim() !== '') {
+       // Search both duration value and unit
+       whereClause += ` AND (pkg.duration_value LIKE ? OR pkg.duration_unit LIKE ?)`;
+       params.push(`%${search}%`, `${search}%`);
+     } else {
+       // Search only duration unit with prefix match
+       whereClause += ` AND pkg.duration_unit LIKE ?`;
+       params.push(`${search}%`);
+     }
+   } else if (["jp.status", "jp.approval_status"].includes(column)) {
+      // Prefix match for status fields (starts with, case-insensitive)
+      whereClause += ` AND LOWER(${column}) LIKE LOWER(?)`;
+      params.push(`${search}%`); // Only trailing wildcard
     } else {
       whereClause += ` AND ${column} LIKE ?`;
       params.push(`%${search}%`);
@@ -201,7 +255,7 @@ const getJobbyRegAdmin = (req, res) => {
       jp.no_of_positions,
       jp.industry,
       pkg.price AS packageprice,
-      pkg.currency AS packagecurrency,
+      pkg_ccy.code AS packagecurrency,
       pkg.duration_value,
       pkg.duration_unit,
       co.name AS country,
@@ -217,6 +271,7 @@ const getJobbyRegAdmin = (req, res) => {
     LEFT JOIN jobtypes jt ON jp.job_type_id = jt.id
     LEFT JOIN currencies ccy ON jp.currency_id = ccy.id
     LEFT JOIN packages pkg ON jp.package_id = pkg.id
+    LEFT JOIN currencies pkg_ccy ON pkg.currency = pkg_ccy.id 
     LEFT JOIN speciality spec ON jp.speciality_id = spec.id
     LEFT JOIN degreetypes deg ON jp.degree_id = deg.id
     LEFT JOIN countries co ON jp.country_id = co.id
@@ -224,7 +279,37 @@ const getJobbyRegAdmin = (req, res) => {
     LEFT JOIN cities ci ON jp.city_id = ci.id
     LEFT JOIN skills s ON FIND_IN_SET(s.id, jp.skill_ids)
     ${whereClause}
-    GROUP BY jp.id
+    GROUP BY 
+  jp.id,
+  jp.account_id,
+  a.username,
+  jp.job_title,
+  jp.job_description,
+  jp.skill_ids,
+  jp.time_from,
+  jp.time_to,
+  jt.name,
+  jp.min_salary,
+  jp.max_salary,
+  ccy.code,
+  jp.min_experience,
+  jp.max_experience,
+  spec.name,
+  deg.name,
+  jp.no_of_positions,
+  jp.industry,
+  pkg.price,
+  pkg_ccy.code,
+  pkg.duration_value,
+  pkg.duration_unit,
+  co.name,
+  d.name,
+  ci.name,
+  jp.application_deadline,
+  jp.created_at,
+  jp.updated_at,
+  jp.status,
+  jp.approval_status
     ORDER BY jp.created_at DESC
     LIMIT ? OFFSET ?
   `;
@@ -236,13 +321,14 @@ const getJobbyRegAdmin = (req, res) => {
       console.error("Error fetching job posts:", err);
       return res.status(500).json({ error: "Internal Server Error" });
     }
-
+ 
     // Count total records
     const countQuery = `
       SELECT COUNT(DISTINCT jp.id) AS total
       FROM job_posts jp
       LEFT JOIN account a ON jp.account_id = a.id
       LEFT JOIN packages pkg ON jp.package_id = pkg.id
+       LEFT JOIN currencies pkg_ccy ON pkg.currency = pkg_ccy.id
       ${whereClause}
     `;
 
@@ -264,72 +350,49 @@ const getJobbyRegAdmin = (req, res) => {
 
 
 const updateJobPostStatus = (req, res) => {
-  const { id, status } = req.params;
+  const { id, status, userId } = req.params; // add userId here
 
-  if (!id || !status) {
+  if (!id || !status || !userId) {
     return res.status(400).json({
-      error: "Job post ID and status are required",
+      error: "Job post ID, status, and userId are required",
     });
   }
 
   const normalizedStatus = status.trim();
-
-  const isActiveStatus =
-    normalizedStatus === "Active" || normalizedStatus === "InActive";
-
+  const isActiveStatus = normalizedStatus === "Active" || normalizedStatus === "InActive";
   const columnToUpdate = isActiveStatus ? "status" : "approval_status";
 
-  // 1️⃣ Get previous value
-  const selectSql = `
-    SELECT ${columnToUpdate}
-    FROM job_posts
-    WHERE id = ?
-  `;
+  // Get previous value
+  const selectSql = `SELECT ${columnToUpdate} FROM job_posts WHERE id = ?`;
 
   connection.query(selectSql, [id], (selectErr, rows) => {
-    if (selectErr) {
-      console.error("Error fetching job post:", selectErr);
-      return res.status(500).json({ error: "Internal Server Error" });
-    }
-
-    if (rows.length === 0) {
-      return res.status(404).json({ error: "Job post not found" });
-    }
+    if (selectErr) return res.status(500).json({ error: "Internal Server Error" });
+    if (!rows.length) return res.status(404).json({ error: "Job post not found" });
 
     const previousValue = rows[0][columnToUpdate];
 
-    // 2️⃣ Update job post
-    const updateSql = `
-      UPDATE job_posts
-      SET ${columnToUpdate} = ?
-      WHERE id = ?
-    `;
-
+    // Update job post
+    const updateSql = `UPDATE job_posts SET ${columnToUpdate} = ? WHERE id = ?`;
     connection.query(updateSql, [normalizedStatus, id], (err, result) => {
-      if (err) {
-        console.error("Error updating job post status:", err);
-        return res.status(500).json({ error: "Internal Server Error" });
-      }
+      if (err) return res.status(500).json({ error: "Internal Server Error" });
 
-      // 3️⃣ Store history
-       logAudit({
+      // Log history
+      logAudit({
         tableName: "history",
         entityType: "job",
-        entityId: result.insertId,
+        entityId: id, // use job id here
         action: "UPDATED",
-        data: {
-          previousValue,
-          normalizedStatus
-        },
-        changedBy: userId,
+        data: { previousValue, normalizedStatus },
+        changedBy: userId, // now defined
       });
 
-      res.status(200).json({
+      return res.status(200).json({
         message: `Job post ${columnToUpdate} updated to ${normalizedStatus}`,
       });
     });
   });
 };
+
 
 
 const getSingleJob = (req, res) => {
@@ -462,7 +525,6 @@ const postJob = (req, res) => {
     package_id,
    
   } = req.body;
-
   const sql = `
       INSERT INTO job_posts (
         account_id, job_title, job_description, skill_ids, time_from, time_to,
@@ -769,6 +831,48 @@ const popularCategory=(req,res)=>{
     });
 }
 
+const getTotalJobPosts = (accountId, type, value) => {
+  return new Promise((resolve, reject) => {
+    let query = "";
+    let params = [accountId];
+
+    if (type === "month") {
+      query = `
+        SELECT 
+          DATE_FORMAT(created_at, '%Y-%m') AS label,
+          COUNT(id) AS total
+        FROM job_posts
+        WHERE account_id = ?
+          AND created_at >= DATE_SUB(CURDATE(), INTERVAL ? MONTH)
+        GROUP BY label
+        ORDER BY label ASC
+      `;
+      params.push(value);
+    }
+
+    if (type === "year") {
+      query = `
+        SELECT 
+          DATE_FORMAT(created_at, '%b') AS label,
+          COUNT(id) AS total
+        FROM job_posts
+        WHERE account_id = ?
+          AND YEAR(created_at) = ?
+        GROUP BY MONTH(created_at)
+        ORDER BY MONTH(created_at) ASC
+      `;
+      params.push(value);
+    }
+
+    connection.query(query, params, (err, results) => {
+      if (err){
+        console.log(err)
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
 
 
 
@@ -784,6 +888,7 @@ module.exports = {
   updatePostJob,
   getJobTitle,
   getTopCompanies,
-  popularCategory
+  popularCategory,
+  getTotalJobPosts
 
 }

@@ -172,7 +172,6 @@ const getAllCountries = (
 
       // Validate YYYY-MM-DD
       if (!/^\d{4}-\d{2}-\d{2}$/.test(search)) {
-        console.log("❌ Invalid date received:", search);
         return callback(new Error("Invalid date format"));
       }
 

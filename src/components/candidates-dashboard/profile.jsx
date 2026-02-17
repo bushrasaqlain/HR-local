@@ -221,7 +221,7 @@ const FormInfoBox = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    // console.log(formData);
+
 
     const validationErrors = {};
     // Basic validations
@@ -350,11 +350,7 @@ const FormInfoBox = () => {
         // }
 
         // DEBUG: Log FormData contents properly
-        console.log("FormData being sent:");
-        for (let pair of formDataToSend.entries()) {
-          console.log(`${pair[0]}:`, pair[1]);
-        }
-
+      
         
 
 

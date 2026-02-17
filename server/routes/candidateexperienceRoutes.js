@@ -11,7 +11,7 @@ const upload = multer({ storage: storage });
 router.post('/addexperience',authMiddleware,experienceController.addcandidateExperience );
 
 
-router.put('/updateexperience/:id', experienceController.editcandidateeducation);
+router.put('/updateexperience/:id', experienceController.editcandidateExperience);
 
 
 router.get("/getexperience",authMiddleware,experienceController.getcandidateExperience);

@@ -74,12 +74,11 @@ const addcandidateExperience = (req, res) => {
       }
       res.json({ msg: "Experience saved (duplicates ignored)" });
     });
-  });
+});
 };
-
 // Update candidate experience
 const updatecandidateExperience = (req, res) => {
-  const { companyName, designation, startDate, endDate, ongoing } = req.body;
+  const { companyName, designation, startDate, endDate, ongoing, speciality_id } = req.body;
   const id = req.params.id;
 
   const query = `
@@ -89,8 +88,8 @@ const updatecandidateExperience = (req, res) => {
       designation = ?,
       start_date = ?,
       end_date = ?,
-      is_ongoing = ?
-      speciality_id = ? -- update speciality
+      is_ongoing = ?,
+      speciality_id = ?
     WHERE id = ?
   `;
 
@@ -115,20 +114,33 @@ const updatecandidateExperience = (req, res) => {
   );
 };
 
+
 // Get all experiences for candidate
 const getcandidateExperience = (req, callback) => {
   const account_id = req.user.userId;
 
   const sql = `
-    SELECT exp.*, exp.speciality_id
+    SELECT 
+      exp.*, 
+      sp.name AS speciality_name   -- get the name
     FROM candidate_experience exp
     INNER JOIN candidate_info ci ON ci.id = exp.candidate_id
+    LEFT JOIN speciality sp ON exp.speciality_id = sp.id
     WHERE ci.account_id = ?
   `;
 
   connection.query(sql, [account_id], (err, results) => {
     if (err) return callback(err);
-    callback(null, { success: true, data: results });
+    
+    // Optional mapping for frontend-friendly object
+    const formattedResults = results.map(item => ({
+      ...item,
+      specialityObj: item.speciality_id
+        ? { value: item.speciality_id, label: item.speciality_name }
+        : null
+    }));
+
+    callback(null, { success: true, data: formattedResults });
   });
 };
 

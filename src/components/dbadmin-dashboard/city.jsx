@@ -112,7 +112,7 @@ class City extends Component {
       "city_name",
       // "country_name",
       "district_name",
-      "country_name",
+      "country",
       "created_at",
       "updated_at",
       "status",
@@ -485,7 +485,7 @@ class City extends Component {
                             </small>
                             <input
                               type="text"
-                              name="country_name"
+                              name="country"
                               id="name"
                               className="form-control rounded-4 text-center"
                               placeholder="Search by name"

@@ -32,28 +32,25 @@ const getallcandidateeducation = (req, callback) => {
   const user_id = req.user.userId;
 
   const sql = `
-    SELECT 
-      ed.id,
-      ed.candidate_id,
-      ed.is_ongoing,
-      ed.start_date,
-      ed.end_date,
-      d.id AS degree_id,
-      d.name AS degreetype,
-      df.id AS degreefield_id,
-      df.name AS degreefield,
-      ins.name AS institute,
-      ins.id AS institute_id
-    FROM candidate_education ed
-    INNER JOIN candidate_info ci 
-      ON ci.id = ed.candidate_id
-    LEFT JOIN institute ins
-      ON ins.id = ed.institute_id
-    LEFT JOIN degreefields df 
-      ON ed.degree_id = df.id
-    LEFT JOIN degreetypes d 
-      ON df.degree_type_id = d.id
-    WHERE ci.account_id = ?
+SELECT 
+  ed.id,
+  ed.candidate_id,
+  ed.is_ongoing,
+  ed.start_date,
+  ed.end_date,
+  df.id AS degreefield_id,
+  df.name AS degreefield,
+  d.id AS degreetype_id,
+  d.name AS degreetype,
+  ins.id AS institute_id,
+  ins.name AS institute
+FROM candidate_education ed
+INNER JOIN candidate_info ci ON ci.id = ed.candidate_id
+LEFT JOIN institute ins ON ins.id = ed.institute_id
+LEFT JOIN degreefields df ON ed.degree_id = df.id
+LEFT JOIN degreetypes d ON df.degree_type_id = d.id
+WHERE ci.account_id = ?
+
   `;
 
   connection.query(sql, [user_id], (err, results) => {

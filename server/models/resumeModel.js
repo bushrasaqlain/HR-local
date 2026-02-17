@@ -1,6 +1,9 @@
 const connection = require("../connection");
 const path = require("path");
 
+/**
+ * Add resume (existing)
+ */
 const addResume = (req, res) => {
   const userId = req.user.userId;
 
@@ -25,6 +28,36 @@ const addResume = (req, res) => {
   });
 };
 
+/**
+ * Update existing resume
+ */
+const updateResume = (req, res) => {
+  const userId = req.params.id; // get from path
+  const file = req.file;
+
+  if (!file) return res.status(400).json({ msg: "No file uploaded" });
+
+  const resumePath = `/uploads/resume/${file.filename}`;
+
+  const query = `UPDATE candidate_info SET resume = ? WHERE account_id = ?`;
+
+  connection.query(query, [resumePath, userId], (err) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ msg: "SERVER_ERROR" });
+    }
+
+    res.status(200).json({
+      msg: "Resume updated successfully",
+      resume: resumePath,
+    });
+  });
+};
+
+
+/**
+ * Get resume (existing)
+ */
 const getResume = (req, res) => {
   const userId = req.user.userId;
 
@@ -49,4 +82,4 @@ const getResume = (req, res) => {
   });
 };
 
-module.exports = { addResume, getResume };
+module.exports = { addResume, updateResume, getResume };

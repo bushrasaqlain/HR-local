@@ -170,7 +170,6 @@ const getAllJobTypes = (
 
     connection.query(countQuery, values, (err2, countResult) => {
       if (err2) return callback(err2);
-
       callback(null, {
         total: countResult[0].total,
         page: pageNum,

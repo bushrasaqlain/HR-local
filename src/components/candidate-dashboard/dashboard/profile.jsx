@@ -4,7 +4,8 @@ import React, { Component } from "react";
 import { Card, CardBody, CardHeader, Container } from "reactstrap";
 import api from "../../lib/api";
 import EditProfile from "./editprofile";
-
+import Cardstyling from "../../../layout/hovercard";
+import JobList from "./lists";
 class Profile extends Component {
   constructor(props) {
     super(props);
@@ -29,7 +30,7 @@ class Profile extends Component {
       });
 
       const data = res.data || {};
-      console.log("data", data )
+      console.log("data", data);
       this.setState({
         formData: data,
         passport_photo: data.passport_photo
@@ -40,6 +41,7 @@ class Profile extends Component {
           viewed: data.profile_views || 0,
           onHold: data.on_hold || 0,
           profileCompletion: data.profile_completion || 0,
+          profilecompletionpercentage: data.profile_completion_percent || 0,
         },
       });
     } catch (err) {
@@ -48,12 +50,12 @@ class Profile extends Component {
   };
 
   componentDidMount() {
-     this.router = require("next/router").default;
+    this.router = require("next/router").default;
     this.fetchCandidateInfo();
   }
-handleEditProfile = () => {
-  if (this.props.onEdit) this.props.onEdit(); // triggers tab change
-};
+  handleEditProfile = () => {
+    if (this.props.onEdit) this.props.onEdit(); // triggers tab change
+  };
 
   renderStatCard(title, value, subtitle) {
     return (
@@ -76,35 +78,67 @@ handleEditProfile = () => {
           <title>Candidate Dashboard</title>
         </Head>
 
-        <div className="row g-3">
+        <div className="row g-3 mt-3">
           {/* LEFT SIDE */}
           <div className="col-12 col-xl-9">
             <div className="row g-3">
-              <div className="col-12 col-md-4 shadow-sm">
+              <div
+                className="col-12 col-md-4"
+                style={{
+                  transition: "transform 0.3s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "scale(1.05)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1)";
+                }}
+              >
+                
                 {this.renderStatCard(
                   "Shortlisted",
                   dashboardStats.shortlisted,
-                  "Companies selected your profile"
+                  "Companies selected your profile",
                 )}
               </div>
 
-              <div className="col-12 col-md-4">
+              <div
+                className="col-12 col-md-4"
+                style={{
+                  transition: "transform 0.3s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "scale(1.05)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1)";
+                }}
+              >
                 {this.renderStatCard(
                   "Appeared in Search",
                   dashboardStats.viewed,
-                  "Recruiters viewed your profile"
+                  "Recruiters viewed your profile",
                 )}
               </div>
 
-              <div className="col-12 col-md-4">
+              <div
+                className="col-12 col-md-4"
+                style={{
+                  transition: "transform 0.3s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "scale(1.05)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1)";
+                }}
+              >
                 {this.renderStatCard(
                   "On Hold",
                   dashboardStats.onHold,
-                  "Profiles currently paused"
+                  "Profiles currently paused",
                 )}
               </div>
-
-           
 
               {/* Matching Jobs (Read Only) */}
               <div className="col-12">
@@ -116,12 +150,8 @@ handleEditProfile = () => {
                     </p>
 
                     <ul className="list-unstyled mb-0">
-                      <li className="mb-2">
-                        
-                      </li>
-                      <li>
-                        
-                      </li>
+                      <li className="mb-2"></li>
+                      <li></li>
                     </ul>
                   </CardBody>
                 </Card>
@@ -130,88 +160,85 @@ handleEditProfile = () => {
           </div>
 
           {/* RIGHT SIDE */}
-      <div className="col-12 col-xl-3">
-  <div className="row g-3">
+          <div className="col-12 col-xl-3">
+            <div className="row g-3">
+              {/* Profile Completion (TOP) */}
+              <div className="col-12">
+                <Card>
+                  <CardBody>
+                    <h6>Profile Completion</h6>
 
-    {/* Profile Completion (TOP) */}
-    <div className="col-12">
-      <Card>
-        <CardBody>
-          <h6>Profile Completion</h6>
+                    <div className="progress mb-2">
+                      <div
+                        className="progress-bar bg-info"
+                        style={{
+                          width: `${dashboardStats.profilecompletionpercentage}%`,
+                        }}
+                      >
+                        {dashboardStats.profilecompletionpercentage}%
+                      </div>
+                    </div>
 
-          <div className="progress mb-2">
-            <div
-              className="progress-bar bg-success"
-              style={{
-                width: `${dashboardStats.profileCompletion}%`,
-              }}
-            >
-              {dashboardStats.profileCompletion}%
+                    <p className="text-muted small">
+                      Complete your profile to increase recruiter visibility
+                    </p>
+
+                    <button
+                      className="btn btn-primary btn-sm w-100"
+                      onClick={this.handleEditProfile}
+                    >
+                      Complete Profile
+                    </button>
+                  </CardBody>
+                </Card>
+              </div>
+
+              {/* Profile Snapshot (BELOW) */}
+              <div className="col-12">
+                <Card className="text-center justify-content-center p-3">
+                  <div className="d-flex justify-content-center">
+                    <img
+                      src={
+                        formData.passport_photo &&
+                        formData.passport_photo.trim() !== ""
+                          ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}/${formData.passport_photo.replace(/^\//, "")}`
+                          : "/default-avatar.png"
+                      }
+                      alt="passport_photo"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "/default-avatar.png";
+                      }}
+                      className="rounded-circle mb-3"
+                      style={{
+                        width: "120px",
+                        height: "120px",
+                        objectFit: "cover",
+                      }}
+                    />
+                  </div>
+
+                  <h5>{formData.full_name || "Your Name"}</h5>
+                  <p className="text-muted small">
+                    {formData.total_experience || 0} experience
+                  </p>
+
+                  <span className="badge bg-info mb-3">
+                    Available for Interview
+                  </span>
+
+                  <div>
+                    <button
+                      className="btn btn-outline-primary btn-sm w-100"
+                      onClick={this.handleEditProfile}
+                    >
+                      Edit Profile
+                    </button>
+                  </div>
+                </Card>
+              </div>
             </div>
           </div>
-
-          <p className="text-muted small">
-            Complete your profile to increase recruiter visibility
-          </p>
-
-          <a
-            href="/dashboard/editprofile"
-            className="btn btn-primary btn-sm w-100"
-          >
-            Complete Profile
-          </a>
-        </CardBody>
-      </Card>
-    </div>
-
-    {/* Profile Snapshot (BELOW) */}
-    <div className="col-12">
-      <Card className="text-center justify-content-center p-3">
-      <div className="d-flex justify-content-center">
-  <img
-    src={
-      formData.passport_photo && formData.passport_photo.trim() !== ""
-        ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}/${formData.passport_photo.replace(/^\//, "")}`
-        : "/default-avatar.png"
-    }
-    alt="passport_photo"
-    onError={(e) => {
-      e.target.onerror = null;
-      e.target.src = "/default-avatar.png";
-    }}
-    className="rounded-circle mb-3"
-    style={{
-      width: "120px",
-      height: "120px",
-      objectFit: "cover",
-    }}
-  />
-</div>
-
-        <h5>{formData.full_name || "Your Name"}</h5>
-        <p className="text-muted small">
-          {formData.total_experience || 0} experience
-        </p>
-
-        <span className="badge bg-success mb-3">
-          Available for Interview
-        </span>
-
-        <div>
-     <button
-  className="btn btn-outline-primary btn-sm w-100"
-  onClick={this.handleEditProfile}
->
-  Edit Profile
-</button>
-
-      </div>
-      </Card>
-    </div>
-
-  </div>
-</div>
-
         </div>
       </Container>
     );

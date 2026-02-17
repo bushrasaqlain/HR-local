@@ -103,7 +103,7 @@ class CompanyProfile extends Component {
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
     try {
       const res = await axios.get(`${apiBaseUrl}getallCountries`, {
-        params: { page: 1, limit: 100 },
+        params: { page: 1, limit: 200 },
       });
       const options = res.data.countries.map((c) => ({ label: c.name, value: c.id }));
       this.setState({ countryOptions: options });

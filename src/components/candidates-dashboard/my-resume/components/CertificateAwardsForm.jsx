@@ -109,7 +109,7 @@ const CertificateAwardsForm = ({ userId, certificateAwardsId, isEditMode, setCer
                 try {
                     const response = await axios.get(apiUrl);
                     if (response.status === 200) {
-                        console.log("ResponseData: ", response.data);
+                       
                         // Ensure the response.data structure matches the state structure
                         const {
                             title,
@@ -189,11 +189,6 @@ const CertificateAwardsForm = ({ userId, certificateAwardsId, isEditMode, setCer
             toast.success("Form submission failed. Please try again.");
         }
     };
-
-
-    useEffect(() => {
-        console.log("Form Data:", formData);
-    }, [formData])
 
     return (
         <div

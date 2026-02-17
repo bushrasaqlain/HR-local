@@ -87,11 +87,9 @@ const getUserApplications = (req, res) => {
       return res.status(500).json({ error: "Error fetching applications" });
     }
 
-    res.status(200).json({ jobDetails: appliedJobs });
-
+    res.status(200).json(appliedJobs);
   });
 };
-
 
 // Get new jobs
 const getNewJobs = (req, res) => {

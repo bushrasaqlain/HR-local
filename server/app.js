@@ -43,12 +43,17 @@ const candidate_educationRoutes = require("./routes/candidateeducationRoutes")
 const candidate_experienceRoutes = require('./routes/candidateexperienceRoutes')
 const resumeRoute = require("./routes/resumeRoutes");
 const candidate_availabilityRoutes= require("./routes/candidateAvailabilityRoutes")
+const cadidateresearchRoutes=require("./routes/candidatereasearchRoutes")
+const candidatecertificateRoutes=require("./routes/candidatecertificateRoutes")
 
 
 const projects = require("./routes/projectsRoutes");
 const certificateAwards = require("./routes/certificateawardRoutes");
 const jobs = require("./routes/candidatejobsRoutes")
 const dbAdminHistory = require("./routes/dbHistoryRoutes");
+
+
+const candidatejobs = require("./routes/candidatejobsRoutes")
 
 
 
@@ -72,7 +77,7 @@ app.use("/", cart);
 
 app.use('/', projects)
 app.use('/', certificateAwards)
-app.use('/', jobs)
+app.use('/', candidatejobs)
 app.use("/", history);
 app.use("/", dbAdminHistory);
 
@@ -81,6 +86,8 @@ app.use("/candidateeducation", candidate_educationRoutes)
 app.use("/candidateexperience", candidate_experienceRoutes)
 app.use("/resume", resumeRoute)
 app.use("/candidate_availability", candidate_availabilityRoutes)
+app.use("/candidateResearch", cadidateresearchRoutes)
+app.use("/candidateCertificate", candidatecertificateRoutes)
 
 
 app.use("/company-info", companyRoute);

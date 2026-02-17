@@ -6,9 +6,8 @@ const logAudit = require("../utils/auditLogger");
 
 const createCandidateTable = () => {
   const createCandidateInfoTable = `
-CREATE TABLE IF NOT EXISTS candidate_info (
+  CREATE TABLE IF NOT EXISTS candidate_info (
   id INT AUTO_INCREMENT PRIMARY KEY,
-
   account_id INT UNIQUE NOT NULL,
 
   full_name VARCHAR(255),
@@ -21,7 +20,7 @@ CREATE TABLE IF NOT EXISTS candidate_info (
 
   total_experience VARCHAR(20),
 
-  license_type VARCHAR(50),
+  license_type INT,
   license_number VARCHAR(50),
 
   address TEXT,
@@ -29,14 +28,9 @@ CREATE TABLE IF NOT EXISTS candidate_info (
   country INT,
   district INT,
   city INT,
-
-  skills JSON,
-  categories JSON,
-
-  speciality JSON,
+  address TEXT,
   otherPreferredCities JSON,
 
-  Links JSON,
 
   current_salary INT,
   expected_salary INT,
@@ -72,7 +66,7 @@ const createCandidateSpecialityTable = () => {
   speciality_id INT,
   PRIMARY KEY (candidate_id, speciality_id),
   FOREIGN KEY (candidate_id) REFERENCES candidate_info(ID) ON DELETE CASCADE,
-  FOREIGN KEY (speciality_id) REFERENCES professions(id)
+  FOREIGN KEY (speciality_id) REFERENCES speciality(id)
 );
 `;
 
@@ -102,7 +96,7 @@ CREATE TABLE candidate_preferred_cities (
         return console.error(err.message);
       }
       console.log("Candidate Preferred Cities table created successfully");
-    }
+    },
   );
 };
 
@@ -128,36 +122,70 @@ const createsaveJobsTableQuery = () => {
 
 const getAllCandidates = (req, res) => {
   const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 15;
+  const limit = parseInt(req.query.limit) || 100;
   const offset = (page - 1) * limit;
-  const search = req.query.search || "";
-  const status = req.query.status || "";
 
-  // Map client-provided column names -> actual DB columns
+  const search = (req.query.search || "").trim();
+  const name = (req.query.name || "").trim();
+  const status = (req.query.status || "").trim(); // "Active", "InActive", "all"
+
+  // Map client-provided column names -> actual DB columns (SAFE)
   const columnMap = {
-    name: "a.username",
+    username: "a.username",
     email: "a.email",
     phone: "c.phone",
-    // company_name: "c.company_name",
-    created_at: "a.created_at", // choose one table explicitly
+    password: "a.password",
+    created_at: "a.created_at",
     isActive: "a.isActive",
   };
 
-  const searchColumn = columnMap[req.query.name] || "a.email"; // fallback
+  let whereConditions = [];
+  let values = [];
+
+  // base filter
+  whereConditions.push(`a.accountType = 'candidate'`);
+
+  // ✅ Status dropdown filter (exact match, case-insensitive)
+  if (status && status.toLowerCase() !== "all") {
+    whereConditions.push(`LOWER(a.isActive) = ?`);
+    values.push(status.toLowerCase());
+  }
+
+  // ✅ Search filter
+  if (search) {
+    const searchColumn = columnMap[name] || "a.email";
+
+    if (name === "isActive") {
+      // IMPORTANT: prevent "Active" matching "InActive"
+      whereConditions.push(`LOWER(a.isActive) LIKE ?`);
+      values.push(`${search.toLowerCase()}%`); // "active%" won't match "inactive"
+      // If you want exact only, replace with:
+      // whereConditions.push(`LOWER(a.isActive) = ?`);
+      // values.push(search.toLowerCase());
+    } else {
+      whereConditions.push(`${searchColumn} LIKE ?`);
+      values.push(`%${search}%`);
+    }
+  }
+
+  const whereClause =
+    whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
 
   const query = `
-    SELECT a.*, 
-           c.account_id, 
+    SELECT a.*,
+           c.account_id,
            c.id as candidate_id,
-           c.phone,date_of_birth,
+           c.full_name,
+           c.phone,
+           c.date_of_birth,
            c.gender,
            c.marital_status,
            c.total_experience,
            c.license_type,
            c.license_number,
-           c.profile_completed,     
-           ctry.name AS country_name, 
-           d.name AS district_name, 
+           c.profile_completed,
+           ctry.name AS country_name,
+           d.name AS district_name,
            city.name AS city_name,
            c.address
     FROM account a
@@ -165,38 +193,27 @@ const getAllCandidates = (req, res) => {
     LEFT JOIN countries ctry ON c.country = ctry.id
     LEFT JOIN districts d ON c.district = d.id
     LEFT JOIN cities city ON c.city = city.id
-    WHERE a.accountType = 'candidate'
-      ${status ? "AND a.isActive = ?" : ""}
-      AND ${searchColumn} LIKE ?
+    ${whereClause}
     ORDER BY a.id DESC
     LIMIT ? OFFSET ?
   `;
 
-  const queryParams = [];
-  if (status) queryParams.push(status);
-  queryParams.push(`%${search}%`, limit, offset);
+  const queryParams = [...values, limit, offset];
 
   connection.query(query, queryParams, (err, results) => {
     if (err) {
-      console.error("❌ Error fetching employers:", err.sqlMessage);
+      console.error("❌ Error fetching candidates:", err.sqlMessage);
       return res.status(500).json({ error: "Database error" });
     }
 
-    // Count query
     const countQuery = `
-  SELECT COUNT(*) AS total
-  FROM account a
-  LEFT JOIN candidate_info c ON a.id = c.account_id
-  WHERE a.accountType = 'candidate'
-    ${status ? "AND a.isActive = ?" : ""}
-    AND ${searchColumn} LIKE ?
-`;
+      SELECT COUNT(*) AS total
+      FROM account a
+      LEFT JOIN candidate_info c ON a.id = c.account_id
+      ${whereClause}
+    `;
 
-    const countParams = [];
-    if (status) countParams.push(status);
-    countParams.push(`%${search}%`);
-
-    connection.query(countQuery, countParams, (err2, countResult) => {
+    connection.query(countQuery, values, (err2, countResult) => {
       if (err2) {
         console.error("❌ Error fetching count:", err2.sqlMessage);
         return res.status(500).json({ error: "Database error" });
@@ -211,7 +228,6 @@ const getAllCandidates = (req, res) => {
     });
   });
 };
-
 const updateStatus = (id, status, res) => {
   if (!id || !status) {
     return res
@@ -291,24 +307,24 @@ const addCandidateInfo = async (req, res) => {
         return null;
       }
     };
-
+    console.log("skill", skills);
     const skillsArr = parseJSON(skills);
     const linksArr = parseJSON(Links);
     const otherCitiesArr = parseJSON(otherPreferredCities);
 
     // 🔹 Passport photo
     // 🔹 Determine which file was uploaded
-let passportPhotoPath;
-let resumePath;
+    let passportPhotoPath;
+    let resumePath;
 
-if (req.file) {
-  if (req.file.fieldname === "passport_photo") {
-    passportPhotoPath = `/uploads/passportPhotos/${req.file.filename}`;
-  }
-  if (req.file.fieldname === "resume") {
-    resumePath = `/uploads/resume/${req.file.filename}`;
-  }
-}
+    if (req.file) {
+      if (req.file.fieldname === "passport_photo") {
+        passportPhotoPath = `/uploads/passportPhotos/${req.file.filename}`;
+      }
+      if (req.file.fieldname === "resume") {
+        resumePath = `/uploads/resume/${req.file.filename}`;
+      }
+    }
     // 🔹 Profile completion check
     let profileCompleted = false;
     if (mode === "submit") {
@@ -361,7 +377,7 @@ if (req.file) {
           resume
         )
         VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
         ON DUPLICATE KEY UPDATE
           full_name = VALUES(full_name),
@@ -407,7 +423,7 @@ if (req.file) {
         otherCitiesArr ? JSON.stringify(otherCitiesArr) : null,
         passportPhotoPath,
         profileCompleted,
-        resumePath // 👈 add this
+        resumePath, // 👈 add this
       ];
 
       connection.query(sql, params, (err2) => {
@@ -438,7 +454,6 @@ if (req.file) {
 const getCandidateInfo = (req, res) => {
   const accountId = req.user.userId;
 
-  // Step 1: fetch candidate info
   const candidateSql = `
     SELECT
       a.id AS account_id,
@@ -450,23 +465,30 @@ const getCandidateInfo = (req, res) => {
       ci.gender,
       ci.marital_status,
       ci.total_experience,
-      ci.license_type,
+      ci.license_type AS license_type_id,
+      lt.name AS license_type_name,
       ci.license_number,
       ci.otherPreferredCities,
       ci.address,
-      ci.country,
-      ci.district,
-      ci.city,
+      ci.country AS country_id,
+      co.name AS country_name,
+      ci.district AS district_id,
+      d.name AS district_name,
+      ci.city AS city_id,
+      c.name AS city_name,
       ci.skills,
       ci.Links,
       ci.current_salary,
       ci.expected_salary,
       ci.profile_completed,
       ci.passport_photo,
-      ci.resume,
-      ci.skills
+      ci.resume
     FROM account a
     LEFT JOIN candidate_info ci ON a.id = ci.account_id
+    LEFT JOIN countries co ON ci.country = co.id
+    LEFT JOIN districts d ON ci.district = d.id
+    LEFT JOIN cities c ON ci.city = c.id
+    LEFT JOIN license_types lt ON ci.license_type = lt.id
     WHERE a.id = ?
     LIMIT 1
   `;
@@ -476,152 +498,183 @@ const getCandidateInfo = (req, res) => {
     if (!candidateResult.length) return res.status(404).json({ error: "Candidate not found" });
 
     const candidate = candidateResult[0];
-    console.log("✅ Candidate info fetched:", candidate); // log candidate info
 
-    // Step 2: fetch all availability rows
-    const availabilitySql = `
-      SELECT day, shift, startTime, endTime
-      FROM candidate_availability
-      WHERE candidate_id = ?
-    `;
-    connection.query(availabilitySql, [candidate.candidate_id], (err, availabilityRows) => {
-      if (err) return res.status(500).json({ error: err.message });
+    const parseJSON = value => {
+      if (!value) return [];
+      try {
+        return typeof value === "string" ? JSON.parse(value) : value;
+      } catch {
+        return [];
+      }
+    };
 
-      console.log("✅ Availability rows fetched:", availabilityRows); // log availability rows
+    // Check if links are filled
+    const linksFilled = candidate.Links && parseJSON(candidate.Links).length > 0;
 
-      // Step 3: group shifts by day
-      const availabilityData = {};
-      availabilityRows.forEach(row => {
-        if (!availabilityData[row.day]) availabilityData[row.day] = [];
-        availabilityData[row.day].push({
-          shift: row.shift,
-          startTime: row.startTime,
-          endTime: row.endTime
+    // Check certificates and research in their tables
+    const getCertificatesSql = `SELECT 1 FROM candidate_certificates WHERE candidate_id = ? LIMIT 1`;
+    const getResearchSql = `SELECT 1 FROM candidate_research WHERE candidate_id = ? LIMIT 1`;
+
+    Promise.all([
+      new Promise((resolve, reject) => {
+        connection.query(getCertificatesSql, [candidate.candidate_id], (err, rows) => {
+          if (err) return reject(err);
+          resolve(rows.length > 0);
         });
-      });
+      }),
+      new Promise((resolve, reject) => {
+        connection.query(getResearchSql, [candidate.candidate_id], (err, rows) => {
+          if (err) return reject(err);
+          resolve(rows.length > 0);
+        });
+      })
+    ])
+    .then(([certificatesFilled, researchFilled]) => {
+      // === SIMPLE PROFILE COMPLETION RULE ===
+// Base percent
+let profileCompletionPercent = candidate.profile_completed ? 70 : 0;
 
-      // Convert grouped object into an array
-      const availabilityArray = Object.entries(availabilityData).map(([day, shifts]) => ({
-        day,
-        shifts
-      }));
+// Add 10% for each extra section if present
+if (linksFilled) profileCompletionPercent += 10;
+if (researchFilled) profileCompletionPercent += 10;
+if (certificatesFilled) profileCompletionPercent += 10;
 
-      console.log("✅ Grouped availability data:", availabilityArray); // log final grouped data
+// Make sure it never exceeds 100%
+profileCompletionPercent = Math.min(profileCompletionPercent, 100);
 
-      const parseJSON = (value) => {
-        if (!value) return [];
-        try {
-          return typeof value === "string" ? JSON.parse(value) : value;
-        } catch {
-          return [];
-        }
-      };
 
+
+      // Prepare response
+      const skillIds = parseJSON(candidate.skills);
       const response = {
         account_id: candidate.account_id || candidate.id,
         email: candidate.email || "",
         full_name: candidate.full_name || "",
         phone: candidate.phone || "",
-        date_of_birth: candidate.date_of_birth || "",
+        date_of_birth: candidate.date_of_birth ? candidate.date_of_birth.toISOString().slice(0, 10) : "",
         gender: candidate.gender || "",
         marital_status: candidate.marital_status || "",
         total_experience: candidate.total_experience || "",
-        license_type: candidate.license_type || "",
+        license_type: { id: candidate.license_type_id || null, name: candidate.license_type_name || "" },
         license_number: candidate.license_number || "",
         address: candidate.address || "",
-        country: candidate.country || "",
-        district: candidate.district || "",
-        city: candidate.city || "",
-        // speciality: candidate.speciality || "",
+        country: { id: candidate.country_id || null, name: candidate.country_name || "" },
+        district: { id: candidate.district_id || null, name: candidate.district_name || "" },
+        city: { id: candidate.city_id || null, name: candidate.city_name || "" },
         otherPreferredCities: parseJSON(candidate.otherPreferredCities),
-        skills: parseJSON(candidate.skills),
-        Education: parseJSON(candidate.Education),
+        skills: [],    
         Links: parseJSON(candidate.Links),
         current_salary: candidate.current_salary || "",
         expected_salary: candidate.expected_salary || "",
         profile_completed: !!candidate.profile_completed,
+        profile_completion_percent: profileCompletionPercent, // ✅ defined here
         passport_photo: candidate.passport_photo || null,
         resume: candidate.resume || null,
-        availabilityData: availabilityArray, // ✅ use grouped array
       };
 
-      res.json(response);
-    });
+      if (!skillIds.length) return res.json(response);
+
+      const skillsSql = `SELECT id, name FROM skills WHERE id IN (?)`;
+      connection.query(skillsSql, [skillIds], (err, skillsRows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        response.skills = skillsRows.map(s => ({ id: s.id, name: s.name }));
+        res.json(response);
+      });
+    })
+    .catch(err => res.status(500).json({ error: err.message }));
   });
 };
+
+
+
+
+
 const editCandidateInfo = (req, res) => {
-  const accountId = parseInt(req.params.accountId) || req.user.userId;
-  if (isNaN(accountId))
+  const accountId = Number(req.params.accountId);
+
+  if (!accountId) {
     return res.status(400).json({ error: "Invalid account_id" });
+  }
 
-  const passport_photoPath = req.file
-    ? `/uploads/passport_photos/${req.file.filename}`
+  // ✅ Correct file handling
+  const passportPhotoFile = req.file;
+
+  const passportPhotoPath = passportPhotoFile
+    ? `/uploads/passportPhotos/${passportPhotoFile.filename}`
     : null;
-  const resumePath = req.file ? `/uploads/resume/${req.file.filename}` : null;
-
+  // ✅ Map frontend fields → DB columns
   const fieldMap = {
+    full_name: "full_name",
     phone: "phone",
     date_of_birth: "date_of_birth",
     gender: "gender",
     marital_status: "marital_status",
-    Experience: "Experience",
-    total_experience: "Experience",
+    total_experience: "total_experience",
     license_type: "license_type",
     license_number: "license_number",
     address: "address",
-    Complete_Address: "Complete_Address",
     country: "country",
     district: "district",
     city: "city",
+    current_salary: "current_salary",
+    expected_salary: "expected_salary",
     skills: "skills",
-    Description: "Description",
     Links: "Links",
-    profile_completed: "profile_completed",
-    currentSalary: "current_salary",
-    expectedSalary: "expected_salary",
-    Age: "Age",
-    Education: "Education",
-    categories: "categories",
+    availability: "availability",
   };
 
-  const infoFields = [];
-  const infoValues = [];
+  const updateFields = [];
+  const updateValues = [];
 
-  Object.entries(fieldMap).forEach(([key, col]) => {
+  // ✅ Add ONLY fields that exist in req.body
+  for (const [key, column] of Object.entries(fieldMap)) {
     if (req.body[key] !== undefined) {
-      let val = req.body[key];
-      if (["skills", "Links", "categories"].includes(key)) {
-        if (typeof val === "string") {
-          try {
-            val = JSON.parse(val);
-          } catch (e) { }
-        }
-        val = JSON.stringify(val);
-      }
-      infoFields.push(`${col} = ?`);
-      infoValues.push(val);
-    }
-  });
+      let value = req.body[key];
 
-  if (passport_photoPath) {
-    infoFields.push("passport_photo = ?");
-    infoValues.push(passport_photoPath);
+      if (["skills", "Links", "availability"].includes(key)) {
+        try {
+          value = JSON.stringify(
+            typeof value === "string" ? JSON.parse(value) : value,
+          );
+        } catch {
+          value = null;
+        }
+      }
+
+      updateFields.push(`${column} = ?`);
+      updateValues.push(value);
+    }
   }
 
-  if (infoFields.length === 0)
-    return res.json({ message: "No fields to update" });
+  // ✅ Add files only if uploaded
+  if (passportPhotoPath) {
+    updateFields.push("passport_photo = ?");
+    updateValues.push(passportPhotoPath);
+  }
 
-  const sql = `UPDATE candidate_info SET ${infoFields.join(
-    ", "
-  )} WHERE account_id = ?`;
-  infoValues.push(accountId);
 
-  connection.query(sql, infoValues, (err, result) => {
+  if (!updateFields.length) {
+    return res.json({ message: "Nothing to update" });
+  }
+
+  const sql = `
+    UPDATE candidate_info
+    SET ${updateFields.join(", ")}
+    WHERE account_id = ?
+  `;
+
+  updateValues.push(accountId);
+
+  connection.query(sql, updateValues, (err, result) => {
     if (err) {
-      console.error("Candidate update error:", err);
+      console.error("PUT candidate error:", err);
       return res.status(500).json({ error: err.message });
     }
-    res.json({ message: "Candidate info updated successfully", result });
+
+    res.json({
+      success: true,
+      message: "Candidate updated successfully",
+    });
   });
 };
 
@@ -657,7 +710,7 @@ const getCandidatepassport_photobyId = (req, res) => {
       // Convert the passport_photo in base64
       const resultsWithBase64passport_photo = results.map((result) => {
         const base64Image = Buffer.from(result.passport_photo).toString(
-          "base64"
+          "base64",
         );
         return { ...result, passport_photo: base64Image };
       });
@@ -696,33 +749,33 @@ const getCandidateFullProfilebyId = async (req, res) => {
       queryPromise(
         `SELECT id, username, email
          FROM account WHERE id = ?`,
-        [accountId]
+        [accountId],
       ),
       queryPromise(
-        `SELECT  City, Phone as phone, skills, Description, Links
+        `SELECT  City, Phone as phone, skills, Links
          FROM candidate_info WHERE Account_ID = ?`,
-        [accountId]
+        [accountId],
       ),
-      queryPromise(
-        `SELECT id, degree_title, field_of_study, institute_name, start_date, end_date, education_description
-         FROM cv_education WHERE user_id = ?`,
-        [accountId]
-      ),
-      queryPromise(
-        `SELECT id, company_name, designation, start_date, end_date, description 
-         FROM cv_work_experience WHERE user_id = ?`,
-        [accountId]
-      ),
-      queryPromise(
-        `SELECT id, title, institute_name, description, passing_year 
-         FROM cv_certificateawards WHERE user_id = ?`,
-        [accountId]
-      ),
-      queryPromise(
-        `SELECT id, project_title, role, project_description, skills_used, project_link
-         FROM cv_projects WHERE user_id = ?`,
-        [accountId]
-      ),
+      // queryPromise(
+      //   `SELECT id, degree_title, field_of_study, institute_name, start_date, end_date, education_description
+      //    FROM cv_education WHERE user_id = ?`,
+      //   [accountId]
+      // ),
+      // queryPromise(
+      //   `SELECT id, company_name, designation, start_date, end_date, description
+      //    FROM cv_work_experience WHERE user_id = ?`,
+      //   [accountId]
+      // ),
+      // queryPromise(
+      //   `SELECT id, title, institute_name, description, passing_year
+      //    FROM cv_certificateawards WHERE user_id = ?`,
+      //   [accountId]
+      // ),
+      // queryPromise(
+      //   `SELECT id, project_title, role, project_description, skills_used, project_link
+      //    FROM cv_projects WHERE user_id = ?`,
+      //   [accountId]
+      // ),
     ]);
 
     if (profileResults.length === 0) {
@@ -734,36 +787,36 @@ const getCandidateFullProfilebyId = async (req, res) => {
       ...candidateInfoResults[0],
       experiences: Array.isArray(workResults)
         ? workResults.map((exp, index) => ({
-          ...exp,
-          start_date: formatDate(exp.start_date),
-          end_date: formatDate(exp.end_date),
-          first: index === 0,
-        }))
+            ...exp,
+            start_date: formatDate(exp.start_date),
+            end_date: formatDate(exp.end_date),
+            first: index === 0,
+          }))
         : [],
 
       education: Array.isArray(educationResults)
         ? educationResults.map((edu, index) => ({
-          ...edu,
-          start_date: formatDate(edu.start_date),
-          end_date: formatDate(edu.end_date),
-          first: index === 0,
-        }))
+            ...edu,
+            start_date: formatDate(edu.start_date),
+            end_date: formatDate(edu.end_date),
+            first: index === 0,
+          }))
         : [],
 
       projects: Array.isArray(projectsResults)
         ? projectsResults.map((proj, index) => ({
-          ...proj,
-          start_date: formatDate(proj.start_date),
-          end_date: formatDate(proj.end_date),
-          first: index === 0,
-        }))
+            ...proj,
+            start_date: formatDate(proj.start_date),
+            end_date: formatDate(proj.end_date),
+            first: index === 0,
+          }))
         : [],
 
       awards: Array.isArray(awardsResults)
         ? awardsResults.map((awd, index) => ({
-          ...awd,
-          first: index === 0,
-        }))
+            ...awd,
+            first: index === 0,
+          }))
         : [],
     };
 
@@ -773,41 +826,6 @@ const getCandidateFullProfilebyId = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
-
-// router.get('/availablejobs', (req, res) => {
-//   const jobPostsQuery = `
-//     SELECT *
-//     FROM job_posts AS jp
-//     JOIN company_info AS ci ON jp.account_id = ci.account_id;
-//   `;
-
-//   connection.query(jobPostsQuery, (err, jobPostsResults) => {
-//     if (err) {
-//       console.error('Error fetching all job posts:', err);
-//       return res.status(500).json({ error: 'Internal Server Error' });
-//     }
-//     res.status(200).json(resultsWithIndustryIDs);
-//   });
-// });
-// Add more routes as needed
-
-// Route to fetch data from the candidate_info table for a specific user
-// router.get("/", (req, res) => {
-//   // Assuming you have a way to get the logged-in user's ID, replace 'loggedInUserId' with the actual user ID
-//   const loggedInUserId = req.user.id; // Replace this with your actual way of getting the user ID
-
-//   const sql = "SELECT * FROM candidate_info WHERE ID = ?";
-
-//   connection.query(sql, [loggedInUserId], (err, results) => {
-//       if (err) {
-//           console.error("Error fetching data:", err);
-//           res.status(500).json({ error: "Error fetching data", details: err.message });
-//       } else {
-//
-//           res.status(200).json({ data: results });
-//       }
-//   });
-// });
 
 const getCandidateInfobyAccountType = (req, res) => {
   const sql = `
@@ -845,8 +863,6 @@ const addResume = (userId, resumePath, res) => {
     });
   });
 };
-
-
 
 module.exports = {
   getAllCandidates,

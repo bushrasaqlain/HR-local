@@ -15,7 +15,7 @@ const ChatboxContactList = ({ userId }) => {
       if (response.ok) {
         const data = await response.json();
         setContacts(data);
-        console.log(data);
+        
       } else {
         console.error("Failed to fetch contacts:", response.statusText);
       }

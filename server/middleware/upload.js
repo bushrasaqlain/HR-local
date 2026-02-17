@@ -37,8 +37,44 @@ const uploadResume = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB
 });
 
+
+// ---------------- Research Documents ----------------
+const researchUploadDir = path.join(__dirname, "../uploads/research");
+if (!fs.existsSync(researchUploadDir)) fs.mkdirSync(researchUploadDir, { recursive: true });
+
+const researchStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, researchUploadDir),
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const uploadResearch = multer({
+  storage: researchStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+});
+
+// ---------------- certicate documents ---------
+const certificateUploadDir = path.join(__dirname, "../uploads/certificate");
+if (!fs.existsSync(certificateUploadDir)) fs.mkdirSync(certificateUploadDir, { recursive: true });
+
+const certificateStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, certificateUploadDir),
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const uploadCertificate = multer({
+  storage: certificateStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+});
 // ---------------- Export both ----------------
 module.exports = {
   uploadPassportPhoto,
-  uploadResume
+  uploadResume,
+  uploadResearch,
+  uploadCertificate
 };

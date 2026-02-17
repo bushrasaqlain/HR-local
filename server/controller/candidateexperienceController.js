@@ -6,7 +6,7 @@ const addcandidateExperience = (req, res) => {
 };
 
 // Edit existing country
-const editcandidateeducation = (req, res) => {
+const editcandidateExperience = (req, res) => {
   candidateExperienceModel.updatecandidateExperience(req, res);
 };
 
@@ -32,7 +32,7 @@ const deletecandidateExperience = (req, res) => {
 
 module.exports = {
   addcandidateExperience,
-  editcandidateeducation,
+  editcandidateExperience,
   getcandidateExperience,
   deletecandidateExperience
 };

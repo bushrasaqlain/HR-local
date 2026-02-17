@@ -187,7 +187,7 @@ const EducationForm = ({ userId, educationId, isEditMode, setEducationData, onCl
         : await axios.post(apiUrl, submissionData);
 
       if (response.status === 200) {
-        console.log("educaiton data", response.data);
+        
         if (isEditMode) {
           toast.success("Updated Successfully!");
           setEducationData((prev) => prev.map((item) =>
@@ -207,10 +207,6 @@ const EducationForm = ({ userId, educationId, isEditMode, setEducationData, onCl
     }
   };
 
-
-  useEffect(() => {
-    console.log("isongoing", isOngoing);
-  }, [isOngoing])
 
 
   return (

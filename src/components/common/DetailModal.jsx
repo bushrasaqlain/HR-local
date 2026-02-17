@@ -4,17 +4,32 @@ import PropTypes from "prop-types";
 
 class DetailModal extends Component {
   static formatValue(value) {
-    if (!value) return "-";
+    if (value === undefined || value === null || value === "") return "-";
 
-    // Date formatting
-    const date = new Date(value);
-    if (!isNaN(date.getTime()) && /\d{4}-\d{2}-\d{2}T/.test(value)) {
-      const day = String(date.getDate()).padStart(2, "0");
-      const monthNames = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-      ];
-      return `${day}-${monthNames[date.getMonth()]}-${date.getFullYear()}`;
+    // ✅ Time formatting (HH:mm:ss or HH:mm) -> "6:05 PM"
+    if (typeof value === "string" && /^\d{2}:\d{2}(:\d{2})?$/.test(value)) {
+      const [hStr, mStr] = value.split(":");
+      let h = parseInt(hStr, 10);
+      const m = parseInt(mStr, 10);
+
+      const ampm = h >= 12 ? "PM" : "AM";
+      h = h % 12;
+      if (h === 0) h = 12;
+
+      return `${h}:${String(m).padStart(2, "0")} ${ampm}`;
+    }
+
+    // ✅ Date formatting (ISO string -> "DD-Mon-YYYY")
+    if (typeof value === "string" && /\d{4}-\d{2}-\d{2}T/.test(value)) {
+      const date = new Date(value);
+      if (!isNaN(date.getTime())) {
+        const day = String(date.getDate()).padStart(2, "0");
+        const monthNames = [
+          "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+        ];
+        return `${day}-${monthNames[date.getMonth()]}-${date.getFullYear()}`;
+      }
     }
 
     // Boolean
@@ -41,7 +56,7 @@ class DetailModal extends Component {
   }
 
   static formatKey(key) {
-    return key.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+    return key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
   }
 
   render() {

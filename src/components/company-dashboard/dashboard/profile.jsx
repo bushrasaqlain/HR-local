@@ -9,9 +9,9 @@ const Profile = () => {
       <section className="user-dashboard">
         <div className="dashboard-outer">
 
-          <div className="row">
+          {/* <div className="row">
             <TopCardBlock />
-          </div>
+          </div> */}
 
           <div className="row">
             <div className="col-xl-7 col-lg-12">
@@ -27,7 +27,7 @@ const Profile = () => {
               {/* <!-- Notification Widget --> */}
               <div className="notification-widget ls-widget">
                 <div className="widget-title">
-                  <h4>Notifications</h4>
+                  <h4>Messages Notifications</h4>
                 </div>
                 <div className="widget-content">
                   <Notification />

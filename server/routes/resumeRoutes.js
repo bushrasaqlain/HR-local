@@ -2,10 +2,24 @@ const express = require("express");
 const router = express.Router();
 const authMiddleware = require("../middleware/auth");
 const resumeController = require("../controller/resumeController");
-const { uploadResume } = require("../middleware/upload"); // ✅ import from middleware
+const { uploadResume } = require("../middleware/upload");
 
-// Upload resume
-router.post("/addresume", authMiddleware, uploadResume.single("resume"), resumeController.addResume);
+// Add resume
+router.post(
+  "/addresume",
+  authMiddleware,
+  uploadResume.single("resume"),
+  resumeController.addResume
+);
+
+// Update resume
+router.put(
+  "/updateresume/:id",
+  authMiddleware,
+  uploadResume.single("resume"),
+  resumeController.updateResume
+);
+
 
 // Get resume
 router.get("/getresume", authMiddleware, resumeController.getResume);
