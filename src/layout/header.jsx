@@ -1,67 +1,154 @@
 "use client";
 
+import React, { Component } from "react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { Navbar, NavbarBrand, Nav, NavItem, Button, Collapse } from "reactstrap";
+import { Navbar, NavbarBrand, Collapse, NavbarToggler } from "reactstrap";
 import HeaderNavContent from "./HeaderNavContent";
 import Image from "next/image";
+import { Button } from "react-bootstrap";
 
-const DefaulHeader2 = () => {
-  const [navbarScrolled, setNavbarScrolled] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  const toggle = () => setIsOpen(!isOpen);
-
-  useEffect(() => {
-    setMounted(true);
-
-    const changeBackground = () => {
-      setNavbarScrolled(window.scrollY >= 10);
+class DefaulHeader2 extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      navbarScrolled: false,
+      isOpen: false,
+      mounted: false,
+      isMobileView: false,
     };
+  }
 
-    window.addEventListener("scroll", changeBackground);
-    return () => window.removeEventListener("scroll", changeBackground);
-  }, []);
+  toggle = () => {
+    this.setState({ isOpen: !this.state.isOpen });
+  };
 
-  // 🔑 Prevent hydration mismatch
-  if (!mounted) return null;
+  handleScroll = () => {
+    this.setState({ navbarScrolled: window.scrollY >= 10 });
+  };
 
-  return (
-    <Navbar
-      expand="lg"
-      light
-      fixed={navbarScrolled ? "top" : undefined}
-      className={`shadow-sm py-2 ${navbarScrolled ? "bg-light" : "bg-transparent"}`}
-    >
-      <div className="container d-flex align-items-center justify-content-between">
-        <NavbarBrand>
-          <Link href="/">
-            <Image src="/images/logo.svg" width={154} height={50} alt="brand" />
-          </Link>
-        </NavbarBrand>
+  updateViewport = () => {
+    // Bootstrap lg breakpoint is 992px
+    this.setState({ isMobileView: window.innerWidth < 992 });
+  };
 
-        <Button color="primary" onClick={toggle} className="d-lg-none">
-          ☰
-        </Button>
+  componentDidMount() {
+    this.setState({ mounted: true });
+    this.updateViewport();
+    window.addEventListener("scroll", this.handleScroll);
+    window.addEventListener("resize", this.updateViewport);
+  }
 
-        <Collapse isOpen={isOpen} navbar className="justify-content-between">
-          <HeaderNavContent />
-           <div className="d-flex align-items-center gap-2 mt-2 mt-lg-0">
-            <Link href="/candidates-dashboard/cv-manager" passHref>
-              <Button color="secondary" outline>Upload CV</Button>
+  componentWillUnmount() {
+    window.removeEventListener("scroll", this.handleScroll);
+    window.removeEventListener("resize", this.updateViewport);
+  }
+
+  render() {
+    const { navbarScrolled, isOpen, mounted, isMobileView } = this.state;
+
+    if (!mounted) return null;
+
+    return (
+      <Navbar
+        expand="lg"
+        fixed="top"
+        className={`navbar-light shadow-sm py-2 ${
+          navbarScrolled ? "navbar-glass" : "navbar-solid"
+        }`}
+      >
+        {/* Container is relative to allow absolute dropdown */}
+        <div
+          className="container d-flex align-items-center justify-content-between"
+          style={{ position: "relative" }}
+        >
+          {/* Brand */}
+          <NavbarBrand>
+            <Link href="/">
+              <Image
+                src="/images/logo.svg"
+                width={154}
+                height={50}
+                alt="brand"
+              />
             </Link>
-            <Link href="/login" passHref>
-              <Button color="info" outline>Login / Register</Button>
-            </Link>
-            <Link href="/employers-dashboard/post-jobs" passHref>
-              <Button color="success">Job Post</Button>
-            </Link>
+          </NavbarBrand>
+
+          {/* Mobile toggler (only render on small screens) */}
+          {isMobileView && (
+            <NavbarToggler
+              onClick={this.toggle}
+              className="d-lg-none border-0 shadow-none"
+              aria-label="Toggle navigation"
+            >
+              <span aria-hidden="true">☰</span>
+            </NavbarToggler>
+          )}
+
+          {/* Desktop nav */}
+          <div className="d-none d-lg-flex flex-grow-1 justify-content-end align-items-center gap-3">
+            <HeaderNavContent />
+           
+            <Button
+              href="/login"
+              className="btn-outline-modern btn-dark text-center p-2 text-decoration-none"
+            >
+              Login / Register
+            </Button>
+            <Button
+              href="/login"
+              className="btn-gradient btn-dark text-center p-2 text-decoration-none"
+            >
+              Post Job
+            </Button>
           </div>
-        </Collapse>
-      </div>
-    </Navbar>
-  );
-};
+
+          {/* Mobile collapse menu (only render on small screens) */}
+          {isMobileView && (
+            <Collapse
+              isOpen={isOpen}
+              navbar
+              className="d-lg-none"
+              style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                right: 0,
+                zIndex: 1050,
+              }}
+            >
+              <div
+                className="mobile-nav-panel d-flex flex-column gap-2 px-3 py-3"
+                style={{
+                  backgroundColor: "white",
+                  borderRadius: "0 0 8px 8px",
+                  boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
+                  maxHeight: "70vh",
+                  overflowY: "auto",
+                }}
+              >
+                <div className="w-100">
+                  <HeaderNavContent isMobile />
+                </div>
+                
+                <Link
+                  href="/login"
+                  className="btn-outline-modern text-left p-2 text-decoration-none text-black"
+                >
+                  Login / Register
+                </Link>
+                <Link
+                  href="/login"
+                  className="btn-gradient text-left p-2 text-decoration-none text-black"
+                >
+                  Post Job
+                </Link>
+              </div>
+            </Collapse>
+          )}
+        </div>
+      </Navbar>
+    );
+  }
+}
 
 export default DefaulHeader2;

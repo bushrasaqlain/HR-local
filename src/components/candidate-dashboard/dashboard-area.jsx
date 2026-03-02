@@ -87,7 +87,7 @@ const CandidateDashboardArea = ({ activeTab: parentActiveTab }) => {
   };
 
   return (
-    <section className="user-dashboard py-2 my-4">
+    <section className="user-dashboard py-3">
       <div className="container">{renderContent()}</div>
     </section>
   );

@@ -96,6 +96,7 @@ currency.createCurrenciesTable();
   jobModel.createJobPostTable()
   paymentModel.createPaymentTable()
   applicantModel.createApplicantsTable();
+  applicantModel.createCandidateSearchImpressionsTable();
   historyModel.createHistoryTable();
   messageModel.createMessagesTable();
   candidateeducationModel.createEducationTable();

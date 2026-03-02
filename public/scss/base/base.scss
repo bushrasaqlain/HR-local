@@ -136,9 +136,33 @@ p,
   margin: 0 auto;
   width: 100%;
   min-width: 300px;
-  overflow: hidden;
   background-color: #ffffff;
   transition: all 300ms ease;
+}
+
+/* Dashboard layout: make room for fixed header and pin footer */
+.dashboard-wrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding-top: 72px; /* height of fixed dashboard navbar */
+  padding-bottom: 72px; /* height of fixed dashboard footer */
+}
+
+@media (max-width: 768px) {
+  .dashboard-wrapper {
+    padding-top: 64px;
+    padding-bottom: 64px;
+  }
+}
+
+.dashboard-content {
+  flex: 1 0 auto;
+}
+
+.dashboard-footer {
+  margin-top: auto;
+  width: 100%;
 }
 
 .section {
@@ -369,4 +393,172 @@ textarea::-ms-input-placeholder {
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid #ddd;
+}
+/* Default state (top of page) */
+/* Solid state */
+.navbar-solid {
+   background: linear-gradient(90deg, #edeff1, #edeff1);
+}
+
+/* Glass state on scroll */
+.navbar-glass {
+  background:linear-gradient(90deg, #edeff1, #edeff1);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Force white text */
+.navbar-solid .nav-link,
+.navbar-solid .navbar-brand,
+.navbar-glass .nav-link,
+.navbar-glass .navbar-brand {
+  color: #080808 !important;
+}
+
+.navbar-solid .nav-link:hover,
+.navbar-glass .nav-link:hover {
+  color: #0a0a09 !important;
+}
+
+/* Mobile navbar collapse alignment (Pages dropdown) */
+.mobile-nav-panel {
+  .navbar-nav,
+  .nav-item,
+  .nav-link {
+    width: 100%;
+  }
+
+  .dropdown-toggle {
+    width: 100%;
+  }
+
+  /* Prevent popper positioning on mobile; keep menu aligned under toggle */
+  .dropdown-menu {
+    position: static !important;
+    transform: none !important;
+    inset: auto !important;
+    width: 100%;
+    margin-top: 6px;
+  }
+}
+
+/* Hide the mobile nav panel completely on desktop */
+@media (min-width: 992px) {
+  .mobile-nav-panel {
+    display: none !important;
+  }
+}
+
+.job-section {
+  padding: 100px 0;
+  background: #ffffff; /* soft light background */
+}
+
+.job-section-alternate {
+  padding: 100px 0;
+  background: linear-gradient(180deg, #ffffff 0%, #f3f6ff 100%);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.sec-title h2 {
+  font-size: 36px;
+  font-weight: 700;
+  color: #111;
+}
+
+.sec-title .text {
+  color: #666;
+  margin-top: 10px;
+  font-size: 16px;
+}
+/* Container for tabs */
+.tab-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center; /* center all tabs */
+  gap: 12px;
+  margin-bottom: 40px;
+}
+
+/* Each tab */
+.tab-btn {
+  padding: 12px 24px;
+  border-radius: 30px;
+  background: #ffffff;        /* white default */
+  border: 1px solid #ddd;     /* subtle border */
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #555;                /* dark gray text */
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05); /* subtle depth */
+  transition: all 0.3s ease;
+}
+
+/* Hover state */
+.tab-btn:hover {
+  background: #ff4da6;        /* pink */
+  color: #fff;
+  border-color: #ff4da6;
+  transform: translateY(-2px); /* subtle lift */
+  box-shadow: 0 8px 15px rgba(0,0,0,0.1); /* bigger shadow on hover */
+}
+
+/* Active tab */
+.active-btn {
+  background: #ff4da6;
+  color: white;
+  border-color: #131212;
+  box-shadow: 0 6px 12px rgba(151, 19, 19, 0.1); /* slightly elevated */
+}
+
+/* Optional: smooth font transition */
+.tab-btn,
+.active-btn {
+  transition: background 0.3s, color 0.3s, transform 0.3s, box-shadow 0.3s;
+}
+.job-block .inner-box {
+  background: #ffffff;
+  border-radius: 15px;
+  padding: 25px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  border: 1px solid #f0f0f0;
+}
+
+.job-block .inner-box:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+}
+.job-block h4 a {
+  color: #111;
+  font-weight: 600;
+  transition: 0.3s;
+}
+
+.job-block h4 a:hover {
+  color: #ff4da6; /* match your theme */
+}
+
+.job-info {
+  margin-top: 15px;
+}
+
+.job-info li {
+  color: #777;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.job-other-info li,
+.job-block p {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  background: #ffe6f2;
+  color: #ff4da6;
+  margin-top: 10px;
+}
+.job-block .inner-box:hover {
+  border-color: #ff4da6;
 }

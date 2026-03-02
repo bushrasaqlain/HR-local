@@ -9,7 +9,6 @@ const Page = () => {
       <Seo pageTitle="Register" />
       <Header />
       <RegisterForm />
-      {/* <CandidateRegisterForm /> */}
     </>
   );
 };

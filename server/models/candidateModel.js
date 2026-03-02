@@ -380,26 +380,26 @@ const addCandidateInfo = async (req, res) => {
           ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
         ON DUPLICATE KEY UPDATE
-          full_name = VALUES(full_name),
-          phone = VALUES(phone),
-          date_of_birth = VALUES(date_of_birth),
-          gender = VALUES(gender),
-          marital_status = VALUES(marital_status),
-          total_experience = VALUES(total_experience),
-          license_type = VALUES(license_type),
-          license_number = VALUES(license_number),
-          address = VALUES(address),
-          country = VALUES(country),
-          district = VALUES(district),
-          city = VALUES(city),
-          skills = VALUES(skills),
-          Links = VALUES(Links),
-          current_salary = VALUES(current_salary),
-          expected_salary = VALUES(expected_salary),
-          otherPreferredCities = VALUES(otherPreferredCities),
-          passport_photo = COALESCE(VALUES(passport_photo), passport_photo),
-          resume = COALESCE(VALUES(resume), resume),
-          profile_completed = VALUES(profile_completed)
+  full_name = COALESCE(VALUES(full_name), full_name),
+  phone = COALESCE(VALUES(phone), phone),
+  date_of_birth = COALESCE(VALUES(date_of_birth), date_of_birth),
+  gender = COALESCE(VALUES(gender), gender),
+  marital_status = COALESCE(VALUES(marital_status), marital_status),
+  total_experience = COALESCE(VALUES(total_experience), total_experience),
+  license_type = COALESCE(VALUES(license_type), license_type),
+  license_number = COALESCE(VALUES(license_number), license_number),
+  address = COALESCE(VALUES(address), address),
+  country = COALESCE(VALUES(country), country),
+  district = COALESCE(VALUES(district), district),
+  city = COALESCE(VALUES(city), city),
+  skills = COALESCE(VALUES(skills), skills),
+  Links = COALESCE(VALUES(Links), Links),
+  current_salary = COALESCE(VALUES(current_salary), current_salary),
+  expected_salary = COALESCE(VALUES(expected_salary), expected_salary),
+  otherPreferredCities = COALESCE(VALUES(otherPreferredCities), otherPreferredCities),
+  passport_photo = COALESCE(VALUES(passport_photo), passport_photo),
+  resume = COALESCE(VALUES(resume), resume),
+  profile_completed = COALESCE(VALUES(profile_completed), profile_completed)
       `;
 
       const params = [
@@ -495,11 +495,12 @@ const getCandidateInfo = (req, res) => {
 
   connection.query(candidateSql, [accountId], (err, candidateResult) => {
     if (err) return res.status(500).json({ error: err.message });
-    if (!candidateResult.length) return res.status(404).json({ error: "Candidate not found" });
+    if (!candidateResult.length)
+      return res.status(404).json({ error: "Candidate not found" });
 
     const candidate = candidateResult[0];
 
-    const parseJSON = value => {
+    const parseJSON = (value) => {
       if (!value) return [];
       try {
         return typeof value === "string" ? JSON.parse(value) : value;
@@ -508,85 +509,198 @@ const getCandidateInfo = (req, res) => {
       }
     };
 
-    // Check if links are filled
-    const linksFilled = candidate.Links && parseJSON(candidate.Links).length > 0;
+    let skillIds = parseJSON(candidate.skills);
+    if (!Array.isArray(skillIds)) skillIds = skillIds ? [skillIds] : [];
 
-    // Check certificates and research in their tables
-    const getCertificatesSql = `SELECT 1 FROM candidate_certificates WHERE candidate_id = ? LIMIT 1`;
-    const getResearchSql = `SELECT 1 FROM candidate_research WHERE candidate_id = ? LIMIT 1`;
+    // -------- Profile completion logic (UPDATED) --------
+    const fieldsToCheck = [
+      "full_name", "phone", "date_of_birth", "gender", "marital_status",
+      "total_experience", "license_type_id", "license_number",
+      "otherPreferredCities", "address", "country_id", "district_id",
+      "city_id", "skills", "Links", "current_salary", "expected_salary",
+      "passport_photo", "resume"
+    ];
+
+    let completedCount = 0;
+
+    fieldsToCheck.forEach(field => {
+      if (field === "otherPreferredCities" || field === "skills" || field === "Links") {
+        if (parseJSON(candidate[field]).length > 0) completedCount++;
+      } else if (candidate[field]) {
+        completedCount++;
+      }
+    });
+
+    // New: check availability, certificates, research for profile completion
+    const availabilitySql = `SELECT 1 FROM candidate_availability WHERE candidate_id = ? LIMIT 1`;
+    const certificatesSql = `SELECT 1 FROM candidate_certificates WHERE candidate_id = ? LIMIT 1`;
+    const researchSql = `SELECT 1 FROM candidate_research WHERE candidate_id = ? LIMIT 1`;
 
     Promise.all([
       new Promise((resolve, reject) => {
-        connection.query(getCertificatesSql, [candidate.candidate_id], (err, rows) => {
+        connection.query(availabilitySql, [candidate.candidate_id], (err, rows) => {
           if (err) return reject(err);
           resolve(rows.length > 0);
         });
       }),
       new Promise((resolve, reject) => {
-        connection.query(getResearchSql, [candidate.candidate_id], (err, rows) => {
+        connection.query(certificatesSql, [candidate.candidate_id], (err, rows) => {
+          if (err) return reject(err);
+          resolve(rows.length > 0);
+        });
+      }),
+      new Promise((resolve, reject) => {
+        connection.query(researchSql, [candidate.candidate_id], (err, rows) => {
           if (err) return reject(err);
           resolve(rows.length > 0);
         });
       })
     ])
-    .then(([certificatesFilled, researchFilled]) => {
-      // === SIMPLE PROFILE COMPLETION RULE ===
-// Base percent
-let profileCompletionPercent = candidate.profile_completed ? 70 : 0;
+    .then(([hasAvailability, hasCertificates, hasResearch]) => {
 
-// Add 10% for each extra section if present
-if (linksFilled) profileCompletionPercent += 10;
-if (researchFilled) profileCompletionPercent += 10;
-if (certificatesFilled) profileCompletionPercent += 10;
+      if (hasAvailability) completedCount++;
+      if (hasCertificates) completedCount++;
+      if (hasResearch) completedCount++;
 
-// Make sure it never exceeds 100%
-profileCompletionPercent = Math.min(profileCompletionPercent, 100);
+      const totalFields = fieldsToCheck.length + 3; // +3 for availability, certificates, research
+      const profile_completion_percent = Math.round((completedCount / totalFields) * 100); // ✅ declare & assign here
 
-
-
-      // Prepare response
-      const skillIds = parseJSON(candidate.skills);
+      // -------- Response object --------
       const response = {
-        account_id: candidate.account_id || candidate.id,
+        account_id: candidate.account_id || "",
         email: candidate.email || "",
         full_name: candidate.full_name || "",
         phone: candidate.phone || "",
-        date_of_birth: candidate.date_of_birth ? candidate.date_of_birth.toISOString().slice(0, 10) : "",
+        date_of_birth: candidate.date_of_birth
+          ? candidate.date_of_birth.toISOString().slice(0, 10)
+          : "",
         gender: candidate.gender || "",
         marital_status: candidate.marital_status || "",
         total_experience: candidate.total_experience || "",
-        license_type: { id: candidate.license_type_id || null, name: candidate.license_type_name || "" },
+        license_type: {
+          id: candidate.license_type_id ? Number(candidate.license_type_id) : null,
+          name: candidate.license_type_name || "",
+        },
         license_number: candidate.license_number || "",
         address: candidate.address || "",
-        country: { id: candidate.country_id || null, name: candidate.country_name || "" },
-        district: { id: candidate.district_id || null, name: candidate.district_name || "" },
-        city: { id: candidate.city_id || null, name: candidate.city_name || "" },
+        country: {
+          id: candidate.country_id || null,
+          name: candidate.country_name || "",
+        },
+        district: {
+          id: candidate.district_id || null,
+          name: candidate.district_name || "",
+        },
+        city: {
+          id: candidate.city_id || null,
+          name: candidate.city_name || "",
+        },
         otherPreferredCities: parseJSON(candidate.otherPreferredCities),
-        skills: [],    
+        skills: [],
         Links: parseJSON(candidate.Links),
         current_salary: candidate.current_salary || "",
         expected_salary: candidate.expected_salary || "",
         profile_completed: !!candidate.profile_completed,
-        profile_completion_percent: profileCompletionPercent, // ✅ defined here
+        profile_completion_percent, // ✅ updated percentage
         passport_photo: candidate.passport_photo || null,
         resume: candidate.resume || null,
+
+        // Tracking
+        appeared_in_search: 0,
+        profile_views: 0,
+        shortlisted_count: 0,
+        approved_count: 0,
+        interview_count: 0,
+
+        // Detailed lists
+        shortlisted_companies: [],
+        approved_companies: []
       };
 
-      if (!skillIds.length) return res.json(response);
+      // -------- Tracking Queries --------
+      const searchCountSql = `
+        SELECT COUNT(*) AS appeared_in_search,
+               COUNT(DISTINCT company_id) AS profile_views
+        FROM candidate_search_impressions
+        WHERE candidate_id = ?
+      `;
 
-      const skillsSql = `SELECT id, name FROM skills WHERE id IN (?)`;
-      connection.query(skillsSql, [skillIds], (err, skillsRows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        response.skills = skillsRows.map(s => ({ id: s.id, name: s.name }));
-        res.json(response);
-      });
+      const applicationStatusSql = `
+        SELECT status, COUNT(*) AS count
+        FROM applications
+        WHERE candidate_id = ?
+        GROUP BY status
+      `;
+
+      const companyDetailsSql = `
+        SELECT 
+          a.status,
+          ci.company_name,
+          ci.logo,
+          jp.job_title
+        FROM applications a
+        JOIN job_posts jp ON a.job_id = jp.id
+        JOIN company_info ci ON jp.account_id = ci.account_id
+        WHERE a.candidate_id = ?
+        AND a.status IN ('Shortlisted', 'Approved')
+      `;
+
+      Promise.all([
+        new Promise((resolve, reject) => {
+          connection.query(searchCountSql, [candidate.candidate_id], (err, rows) => {
+            if (err) return reject(err);
+            response.appeared_in_search = rows[0]?.appeared_in_search || 0;
+            response.profile_views = rows[0]?.profile_views || 0;
+            resolve();
+          });
+        }),
+        new Promise((resolve, reject) => {
+          connection.query(applicationStatusSql, [candidate.candidate_id], (err, rows) => {
+            if (err) return reject(err);
+            rows.forEach(r => {
+              if (r.status === "Shortlisted") response.shortlisted_count = r.count;
+              if (r.status === "Approved") response.approved_count = r.count;
+              if (r.status === "Interview") response.interview_count = r.count;
+            });
+            resolve();
+          });
+        }),
+        new Promise((resolve, reject) => {
+          connection.query(companyDetailsSql, [candidate.candidate_id], (err, rows) => {
+            if (err) return reject(err);
+            rows.forEach(row => {
+              const companyData = {
+                company_name: row.company_name,
+                logo: row.logo,
+                job_title: row.job_title
+              };
+              if (row.status === "Shortlisted") response.shortlisted_companies.push(companyData);
+              if (row.status === "Approved") response.approved_companies.push(companyData);
+            });
+            resolve();
+          });
+        })
+      ])
+      .then(() => {
+        if (!skillIds.length) return res.json(response);
+
+        const skillsSql = `SELECT id, name FROM skills WHERE id IN (?)`;
+        connection.query(skillsSql, [skillIds], (err, skillsRows) => {
+          if (err) return res.status(500).json({ error: err.message });
+
+          response.skills = skillsRows.map(s => ({
+            id: s.id,
+            name: s.name
+          }));
+
+          res.json(response);
+        });
+      })
+      .catch(err => res.status(500).json({ error: err.message }));
     })
     .catch(err => res.status(500).json({ error: err.message }));
   });
 };
-
-
-
 
 
 const editCandidateInfo = (req, res) => {

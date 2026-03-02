@@ -1,7 +1,7 @@
 import Header from "../layout/header";
 import Seo from "../components/seo";
 import Home from "../components/home";
-import Footer from "../layout/Footer";
+import Footer from "../layout/footer";
 
 const Index = () => {
   return (
@@ -9,7 +9,7 @@ const Index = () => {
       <Seo pageTitle="Home" />
       <Header />
       <Home />
-      <Footer />
+      {/* <Footer /> */}
     </>
 
   );

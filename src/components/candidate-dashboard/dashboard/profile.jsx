@@ -4,7 +4,6 @@ import React, { Component } from "react";
 import { Card, CardBody, CardHeader, Container } from "reactstrap";
 import api from "../../lib/api";
 import EditProfile from "./editprofile";
-import Cardstyling from "../../../layout/hovercard";
 import JobList from "./lists";
 class Profile extends Component {
   constructor(props) {
@@ -15,7 +14,7 @@ class Profile extends Component {
       dashboardStats: {
         shortlisted: 0,
         viewed: 0,
-        onHold: 0,
+        approved: 0,
         profileCompletion: 65,
       },
     };
@@ -36,13 +35,13 @@ class Profile extends Component {
         passport_photo: data.passport_photo
           ? `${process.env.NEXT_PUBLIC_API_BASE_URL}${data.passport_photo}`
           : "",
-        dashboardStats: {
-          shortlisted: data.shortlisted_count || 0,
-          viewed: data.profile_views || 0,
-          onHold: data.on_hold || 0,
-          profileCompletion: data.profile_completion || 0,
-          profilecompletionpercentage: data.profile_completion_percent || 0,
-        },
+         dashboardStats: {
+    shortlisted: data.shortlisted_count || 0,
+    viewed: data.profile_views || 0,
+    approved: data.approved_count || 0, // <-- changed from onHold
+    profileCompletion: data.profile_completion || 0,
+    profilecompletionpercentage: data.profile_completion_percent || 0,
+  },
       });
     } catch (err) {
       console.error("Dashboard fetch failed", err);
@@ -54,7 +53,7 @@ class Profile extends Component {
     this.fetchCandidateInfo();
   }
   handleEditProfile = () => {
-    if (this.props.onEdit) this.props.onEdit(); // triggers tab change
+    if (this.props.onEdit) this.props.onEdit(); 
   };
 
   renderStatCard(title, value, subtitle) {
@@ -134,10 +133,11 @@ class Profile extends Component {
                 }}
               >
                 {this.renderStatCard(
-                  "On Hold",
-                  dashboardStats.onHold,
-                  "Profiles currently paused",
-                )}
+  "Approved",
+  dashboardStats.approved,
+  "Profiles approved by recruiters",
+)}
+
               </div>
 
               {/* Matching Jobs (Read Only) */}

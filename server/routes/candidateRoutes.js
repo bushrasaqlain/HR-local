@@ -60,5 +60,6 @@ router.get("/logo/:accountId",candidateController.getCandidateLogobyId)
 
 router.get("/", candidateController.getCandidateInfobyAccountType)
 router.get("/getallcandidates", candidateController.getAllCandidates)
+router.put("/updatestatus/:id/:status",candidateController.updateStatus)
 
 module.exports = router;

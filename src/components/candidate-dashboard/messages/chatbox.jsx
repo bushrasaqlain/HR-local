@@ -3,6 +3,7 @@ import ContactList from "./ContactList";
 import ContentField from "./ContentField";
 import { useDispatch } from "react-redux";
 import { chatSidebarToggle } from "../../../../features/toggle/toggleSlice";
+import { Container } from "reactstrap";
 
 const ChatBox = ({userId}) => {
   const dispatch = useDispatch();
@@ -11,9 +12,10 @@ const ChatBox = ({userId}) => {
     dispatch(chatSidebarToggle());
   };
   return (
-    <div className="row">
+    <Container fluid>
+ <div className="row">
       <div
-        className="contacts_column col-xl-4 col-lg-5 col-md-12 col-sm-12 chat"
+        className="contacts_column mt-3 col-xl-4 col-lg-5 col-md-12 col-sm-12 chat"
         id="chat_contacts"
       >
         <div className="card contacts_card">
@@ -39,11 +41,13 @@ const ChatBox = ({userId}) => {
       </div>
       {/* End chat_contact */}
 
-      <div className=" col-xl-8 col-lg-7 col-md-12 col-sm-12 chat">
+      <div className=" mt-3 col-xl-8 col-lg-7 col-md-12 col-sm-12 chat">
         <ContentField userId={userId}/>
       </div>
       {/* chatbox-field-content */}
     </div>
+    </Container>
+   
   );
 };
 

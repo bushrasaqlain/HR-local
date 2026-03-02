@@ -318,12 +318,12 @@ class DashboardHeader extends Component {
               >
                 <DropdownToggle tag="span">
                   <i className="las la-user-circle fs-2 text-white cursor-pointer"></i>
-                </DropdownToggle>
+                </DropdownToggle>    
                 <DropdownMenu end>
                   {dropdownItem(userId).map((item) => (
                     <DropdownItem
                       key={item.id}
-                      onClick={() => handleUserActionClick(item)}
+                      onClick={() => this.handleUserActionClick(item)}
                     >
                       <i className={`la ${item.icon} me-2`}></i>
                       {item.name}

@@ -16,15 +16,6 @@ export const pageItems = [
     name: "Terms",
     routePath: "/terms",
   },
-  {
-    name: "Invoice",
-    routePath: "/invoice",
-  },
-  {
-    name: "Contact",
-    routePath: "/contact",
-  },
-
 ];
 
 
@@ -76,10 +67,6 @@ export const regadminmenuitem = [
 ]
 
 export const companymenuitem = [
-  // Main tab
-  // { key: "profile", label: "Profile", type: "single" },
-
-  // Dropdown for profile-related actions
   {
     key: "profileGroup",
     label: "Profile",
@@ -91,7 +78,7 @@ export const companymenuitem = [
     ],
   },
 
-  // Dropdown for job-related actions
+
   {
     key: "jobsGroup",
     label: "Jobs",
@@ -103,7 +90,7 @@ export const companymenuitem = [
     ],
   },
 
-  // Main tabs
+
   { key: "allApplicants", label: "All Applicants", type: "single" },
   { key: "chatBox", label: "Messages", type: "single" },
 ];

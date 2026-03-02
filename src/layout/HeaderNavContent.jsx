@@ -1,62 +1,132 @@
+"use client";
+
+import React, { Component } from "react";
 import Link from "next/link";
-import { Nav, NavItem, NavLink, Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import {
+  Nav,
+  NavItem,
+  NavLink,
+  Dropdown,
+  DropdownToggle,
+  DropdownMenu,
+  DropdownItem,
+} from "reactstrap";
+import { withRouter } from "next/router"; // for class component
 import { isActiveLink } from "../../lib/linkActiveChecker";
-import { pageItems } from './menuitem';
+import { pageItems } from "./menuitem";
 
-const HeaderNavContent = () => {
-  const router = useRouter();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+class HeaderNavContent extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      dropdownOpen: false,
+    };
+  }
 
-  const toggleDropdown = () => setDropdownOpen(!dropdownOpen);
+  toggleDropdown = () => {
+    this.setState({ dropdownOpen: !this.state.dropdownOpen });
+  };
 
-  return (
-    <Nav navbar className="me-auto">
-      <NavItem>
-        <NavLink active={isActiveLink("/", router.asPath)}>
-          <Link href="/">Home</Link>
-        </NavLink>
-      </NavItem>
+  render() {
+    const { dropdownOpen } = this.state;
+    const { router, isMobile = false } = this.props;
 
-      <NavItem>
-        <NavLink active={isActiveLink("/joblist", router.asPath)}>
-          <Link href="/joblist">Jobs List</Link>
-        </NavLink>
-      </NavItem>
+    return (
+      <Nav navbar className={`${isMobile ? "w-100" : "me-auto"} navbar-nav`}>
+        <NavItem className="nav-item">
+          <NavLink
+            tag={Link}
+            href="/"
+            className="nav-link"
+            style={{
+              color: "#000000",
+              fontWeight: router.asPath === "/" ? "600" : "500",
+              transition: "all 0.3s ease",
+              padding: "8px 14px",
+              borderRadius: "8px",
+              textDecoration: "none",
+            }}
+          >
+            Home
+          </NavLink>
+        </NavItem>
 
-      <NavItem>
-        <NavLink active={isActiveLink("/employeeslist", router.asPath)}>
-          <Link href="/employeeslist">Employers</Link>
-        </NavLink>
-      </NavItem>
+        <NavItem className="nav-item">
+          <NavLink
+            tag={Link}
+            href="/about"
+            className="nav-link"
+            style={{
+              color: "#000000",
+              fontWeight: router.asPath === "/" ? "600" : "500",
+              transition: "all 0.3s ease",
+              padding: "8px 14px",
+              borderRadius: "8px",
+              textDecoration: "none",
+            }}
+          >
+            About
+          </NavLink>
+        </NavItem>
 
-      <NavItem>
-        <NavLink active={isActiveLink("/candidateslist", router.asPath)}>
-          <Link href="/candidateslist">Candidates</Link>
-        </NavLink>
-      </NavItem>
+        {/* <NavItem className="nav-item">
+          <NavLink
+            tag={Link}
+            href="/pricing"
+            className="nav-link"
+            style={{
+              color: "#000000",
+              fontWeight: router.asPath === "/" ? "600" : "500",
+              transition: "all 0.3s ease",
+              padding: "8px 14px",
+              borderRadius: "8px",
+              textDecoration: "none",
+            }}
+          >
+            Pricing
+          </NavLink>
+        </NavItem> */}
 
-      {/* Single Pages Dropdown */}
-      <Dropdown nav inNavbar isOpen={dropdownOpen} toggle={toggleDropdown}>
-        <DropdownToggle nav caret>
-          Pages
-        </DropdownToggle>
-        <DropdownMenu>
-          {pageItems.map((item, index) => (
-            <DropdownItem
-              key={index}
-              tag={Link}
-              href={item.routePath}
-              active={router.asPath === item.routePath}
-            >
-              {item.name}
-            </DropdownItem>
-          ))}
-        </DropdownMenu>
-      </Dropdown>
-    </Nav>
-  );
-};
+        <NavItem className="nav-item">
+          <NavLink
+            tag={Link}
+            href="/faq"
+            className="nav-link"
+            style={{
+              color: "#000000",
+              fontWeight: router.asPath === "/" ? "600" : "500",
+              transition: "all 0.3s ease",
+              padding: "8px 14px",
+              borderRadius: "8px",
+              textDecoration: "none",
+            }}
+          >
+            FAQ's
+          </NavLink>
+        </NavItem>
+<NavItem className="nav-item">
+          <NavLink
+            tag={Link}
+            href="/terms"
+            className="nav-link"
+            style={{
+              color: "#000000",
+              fontWeight: router.asPath === "/" ? "600" : "500",
+              transition: "all 0.3s ease",
+              padding: "8px 14px",
+              borderRadius: "8px",
+              textDecoration: "none",
+            }}
+          >
+           Terms
+          </NavLink>
+        </NavItem>
 
-export default HeaderNavContent;
+    
+      </Nav>
+    );
+  }
+}
+
+// Wrap the class component with `withRouter` to get access to router
+export default withRouter(HeaderNavContent);

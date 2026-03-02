@@ -1,14 +1,14 @@
 import Seo from "../components/seo";
 import Header from "../layout/header";
 import Terms from "../components/terms";
-import Footer from "../layout/Footer";
+import Footer from "../layout/footer";
 const Page = () => {
   return (
     <>
       <Seo pageTitle="Terms" />
       <Header />
       <Terms />
-      <Footer />
+      {/* <Footer /> */}
     </>
   );
 };

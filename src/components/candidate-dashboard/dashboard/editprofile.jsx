@@ -708,41 +708,47 @@ class EditProfile extends Component {
     return missing;
   };
 
-renderField(label, field, required = false, options = []) {
-  const { formData, isEditing } = this.state; // use global edit state
+  renderField(label, field, required = false, options = []) {
+    const { formData, isEditing } = this.state; // use global edit state
 
-  let displayValue = formData[field] || "";
+    let displayValue = formData[field] || "";
 
-  // Format salary fields with commas
-if ((field === "current_salary" || field === "expected_salary") && displayValue) {
-  displayValue = Number(displayValue).toLocaleString(); // 25000 → 25,000
-}
-  // Format date
-  if (field === "date_of_birth" && displayValue) {
-    displayValue = this.formatDate(displayValue);
+    // Format salary fields with commas
+    if (
+      (field === "current_salary" || field === "expected_salary") &&
+      displayValue
+    ) {
+      displayValue = Number(displayValue).toLocaleString(); // 25000 → 25,000
+    }
+    // Format date
+    if (field === "date_of_birth" && displayValue) {
+      displayValue = this.formatDate(displayValue);
+    }
+
+    // Show license_type name instead of raw ID
+    if (field === "license_type" && formData.license_type) {
+      displayValue = formData.license_type.name || "";
+    }
+
+    // Map IDs to names for location fields
+    if (field === "country" && formData.country?.name)
+      displayValue = formData.country.name;
+    if (field === "district" && formData.district?.name)
+      displayValue = formData.district.name;
+    if (field === "city" && formData.city?.name)
+      displayValue = formData.city.name;
+
+    return (
+      <div className="mb-2">
+        <Label className="fw-semibold mb-0">{label}</Label>
+        <Input
+          value={displayValue}
+          readOnly={!isEditing} // now controlled by global edit button
+          onChange={(e) => this.handleChange(e, field)}
+        />
+      </div>
+    );
   }
-
-  // Show license_type name instead of raw ID
-  if (field === "license_type" && formData.license_type) {
-    displayValue = formData.license_type.name || "";
-  }
-
-  // Map IDs to names for location fields
-  if (field === "country" && formData.country?.name) displayValue = formData.country.name;
-  if (field === "district" && formData.district?.name) displayValue = formData.district.name;
-  if (field === "city" && formData.city?.name) displayValue = formData.city.name;
-
-  return (
-    <div className="mb-2">
-      <Label className="fw-semibold mb-0">{label}</Label>
-      <Input
-        value={displayValue}
-        readOnly={!isEditing} // now controlled by global edit button
-        onChange={(e) => this.handleChange(e, field)}
-      />
-    </div>
-  );
-}
 
   genderOptions = [
     { value: "male", label: "Male" },
@@ -928,46 +934,52 @@ if ((field === "current_salary" || field === "expected_salary") && displayValue)
 
   renderStepContent() {
     switch (this.state.activeStep) {
-    case 1:
-  return (
-    <>
- <div className="d-flex justify-content-between align-items-center mb-2">
-  <h5 className="mb-0">Personal Information</h5>
-  <Button
-    color="primary"
-    className="p-1"
-    onClick={() =>
-      this.setState({ showPersonalInfoModal: true }, async () => {
-        const { formData } = this.state;
-        await this.loadCountries();
-        if (formData.country?.id) await this.loadDistricts(formData.country.id);
-        if (formData.district?.id) await this.loadCities(formData.district.id);
-        await this.loadLicenseTypes();
-      })
-    }
-  >
-    <FaPencilAlt size={16} /> Edit
-  </Button>
-</div>
+      case 1:
+        return (
+          <>
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              <h5 className="mb-0">Personal Information</h5>
+              <Button
+                color="primary"
+                className="p-1"
+                onClick={() =>
+                  this.setState({ showPersonalInfoModal: true }, async () => {
+                    const { formData } = this.state;
+                    await this.loadCountries();
+                    if (formData.country?.id)
+                      await this.loadDistricts(formData.country.id);
+                    if (formData.district?.id)
+                      await this.loadCities(formData.district.id);
+                    await this.loadLicenseTypes();
+                  })
+                }
+              >
+                <FaPencilAlt size={16} /> Edit
+              </Button>
+            </div>
 
-      {this.renderField("Full Name", "full_name")}
-      {this.renderField("Email", "email")}
-      {this.renderField("Phone", "phone")}
-      {this.renderField("Country", "country", true, this.state.countries)}
-      {this.renderField("City", "city", true, this.state.cities)}
-      {this.renderField("District", "district", true, this.state.districts)}
-      {this.renderField("DOB", "date_of_birth")}
-      {this.renderField("Gender", "gender")}
-      {this.renderField("Marital Status", "marital_status")}
-      {this.renderField("License Type", "license_type")}
-      {this.renderField("License No", "license_number")}
-      {this.renderField("Current Salary", "current_salary")}
-      {this.renderField("Expected Salary", "expected_salary")}
-      {this.renderField("Total Experience", "total_experience")}
-      {this.renderField("Address", "address")}
-    </>
-  );
-
+            {this.renderField("Full Name", "full_name")}
+            {this.renderField("Email", "email")}
+            {this.renderField("Phone", "phone")}
+            {this.renderField("Country", "country", true, this.state.countries)}
+            {this.renderField("City", "city", true, this.state.cities)}
+            {this.renderField(
+              "District",
+              "district",
+              true,
+              this.state.districts,
+            )}
+            {this.renderField("DOB", "date_of_birth")}
+            {this.renderField("Gender", "gender")}
+            {this.renderField("Marital Status", "marital_status")}
+            {this.renderField("License Type", "license_type")}
+            {this.renderField("License No", "license_number")}
+            {this.renderField("Current Salary", "current_salary")}
+            {this.renderField("Expected Salary", "expected_salary")}
+            {this.renderField("Total Experience", "total_experience")}
+            {this.renderField("Address", "address")}
+          </>
+        );
 
       case 2:
         return this.renderLinksStep();
@@ -1048,6 +1060,14 @@ if ((field === "current_salary" || field === "expected_salary") && displayValue)
         <Head>
           <title>Edit Profile</title>
         </Head>
+        {/* ---------- BACK BUTTON ABOVE EVERYTHING ---------- */}
+        {this.props.onBack && (
+          <div className="mb-3">
+            <button className="btn btn-secondary" onClick={this.props.onBack}>
+              &larr; Back
+            </button>
+          </div>
+        )}
 
         <div className="row">
           {/* ---------- LEFT STEPPER ---------- */}
@@ -1149,21 +1169,20 @@ if ((field === "current_salary" || field === "expected_salary") && displayValue)
                   }
 
                   return (
-                  <div
-  key={index}
-  style={{ cursor: "pointer" }}
-  className={`mb-3 ${
-    this.state.activeStep === index + 1
-      ? "fw-bold text-primary"
-      : missingSteps[stepKey]
-        ? "text-danger fw-bold"
-        : "text-muted"
-  }`}
-  onClick={() => this.setState({ activeStep: index + 1 })}
->
-  {index + 1}. {step}
-</div>
-
+                    <div
+                      key={index}
+                      style={{ cursor: "pointer" }}
+                      className={`mb-3 ${
+                        this.state.activeStep === index + 1
+                          ? "fw-bold text-primary"
+                          : missingSteps[stepKey]
+                            ? "text-danger fw-bold"
+                            : "text-muted"
+                      }`}
+                      onClick={() => this.setState({ activeStep: index + 1 })}
+                    >
+                      {index + 1}. {step}
+                    </div>
                   );
                 })}
               </CardBody>
@@ -1618,14 +1637,13 @@ if ((field === "current_salary" || field === "expected_salary") && displayValue)
 
                         // ✅ No errors → save changes
                         // ✅ No errors → save changes
-this.setState({ activeStep: 1 }, () => {
-  this.handleUpdate();
-  this.setState({
-    showPersonalInfoModal: false,
-    personalInfoErrors: {},
-  });
-});
-
+                        this.setState({ activeStep: 1 }, () => {
+                          this.handleUpdate();
+                          this.setState({
+                            showPersonalInfoModal: false,
+                            personalInfoErrors: {},
+                          });
+                        });
                       }}
                     >
                       Save Changes
