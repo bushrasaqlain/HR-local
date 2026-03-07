@@ -28,7 +28,6 @@ const createCandidateTable = () => {
   country INT,
   district INT,
   city INT,
-  address TEXT,
   otherPreferredCities JSON,
 
 
