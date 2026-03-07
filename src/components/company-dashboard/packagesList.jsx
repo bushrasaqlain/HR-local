@@ -2,6 +2,7 @@
 import React, { Component } from "react";
 import { Table, Spinner, Input, Row, Col } from "reactstrap";
 import Pagination from "../common/pagination.jsx";
+import Head from "next/head.js";
 
 class PackagesList extends Component {
   constructor(props) {
@@ -105,7 +106,11 @@ class PackagesList extends Component {
     }
 
     return (
-      <div className="packages-list">
+      <>
+      <Head>
+        <title>Packages</title>
+      </Head>
+         <div className="packages-list">
         <Row className="mb-3">
           <Col xs={12}>
             <h4 className="fw-bold">Packages List</h4>
@@ -218,6 +223,8 @@ class PackagesList extends Component {
           />
         </div>
       </div>
+      </>
+   
     );
   }
 }

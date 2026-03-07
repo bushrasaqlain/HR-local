@@ -6,6 +6,7 @@ import EditProfile from "./dashboard/editprofile.jsx";
 import ChatBox from "./messages/chatbox.jsx";
 import JobList from "./dashboard/lists.jsx";
 import CandidateRegisterForm from "./dashboard/register.jsx";
+import CompanyInfo from "./dashboard/companyinfo.jsx";
 
 const CandidateDashboardArea = ({ activeTab: parentActiveTab }) => {
   const router = useRouter();
@@ -78,9 +79,11 @@ const CandidateDashboardArea = ({ activeTab: parentActiveTab }) => {
       case "editprofile":
         return <EditProfile onBack={() => setActiveTab("profile")} />;
       case "lists":
-        return <JobList selectedType={listsType} />;
+        return <JobList onClick={() => setActiveTab("lists")} />;
       case "chatbox":
         return <ChatBox />;
+      case "companyinfo":
+        return <CompanyInfo />
       default:
         return <Profile onEdit={() => setActiveTab("editprofile")} />;
     }

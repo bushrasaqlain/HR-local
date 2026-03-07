@@ -152,6 +152,44 @@ const getAllCompanies = (req, res) => {
   });
 };
 
+const getcompanyviaids = (req, res) => {
+  const accountId = Number(req.params.userId);
+  if (!Number.isInteger(accountId)) {
+    return res.status(400).json({ error: "Invalid account_id" });
+  }
+
+  const sql = `
+    SELECT
+      a.id as account_id,
+      a.username,
+     a.email AS account_email,
+      a.isActive,
+      ci.*,
+      c.name  AS country_name,
+      d.name  AS district_name,
+      ct.name AS city_name,
+      bet.name AS business_type_name
+    FROM account a
+    LEFT JOIN company_info ci ON ci.account_id = a.id
+    LEFT JOIN countries c ON ci.country_id = c.id
+    LEFT JOIN districts d ON ci.district_id = d.id
+    LEFT JOIN cities ct ON ci.city_id = ct.id
+    LEFT JOIN business_entity_type bet ON ci.Business_entity_type_id = bet.id
+    WHERE a.id = ? AND a.accountType = 'employer'
+    LIMIT 1
+  `;
+
+  connection.query(sql, [accountId], (err, results) => {
+    if (err) return res.status(500).json({ error: "Internal Server Error" });
+    if (results.length === 0) return res.status(404).json({ error: "Employer not found" });
+
+    const row = results[0];
+    res.json({
+      ...row,
+      logo: row.logo ? row.logo.toString("base64") : null,
+    });
+  });
+};
 
 const getIdFromName = async (tableName, name) => {
   return new Promise((resolve, reject) => {
@@ -215,9 +253,9 @@ const updateCompanyinfo = async (req, res) => {
       company_name,
       business_type,
       phone,
-      country,
-      district,
-      city,
+      country_id,   // ✅ use the numeric ID
+  district_id,  // ✅ use the numeric ID
+  city_id, 
       company_address,
       company_website,
       NTN,
@@ -242,6 +280,7 @@ const updateCompanyinfo = async (req, res) => {
           updatedFields.push("email = ?");
           updatedParams.push(email);
         }
+        console.log("req.body.email:", req.body.email);
         const accountSql = `UPDATE account SET ${updatedFields.join(", ")} WHERE id = ?`;
         updatedParams.push(accountId);
         connection.query(accountSql, updatedParams, (accErr) => {
@@ -266,44 +305,80 @@ const updateCompanyinfo = async (req, res) => {
   }
 };
 
+
 const getcompanybyid = (req, res) => {
-  const accountId = Number(req.params.userId);
-  if (!Number.isInteger(accountId)) {
-    return res.status(400).json({ error: "Invalid account_id" });
+  const companyId = Number(req.params.userId); // 🔹 match the router param
+  if (!Number.isInteger(companyId)) {
+    return res.status(400).json({ error: "Invalid company_id" });
   }
 
   const sql = `
     SELECT
-      a.id as account_id,
+      ci.id AS company_id,
+      a.id AS account_id,
       a.username,
       a.email,
       a.isActive,
-      ci.*,
-      c.name  AS country_name,
-      d.name  AS district_name,
+      ci.company_name,
+      ci.logo,
+      ci.Business_entity_type_id,
+      ci.phone,
+      ci.country_id,
+      ci.district_id,
+      ci.city_id,
+      ci.company_address,
+      ci.company_website,
+      ci.NTN,
+      ci.size_of_company,
+      ci.established_date,
+      c.name AS country_name,
+      d.name AS district_name,
       ct.name AS city_name,
       bet.name AS business_type_name
-    FROM account a
-    LEFT JOIN company_info ci ON ci.account_id = a.id
+    FROM company_info ci
+    LEFT JOIN account a ON ci.account_id = a.id
     LEFT JOIN countries c ON ci.country_id = c.id
     LEFT JOIN districts d ON ci.district_id = d.id
     LEFT JOIN cities ct ON ci.city_id = ct.id
     LEFT JOIN business_entity_type bet ON ci.Business_entity_type_id = bet.id
-    WHERE a.id = ? AND a.accountType = 'employer'
+    WHERE ci.id = ?
     LIMIT 1
   `;
 
-  connection.query(sql, [accountId], (err, results) => {
-    if (err) return res.status(500).json({ error: "Internal Server Error" });
-    if (results.length === 0) return res.status(404).json({ error: "Employer not found" });
+  connection.query(sql, [companyId], (err, results) => {
+    if (err) {
+      console.error("Error fetching company:", err);
+      return res.status(500).json({ error: "Internal Server Error" });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: "Company not found" });
+    }
 
     const row = results[0];
     res.json({
-      ...row,
+      company_id: row.company_id,
+      account_id: row.account_id,
+      username: row.username,
+      email: row.email,
+      isActive: row.isActive,
+      company_name: row.company_name,
       logo: row.logo ? row.logo.toString("base64") : null,
+      Business_entity_type_id: row.Business_entity_type_id,
+      phone: row.phone,
+      country: { id: row.country_id, name: row.country_name },
+      district: { id: row.district_id, name: row.district_name },
+      city: { id: row.city_id, name: row.city_name },
+      company_address: row.company_address,
+      company_website: row.company_website,
+      NTN: row.NTN,
+      size_of_company: row.size_of_company,
+      established_date: row.established_date,
+      business_type_name: row.business_type_name
     });
   });
 };
+
 
 
 const updateCompanySatus = (id, status, res) => {
@@ -418,6 +493,7 @@ module.exports = {
   getAllCompanies,
   updateCompanyinfo,
   getcompanybyid,
+  getcompanyviaids,
   updateCompanySatus,
   getCount
 };

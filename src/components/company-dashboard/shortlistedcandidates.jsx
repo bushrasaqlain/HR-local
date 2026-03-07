@@ -2,14 +2,14 @@ import React, { Component } from "react";
 import { Row, Col, Container } from "reactstrap";
 import axios from "axios";
 import { toast } from "react-toastify";
-import Pagination from "../../common/pagination";
+// import Pagination from "../../common/pagination";
 
-import ApplicantFilters from "./applicantFilters";
-import ApplicantSearch from "./applicantSearch";
-import ApplicantCard from "./applicantCards";
-import CandidateInfo from "./candidateinfo";
+// import ApplicantFilters from "./applicantFilters";
+// import ApplicantSearch from "./applicantSearch";
+// import ApplicantCard from "./applicantCards";
+import CandidateInfo from "./applicants/candidateinfo";
 import Head from "next/head";
-class AllApplicants extends Component {
+class ShortlistedCandidates extends Component {
   constructor(props) {
     super(props); // ✅ MUST call super first
     this.state = {
@@ -195,15 +195,45 @@ class AllApplicants extends Component {
       };
     });
 
-    this.setState({ candidates, allApplicants: candidates }, () =>
-      this.calculateCounts(candidates)
-    );
+    this.setState({ candidates, allApplicants: candidates, selectedStatus: "Shortlisted" }, () =>
+  this.calculateCounts(candidates)
+);
   } catch (error) {
     console.error(error);
     toast.error("Failed to fetch candidates");
   }
 };
+filterApplicants = () => {
+  const { allApplicants, selectedStatus, searchFilters, selectedCityId } = this.state;
+  const query = searchFilters.query?.toLowerCase() || "";
 
+  return allApplicants.filter((candidate) => {
+    // STATUS FILTER
+    const statusMatch = selectedStatus
+      ? String(candidate.candidateStatus || "").trim().toLowerCase() === selectedStatus.toLowerCase()
+      : true;
+
+    // CITY FILTER
+    const cityMatch = selectedCityId
+      ? Number(candidate.city) === Number(selectedCityId) ||
+        candidate.otherPreferredCities?.some(
+          (city) => Number(city.id) === Number(selectedCityId)
+        )
+      : true;
+
+    // SEARCH FILTER
+    let searchMatch = true;
+    if (query) {
+      const nameMatch = candidate.full_name?.toLowerCase().includes(query);
+      const emailMatch = candidate.email?.toLowerCase().includes(query);
+      searchMatch = nameMatch || emailMatch;
+    }
+    console.log(this.filterApplicants().map(c => c.candidateStatus));
+
+    return statusMatch && cityMatch && searchMatch;
+  });
+  
+};
   loadCities = async (districtId) => {
     if (!districtId) {
       this.setState({ cities: [] });
@@ -369,13 +399,6 @@ class AllApplicants extends Component {
             </Col>
             {this.state.showFilters && (
               <>
-                <Col lg="6" className="mb-3">
-                  <ApplicantFilters
-                    counts={counts}
-                    onChange={this.handleFilterChange}
-                  />
-                </Col>
-
                 <Col lg="12" className="mb-3">
                   {/* SEARCH BAR */}
                   {/* <ApplicantSearch onSearch={this.handleSearch} /> */}
@@ -387,7 +410,6 @@ class AllApplicants extends Component {
                           <tr>
                             <th>Candidate</th>
                             <th>Status</th>
-                            <th>City</th>
                           </tr>
                         </thead>
 
@@ -442,7 +464,6 @@ class AllApplicants extends Component {
                               >
                                 {candidate.candidateStatus || "-"}
                               </td>
-                             <td>{candidate.city_name || "-"}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -470,4 +491,4 @@ class AllApplicants extends Component {
   }
 }
 
-export default AllApplicants;
+export default ShortlistedCandidates;

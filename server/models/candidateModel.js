@@ -635,6 +635,11 @@ const getCandidateInfo = (req, res) => {
       const companyDetailsSql = `
         SELECT 
           a.status,
+           a.interview_day,
+  a.interview_time,
+  a.job_id,
+  a.candidate_id,
+          ci.id AS company_id, 
           ci.company_name,
           ci.logo,
           jp.job_title
@@ -670,9 +675,15 @@ const getCandidateInfo = (req, res) => {
             if (err) return reject(err);
             rows.forEach(row => {
               const companyData = {
+                 company_id: row.company_id,
                 company_name: row.company_name,
                 logo: row.logo,
-                job_title: row.job_title
+                job_id: row.job_id,
+    job_title: row.job_title,
+    interview_day: row.interview_day || null,
+    interview_time: row.interview_time || null,
+    candidate_id: row.candidate_id 
+                // account_id: row.account_id
               };
               if (row.status === "Shortlisted") response.shortlisted_companies.push(companyData);
               if (row.status === "Approved") response.approved_companies.push(companyData);

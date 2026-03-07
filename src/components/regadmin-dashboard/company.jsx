@@ -3,9 +3,24 @@ import React, { Component } from "react";
 import api from "../lib/api";
 import Pagination from "../common/pagination";
 import { toast } from "react-toastify";
-import { Card, CardBody, Table, Input, Button, FormGroup, Label, Row, Col, Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
+import {
+  Card,
+  CardBody,
+  Table,
+  Input,
+  Button,
+  FormGroup,
+  Label,
+  Row,
+  Col,
+  Dropdown,
+  DropdownToggle,
+  DropdownMenu,
+  DropdownItem,
+} from "reactstrap";
 import DetailModal from "../common/DetailModal";
 import HistoryModal from "../common/HistoryModal";
+import Head from "next/head";
 class CompanyData extends Component {
   constructor(props) {
     super(props);
@@ -14,17 +29,23 @@ class CompanyData extends Component {
       editingRow: null,
       currentPage: 1,
       pageSize: 20,
-      totalRecords: 0,   // ✅ ADD THIS
+      totalRecords: 0, // ✅ ADD THIS
       statusFilter: "All",
-      searchTerms: { id: "", company_name: "", username: "", email: "", password: "" },
+      searchTerms: {
+        id: "",
+        company_name: "",
+        username: "",
+        email: "",
+        password: "",
+      },
       selectedCompany: null,
       historyModalOpen: false,
       historyData: [],
+       successMessage: "",
     };
     this.tableHeaders = [
       // { key: "id", label: "Id" },
       { key: "company_name", label: "Company Name" },
-      { key: "username", label: "User Name" },
       { key: "email", label: "Email" },
       { key: "password", label: "Password" },
       { key: "isActive", label: "Status" },
@@ -49,46 +70,51 @@ class CompanyData extends Component {
     let searchValue = "";
     for (const key in searchTerms) {
       if (searchTerms[key]) {
-        searchColumn = key;       // send this to backend
+        searchColumn = key; // send this to backend
         searchValue = searchTerms[key];
-        break;                    // only first non-empty column
+        break; // only first non-empty column
       }
     }
 
-    api.get(apiUrl, {
-      headers: { Authorization: `Bearer ${token}` },
-      params: {
-        page: currentPage,
-        limit: pageSize,
-        status: statusFilter !== "All" ? statusFilter : "",
-        search: searchValue,
-        name: searchColumn,
-      },
-    }).then((res) => {
-      this.setState({
-        companyData: res.data.employers,
-        totalRecords: res.data.total,
+    api
+      .get(apiUrl, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          page: currentPage,
+          limit: pageSize,
+          status: statusFilter !== "All" ? statusFilter : "",
+          search: searchValue,
+          name: searchColumn,
+        },
+      })
+      .then((res) => {
+        this.setState({
+          companyData: res.data.employers,
+          totalRecords: res.data.total,
+        });
       });
-    });
   };
 
+updateCompanyStatus = (id, status) => {
+  const apiUrl = `${this.apibasurl}company-info/updatestatus/${id}/${status}`;
 
-  updateCompanyStatus = (id, status) => {
-    const apiUrl = `${this.apibasurl}company-info/updatestatus/${id}/${status}`;
+  api.put(apiUrl).then((res) => {
+    if (res.status === 200) {
+      this.setState((prevState) => ({
+        companyData: prevState.companyData.map((item) =>
+          item.id === id ? { ...item, isActive: status } : item
+        ),
+        editingRow: null,
+        successMessage: "Company status updated successfully!", // show message
+      }));
 
-    api.put(apiUrl).then((res) => {
-      if (res.status === 200) {
-        this.setState((prevState) => ({
-          companyData: prevState.companyData.map((item) =>
-            item.id === id ? { ...item, isActive: status } : item
-          ),
-          editingRow: null,
-        }));
-        toast.success("Company status updated successfully!");
-      }
-    });
-  };
-
+      // Optionally hide the message after 3 seconds
+      setTimeout(() => {
+        this.setState({ successMessage: "" });
+      }, 3000);
+    }
+  });
+};
 
   getHistory = (id) => {
     const accountType = "employer";
@@ -117,8 +143,6 @@ class CompanyData extends Component {
       });
   };
 
-
-
   handleSearchChange = (key, value) => {
     this.setState(
       (prevState) => ({
@@ -128,24 +152,20 @@ class CompanyData extends Component {
         },
         currentPage: 1,
       }),
-      this.fetchCompanyData
+      this.fetchCompanyData,
     );
   };
-
-
 
   handleStatusFilterChange = (e) => {
     this.setState(
       { statusFilter: e.target.value, currentPage: 1 },
-      this.fetchCompanyData
+      this.fetchCompanyData,
     );
   };
-
 
   handlePageChange = (page) => {
     this.setState({ currentPage: page }, this.fetchCompanyData);
   };
-
 
   toggleEditingRow = (id) => {
     this.setState((prevState) => ({
@@ -160,19 +180,33 @@ class CompanyData extends Component {
     }));
   };
 
-
-
   render() {
-
-    const { companyData, editingRow, currentPage, pageSize, statusFilter, searchTerms, totalRecords } = this.state;
+    const {
+      companyData,
+      editingRow,
+      currentPage,
+      pageSize,
+      statusFilter,
+      searchTerms,
+      totalRecords,
+    } = this.state;
 
     const totalPages = Math.ceil(totalRecords / pageSize);
 
     const paginatedData = companyData;
 
-
     return (
       <>
+      <Head>
+        <title>Company | List</title>
+      </Head>
+      {this.state.successMessage && (
+  <div className="text-center">
+
+    {/* Message text */}
+    <span className="align-center text-success bg-light h-30 p-2 border-success">{this.state.successMessage}</span>
+  </div>
+)}
         {/* Status Filter */}
         <Row className="mb-4 align-items-center">
           <Col>
@@ -180,7 +214,9 @@ class CompanyData extends Component {
           </Col>
           <Col className="text-end">
             <FormGroup className="d-inline-block mb-0">
-              <Label for="statusFilter" className="me-2">Status:</Label>
+              <Label for="statusFilter" className="me-2">
+                Status:
+              </Label>
               <Input
                 type="select"
                 id="statusFilter"
@@ -198,32 +234,51 @@ class CompanyData extends Component {
         <Card>
           <CardBody>
             <div className="table-responsive">
-              <Table className="align-middle p-2 table table-striped">
+              <Table
+                className="align-middle p-2 table table-striped"
+                style={{ tableLayout: "auto", width: "100%" }}
+              >
                 <thead className="table-light text-center align-middle">
                   <tr>
                     {this.tableHeaders.map((header) => (
-                      <th key={header.key}>
+                      <th
+                        key={header.key}
+                        style={{ minWidth: "140px", verticalAlign: "middle" }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            gap: "4px",
+                          }}
+                        >
+                          <span>{header.label}</span>
 
-                        <div style={{ paddingTop: "6px" }}>
-                          {header.label}
+                          {header.key !== "action" && (
+                            <Input
+                              type="text"
+                              placeholder={`Search ${header.label}`}
+                              value={searchTerms[header.key] || ""}
+                              onChange={(e) =>
+                                this.handleSearchChange(
+                                  header.key,
+                                  e.target.value,
+                                )
+                              }
+                              className="mb-2"
+                              style={{
+                                width: "100%", // keep 100% of column
+                                fontSize: "0.85rem",
+                                height: "30px",
+                                padding: "4px 6px",
+                                borderRadius: "6px",
+                                border: "1px solid #ced4da",
+                                boxSizing: "border-box", // important
+                              }}
+                            />
+                          )}
                         </div>
-                        {header.key !== "action" && (
-                          <Input
-                            type="text"
-                            placeholder={`Search ${header.label}`}
-                            value={searchTerms[header.key] || ""}
-                            onChange={(e) => this.handleSearchChange(header.key, e.target.value)}
-                            className="mb-2"
-                            style={{
-                              width: "100%",
-                              height: "36px",
-                              fontSize: "0.9rem",
-                              padding: "6px 8px",
-                              borderRadius: "6px",
-                              border: "1px solid #ced4da",
-                            }}
-                          />
-                        )}
                       </th>
                     ))}
                   </tr>
@@ -249,12 +304,17 @@ class CompanyData extends Component {
                                   <div style={{ display: "flex", gap: "6px" }}>
                                     <td className="text-center">
                                       {/* Buttons row */}
-                                      <div style={{ display: "flex", gap: "6px" }}>
+                                      <div
+                                        style={{ display: "flex", gap: "6px" }}
+                                      >
                                         <Button
                                           color="primary"
                                           onClick={() =>
                                             this.setState({
-                                              editingRow: editingRow === item.id ? null : item.id,
+                                              editingRow:
+                                                editingRow === item.id
+                                                  ? null
+                                                  : item.id,
                                             })
                                           }
                                         >
@@ -280,7 +340,7 @@ class CompanyData extends Component {
                                                 "district_name",
                                                 "company_address",
                                                 "created_at",
-                                                "updated_at"
+                                                "updated_at",
                                               ],
                                             })
                                           }
@@ -290,7 +350,9 @@ class CompanyData extends Component {
 
                                         <Button
                                           color="outline-info"
-                                          onClick={() => this.getHistory(item.account_id)}
+                                          onClick={() =>
+                                            this.getHistory(item.account_id)
+                                          }
                                         >
                                           <i className="la la-history" />
                                         </Button>
@@ -301,17 +363,20 @@ class CompanyData extends Component {
                                         <Input
                                           type="select"
                                           style={{ width: "120px" }}
-                                          value={item.isActive}   // ✅ USE STRING DIRECTLY
+                                          value={item.isActive} // ✅ USE STRING DIRECTLY
                                           onChange={(e) =>
-                                            this.updateCompanyStatus(item.id, e.target.value)
+                                            this.updateCompanyStatus(
+                                              item.id,
+                                              e.target.value,
+                                            )
                                           }
                                         >
                                           <option value="Active">Active</option>
-                                          <option value="InActive">InActive</option>
+                                          <option value="InActive">
+                                            InActive
+                                          </option>
                                         </Input>
-
                                       )}
-
                                     </td>
                                   </div>
                                 </div>
@@ -322,8 +387,8 @@ class CompanyData extends Component {
                           return (
                             <td key={header.key} className="text-center">
                               {item[header.key] !== null &&
-                                item[header.key] !== undefined &&
-                                item[header.key] !== ""
+                              item[header.key] !== undefined &&
+                              item[header.key] !== ""
                                 ? item[header.key]
                                 : "-"}
                             </td>
@@ -331,18 +396,19 @@ class CompanyData extends Component {
 
                           // return <td key={header.key}>{item[header.key]}</td>;
                         })}
-
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={this.tableHeaders.length} className="text-center align-middle py-4">
+                      <td
+                        colSpan={this.tableHeaders.length}
+                        className="text-center align-middle py-4"
+                      >
                         No records found.
                       </td>
                     </tr>
                   )}
                 </tbody>
-
               </Table>
             </div>
           </CardBody>
@@ -373,4 +439,4 @@ class CompanyData extends Component {
   }
 }
 
-export default CompanyData;;
+export default CompanyData;

@@ -15,6 +15,8 @@ const companyController=require('../controller/companyController')
 
 router.get("/getcompanybyid/:userId", companyController.getcompanybyid);
 
+router.get("/getcompanyviaids/:userId", companyController.getcompanyviaids);
+
 router.get("/getallcompanies",companyController.getAllCompanies);
 
 

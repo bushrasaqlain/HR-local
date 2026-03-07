@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { ToastContainer } from "react-toastify";
 import { Elements } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import { Provider } from "react-redux";
 import { store } from "../redux/store";
+import { setUserFromToken } from "../redux/features/user/userSlice"; // make sure path is correct
 import "../styles/index.scss";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../../public/scss/components/employer/pricing.scss";
@@ -15,39 +16,53 @@ import "../../public/scss/components/message-box.scss";
 import PublicLayout from "./publicfooter";
 import DefaulHeader2 from "../layout/header";
 import DashboardHeader from "../layout/dashboard-header";
-import { useRouter } from "next/router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
 if (typeof window !== "undefined") {
   require("bootstrap/dist/js/bootstrap");
 }
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // stripePromise
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_KEY);
 
 function AppContent({ Component, pageProps }) {
-  const router = useRouter();
   const accountType = useSelector((state) => state.user.accountType);
+  const [restored, setRestored] = useState(false);
+  const dispatch = useDispatch();
 
+  // Restore user from sessionStorage
+  useEffect(() => {
+    const storedAccountType = sessionStorage.getItem("accountType");
+    const storedUserId = sessionStorage.getItem("userId");
+    if (storedAccountType && storedUserId) {
+      dispatch(setUserFromToken({
+        userId: storedUserId,
+        accountType: storedAccountType,
+      }));
+    }
+    setRestored(true);
+  }, [dispatch]);
+
+  if (!restored) return null;  // ⬅️ don't render anything until restored
+
+  const role = accountType?.toLowerCase();
   const isDashboardRoute =
-    accountType === "db_admin" ||
-    accountType === "reg_admin" ||
-    accountType === "employer" ||
-    accountType === "candidate";
+    role === "db_admin" ||
+    role === "reg_admin" ||
+    role === "employer" ||
+    role === "candidate";
 
   return isDashboardRoute ? (
-    <DashboardHeader>
-      <div style={{ paddingTop: "80px" }}>
+    <DashboardHeader key="dashboard">
       <Component {...pageProps} />
-      </div>
     </DashboardHeader>
   ) : (
-    <PublicLayout>
+    <PublicLayout key="public">
       <DefaulHeader2 />
       <Component {...pageProps} />
     </PublicLayout>
   );
 }
-
 function MyApp({ Component, pageProps }) {
   const [queryClient] = useState(() => new QueryClient());
   const [mounted, setMounted] = useState(false);

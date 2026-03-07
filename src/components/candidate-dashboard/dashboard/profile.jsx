@@ -194,7 +194,7 @@ class Profile extends Component {
               </div>
 
               {/* Profile Snapshot (BELOW) */}
-              <div className="col-12">
+              <div className="col-12 mb-5">
                 <Card className="text-center justify-content-center p-3">
                   <div className="d-flex justify-content-center">
                     <img
@@ -229,7 +229,7 @@ class Profile extends Component {
 
                   <div>
                     <button
-                      className="btn btn-outline-primary btn-sm w-100"
+                      className="btn btn-outline-primary mb-3 btn-sm w-100"
                       onClick={this.handleEditProfile}
                     >
                       Edit Profile

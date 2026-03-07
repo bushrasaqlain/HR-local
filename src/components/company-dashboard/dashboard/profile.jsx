@@ -2,11 +2,16 @@ import TopCardBlock from "./TopCardBlock";
 import ProfileChart from "./ProfileChart";
 import Notification from "./Notification";
 import Applicants from "./Applicants";
+import Head from "next/head";
 
 
 const Profile = () => {   
   return (
-      <section className="user-dashboard">
+    <>
+    <Head>
+      <title>Company Profile</title>
+    </Head>
+       <section className="user-dashboard">
         <div className="dashboard-outer">
 
           {/* <div className="row">
@@ -57,6 +62,8 @@ const Profile = () => {
         </div>
         {/* End dashboard-outer */}
       </section>
+    </>
+   
   );
 };
 

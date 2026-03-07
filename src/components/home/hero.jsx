@@ -2,6 +2,7 @@ import React, { Component } from "react";
 import SearchForm3 from "./SearchForm3"; // Optional if you want custom form
 import PopularSearch from "./PopularSearch";
 import Image from "next/image";
+import Link from "next/link";
 
 class Hero extends Component {
   constructor(props) {
@@ -61,12 +62,14 @@ class Hero extends Component {
                 candidates? Superio connects you directly with high-quality,
                 motivated, job-ready talent prepared to contribute from day one.
               </p>
-              <button
-                type="submit"
-                className=" btn-lg rounded-pill ms-2 custom-btn"
-              >
-                Register
-              </button>
+             <Link href="/login">
+  <button
+    type="button"
+    className="btn-lg rounded-pill ms-2 custom-btn"
+  >
+    Register
+  </button>
+</Link>
               <style jsx>{`
                 .custom-btn {
                   border: 2px solid #000;
