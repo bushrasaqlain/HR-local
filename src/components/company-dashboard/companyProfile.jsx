@@ -3,6 +3,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { Form, FormGroup, Label, Input, Button, Row, Col } from "reactstrap";
 import Select from "react-select";
+import Head from "next/head";
 
 class CompanyProfile extends Component {
   constructor(props) {
@@ -11,7 +12,7 @@ class CompanyProfile extends Component {
       formData: {
         username: "",
         company_name: "",
-        email: "",
+        account_email: "",
         phone: "",
         NTN: "",
         city: "",
@@ -52,7 +53,7 @@ class CompanyProfile extends Component {
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
     try {
       const response = await axios.get(
-        `${apiBaseUrl}company-info/getcompanybyid/${this.userId}`
+        `${apiBaseUrl}company-info/getcompanyviaids/${this.userId}`
       );
       const data = response.data;
       const logoData = data.logo ? `data:image/png;base64,${data.logo}` : "";
@@ -62,7 +63,7 @@ class CompanyProfile extends Component {
           formData: {
             username: data.username,
             company_name: data.company_name || "",
-            email: data.email || "",
+            account_email: data.account_email || "",
             phone: data.phone || "",
             NTN: data.NTN || "",
             city: data.city_name || "",
@@ -305,6 +306,7 @@ class CompanyProfile extends Component {
 
     formDataToSend.append("account_id", this.userId);
     formDataToSend.append("userId", this.userId);
+    
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
     try {
       const response = await axios.put(
@@ -312,10 +314,10 @@ class CompanyProfile extends Component {
         formDataToSend,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
-
+console.log("FormData state:", formData);
       if (response.status === 200) {
         this.setState({ successMessage: "Company profile updated successfully!" });
-        toast.success("Company profile updated successfully!");
+        // toast.success("Company profile updated successfully!");
       } else {
         this.setState({ successMessage: "Error: Unable to update company profile." });
       }
@@ -329,7 +331,11 @@ class CompanyProfile extends Component {
       this.state;
 
     return (
-      <div className="company-profile-page">
+      <>
+      <Head>
+        <title>Profile</title>
+      </Head>
+        <div className="company-profile-page">
         {/* Cover Header */}
         <div className="profile-cover">
           <div className="profile-info d-flex align-items-center">
@@ -353,7 +359,7 @@ class CompanyProfile extends Component {
 
             <div className="ms-4">
               <h3 className="mb-1">{formData.company_name || "Company Name"}</h3>
-              <p className="text-muted mb-0">{formData.email}</p>
+              <p className="text-muted mb-0">{formData.account_email}</p>
             </div>
           </div>
         </div>
@@ -389,7 +395,7 @@ class CompanyProfile extends Component {
                       <Input
                         type="email"
                         name="email"
-                        value={formData.email}
+                        value={formData.account_email}
                         onChange={this.handleInputChange}
                       />
                     </FormGroup>
@@ -541,6 +547,8 @@ class CompanyProfile extends Component {
           </div>
         </div>
       </div>
+      </>
+    
     );
 
   }

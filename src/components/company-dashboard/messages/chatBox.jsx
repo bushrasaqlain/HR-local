@@ -2,6 +2,7 @@ import React, { Component } from "react";
 import { Row, Col, Card, CardBody, CardHeader } from "reactstrap";
 import MessagesList from "./messagesList";
 import SenderMessages from "./senderMessages";
+import Head from "next/head";
 
 class ChatBox extends Component {
   constructor(props) {
@@ -27,6 +28,10 @@ class ChatBox extends Component {
     const { userId, selectedContactId, selectedContactName } = this.state;
 
     return (
+      <>    
+      <Head>
+        <title>Messages</title>
+      </Head>
       <Row>
         {/* Contacts Column */}
         <Col xl="4" lg="5" md="12" sm="12" className="chat">
@@ -51,6 +56,8 @@ class ChatBox extends Component {
           />
         </Col>
       </Row>
+      </>
+  
     );
   }
 }

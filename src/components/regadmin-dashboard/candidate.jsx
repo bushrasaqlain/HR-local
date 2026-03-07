@@ -3,7 +3,22 @@ import React, { Component } from "react";
 import api from "../lib/api";
 import Pagination from "../common/pagination";
 import { toast } from "react-toastify";
-import { Card, CardBody, Table, Input, Button, FormGroup, Label, Row, Col, Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
+import Head from "next/head";
+import {
+  Card,
+  CardBody,
+  Table,
+  Input,
+  Button,
+  FormGroup,
+  Label,
+  Row,
+  Col,
+  Dropdown,
+  DropdownToggle,
+  DropdownMenu,
+  DropdownItem,
+} from "reactstrap";
 import DetailModal from "../common/DetailModal";
 import HistoryModal from "../common/HistoryModal";
 class CandidateData extends Component {
@@ -14,12 +29,21 @@ class CandidateData extends Component {
       editingRow: null,
       currentPage: 1,
       pageSize: 20,
-      totalRecords: 0,   // ✅ ADD THIS
+      totalRecords: 0, // ✅ ADD THIS
       statusFilter: "All",
-      searchTerms: { id: "", username: "", email: "", password: "", gender: "", marital_status: "", status: "" },
+      searchTerms: {
+        id: "",
+        username: "",
+        email: "",
+        password: "",
+        gender: "",
+        marital_status: "",
+        status: "",
+      },
       selectedCandidate: null,
       historyModalOpen: false,
       historyData: [],
+      successMessage: "",
     };
     this.tableHeaders = [
       // { key: "candidate_id", label: "Id" },
@@ -50,31 +74,30 @@ class CandidateData extends Component {
     let searchValue = "";
     for (const key in searchTerms) {
       if (searchTerms[key]) {
-        searchColumn = key;       // send this to backend
+        searchColumn = key; // send this to backend
         searchValue = searchTerms[key];
-        break;                    // only first non-empty column
+        break; // only first non-empty column
       }
     }
 
-    api.get(apiUrl, {
-      headers: { Authorization: `Bearer ${token}` },
-      params: {
-        page: currentPage,
-        limit: pageSize,
-        status: statusFilter !== "All" ? statusFilter : "",
-        search: searchValue,
-        name: searchColumn,
-      },
-    }).then((res) => {
-      this.setState({
-        candidateData: res.data.candidate,
-        totalRecords: res.data.total,
+    api
+      .get(apiUrl, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          page: currentPage,
+          limit: pageSize,
+          status: statusFilter !== "All" ? statusFilter : "",
+          search: searchValue,
+          name: searchColumn,
+        },
+      })
+      .then((res) => {
+        this.setState({
+          candidateData: res.data.candidate,
+          totalRecords: res.data.total,
+        });
       });
-    });
   };
-
-
-
 
   updateCandidateStatus = (id, status) => {
     const apiUrl = `${this.apibasurl}candidateProfile/updatestatus/${id}/${status}`;
@@ -83,15 +106,17 @@ class CandidateData extends Component {
       if (res.status === 200) {
         this.setState((prevState) => ({
           candidateData: prevState.candidateData.map((item) =>
-            item.id === id ? { ...item, isActive: status } : item
+            item.id === id ? { ...item, isActive: status } : item,
           ),
           editingRow: null,
+          successMessage: "Candidate status updated successfully!",
         }));
-        toast.success("Candidate status updated successfully!");
+      setTimeout(() => {
+        this.setState({ successMessage: "" });
+      }, 3000);
       }
     });
   };
-
 
   getHistory = (id) => {
     const accountType = "candidate";
@@ -120,7 +145,6 @@ class CandidateData extends Component {
       });
   };
 
-
   handleSearchChange = (key, value) => {
     this.setState(
       (prevState) => ({
@@ -130,24 +154,20 @@ class CandidateData extends Component {
         },
         currentPage: 1,
       }),
-      this.fetchCandidateData
+      this.fetchCandidateData,
     );
   };
-
-
 
   handleStatusFilterChange = (e) => {
     this.setState(
       { statusFilter: e.target.value, currentPage: 1 },
-      this.fetchCandidateData
+      this.fetchCandidateData,
     );
   };
-
 
   handlePageChange = (page) => {
     this.setState({ currentPage: page }, this.fetchCandidateData);
   };
-
 
   toggleEditingRow = (id) => {
     this.setState((prevState) => ({
@@ -162,19 +182,33 @@ class CandidateData extends Component {
     }));
   };
 
-
-
   render() {
-
-    const { candidateData, editingRow, currentPage, pageSize, statusFilter, searchTerms, totalRecords } = this.state;
+    const {
+      candidateData,
+      editingRow,
+      currentPage,
+      pageSize,
+      statusFilter,
+      searchTerms,
+      totalRecords,
+    } = this.state;
 
     const totalPages = Math.ceil(totalRecords / pageSize);
 
     const paginatedData = candidateData;
 
-
     return (
       <>
+           <Head>
+              <title>Candidate | List</title>
+            </Head>
+            {this.state.successMessage && (
+  <div className="text-center">
+
+    {/* Message text */}
+    <span className="align-center text-success bg-light h-30 p-2 border-success">{this.state.successMessage}</span>
+  </div>
+)}
         {/* Status Filter */}
         <Row className="mb-4 align-items-center">
           <Col>
@@ -182,7 +216,9 @@ class CandidateData extends Component {
           </Col>
           <Col className="text-end">
             <FormGroup className="d-inline-block mb-0">
-              <Label for="statusFilter" className="me-2">Status:</Label>
+              <Label for="statusFilter" className="me-2">
+                Status:
+              </Label>
               <Input
                 type="select"
                 id="statusFilter"
@@ -200,32 +236,43 @@ class CandidateData extends Component {
         <Card>
           <CardBody>
             <div className="table-responsive">
-              <Table className="align-middle p-2 table table-striped">
+              <Table
+                className="align-middle p-2 table table-striped"
+                style={{ tableLayout: "auto", width: "100%" }}
+              >
                 <thead className="table-light text-center align-middle">
                   <tr>
                     {this.tableHeaders.map((header) => (
                       <th key={header.key}>
+                        <div
+                          style={{ minWidth: "140px", verticalAlign: "middle" }}
+                        >
+                          <span>{header.label}</span>
 
-                        <div style={{ paddingTop: "6px" }}>
-                          {header.label}
+                          {header.key !== "action" && (
+                            <Input
+                              type="text"
+                              placeholder={`Search ${header.label}`}
+                              value={searchTerms[header.key] || ""}
+                              onChange={(e) =>
+                                this.handleSearchChange(
+                                  header.key,
+                                  e.target.value,
+                                )
+                              }
+                              className="mb-2"
+                              style={{
+                                width: "100%", // keep 100% of column
+                                fontSize: "0.85rem",
+                                height: "30px",
+                                padding: "4px 6px",
+                                borderRadius: "6px",
+                                border: "1px solid #ced4da",
+                                boxSizing: "border-box", // important
+                              }}
+                            />
+                          )}
                         </div>
-                        {header.key !== "action" && (
-                          <Input
-                            type="text"
-                            placeholder={`Search ${header.label}`}
-                            value={searchTerms[header.key] || ""}
-                            onChange={(e) => this.handleSearchChange(header.key, e.target.value)}
-                            className="mb-2"
-                            style={{
-                              width: "100%",
-                              height: "36px",
-                              fontSize: "0.9rem",
-                              padding: "6px 8px",
-                              borderRadius: "6px",
-                              border: "1px solid #ced4da",
-                            }}
-                          />
-                        )}
                       </th>
                     ))}
                   </tr>
@@ -250,14 +297,16 @@ class CandidateData extends Component {
                                   {/* Buttons row */}
                                   <div style={{ display: "flex", gap: "6px" }}>
                                     <td className="text-center">
-
                                       <div className="mt-2 d-flex justify-content-center gap-2">
                                         <Button
                                           color="primary"
                                           size="sm"
                                           onClick={() =>
                                             this.setState({
-                                              editingRow: editingRow === item.id ? null : item.id,
+                                              editingRow:
+                                                editingRow === item.id
+                                                  ? null
+                                                  : item.id,
                                             })
                                           }
                                         >
@@ -280,7 +329,7 @@ class CandidateData extends Component {
                                                 "district_name",
                                                 "address",
                                                 "created_at",
-                                                "updated_at"
+                                                "updated_at",
                                               ],
                                             })
                                           }
@@ -291,7 +340,9 @@ class CandidateData extends Component {
                                         <Button
                                           color="outline-info"
                                           size="sm"
-                                          onClick={() => this.getHistory(item.account_id)}
+                                          onClick={() =>
+                                            this.getHistory(item.account_id)
+                                          }
                                         >
                                           <i className="la la-history" />
                                         </Button>
@@ -304,15 +355,17 @@ class CandidateData extends Component {
                                     <Input
                                       type="select"
                                       style={{ width: "120px" }}
-                                      value={item.isActive}   // ✅ USE STRING DIRECTLY
+                                      value={item.isActive} // ✅ USE STRING DIRECTLY
                                       onChange={(e) =>
-                                        this.updateCandidateStatus(item.id, e.target.value)
+                                        this.updateCandidateStatus(
+                                          item.id,
+                                          e.target.value,
+                                        )
                                       }
                                     >
                                       <option value="Active">Active</option>
                                       <option value="InActive">InActive</option>
                                     </Input>
-
                                   )}
                                 </div>
                               </td>
@@ -322,8 +375,8 @@ class CandidateData extends Component {
                           return (
                             <td key={header.key} className="text-center">
                               {item[header.key] !== null &&
-                                item[header.key] !== undefined &&
-                                item[header.key] !== ""
+                              item[header.key] !== undefined &&
+                              item[header.key] !== ""
                                 ? item[header.key]
                                 : "-"}
                             </td>
@@ -331,18 +384,19 @@ class CandidateData extends Component {
 
                           // return <td key={header.key}>{item[header.key]}</td>;
                         })}
-
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={this.tableHeaders.length} className="text-center align-middle py-4">
+                      <td
+                        colSpan={this.tableHeaders.length}
+                        className="text-center align-middle py-4"
+                      >
                         No records found.
                       </td>
                     </tr>
                   )}
                 </tbody>
-
               </Table>
             </div>
           </CardBody>

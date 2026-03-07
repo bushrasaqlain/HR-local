@@ -119,6 +119,11 @@ class DashboardHeader extends Component {
 
   handleUserActionClick = (item) => {
     if (item.tabKey === "logout") {
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("userId");
+      sessionStorage.removeItem("accountType");
+      sessionStorage.removeItem("displayName");
+      sessionStorage.removeItem("profile_completed");
       window.location.href = "/";
     } else {
       this.setState({ activeTab: item.tabKey });

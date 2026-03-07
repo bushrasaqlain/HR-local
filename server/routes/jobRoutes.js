@@ -4,7 +4,7 @@ const authMiddleware = require("../middleware/auth.js");
 const jobController=require('../controller/jobController')
 
 router.get('/getJobbyRegAdmin',jobController.getJobbyRegAdmin)
-router.put('/updateJobPostStatus/:id/:status',jobController.updateJobPostStatus)
+router.put('/updateJobPostStatus/:id/:status/:userId',jobController.updateJobPostStatus)
 router.get('/managejob/:userId',jobController.getAllJobs);
 
 router.delete('/delete_job/:userId/:jobId',jobController.deleteJob)

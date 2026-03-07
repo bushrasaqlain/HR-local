@@ -3,6 +3,7 @@ import Link from "next/link";
 import axios from "axios";
 import { withRouter } from "next/router";
 import { connect } from "react-redux";
+import Head from "next/head.js";
 import {
   Table,
   Input,
@@ -194,10 +195,11 @@ componentDidUpdate(prevProps) {
 
   handleStatusChange = async (jobId, status) => {
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    const userId = sessionStorage.getItem("userId");
 
     try {
       await axios.put(
-        `${apiBaseUrl}job/updateJobPostStatus/${jobId}/${status}`
+        `${apiBaseUrl}job/updateJobPostStatus/${jobId}/${status}/${userId}`
       );
 
       this.setState((prevState) => ({
@@ -270,7 +272,11 @@ componentDidUpdate(prevProps) {
 
   
     return (
-      <Container className="mt-4">
+      <>
+      <Head>
+        <title>Posted Jobs</title>
+      </Head>
+           <Container className="mt-4">
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h4 className="mb-0">Job Lists</h4>
           
@@ -513,6 +519,8 @@ componentDidUpdate(prevProps) {
 
 
       </Container>
+      </>
+ 
     );
   }
 }

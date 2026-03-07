@@ -8,6 +8,7 @@ import PricingForm from "./pricingform";
 import api from "../lib/api";
 import { withRouter } from "next/router";
 import AsyncCreatableSelect from "react-select/async-creatable";
+import Head from "next/head";
 
 class PostBoxForm extends Component {
   constructor(props) {
@@ -460,7 +461,11 @@ class PostBoxForm extends Component {
 
 
     return (
-      <Form onSubmit={this.handleSubmit}>
+      <>
+      <Head>
+        <title>Post a Jobs</title>
+        </Head>
+        <Form onSubmit={this.handleSubmit}>
         <Card>
           <CardBody>
             <div className='text-danger py-4'>*  -  All fields are mandatory</div>
@@ -862,6 +867,8 @@ class PostBoxForm extends Component {
 
 
       </Form>
+        </>
+      
 
     );
   }
