@@ -16,7 +16,7 @@ const deleteMessage=(req,res)=>{
 }
 
 const sendMessage=(req,res)=>{
-    messageModel.sendMesage(req,res)
+    messageModel.sendMessage(req,res)
 }
 
 const markasRead=(rq,res)=>{

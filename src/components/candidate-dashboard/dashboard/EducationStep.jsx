@@ -321,7 +321,7 @@ class EducationStep extends Component {
                   </td>
                   <td>
                     <button
-                      className="btn btn-sm btn-outline-primary"
+                      className="btn btn-sm custom-progress-bar text-white"
                       onClick={() => this.openEditModal(edu)}
                     >
                       Edit
@@ -340,7 +340,7 @@ class EducationStep extends Component {
         </table>
 
         <button
-          className="btn btn-outline-primary"
+          className="btn custom-progress-bar text-white"
           onClick={() =>
             this.setState({ showEducationModal: true, educationDraft: {} })
           }
@@ -493,7 +493,7 @@ class EducationStep extends Component {
                     Cancel
                   </button>
                   <button
-                    className="btn btn-primary"
+                    className="btn custom-progress-bar text-white"
                     onClick={this.saveEducation}
                   >
                     {educationDraft.id ? "Update" : "Add"}

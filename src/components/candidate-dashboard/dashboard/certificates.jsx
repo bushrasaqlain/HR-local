@@ -145,7 +145,7 @@ handleSaveCertificate = async () => {
         </td>
         <td>
           <button
-            className="btn btn-sm btn-outline-primary"
+            className="btn btn-sm btn-outline-secondry custom-progress-bar text-white"
             onClick={() => this.openEditModal(item)}
           >
             Edit
@@ -164,7 +164,7 @@ handleSaveCertificate = async () => {
 
         </table>
 
-        <Button color="outline-primary" onClick={this.handleAddCertificate}>
+        <Button color="outline-secondry custom-progress-bar text-white" onClick={this.handleAddCertificate}>
           + Add Certificate
         </Button>
 
@@ -246,7 +246,7 @@ handleSaveCertificate = async () => {
                   >
                     Cancel
                   </Button>
-                  <Button color="primary" onClick={this.handleSaveCertificate}>
+                  <Button className="custom-progress-bar text-white" onClick={this.handleSaveCertificate}>
                     Save
                   </Button>
                 </div>

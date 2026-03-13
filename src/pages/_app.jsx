@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { ToastContainer } from "react-toastify";
 import { Elements } from "@stripe/react-stripe-js";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { loadStripe } from "@stripe/stripe-js";
 import { Provider } from "react-redux";
 import { store } from "../redux/store";

@@ -171,7 +171,8 @@ class ResearchStep extends Component {
                   <td>
                     <Button
                       size="sm"
-                      color="outline-primary"
+                      color="outline-secondry"
+                      className="custom-progress-bar text-white"
                       onClick={() => this.openEditResearchModal(index)}
                     >
                       Edit
@@ -189,7 +190,7 @@ class ResearchStep extends Component {
           </tbody>
         </table>
 
-        <Button color="outline-primary" onClick={this.handleAddResearch}>
+        <Button color="outline-secondry" className="custom-progress-bar text-white" onClick={this.handleAddResearch}>
           + Add Research
         </Button>
 
@@ -236,7 +237,7 @@ class ResearchStep extends Component {
 
                     {/* Show existing file link if available */}
                     {newResearch.filePreviewUrl && !newResearch.file && (
-                      <div className="mb-1">
+                      <div className="mb-1 custom-progress-bar">
                         <a
                           href={newResearch.filePreviewUrl}
                           target="_blank"
@@ -290,7 +291,7 @@ class ResearchStep extends Component {
                   >
                     Cancel
                   </Button>
-                  <Button color="primary" onClick={this.handleSaveResearch}>
+                  <Button className="custom-progress-bar text-white" onClick={this.handleSaveResearch}>
                     Save
                   </Button>
                 </div>

@@ -39,7 +39,7 @@ class HeaderNavContent extends Component {
             href="/"
             className="nav-link"
             style={{
-              color: "#000000",
+              color: "#36565F",
               fontWeight: router.asPath === "/" ? "600" : "500",
               transition: "all 0.3s ease",
               padding: "8px 14px",
@@ -57,7 +57,7 @@ class HeaderNavContent extends Component {
             href="/about"
             className="nav-link"
             style={{
-              color: "#000000",
+              color: "#36565F",
               fontWeight: router.asPath === "/" ? "600" : "500",
               transition: "all 0.3s ease",
               padding: "8px 14px",
@@ -75,7 +75,7 @@ class HeaderNavContent extends Component {
             href="/pricing"
             className="nav-link"
             style={{
-              color: "#000000",
+              color: "#36565F",
               fontWeight: router.asPath === "/" ? "600" : "500",
               transition: "all 0.3s ease",
               padding: "8px 14px",
@@ -93,7 +93,7 @@ class HeaderNavContent extends Component {
             href="/faq"
             className="nav-link"
             style={{
-              color: "#000000",
+              color: "#36565F",
               fontWeight: router.asPath === "/" ? "600" : "500",
               transition: "all 0.3s ease",
               padding: "8px 14px",
@@ -110,7 +110,7 @@ class HeaderNavContent extends Component {
             href="/terms"
             className="nav-link"
             style={{
-              color: "#000000",
+              color: "#36565F",
               fontWeight: router.asPath === "/" ? "600" : "500",
               transition: "all 0.3s ease",
               padding: "8px 14px",

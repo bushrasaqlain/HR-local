@@ -30,15 +30,60 @@ CREATE TABLE IF NOT EXISTS messages (
   });
 }
 
+// Update getAllMessages to optionally filter by jobId
+const getAllMessages = (req, res) => {
+  const userId = req.params.userId;
+  const otherUserId = req.params.otherUserId;
+  const jobId = req.query.jobId; // Optional jobId filter
+  
+  try {
+    let query = `
+      SELECT * FROM messages 
+      WHERE (
+        (senderId = ? AND receiverId = ? AND deleted_by_sender = 0)
+        OR 
+        (senderId = ? AND receiverId = ? AND deleted_by_receiver = 0)
+      )
+    `;
+    
+    let params = [
+      userId, otherUserId, // messages sent by userId, not deleted by sender
+      otherUserId, userId  // messages received by userId, not deleted by receiver
+    ];
+    
+    // Add jobId filter if provided
+    if (jobId) {
+      query += ` AND (jobId = ? OR jobId IS NULL)`;
+      params.push(jobId);
+    }
+    
+    query += ` ORDER BY timestamp ASC`;
+
+    connection.query(query, params, (error, results) => {
+      if (error) {
+        console.error('Error fetching messages:', error);
+        return res.status(500).json({ error: 'An error occurred while fetching messages.' });
+      }
+      res.status(200).json(results);
+    });
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+    res.status(500).json({ error: 'An error occurred while fetching messages.' });
+  }
+};
+
+// Update getContact to show last message per contact (optionally per job)
 const getContact = (req, res) => {
   const { userId } = req.params;
+  const { jobId } = req.query; // Optional job filter
 
-  const query = `
+  let query = `
     SELECT
       a.id,
       a.username AS full_name,
       m.message AS last_message,
-      m.timestamp AS last_message_time
+      m.timestamp AS last_message_time,
+      m.jobId
     FROM messages m
     INNER JOIN (
       SELECT
@@ -55,6 +100,23 @@ const getContact = (req, res) => {
           OR
           (receiverId = ? AND deleted_by_receiver = 0)
         )
+  `;
+  
+  let params = [
+    userId,
+    userId,
+    userId,
+    userId,
+    userId
+  ];
+  
+  // Add job filter to subquery if provided
+  if (jobId) {
+    query += ` AND jobId = ?`;
+    params.push(jobId);
+  }
+  
+  query += `
       GROUP BY contact_id
     ) lm
       ON (
@@ -65,16 +127,8 @@ const getContact = (req, res) => {
     JOIN account a ON a.id = lm.contact_id
     ORDER BY m.timestamp DESC
   `;
-
-  const params = [
-    userId,
-    userId,
-    userId,
-    userId,
-    userId,
-    userId,
-    userId
-  ];
+  
+  params.push(userId, userId);
 
   connection.query(query, params, (err, results) => {
     if (err) {
@@ -84,39 +138,6 @@ const getContact = (req, res) => {
     res.status(200).json(results);
   });
 };
-
-const getAllMessages = (req, res) => {
-  const userId = req.params.userId;
-  const otherUserId = req.params.otherUserId;
-  try {
-    const query = `
-      SELECT * FROM messages 
-      WHERE (
-        senderId = ? AND receiverId = ? AND deleted_by_sender = 0
-      ) 
-      OR (
-        senderId = ? AND receiverId = ? AND deleted_by_receiver = 0
-      )
-      ORDER BY timestamp ASC
-    `;
-
-    const params = [
-      userId, otherUserId, // messages sent by userId, not deleted by sender
-      otherUserId, userId  // messages received by userId, not deleted by receiver
-    ];
-
-    connection.query(query, params, (error, results) => {
-      if (error) {
-        console.error('Error fetching messages:', error);
-        return res.status(500).json({ error: 'An error occurred while fetching messages.' });
-      }
-      res.status(200).json(results);
-    });
-  } catch (error) {
-    console.error('Error fetching messages:', error);
-    res.status(500).json({ error: 'An error occurred while fetching messages.' });
-  }
-}
 
 const deleteMessage = (req, res) => {
   const { userId, otherUserId } = req.body;
@@ -150,16 +171,18 @@ const deleteMessage = (req, res) => {
   });
 }
 
-const sendMesage = (req, res) => {
-  const { senderId, receiverId, message } = req.body;
+const sendMessage = (req, res) => {
+  const { senderId, receiverId, message, jobId } = req.body; // Added jobId
+  
   if (!senderId || !receiverId || !message) {
     return res.status(400).json({ error: 'Sender ID, receiver ID, and message are required.' });
   }
 
   try {
-    const insertQuery = 'INSERT INTO messages (senderId, receiverId, message, timestamp, is_read) VALUES (?, ?, ?, NOW(), FALSE)';
+    // Modified query to include jobId
+    const insertQuery = 'INSERT INTO messages (senderId, receiverId, jobId, message, timestamp, is_read) VALUES (?, ?, ?, ?, NOW(), FALSE)';
 
-    connection.query(insertQuery, [senderId, receiverId, message], (error, results) => {
+    connection.query(insertQuery, [senderId, receiverId, jobId || null, message], (error, results) => {
       if (error) {
         console.error('Error saving message:', error);
         return res.status(500).json({ error: 'An error occurred while saving the message.' });
@@ -183,7 +206,7 @@ const sendMesage = (req, res) => {
     console.error('Error sending message:', error);
     res.status(500).json({ error: 'An error occurred while sending the message.' });
   }
-}
+};
 
 const markasRead = (req, res) => {
   const { senderId, receiverId } = req.body;
@@ -233,6 +256,38 @@ const unreadMessage = (req, res) => {
     res.status(200).json(results);
   });
 }
+// New function to get conversation for a specific job
+const getJobMessages = (req, res) => {
+  const { candidateId, jobId } = req.params;
+  const userId = req.query.userId; // The logged-in user (company/recruiter)
+  
+  if (!candidateId || !jobId || !userId) {
+    return res.status(400).json({ error: "Missing required parameters" });
+  }
+  
+  const query = `
+    SELECT * FROM messages 
+    WHERE (
+      (senderId = ? AND receiverId = ? AND deleted_by_sender = 0)
+      OR 
+      (senderId = ? AND receiverId = ? AND deleted_by_receiver = 0)
+    )
+    AND jobId = ?
+    ORDER BY timestamp ASC
+  `;
+  
+  connection.query(
+    query, 
+    [userId, candidateId, candidateId, userId, jobId], 
+    (error, results) => {
+      if (error) {
+        console.error('Error fetching job messages:', error);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.status(200).json(results);
+    }
+  );
+};
 
 const unreadCount = (req, res) => {
   const { userId } = req.params;
@@ -291,8 +346,9 @@ module.exports = {
   getContact,
   getAllMessages,
   deleteMessage,
-  sendMesage,
+  sendMessage,
   markasRead,
   unreadMessage,
-  unreadCount
+  unreadCount,
+  getJobMessages
 }

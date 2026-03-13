@@ -6,6 +6,17 @@ class DetailModal extends Component {
   static formatValue(value) {
     if (value === undefined || value === null || value === "") return "-";
 
+    // ✅ Format price/salary with commas (for numbers)
+    if (typeof value === "number" || (!isNaN(value) && value !== "")) {
+      // Check if key indicates price or salary (handled in render)
+      // This will be applied to all numbers, but we'll let the key check happen in render
+      const numValue = Number(value);
+      if (!isNaN(numValue)) {
+        return numValue.toLocaleString('en-IN'); // For Indian format (12,000)
+        // or use 'en-US' for US format (12,000)
+      }
+    }
+
     // ✅ Time formatting (HH:mm:ss or HH:mm) -> "6:05 PM"
     if (typeof value === "string" && /^\d{2}:\d{2}(:\d{2})?$/.test(value)) {
       const [hStr, mStr] = value.split(":");
@@ -25,8 +36,18 @@ class DetailModal extends Component {
       if (!isNaN(date.getTime())) {
         const day = String(date.getDate()).padStart(2, "0");
         const monthNames = [
-          "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "May",
+          "Jun",
+          "Jul",
+          "Aug",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dec",
         ];
         return `${day}-${monthNames[date.getMonth()]}-${date.getFullYear()}`;
       }
@@ -59,42 +80,67 @@ class DetailModal extends Component {
     return key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
   }
 
+  // Special formatter for price/salary fields
+  static formatPrice(value) {
+    if (value === undefined || value === null || value === "") return "-";
+    const numValue = Number(value);
+    if (isNaN(numValue)) return value;
+    return numValue.toLocaleString('en-IN'); // or 'en-US'
+  }
+
   render() {
-    const { isOpen, toggle, title, details, fields, customRenderers } = this.props;
+    const { isOpen, toggle, title, details, fields, customRenderers } =
+      this.props;
 
     if (!details || !fields) return null;
 
     return (
       <Modal isOpen={isOpen} toggle={toggle} size="lg" centered>
-        <ModalHeader toggle={toggle} className="bg-primary text-white">
-          {title || "Details"}
+        <ModalHeader toggle={toggle} className="custom-progress-bar text-white">
+          <h4>Job Details</h4>
         </ModalHeader>
 
-        <ModalBody>
+        <ModalBody className="p-4">
           {fields.map((key, index) => {
-            const value = customRenderers?.[key]
+            let value = customRenderers?.[key]
               ? customRenderers[key](details)
               : details[key];
 
-            if (value === undefined || value === null || value === "") return null;
+            if (value === undefined || value === null || value === "")
+              return null;
+
+            // Check if this is a price or salary field
+            const isPriceField = key.toLowerCase().includes('price') || 
+                                key.toLowerCase().includes('salary') ||
+                                key.toLowerCase().includes('amount') ||
+                                key.toLowerCase().includes('cost');
+
+            // Format price/salary fields with commas
+            if (isPriceField && !isNaN(value) && value !== '') {
+              value = Number(value).toLocaleString('en-IN');
+            }
 
             return (
-              <Row
+              <div
                 key={key}
-                className={`py-2 align-items-center ${
+                className={`d-flex py-3 ${
                   index !== fields.length - 1 ? "border-bottom" : ""
                 }`}
               >
                 {/* Label */}
-                <Col md="4" className="fw-semibold text-muted">
-                  {DetailModal.formatKey(key)}
-                </Col>
+                <div className="col-4">
+                  <span className="fw-semibold text-secondary">
+                    {DetailModal.formatKey(key)}
+                  </span>
+                </div>
 
                 {/* Value */}
-                <Col md="8" className="text-dark">
-                  {DetailModal.formatValue(value)}
-                </Col>
-              </Row>
+                <div className="col-8">
+                  <span className="text-dark">
+                    {DetailModal.formatValue(value)}
+                  </span>
+                </div>
+              </div>
             );
           })}
         </ModalBody>

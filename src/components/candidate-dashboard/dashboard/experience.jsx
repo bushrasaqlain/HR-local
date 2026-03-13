@@ -254,7 +254,7 @@ openEditModal = (expRow) => {
                   </td>
                   <td className="text-center">
                     <button
-                      className="btn btn-sm btn-outline-primary"
+                      className="btn btn-sm custom-progress-bar text-white"
                       onClick={() => this.openEditModal(exp)}
                     >
                       Edit
@@ -273,7 +273,7 @@ openEditModal = (expRow) => {
         </table>
 
         <button
-          className="btn btn-sm btn-outline-success mb-3"
+          className="btn btn-sm custom-progress-bar text-white mb-3"
           onClick={() =>
             this.setState({
               experienceDraft: { ...emptyExperienceDraft },
@@ -387,7 +387,7 @@ openEditModal = (expRow) => {
                     Cancel
                   </button>
                   <button
-                    className="btn btn-primary"
+                    className="btn custom-progress-bar text-white"
                     onClick={this.saveExperience}
                   >
                     {experienceDraft.id ? "Update" : "Add"}

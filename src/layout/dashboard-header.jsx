@@ -165,7 +165,7 @@ class DashboardHeader extends Component {
         return (
           <NavItem key={item.key} className={isMobile ? "mb-2" : ""}>
             <Button
-              color="dark"
+              color="custom-progress-bar"
               outline
               className={`text-white ${activeTab === item.key ? "border-bottom border-white border-2" : ""}`}
               onClick={() =>
@@ -209,7 +209,7 @@ class DashboardHeader extends Component {
         >
           <DropdownToggle
             caret
-            color="dark"
+            color="custom-progress-bar text-white"
             outline={!isMobile}
             style={{
               color: "#fff",
@@ -222,8 +222,9 @@ class DashboardHeader extends Component {
             {item.label}
           </DropdownToggle>
           <DropdownMenu
+          className="custom-progress-bar"
             style={{
-              backgroundColor: "#faf6f6",
+              backgroundColor: "#36565F",
               width: isMobile ? "100%" : undefined,
             }}
           >
@@ -240,9 +241,9 @@ class DashboardHeader extends Component {
                   })
                 }
                 style={{
-                  color: activeTab === child.key ? "#fff" : "#000",
+                  color: activeTab === child.key ? "#36565F" : "#fff",
                   backgroundColor:
-                    activeTab === child.key ? "#181a1dff" : "#faf6f6",
+                    activeTab === child.key ? "#e2f0f0" : "#36565F",
                 }}
               >
                 {child.label}
@@ -272,7 +273,7 @@ class DashboardHeader extends Component {
 
     return (
       <>
-        <Navbar color="dark" dark expand="md" fixed="top" className="shadow-sm">
+        <Navbar  expand="md" fixed="top" className="shadow-sm custom-bg ">
           <div className="container-fluid d-flex align-items-center justify-content-between flex-nowrap py-2">
             {/* Left: Logo + Desktop Menu */}
             <div className="d-flex align-items-center gap-3 flex-nowrap">
@@ -296,15 +297,7 @@ class DashboardHeader extends Component {
               onClick={this.toggleMobileMenu}
               className="d-md-none"
             />
-
-            {/* Menu: Desktop */}
-            {/* <div className="d-none d-md-flex align-items-center gap-3">
-        {this.renderMenuItems(false)}
- 
-    </div> */}
           </div>
-
-          {/* Right: User */}
           {/* Right: User */}
           <div className="d-flex align-items-center flex-nowrap ms-auto">
             {/* Welcome text */}
@@ -342,7 +335,7 @@ class DashboardHeader extends Component {
           {/* Mobile Menu */}
           {this.state.isMobileMenuOpen && (
             <div
-              className="d-md-none bg-dark text-white p-3"
+              className="d-md-none custom-progress-bar text-white p-3"
               style={{
                 position: "absolute",
                 top: "60px",
@@ -355,7 +348,7 @@ class DashboardHeader extends Component {
               {this.renderMenuItems(true)}
 
               {/* Welcome + Name */}
-              <div className="my-2 px-2 p-2 border-top border-bottom border-secondary">
+              <div className="my-2 px-2 p-2 border-top border-bottom custom-progress-bar">
                 <div>
                   <strong>{displayName || "Admin"}</strong>
                 </div>
