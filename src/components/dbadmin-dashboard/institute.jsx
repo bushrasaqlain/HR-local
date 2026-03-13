@@ -18,6 +18,7 @@ import {
     ModalBody,
     ModalHeader,
 } from "react-bootstrap";
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 class Institute extends Component {
     constructor(props) {
@@ -135,7 +136,7 @@ class Institute extends Component {
                 const jsonData = XLSX.utils.sheet_to_json(sheet);
 
                 const formattedData = jsonData
-                    .map(row => ({ name: row.name?.toString().trim() }))
+                    .map(row => ({ name: row["Name"]?.toString().trim() }))
                     .filter(row => row.name);
 
                 if (!formattedData.length) {
@@ -171,9 +172,9 @@ class Institute extends Component {
         const worksheet = XLSX.utils.json_to_sheet(
             institutes.map((inst) => ({
                 Name: inst.name,
-                Status: inst.status,
-                Created: this.formatDate(inst.created_at),
-                Updated: this.formatDate(inst.updated_at),
+                // Status: inst.status,
+                // Created: this.formatDate(inst.created_at),
+                // Updated: this.formatDate(inst.updated_at),
             }))
         );
 
@@ -330,8 +331,8 @@ class Institute extends Component {
                                     onChange={(e) => this.setState({ isActive: e.target.value })}
                                 >
                                     <option value="all">All</option>
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
                                 </select>
                             </div>
 
@@ -491,30 +492,45 @@ class Institute extends Component {
                                                         {this.formatDate(item.updated_at)}
                                                     </td>
                                                     <td className="text-center">
-                                                        {item.status}
+                                                        <span className={`badge ${item.status === "Active" ? "bg-success" : "bg-danger"}`}>
+                                                            {item.status}
+                                                        </span>
                                                     </td>
 
                                                     <td className="status text-center">
                                                         <div className="d-flex justify-content-center align-items-center gap-3">
-                                                            <button onClick={() => this.toggleForm(item)} className="icon-btn">
-                                                                <span className="la la-pencil"></span>
+
+                                                            {/* Edit */}
+                                                            <button
+                                                                onClick={() => this.toggleForm(item)}
+                                                                className="icon-btn"
+                                                                title="Update"
+                                                            >
+                                                                <i className="bi bi-pencil-square text-primary"></i>
                                                             </button>
 
+                                                            {/* Activate / Inactivate */}
                                                             <button
                                                                 onClick={() => this.confirmUpdate(item.id, item.status)}
                                                                 className="icon-btn"
+                                                                title={item.status === "Active" ? "Inactivate" : "Activate"}
                                                             >
                                                                 {item.status === "Active" ? (
-                                                                    <span className="la la-times-circle text-danger"></span>
+                                                                    <i className="bi bi-x-circle text-danger"></i>
                                                                 ) : (
-                                                                    <span className="la la-check-circle text-success"></span>
+                                                                    <i className="bi bi-check-circle text-success"></i>
                                                                 )}
                                                             </button>
 
-
-                                                            <button onClick={() => this.toggleHistory(item)} className="icon-btn">
-                                                                <span className="la la-history"></span>
+                                                            {/* History */}
+                                                            <button
+                                                                onClick={() => this.toggleHistory(item)}
+                                                                className="icon-btn"
+                                                                title="View History"
+                                                            >
+                                                                <i className="bi bi-clock-history text-dark"></i>
                                                             </button>
+
                                                         </div>
                                                     </td>
 
@@ -586,10 +602,10 @@ class Institute extends Component {
                             </Button>
 
                             <Button
-                                variant={updateStatus === "active" ? "danger" : "success"}
+                                variant={updateStatus === "Active" ? "danger" : "success"}
                                 onClick={this.handleUpdate}
                             >
-                                {updateStatus === "active" ? "Inactivate" : "Activate"}
+                                {updateStatus === "Active" ? "Inactivate" : "Activate"}
                             </Button>
                         </Modal.Footer>
                     </Modal>

@@ -7,6 +7,7 @@ import { Button, Col, Container, Form } from "reactstrap";
 
 import { Formik, Field, ErrorMessage, FieldArray } from "formik";
 import * as Yup from "yup";
+import * as faceapi from 'face-api.js';
 import { toast } from "react-toastify";
 import api from "../../lib/api";
 import "bootstrap-icons/font/bootstrap-icons.css";
@@ -343,10 +344,10 @@ class CandidateRegisterForm extends Component {
         passport_photo: data.passport_photo || null,
         resume: data.resume
           ? {
-              name: data.resume.split("/").pop(), // filename
-              url: `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${data.resume}`, // URL for preview
-              isExisting: true, // flag to know this came from server
-            }
+            name: data.resume.split("/").pop(), // filename
+            url: `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${data.resume}`, // URL for preview
+            isExisting: true, // flag to know this came from server
+          }
           : null,
         availability: entriesFromBackend,
 
@@ -362,7 +363,7 @@ class CandidateRegisterForm extends Component {
 
       this.setState({
         formData: mappedData,
-        entries: finalEntries,
+        // entries: finalEntries,
       });
 
       // load dependent dropdowns
@@ -370,6 +371,31 @@ class CandidateRegisterForm extends Component {
       if (mappedData.district) await this.loadCities(mappedData.district);
     } catch (err) {
       console.error("Fetch failed", err);
+    }
+  };
+
+  fetchAvailability = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await api.get(
+        `${this.apiBaseUrl}candidate_availability/getavailability`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      const raw = Array.isArray(res.data?.data) ? res.data.data : [];
+
+      const entries = raw.map((e) => ({
+        day: e.day,
+        shift: e.shift,
+        startTime: e.startTime,
+        endTime: e.endTime,
+      }));
+
+      this.setState({ entries });
+    } catch (err) {
+      console.error("Availability fetch failed:", err);
     }
   };
 
@@ -461,7 +487,17 @@ class CandidateRegisterForm extends Component {
     }));
   };
 
+  loadFaceModels = async () => {
+    try {
+      await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+      console.log("✅ Face detection ready!");
+    } catch (err) {
+      console.error("Face model load failed:", err);
+    }
+  }
+
   componentDidMount() {
+    this.loadFaceModels();
     this.loadCountries();
     this.loadSkills();
     this.loadAllCities();
@@ -471,6 +507,7 @@ class CandidateRegisterForm extends Component {
     this.loadDegrees();
     this.loadDegreeTitles();
     this.fetchCandidateInfo();
+    this.fetchAvailability();
   }
   checkFileTypes(files) {
     const allowedTypes = [
@@ -591,7 +628,14 @@ class CandidateRegisterForm extends Component {
       );
       // ✅ Redirect candidate to login after final step
       if (step === 5) {
-        window.location.href = "/login"; // navigate to login page
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        localStorage.clear();
+        sessionStorage.clear();
+        setTimeout(() => {
+          window.location.replace("/login");
+        }, 1500);
+        return;
       }
     } catch (error) {
       console.error("Submit Error:", error);
@@ -811,6 +855,12 @@ class CandidateRegisterForm extends Component {
         );
 
         toast.success("Availability saved successfully");
+        localStorage.removeItem("token");
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 1500);
+        return;
+
       }
 
       // 3️⃣ Move to next step
@@ -927,15 +977,51 @@ class CandidateRegisterForm extends Component {
                   type="file"
                   name="passport_photo"
                   accept=".jpg,.jpeg,.png"
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     const file = e.target.files[0];
-                    if (file) {
-                      setFieldValue("passport_photo", file);
-                      const reader = new FileReader();
-                      reader.onload = () =>
-                        setFieldValue("passport_photoPreview", reader.result);
-                      reader.readAsDataURL(file);
+                    if (!file) return;
+
+                    // ✅ Type check
+                    const allowedTypes = ["image/jpeg", "image/jpg", "image/png"];
+                    if (!allowedTypes.includes(file.type)) {
+                      toast.error("Only JPG or PNG image is allowed!");
+                      e.target.value = "";
+                      return;
                     }
+
+                    // ✅ Face detection
+                    toast.info("Checking photo...");
+
+                    const img = document.createElement('img');
+                    img.src = URL.createObjectURL(file);
+
+                    img.onload = async () => {
+                      try {
+                        const detection = await faceapi.detectSingleFace(
+                          img,
+                          new faceapi.TinyFaceDetectorOptions()
+                        );
+
+                        if (!detection) {
+                          toast.error("No face detected! Please upload a clear photo showing your face.");
+                          e.target.value = "";
+                          return;
+                        }
+
+                        // ✅ Face detected!
+                        toast.success("Photo accepted!");
+                        setFieldValue("passport_photo", file);
+                        const reader = new FileReader();
+                        reader.onload = () =>
+                          setFieldValue("passport_photoPreview", reader.result);
+                        reader.readAsDataURL(file);
+
+                      } catch (err) {
+                        console.error("Face detection error:", err);
+                        toast.error("Could not verify photo, please try again.");
+                        e.target.value = "";
+                      }
+                    };
                   }}
                   className="form-control"
                   style={{ maxWidth: "280px" }}
@@ -1406,14 +1492,14 @@ class CandidateRegisterForm extends Component {
                   values.education && values.education.length > 0
                     ? values.education[0]
                     : {
-                        degree: "",
-                        degreeTitle: "",
-                        degreeTitle_label: "",
-                        institutes: "",
-                        startDate: "",
-                        endDate: "",
-                        ongoing: false,
-                      };
+                      degree: "",
+                      degreeTitle: "",
+                      degreeTitle_label: "",
+                      institutes: "",
+                      startDate: "",
+                      endDate: "",
+                      ongoing: false,
+                    };
 
                 return (
                   <>
@@ -1463,9 +1549,9 @@ class CandidateRegisterForm extends Component {
                             value={
                               draft.degreeTitle
                                 ? {
-                                    value: draft.degreeTitle,
-                                    label: draft.degreeTitle_label,
-                                  }
+                                  value: draft.degreeTitle,
+                                  label: draft.degreeTitle_label,
+                                }
                                 : null
                             }
                             onChange={(opt) => {
@@ -1494,9 +1580,9 @@ class CandidateRegisterForm extends Component {
                             value={
                               draft.institutes
                                 ? {
-                                    value: draft.institutes,
-                                    label: draft.institutes_label,
-                                  }
+                                  value: draft.institutes,
+                                  label: draft.institutes_label,
+                                }
                                 : null
                             }
                             onChange={(opt) =>
@@ -1676,14 +1762,14 @@ class CandidateRegisterForm extends Component {
                   values.experience && values.experience.length > 0
                     ? values.experience[0]
                     : {
-                        companyName: "",
-                        designation: "",
-                        speciality_id: "",
-                        startDate: "",
-                        endDate: "",
-                        ongoing: false,
-                        id: null,
-                      };
+                      companyName: "",
+                      designation: "",
+                      speciality_id: "",
+                      startDate: "",
+                      endDate: "",
+                      ongoing: false,
+                      id: null,
+                    };
 
                 return (
                   <>
@@ -1856,9 +1942,9 @@ class CandidateRegisterForm extends Component {
                               this.state.skillsOptions,
                             )
                               ? this.state.skillsOptions.map((s) => ({
-                                  value: s.id,
-                                  label: s.name,
-                                }))
+                                value: s.id,
+                                label: s.name,
+                              }))
                               : [];
 
                             return (
@@ -2314,7 +2400,7 @@ class CandidateRegisterForm extends Component {
         case 4:
           return Boolean(formData.resume || formData.resumePreviewUrl);
         case 5:
-          return formData.availability.some((av) => av.day || av.shift);
+          return this.state.entries.length > 0;
         default:
           return false;
       }
@@ -2340,13 +2426,12 @@ class CandidateRegisterForm extends Component {
           return (
             <div
               key={index}
-              className={`step-indicator p-2 text-center ${
-                step === stepNumber
-                  ? "current-step"
-                  : filled
-                    ? "completed-step"
-                    : "inactive-step"
-              }`}
+              className={`step-indicator p-2 text-center ${step === stepNumber
+                ? "current-step"
+                : filled
+                  ? "completed-step"
+                  : "inactive-step"
+                }`}
               style={{
                 cursor: filled ? "pointer" : "default",
                 flex: "1 1 120px", // minimum width + flexibility
@@ -2449,8 +2534,8 @@ class CandidateRegisterForm extends Component {
                       type="button"
                       className={`btn btn-primary mt-3 ${this.state.entries.length === 0 ? "disabled" : ""}`}
                       onClick={() =>
-                        this.handleSubmit(this.state.formData, {
-                          setSubmitting: () => {},
+                        this.handleSubmit(values, {
+                          setSubmitting: () => { },
                         })
                       }
                       disabled={this.state.entries.length === 0} // disable until availability is added

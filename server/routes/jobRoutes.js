@@ -18,6 +18,6 @@ router.get("/topCompanies/:limit?",jobController.getTopCompanies)
 
 router.get("/popularcategories/:limit?",jobController.popularCategories)
 
-router.get("/gettotaljob/:userId",jobController.getTotalJobPosts);
+// router.get("/gettotaljob/:userId",jobController.getTotalJobPosts);
 
 module.exports = router;

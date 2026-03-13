@@ -10,7 +10,7 @@ const createDegreeFieldsTable = () => {
     id INT AUTO_INCREMENT PRIMARY KEY,
     degree_type_id INT NOT NULL,
     name VARCHAR(255) NOT NULL,
-    status ENUM('Active', 'InActive') DEFAULT 'Active',
+    status ENUM('Active', 'Inactive') DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (degree_type_id) REFERENCES degreetypes(id) ON DELETE CASCADE
@@ -53,7 +53,7 @@ const addDegreeField = (req, callback) => {
           entityType: "degreefield",
           entityId: startId + idx,
           action: "ADDED",
-          data: { name: row[0], t_id, status: "active" },
+          data: { name: row[0], t_id, status: "Active" },
           changedBy: userId,
         });
       });
@@ -84,7 +84,7 @@ const addDegreeField = (req, callback) => {
           entityType: "degreefield",
           entityId: insertResults.insertId,
           action: "ADDED",
-          data: { name, t_id, status: "active" },
+          data: { name, t_id, status: "Active" },
           changedBy: userId,
         });
 
@@ -223,7 +223,7 @@ const deleteDegreeField = (id, userId, callback) => {
     if (results.length === 0) return callback({ status: 404, message: "Degree field not found" });
 
     const current = results[0];
-    const newStatus = current.status === "Active" ? "InActive" : "Active";
+    const newStatus = current.status === "Active" ? "Inactive" : "Active";
 
     const updateQuery = "UPDATE degreefields SET status = ? WHERE id = ?";
     connection.query(updateQuery, [newStatus, id], (err2) => {

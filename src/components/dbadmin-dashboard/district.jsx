@@ -18,6 +18,7 @@ import {
   ModalBody,
   ModalHeader,
 } from "react-bootstrap";
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 class Districts extends Component {
   constructor(props) {
@@ -63,10 +64,10 @@ class Districts extends Component {
       const res = await api.get(`${this.apiBaseUrl}getallCountries`, {
         params: {
           search: inputValue || "",
-          name:"name",
+          name: "name",
           page: 1,
           limit: 20,
-          status: "active",
+          status: "Active",
         },
       });
 
@@ -177,10 +178,10 @@ class Districts extends Component {
     // Map data for Excel
     const dataToExport = districts.map((district) => ({
       "District Name": district.name,
-      "Country Name": district.country_name,
-      "Status": district.status,
-      "Created At": this.formatDate(district.created_at),
-      "Updated At": this.formatDate(district.updated_at),
+      // "Country Name": district.country_name,
+      // "Status": district.status,
+      // "Created At": this.formatDate(district.created_at),
+      // "Updated At": this.formatDate(district.updated_at),
     }));
 
     // Create worksheet
@@ -243,7 +244,9 @@ class Districts extends Component {
           const jsonData = XLSX.utils.sheet_to_json(sheet);
 
           const districtsData = jsonData
-            .map(row => ({ name: row.name?.toString().trim() }))
+            .map(row => ({
+              name: row["District Name"]?.toString().trim()
+            }))
             .filter(row => row.name);
 
           if (!districtsData.length) {
@@ -314,14 +317,14 @@ class Districts extends Component {
     try {
       await api.put(`${this.apiBaseUrl}updateStatus/${updateId}`, {
         // Pass the new status to backend
-        status: updateStatus === "active" ? "inactive" : "active",
+        status: updateStatus === "Active" ? "Inactive" : "Active",
       });
 
       // Update frontend state immediately
       this.setState({
         districts: districts.map((district) =>
           district.id === updateId
-            ? { ...district, status: updateStatus === "active" ? "inactive" : "active" }
+            ? { ...district, status: updateStatus === "Active" ? "Inactive" : "Active" }
             : district
         ),
         showUpdateStatus: false,
@@ -330,7 +333,7 @@ class Districts extends Component {
       });
 
       toast.success(
-        updateStatus === "active"
+        updateStatus === "Active"
           ? "District inactivated successfully"
           : "District activated successfully"
       );
@@ -380,8 +383,8 @@ class Districts extends Component {
                   onChange={(e) => this.setState({ isActive: e.target.value })}
                 >
                   <option value="all">All</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
                 </select>
               </div>
 
@@ -564,29 +567,48 @@ class Districts extends Component {
                           <td className="text-center">
                             {this.formatDate(item.updated_at)}
                           </td>
-                          <td className="text-center">{item.status}</td>
+                          <td className="text-center">
+                            <span className={`badge ${item.status === "Active" ? "bg-success" : "bg-danger"}`}>
+                              {item.status}
+                            </span>
+                          </td>
                           <td className="status text-center">
                             <div className="d-flex justify-content-center align-items-center gap-3">
-                              <button onClick={() => this.toggleForm(item)} className="icon-btn">
-                                <span className="la la-pencil"></span>
+
+                              {/* Edit */}
+                              <button
+                                onClick={() => this.toggleForm(item)}
+                                className="icon-btn"
+                                title="Update"
+                              >
+                                <i className="bi bi-pencil-square text-primary"></i>
                               </button>
 
+                              {/* Activate / Inactivate */}
                               <button
                                 onClick={() => this.confirmUpdate(item.id, item.status)}
                                 className="icon-btn"
+                                title={item.status === "Active" ? "Inactivate" : "Activate"}
                               >
-                                {item.status === "active" ? (
-                                  <span className="la la-times-circle text-danger"></span>
+                                {item.status === "Active" ? (
+                                  <i className="bi bi-x-circle text-danger"></i>
                                 ) : (
-                                  <span className="la la-check-circle text-success"></span>
+                                  <i className="bi bi-check-circle text-success"></i>
                                 )}
                               </button>
 
-                              <button onClick={() => this.toggleHistory(item)} className="icon-btn">
-                                <span className="la la-history"></span>
+                              {/* History */}
+                              <button
+                                onClick={() => this.toggleHistory(item)}
+                                className="icon-btn"
+                                title="View History"
+                              >
+                                <i className="bi bi-clock-history text-dark"></i>
                               </button>
+
                             </div>
                           </td>
+
                         </tr>
                       ))}
                     </tbody>
@@ -682,7 +704,7 @@ class Districts extends Component {
           <Modal show={showUpdateStatus} onHide={this.cancelUpdate} centered>
             <Modal.Header closeButton>
               <Modal.Title style={{ fontSize: "1rem", fontWeight: 600 }}>
-                Confirm {updateStatus === "active" ? "Inactivate" : "Activate"}
+                Confirm {updateStatus === "Active" ? "Inactivate" : "Activate"}
               </Modal.Title>
             </Modal.Header>
 
@@ -690,7 +712,7 @@ class Districts extends Component {
               <p style={{ marginBottom: 0 }}>
                 Are you sure you want to{" "}
                 <strong>
-                  {updateStatus === "active" ? "inactivate" : "activate"}
+                  {updateStatus === "Active" ? "inactivate" : "activate"}
                 </strong>{" "}
                 this District?
               </p>
@@ -702,10 +724,10 @@ class Districts extends Component {
               </Button>
 
               <Button
-                variant={updateStatus === "active" ? "danger" : "success"}
+                variant={updateStatus === "Active" ? "danger" : "success"}
                 onClick={this.handleStatus}
               >
-                {updateStatus === "active" ? "Inactivate" : "Activate"}
+                {updateStatus === "Active" ? "Inactivate" : "Activate"}
               </Button>
             </Modal.Footer>
           </Modal>

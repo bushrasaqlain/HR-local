@@ -3,7 +3,7 @@ const addCurrency = (req, res) => {
     currencyModel.addCurrency(req, res);
 };
 const getAllCurrency = (req, res) => {
-  const { page = 1, limit = 15, name = "code", search = "", status = "active" } = req.query;
+  const { page = 1, limit = 15, name = "code", search = "", status = "Active" } = req.query;
 
   currencyModel.getAllCurrency({ page, limit, name, search, status }, (err, data) => {
     if (err) return res.status(500).json({ error: "Database error", details: err.sqlMessage });

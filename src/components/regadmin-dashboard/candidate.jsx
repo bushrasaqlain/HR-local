@@ -228,7 +228,7 @@ class CandidateData extends Component {
               >
                 <option value="All">All</option>
                 <option value="Active">Active</option>
-                <option value="InActive">Inactive</option>
+                <option value="Inactive">Inactive</option>
               </Input>
             </FormGroup>
           </Col>
@@ -364,7 +364,7 @@ class CandidateData extends Component {
                                       }
                                     >
                                       <option value="Active">Active</option>
-                                      <option value="InActive">InActive</option>
+                                      <option value="Inactive">InActive</option>
                                     </Input>
                                   )}
                                 </div>

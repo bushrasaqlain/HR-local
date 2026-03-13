@@ -17,6 +17,7 @@ import {
   ModalBody,
   ModalHeader,
 } from "react-bootstrap";
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 class Country extends Component {
   constructor(props) {
@@ -82,38 +83,38 @@ class Country extends Component {
 
     return `${day}-${month}-${year}`;
   };
-handleSearch = async (e) => {
-  const { name, value } = e.target;
+  handleSearch = async (e) => {
+    const { name, value } = e.target;
 
-  // 🚫 Prevent invalid / empty dates
-  if (
-    (name === "created_at" || name === "updated_at") &&
-    (!value || value.length !== 10)
-  ) {
-    return;
-  }
+    // 🚫 Prevent invalid / empty dates
+    if (
+      (name === "created_at" || name === "updated_at") &&
+      (!value || value.length !== 10)
+    ) {
+      return;
+    }
 
-  this.setState({ currentPage: 1 });
+    this.setState({ currentPage: 1 });
 
-  try {
-    const res = await axios.get(`${this.apiBaseUrl}getallCountries`, {
-      params: {
-        name,
-        search: value,
-        status: this.state.isActive,
-        page: 1,
-        limit: this.itemsPerPage,
-      },
-    });
+    try {
+      const res = await axios.get(`${this.apiBaseUrl}getallCountries`, {
+        params: {
+          name,
+          search: value,
+          status: this.state.isActive,
+          page: 1,
+          limit: this.itemsPerPage,
+        },
+      });
 
-    this.setState({
-      countries: res.data.countries || [],
-      totalCountries: res.data.total || 0,
-    });
-  } catch (error) {
-    console.error("Error searching countries:", error);
-  }
-};
+      this.setState({
+        countries: res.data.countries || [],
+        totalCountries: res.data.total || 0,
+      });
+    } catch (error) {
+      console.error("Error searching countries:", error);
+    }
+  };
 
 
   resetSearch = () => {
@@ -142,10 +143,10 @@ handleSearch = async (e) => {
 
     const worksheet = XLSX.utils.json_to_sheet(
       countries.map((inst) => ({
-        Name: inst.name,
-        Status: inst.status,
-        Created: this.formatDate(inst.created_at),
-        Updated: this.formatDate(inst.updated_at),
+        name: inst.name,
+        // Status: inst.status,
+        // Created: this.formatDate(inst.created_at),
+        // Updated: this.formatDate(inst.updated_at),
       }))
     );
 
@@ -263,14 +264,17 @@ handleSearch = async (e) => {
     });
   };
   handleStatus = async () => {
-    const { updateId, isActive } = this.state;
+    const { updateId, updateStatus } = this.state;
+
     try {
       await api.put(`${this.apiBaseUrl}updateStatus/${updateId}`);
+
       toast.success(
-        isActive === "active"
+        updateStatus === "Active"
           ? "Inactivated successfully"
           : "Activated successfully"
       );
+
       this.setState({ showUpdateStatus: false }, this.fetchCountries);
     } catch (error) {
       console.error("Error update status country:", error);
@@ -320,8 +324,8 @@ handleSearch = async (e) => {
                   onChange={(e) => this.setState({ isActive: e.target.value })}
                 >
                   <option value="all">All</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
                 </select>
               </div>
 
@@ -468,29 +472,45 @@ handleSearch = async (e) => {
                             {this.formatDate(item.updated_at)}
                           </td>
                           <td className="text-center">
-                            {item.status}
+                            <span className={`badge ${item.status === "Active" ? "bg-success" : "bg-danger"}`}>
+                              {item.status}
+                            </span>
                           </td>
 
                           <td className="status text-center">
                             <div className="d-flex justify-content-center align-items-center gap-3">
-                              <button onClick={() => this.toggleForm(item)} className="icon-btn">
-                                <span className="la la-pencil"></span>
+
+                              {/* Edit */}
+                              <button
+                                onClick={() => this.toggleForm(item)}
+                                className="icon-btn"
+                                title="Update"
+                              >
+                                <i className="bi bi-pencil-square text-primary"></i>
                               </button>
 
+                              {/* Activate / Inactivate */}
                               <button
                                 onClick={() => this.confirmUpdate(item.id, item.status)}
                                 className="icon-btn"
+                                title={item.status === "Active" ? "Inactivate" : "Activate"}
                               >
-                                {item.status === "active" ? (
-                                  <span className="la la-times-circle text-danger"></span>
+                                {item.status === "Active" ? (
+                                  <i className="bi bi-x-circle text-danger"></i>
                                 ) : (
-                                  <span className="la la-check-circle text-success"></span>
+                                  <i className="bi bi-check-circle text-success"></i>
                                 )}
                               </button>
 
-                              <button onClick={() => this.toggleHistory(item)} className="icon-btn">
-                                <span className="la la-history"></span>
+                              {/* History */}
+                              <button
+                                onClick={() => this.toggleHistory(item)}
+                                className="icon-btn"
+                                title="View History"
+                              >
+                                <i className="bi bi-clock-history text-dark"></i>
                               </button>
+
                             </div>
                           </td>
 
@@ -542,7 +562,7 @@ handleSearch = async (e) => {
           <Modal show={showUpdateStatus} onHide={this.cancelStatus} centered>
             <Modal.Header closeButton>
               <Modal.Title style={{ fontSize: "1rem", fontWeight: 600 }}>
-                Confirm {updateStatus === "active" ? "Inactivate" : "Activate"}
+                Confirm {updateStatus === "Active" ? "Inactivate" : "Activate"}
               </Modal.Title>
             </Modal.Header>
 
@@ -550,7 +570,7 @@ handleSearch = async (e) => {
               <p style={{ marginBottom: 0 }}>
                 Are you sure you want to{" "}
                 <strong>
-                  {updateStatus === "active" ? "inactivate" : "activate"}
+                  {updateStatus === "Active" ? "Inactivate" : "Activate"}
                 </strong>{" "}
                 this Country?
               </p>
@@ -562,10 +582,10 @@ handleSearch = async (e) => {
               </Button>
 
               <Button
-                variant={updateStatus === "active" ? "danger" : "success"}
+                variant={updateStatus === "Active" ? "danger" : "success"}
                 onClick={this.handleStatus}
               >
-                {updateStatus === "active" ? "Inactivate" : "Activate"}
+                {updateStatus === "Active" ? "Inactivate" : "Activate"}
               </Button>
             </Modal.Footer>
           </Modal>

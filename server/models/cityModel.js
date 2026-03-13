@@ -14,7 +14,7 @@ const createCitiesTable = () => {
     FOREIGN KEY (district_id) REFERENCES districts(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    status ENUM('active','inactive') DEFAULT 'active'
+    status ENUM('Active','Inactive') DEFAULT 'Active'
   )
 `;
 
@@ -72,7 +72,7 @@ const addCity = (req, res) => {
             entityType: "city",
             entityId: startId + idx,
             action: "ADDED",
-            data: { name: row[1], status: "active", district_id, country_id },
+            data: { name: row[1], status: "Active", district_id, country_id },
             changedBy: userId,
           });
         });
@@ -122,7 +122,7 @@ const addCity = (req, res) => {
               entityType: "city",
               entityId: insertResults.insertId,
               action: "ADDED",
-              data: { name, status: "active", district_id, country_id },
+              data: { name, status: "Active", district_id, country_id },
               changedBy: userId,
             });
 
@@ -327,7 +327,7 @@ const updateStatus = (req, res) => {
       return res.status(404).json({ error: "City not found" });
 
     const currentCity = results[0];
-    const newStatus = currentCity.status === "active" ? "inactive" : "active";
+    const newStatus = currentCity.status === "Active" ? "Inactive" : "Active";
 
     const updateQuery = "UPDATE cities SET status = ? WHERE id = ?";
     connection.query(updateQuery, [newStatus, id], (err2) => {

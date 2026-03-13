@@ -16,6 +16,7 @@ import {
   ModalBody,
   ModalHeader,
 } from "react-bootstrap";
+import "bootstrap-icons/font/bootstrap-icons.css";
 import * as XLSX from "xlsx";
 class Jobtype extends Component {
   constructor(props) {
@@ -92,9 +93,9 @@ class Jobtype extends Component {
     // Map data for Excel
     const dataToExport = jobtype.map((jobtypes) => ({
       "Name": jobtypes.name,
-      "Status": jobtypes.status,
-      "Created At": this.formatDate(jobtypes.created_at),
-      "Updated At": this.formatDate(jobtypes.updated_at),
+      // "Status": jobtypes.status,
+      // "Created At": this.formatDate(jobtypes.created_at),
+      // "Updated At": this.formatDate(jobtypes.updated_at),
     }));
 
     // Create worksheet
@@ -132,7 +133,7 @@ class Jobtype extends Component {
         const jsonData = XLSX.utils.sheet_to_json(sheet);
 
         const formattedData = jsonData
-          .map(row => ({ name: row.name?.toString().trim() }))
+          .map(row => ({ name: row["Name"]?.toString().trim() }))
           .filter(row => row.name);
 
         if (!formattedData.length) {
@@ -217,11 +218,11 @@ class Jobtype extends Component {
     });
   };
   handleDelete = async () => {
-    const { deleteId, isActive } = this.state;
+    const { deleteId, deleteStatus } = this.state;
     try {
       await api.delete(`${this.apiBaseUrl}deletejobtype/${deleteId}`);
       toast.success(
-        isActive === "active"
+        deleteStatus === "Active"
           ? "Inactivated successfully"
           : "Activated successfully"
       );
@@ -312,8 +313,8 @@ class Jobtype extends Component {
                   onChange={(e) => this.setState({ isActive: e.target.value })}
                 >
                   <option value="all">All</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
                 </select>
               </div>
 
@@ -467,38 +468,49 @@ class Jobtype extends Component {
                           <td className="text-center">
                             {this.formatDate(item.updated_at)}
                           </td>
-                          <td className="text-center">{item.status}</td>
+                          <td className="text-center">
+                            <span className={`badge ${item.status === "Active" ? "bg-success" : "bg-danger"}`}>
+                              {item.status}
+                            </span>
+                          </td>
 
                           <td className="status text-center">
                             <div className="d-flex justify-content-center align-items-center gap-3">
+
+                              {/* Edit */}
                               <button
                                 onClick={() => this.toggleForm(item)}
                                 className="icon-btn"
+                                title="Update"
                               >
-                                <span className="la la-pencil"></span>
+                                <i className="bi bi-pencil-square text-primary"></i>
                               </button>
 
+                              {/* Activate / Inactivate */}
                               <button
-                                onClick={() =>
-                                  this.confirmDelete(item.id, item.status)
-                                }
+                                onClick={() => this.confirmDelete(item.id, item.status)}
                                 className="icon-btn"
+                                title={item.status === "Active" ? "Inactivate" : "Activate"}
                               >
-                                {item.status === "active" ? (
-                                  <span className="la la-times-circle text-danger"></span>
+                                {item.status === "Active" ? (
+                                  <i className="bi bi-x-circle text-danger"></i>
                                 ) : (
-                                  <span className="la la-check-circle text-success"></span>
+                                  <i className="bi bi-check-circle text-success"></i>
                                 )}
                               </button>
 
+                              {/* History */}
                               <button
                                 onClick={() => this.toggleHistory(item)}
                                 className="icon-btn"
+                                title="View History"
                               >
-                                <span className="la la-history"></span>
+                                <i className="bi bi-clock-history text-dark"></i>
                               </button>
+
                             </div>
                           </td>
+
                         </tr>
                       ))}
                     </tbody>
@@ -547,7 +559,7 @@ class Jobtype extends Component {
           <Modal show={showDeleteConfirm} onHide={this.cancelDelete} centered>
             <Modal.Header closeButton>
               <Modal.Title style={{ fontSize: "1rem", fontWeight: 600 }}>
-                Confirm {deleteStatus === "active" ? "Inactivate" : "Activate"}
+                Confirm {deleteStatus === "Active" ? "Inactivate" : "Activate"}
               </Modal.Title>
             </Modal.Header>
 
@@ -555,7 +567,7 @@ class Jobtype extends Component {
               <p style={{ marginBottom: 0 }}>
                 Are you sure you want to{" "}
                 <strong>
-                  {deleteStatus === "active" ? "inactivate" : "activate"}
+                  {deleteStatus === "Active" ? "inactivate" : "activate"}
                 </strong>{" "}
                 this jobtype?
               </p>
@@ -567,10 +579,10 @@ class Jobtype extends Component {
               </Button>
 
               <Button
-                variant={deleteStatus === "active" ? "danger" : "success"}
+                variant={deleteStatus === "Active" ? "danger" : "success"}
                 onClick={this.handleDelete}
               >
-                {deleteStatus === "active" ? "Inactivate" : "Activate"}
+                {deleteStatus === "Active" ? "Inactivate" : "Activate"}
               </Button>
             </Modal.Footer>
           </Modal>

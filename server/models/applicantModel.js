@@ -7,7 +7,7 @@ const createApplicantsTable = () => {
 CREATE TABLE IF NOT EXISTS applications (
   id INT AUTO_INCREMENT PRIMARY KEY,
   job_id INT,
-  message TEXT DEFAULT '', 
+  message VARCHAR(500), 
   candidate_id INT,
   status VARCHAR(50) DEFAULT 'Pending', -- candidate's status
   interview_day DATE NULL,
@@ -515,8 +515,8 @@ const updateApplcantStatus = (req, res) => {
       // Insert new row if none exists
       const insertQuery = `
         INSERT INTO applications
-        (candidate_id, job_id, status, message, cv_data, cv_filename, interview_day, interview_time)
-        VALUES (?, ?, ?, ?, '', '', ?, ?)`;
+        (candidate_id, job_id, status, message, interview_day, interview_time)
+        VALUES (?, ?, ?, ?, ?, ?)`;
       connection.query(
         insertQuery,
         [

@@ -11,7 +11,7 @@ const createJobTypeTable = () => {
     name VARCHAR(255) NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    status ENUM('active', 'inactive') DEFAULT 'active'
+    status ENUM('Active', 'Inactive') DEFAULT 'Active'
   )
 `;
 
@@ -66,7 +66,7 @@ const addJobType = (req, res) => {
           entityType: "jobtype",
           entityId: startId + idx,
           action: "ADDED",
-          data: { name: row[0], status: "active" },
+          data: { name: row[0], status: "Active" },
           changedBy: userId,
         });
       });
@@ -95,7 +95,7 @@ const addJobType = (req, res) => {
           entityType: "jobtype",
           entityId: insertResults.insertId,
           action: "ADDED",
-          data: { name, status: "active" },
+          data: { name, status: "Active" },
           changedBy: userId,
         });
 
@@ -109,7 +109,7 @@ const addJobType = (req, res) => {
 };
 
 const getAllJobTypes = (
-  { page = 1, limit = 15, name = "name", search = "", status = "active" },
+  { page = 1, limit = 15, name = "name", search = "", status = "Active" },
   callback
 ) => {
   const pageNum = parseInt(page, 10) || 1;
@@ -192,7 +192,7 @@ const deleteJobType = (req, res) => {
 
     const currentJobType = results[0];
     const newStatus =
-      currentJobType.status === "active" ? "inactive" : "active";
+      currentJobType.status === "Active" ? "Inactive" : "Active";
 
     const updateQuery = "UPDATE jobtypes SET status = ? WHERE id = ?";
     connection.query(updateQuery, [newStatus, id], (err2) => {

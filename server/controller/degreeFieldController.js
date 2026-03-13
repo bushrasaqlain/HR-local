@@ -52,7 +52,7 @@ const getAllDegreeFields = (req, res) => {
     limit = 15,
     name = "name",
     search = "",
-    status = "active",
+    status = "Active",
   } = req.query;
     degreeFieldModel.getAllDegreeFields ({ page, limit, name, search, status },
     (err, data) => {

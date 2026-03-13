@@ -11,7 +11,7 @@ const createTableQuery = `
     name VARCHAR(255) NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    status ENUM('active', 'inactive') DEFAULT 'active'
+    status ENUM('Active', 'Inactive') DEFAULT 'Active'
   )
 `;
 
@@ -56,7 +56,7 @@ const addBusinessEntityType = (req, res) => {
           entityType: "business_entity_type",
           entityId,
           action: "ADDED",
-          data: { name: row[0], status: "active" },
+          data: { name: row[0], status: "Active" },
           changedBy: userId,
         });
       });
@@ -87,7 +87,7 @@ const addBusinessEntityType = (req, res) => {
           entityType: "business_entity_type",
           entityId: insertResults.insertId,
           action: "ADDED",
-          data: { name, status: "active" },
+          data: { name, status: "Active" },
           changedBy: userId,
         });
 
@@ -101,7 +101,7 @@ const addBusinessEntityType = (req, res) => {
 }
 
 const getAllbusinessentitytype = (
-  { page = 1, limit = 15, name = "name", search = "", status = "active" },
+  { page = 1, limit = 15, name = "name", search = "", status = "Active" },
   callback
 ) => {
   // Ensure numbers
@@ -162,7 +162,7 @@ const getAllbusinessentitytype = (
     if (results.length === 0) return res.status(404).json({ error: "Business entity type not found" });
 
     const current = results[0];
-    const newStatus = current.status === "active" ? "inactive" : "active";
+    const newStatus = current.status === "Active" ? "Inactive" : "Active";
 
     const updateQuery = "UPDATE business_entity_type SET status = ? WHERE id = ?";
     connection.query(updateQuery, [newStatus, id], (err2) => {

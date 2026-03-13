@@ -2,3 +2,39 @@
 @import "slick-carousel/slick/slick-theme.css";
 @import "~bootstrap/scss/bootstrap";
 @import "../../public/scss/main.scss";
+
+.custom-table thead th {
+  background: linear-gradient(90deg, #1315184b, #49505756);
+  color: white;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  padding: 14px;
+}
+
+.custom-table thead input {
+  border-radius: 20px;
+  font-size: 12px;
+  padding: 6px 10px;
+  border: 1px solid #ced4da;
+}
+
+.custom-table tbody tr:nth-child(even) {
+  background: #f9fafb;
+}
+
+.custom-table tbody tr:hover {
+  background: #eef2f7;
+}
+
+.icon-btn {
+  border: none;
+  background: transparent;
+  font-size: 16px;
+  margin: 0 5px;
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  transform: scale(1.15);
+}

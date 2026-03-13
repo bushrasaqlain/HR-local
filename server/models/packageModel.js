@@ -13,7 +13,7 @@ const createPackagesTable = () => {
   duration_unit VARCHAR(20) NOT NULL,
   duration_value VARCHAR(255) NOT NULL,
   currency VARCHAR(50) NOT NULL,
-  status ENUM('active','inactive') DEFAULT 'active',
+  status ENUM('Active','Inactive') DEFAULT 'Active',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -141,7 +141,7 @@ const getAllPackages = (
 const getCurrencyMap = () =>
   new Promise((resolve, reject) => {
     connection.query(
-      "SELECT id, code FROM currencies WHERE status = 'active'",
+      "SELECT id, code FROM currencies WHERE status = 'Active'",
       (err, rows) => {
         if (err) return reject(err);
 
@@ -208,7 +208,7 @@ const addPackage = (req, res) => {
                 duration_value: row[1],
                 price: row[2],
                 currency_id: row[3],
-                status: "active",
+                status: "Active",
               },
               changedBy: req.user.userId,
             });
@@ -267,7 +267,7 @@ const addPackage = (req, res) => {
                 duration_value,
                 price,
                 currency_id,
-                status: "active",
+                status: "Active",
               },
               changedBy: userId,
             });
@@ -329,7 +329,7 @@ const deletePackage = (req, res) => {
     if (results.length === 0) return res.status(404).json({ error: "Package not found" });
 
     const currentPackage = results[0];
-    const newStatus = currentPackage.status === "active" ? "inactive" : "active";
+    const newStatus = currentPackage.status === "Active" ? "Inactive" : "Active";
 
     const updateSql = "UPDATE packages SET status = ? WHERE id = ?";
     connection.query(updateSql, [newStatus, id], (err2) => {
@@ -445,7 +445,7 @@ const getCompanyPackgestatus = (req, res) => {
 
     // Perform a database query to check the user's package status
     const query =
-      'SELECT status FROM cart WHERE account_id = ? AND status = "active"';
+      'SELECT status FROM cart WHERE account_id = ? AND status = "Active"';
 
     connection.query(query, [userId], (err, results) => {
       if (err) {

@@ -10,7 +10,7 @@ const createAccountTable = () => {
     username VARCHAR(255) NOT NULL, 
     email VARCHAR(255) NOT NULL,
     password VARCHAR(255) NOT NULL,
-    isActive ENUM('Active', 'InActive') NOT NULL,
+    isActive ENUM('Active', 'Inactive') NOT NULL,
     accountType ENUM('candidate', 'employer', 'db_admin', 'reg_admin') NOT NULL CHECK(accountType IN ('candidate', 'employer', 'db_admin', 'reg_admin')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -56,7 +56,7 @@ const getAccountDetail = (req) => {
 const register = (req, res) => {
   try {
     const { accountType, email, password, isActive, username, company_name } = req.body;
-    const status = isActive === "Active" ? "Active" : "InActive";
+    const status = isActive === "Active" ? "Active" : "Inactive";
 
     const sql = `
       INSERT INTO account (username, email, password, isActive, accountType)

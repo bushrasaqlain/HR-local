@@ -50,7 +50,7 @@ const CompanyDashboardArea = ({ activeTab, onTabChange, jobListFilterStatus }) =
                 const data = await response.json();
                 console.log('API Response:', data);
 
-                setHasActivePackage(data.packageStatus === "active");
+                setHasActivePackage(data.packageStatus === "Active");
             } catch (error) {
                 console.error('Error checking user package status:', error);
             }

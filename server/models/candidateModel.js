@@ -313,17 +313,13 @@ const addCandidateInfo = async (req, res) => {
 
     // 🔹 Passport photo
     // 🔹 Determine which file was uploaded
-    let passportPhotoPath;
-    let resumePath;
+    const passportPhotoPath = req.passportPhotoPath
+      ? req.passportPhotoPath.replace(/\\/g, "/").replace(/^.*uploads/, "/uploads")
+      : null;
 
-    if (req.file) {
-      if (req.file.fieldname === "passport_photo") {
-        passportPhotoPath = `/uploads/passportPhotos/${req.file.filename}`;
-      }
-      if (req.file.fieldname === "resume") {
-        resumePath = `/uploads/resume/${req.file.filename}`;
-      }
-    }
+    const resumePath = req.resumePath
+      ? req.resumePath.replace(/\\/g, "/").replace(/^.*uploads/, "/uploads")
+      : null;
     // 🔹 Profile completion check
     let profileCompleted = false;
     if (mode === "submit") {
@@ -555,83 +551,83 @@ const getCandidateInfo = (req, res) => {
         });
       })
     ])
-    .then(([hasAvailability, hasCertificates, hasResearch]) => {
+      .then(([hasAvailability, hasCertificates, hasResearch]) => {
 
-      if (hasAvailability) completedCount++;
-      if (hasCertificates) completedCount++;
-      if (hasResearch) completedCount++;
+        if (hasAvailability) completedCount++;
+        if (hasCertificates) completedCount++;
+        if (hasResearch) completedCount++;
 
-      const totalFields = fieldsToCheck.length + 3; // +3 for availability, certificates, research
-      const profile_completion_percent = Math.round((completedCount / totalFields) * 100); // ✅ declare & assign here
+        const totalFields = fieldsToCheck.length + 3; // +3 for availability, certificates, research
+        const profile_completion_percent = Math.round((completedCount / totalFields) * 100); // ✅ declare & assign here
 
-      // -------- Response object --------
-      const response = {
-        account_id: candidate.account_id || "",
-        email: candidate.email || "",
-        full_name: candidate.full_name || "",
-        phone: candidate.phone || "",
-        date_of_birth: candidate.date_of_birth
-          ? candidate.date_of_birth.toISOString().slice(0, 10)
-          : "",
-        gender: candidate.gender || "",
-        marital_status: candidate.marital_status || "",
-        total_experience: candidate.total_experience || "",
-        license_type: {
-          id: candidate.license_type_id ? Number(candidate.license_type_id) : null,
-          name: candidate.license_type_name || "",
-        },
-        license_number: candidate.license_number || "",
-        address: candidate.address || "",
-        country: {
-          id: candidate.country_id || null,
-          name: candidate.country_name || "",
-        },
-        district: {
-          id: candidate.district_id || null,
-          name: candidate.district_name || "",
-        },
-        city: {
-          id: candidate.city_id || null,
-          name: candidate.city_name || "",
-        },
-        otherPreferredCities: parseJSON(candidate.otherPreferredCities),
-        skills: [],
-        Links: parseJSON(candidate.Links),
-        current_salary: candidate.current_salary || "",
-        expected_salary: candidate.expected_salary || "",
-        profile_completed: !!candidate.profile_completed,
-        profile_completion_percent, // ✅ updated percentage
-        passport_photo: candidate.passport_photo || null,
-        resume: candidate.resume || null,
+        // -------- Response object --------
+        const response = {
+          account_id: candidate.account_id || "",
+          email: candidate.email || "",
+          full_name: candidate.full_name || "",
+          phone: candidate.phone || "",
+          date_of_birth: candidate.date_of_birth
+            ? candidate.date_of_birth.toISOString().slice(0, 10)
+            : "",
+          gender: candidate.gender || "",
+          marital_status: candidate.marital_status || "",
+          total_experience: candidate.total_experience || "",
+          license_type: {
+            id: candidate.license_type_id ? Number(candidate.license_type_id) : null,
+            name: candidate.license_type_name || "",
+          },
+          license_number: candidate.license_number || "",
+          address: candidate.address || "",
+          country: {
+            id: candidate.country_id || null,
+            name: candidate.country_name || "",
+          },
+          district: {
+            id: candidate.district_id || null,
+            name: candidate.district_name || "",
+          },
+          city: {
+            id: candidate.city_id || null,
+            name: candidate.city_name || "",
+          },
+          otherPreferredCities: parseJSON(candidate.otherPreferredCities),
+          skills: [],
+          Links: parseJSON(candidate.Links),
+          current_salary: candidate.current_salary || "",
+          expected_salary: candidate.expected_salary || "",
+          profile_completed: !!candidate.profile_completed,
+          profile_completion_percent, // ✅ updated percentage
+          passport_photo: candidate.passport_photo || null,
+          resume: candidate.resume || null,
 
-        // Tracking
-        appeared_in_search: 0,
-        profile_views: 0,
-        shortlisted_count: 0,
-        approved_count: 0,
-        interview_count: 0,
+          // Tracking
+          appeared_in_search: 0,
+          profile_views: 0,
+          shortlisted_count: 0,
+          approved_count: 0,
+          interview_count: 0,
 
-        // Detailed lists
-        shortlisted_companies: [],
-        approved_companies: []
-      };
+          // Detailed lists
+          shortlisted_companies: [],
+          approved_companies: []
+        };
 
-      // -------- Tracking Queries --------
-      const searchCountSql = `
+        // -------- Tracking Queries --------
+        const searchCountSql = `
         SELECT COUNT(*) AS appeared_in_search,
                COUNT(DISTINCT company_id) AS profile_views
         FROM candidate_search_impressions
         WHERE candidate_id = ?
       `;
 
-      const applicationStatusSql = `
+        const applicationStatusSql = `
         SELECT status, COUNT(*) AS count
         FROM applications
         WHERE candidate_id = ?
         GROUP BY status
       `;
 
-      const companyDetailsSql = `
+        const companyDetailsSql = `
         SELECT 
           a.status,
            a.interview_day,
@@ -649,66 +645,66 @@ const getCandidateInfo = (req, res) => {
         AND a.status IN ('Shortlisted', 'Approved')
       `;
 
-      Promise.all([
-        new Promise((resolve, reject) => {
-          connection.query(searchCountSql, [candidate.candidate_id], (err, rows) => {
-            if (err) return reject(err);
-            response.appeared_in_search = rows[0]?.appeared_in_search || 0;
-            response.profile_views = rows[0]?.profile_views || 0;
-            resolve();
-          });
-        }),
-        new Promise((resolve, reject) => {
-          connection.query(applicationStatusSql, [candidate.candidate_id], (err, rows) => {
-            if (err) return reject(err);
-            rows.forEach(r => {
-              if (r.status === "Shortlisted") response.shortlisted_count = r.count;
-              if (r.status === "Approved") response.approved_count = r.count;
-              if (r.status === "Interview") response.interview_count = r.count;
+        Promise.all([
+          new Promise((resolve, reject) => {
+            connection.query(searchCountSql, [candidate.candidate_id], (err, rows) => {
+              if (err) return reject(err);
+              response.appeared_in_search = rows[0]?.appeared_in_search || 0;
+              response.profile_views = rows[0]?.profile_views || 0;
+              resolve();
             });
-            resolve();
-          });
-        }),
-        new Promise((resolve, reject) => {
-          connection.query(companyDetailsSql, [candidate.candidate_id], (err, rows) => {
-            if (err) return reject(err);
-            rows.forEach(row => {
-              const companyData = {
-                 company_id: row.company_id,
-                company_name: row.company_name,
-                logo: row.logo,
-                job_id: row.job_id,
-    job_title: row.job_title,
-    interview_day: row.interview_day || null,
-    interview_time: row.interview_time || null,
-    candidate_id: row.candidate_id 
-                // account_id: row.account_id
-              };
-              if (row.status === "Shortlisted") response.shortlisted_companies.push(companyData);
-              if (row.status === "Approved") response.approved_companies.push(companyData);
+          }),
+          new Promise((resolve, reject) => {
+            connection.query(applicationStatusSql, [candidate.candidate_id], (err, rows) => {
+              if (err) return reject(err);
+              rows.forEach(r => {
+                if (r.status === "Shortlisted") response.shortlisted_count = r.count;
+                if (r.status === "Approved") response.approved_count = r.count;
+                if (r.status === "Interview") response.interview_count = r.count;
+              });
+              resolve();
             });
-            resolve();
-          });
-        })
-      ])
-      .then(() => {
-        if (!skillIds.length) return res.json(response);
+          }),
+          new Promise((resolve, reject) => {
+            connection.query(companyDetailsSql, [candidate.candidate_id], (err, rows) => {
+              if (err) return reject(err);
+              rows.forEach(row => {
+                const companyData = {
+                  company_id: row.company_id,
+                  company_name: row.company_name,
+                  logo: row.logo,
+                  job_id: row.job_id,
+                  job_title: row.job_title,
+                  interview_day: row.interview_day || null,
+                  interview_time: row.interview_time || null,
+                  candidate_id: row.candidate_id
+                  // account_id: row.account_id
+                };
+                if (row.status === "Shortlisted") response.shortlisted_companies.push(companyData);
+                if (row.status === "Approved") response.approved_companies.push(companyData);
+              });
+              resolve();
+            });
+          })
+        ])
+          .then(() => {
+            if (!skillIds.length) return res.json(response);
 
-        const skillsSql = `SELECT id, name FROM skills WHERE id IN (?)`;
-        connection.query(skillsSql, [skillIds], (err, skillsRows) => {
-          if (err) return res.status(500).json({ error: err.message });
+            const skillsSql = `SELECT id, name FROM skills WHERE id IN (?)`;
+            connection.query(skillsSql, [skillIds], (err, skillsRows) => {
+              if (err) return res.status(500).json({ error: err.message });
 
-          response.skills = skillsRows.map(s => ({
-            id: s.id,
-            name: s.name
-          }));
+              response.skills = skillsRows.map(s => ({
+                id: s.id,
+                name: s.name
+              }));
 
-          res.json(response);
-        });
+              res.json(response);
+            });
+          })
+          .catch(err => res.status(500).json({ error: err.message }));
       })
       .catch(err => res.status(500).json({ error: err.message }));
-    })
-    .catch(err => res.status(500).json({ error: err.message }));
   });
 };
 
@@ -721,10 +717,12 @@ const editCandidateInfo = (req, res) => {
   }
 
   // ✅ Correct file handling
-  const passportPhotoFile = req.file;
+  const passportPhotoPath = req.passportPhotoPath
+    ? req.passportPhotoPath.replace(/\\/g, "/").replace(/^.*uploads/, "/uploads")
+    : null;
 
-  const passportPhotoPath = passportPhotoFile
-    ? `/uploads/passportPhotos/${passportPhotoFile.filename}`
+  const resumePath = req.resumePath
+    ? req.resumePath.replace(/\\/g, "/").replace(/^.*uploads/, "/uploads")
     : null;
   // ✅ Map frontend fields → DB columns
   const fieldMap = {
@@ -911,36 +909,36 @@ const getCandidateFullProfilebyId = async (req, res) => {
       ...candidateInfoResults[0],
       experiences: Array.isArray(workResults)
         ? workResults.map((exp, index) => ({
-            ...exp,
-            start_date: formatDate(exp.start_date),
-            end_date: formatDate(exp.end_date),
-            first: index === 0,
-          }))
+          ...exp,
+          start_date: formatDate(exp.start_date),
+          end_date: formatDate(exp.end_date),
+          first: index === 0,
+        }))
         : [],
 
       education: Array.isArray(educationResults)
         ? educationResults.map((edu, index) => ({
-            ...edu,
-            start_date: formatDate(edu.start_date),
-            end_date: formatDate(edu.end_date),
-            first: index === 0,
-          }))
+          ...edu,
+          start_date: formatDate(edu.start_date),
+          end_date: formatDate(edu.end_date),
+          first: index === 0,
+        }))
         : [],
 
       projects: Array.isArray(projectsResults)
         ? projectsResults.map((proj, index) => ({
-            ...proj,
-            start_date: formatDate(proj.start_date),
-            end_date: formatDate(proj.end_date),
-            first: index === 0,
-          }))
+          ...proj,
+          start_date: formatDate(proj.start_date),
+          end_date: formatDate(proj.end_date),
+          first: index === 0,
+        }))
         : [],
 
       awards: Array.isArray(awardsResults)
         ? awardsResults.map((awd, index) => ({
-            ...awd,
-            first: index === 0,
-          }))
+          ...awd,
+          first: index === 0,
+        }))
         : [],
     };
 

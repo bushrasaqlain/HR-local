@@ -301,8 +301,8 @@ componentDidUpdate(prevProps) {
                 Active
               </DropdownItem>
               <DropdownItem 
-                onClick={() => this.setState({ quickStatusFilter: "InActive" })}
-                active={this.state.quickStatusFilter === "InActive"}
+                onClick={() => this.setState({ quickStatusFilter: "Inactive" })}
+                active={this.state.quickStatusFilter === "Inactive"}
               >
                 InActive
               </DropdownItem>
@@ -373,7 +373,7 @@ componentDidUpdate(prevProps) {
                     <Badge color={
                       job.status === "Active"
                         ? "success"
-                        : job.status === "InActive"
+                        : job.status === "Inactive"
                           ? "danger"
                           : "info"
                     } pill>
@@ -424,7 +424,7 @@ componentDidUpdate(prevProps) {
 
                         <DropdownItem
                           disabled={job.status === "Inactive"}
-                          onClick={() => this.handleStatusChange(job.id, "InActive")}
+                          onClick={() => this.handleStatusChange(job.id, "Inactive")}
                         >
                           <i className="la la-times text-danger me-2" /> InActive
                         </DropdownItem>

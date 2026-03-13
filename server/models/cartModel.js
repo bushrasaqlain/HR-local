@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS cart(
   account_id INT,
   package_type VARCHAR(25),
   price VARCHAR(10),
-  status ENUM('active', 'inactive', 'expire') DEFAULT 'inactive',
+  status ENUM('Active', 'Inactive', 'expire') DEFAULT 'Inactive',
   is_checkout BOOLEAN DEFAULT false,
   Active_at TIMESTAMP,
   Expire_At TIMESTAMP,
@@ -44,7 +44,7 @@ const addCart = (req, res) => {
 
     // Generate a unique order ID
     const orderId = generateUniqueOrderId();
-    const existingInactivePackageSql = 'SELECT id FROM cart WHERE account_id = ? AND status = "inactive"';
+    const existingInactivePackageSql = 'SELECT id FROM cart WHERE account_id = ? AND status = "Inactive"';
     connection.query(existingInactivePackageSql, [userId], function (err, existingInactiveResult) {
         if (err) {
             console.error(err);
@@ -60,7 +60,7 @@ const addCart = (req, res) => {
         const orderId = generateUniqueOrderId();
 
         // Insert into the cart table with "inactive" status and order_id
-        const insertSql = 'INSERT INTO cart (order_id, account_id, package_type, price, status) VALUES (NULL, ?, ?, ?, "inactive")';
+        const insertSql = 'INSERT INTO cart (order_id, account_id, package_type, price, status) VALUES (NULL, ?, ?, ?, "Inactive")';
         connection.query(insertSql, [userId, package_type, price], function (err, result) {
             if (err) {
                 console.error(err);
@@ -81,7 +81,7 @@ const getCart = (req, res) => {
       id, order_id, Active_at
     FROM cart
     WHERE 
-      account_id = ? AND status = "active"
+      account_id = ? AND status = "Active"
     
       `;
 
@@ -99,7 +99,7 @@ const getCartCount=(req, res) => {
     const userId = req.params.userId;
 
     // Select query to count the number of packages for the specified user
-    const countSql = 'SELECT COUNT(*) AS packageCount FROM cart WHERE account_id = ? AND status = "inactive" AND is_checkout = false';
+    const countSql = 'SELECT COUNT(*) AS packageCount FROM cart WHERE account_id = ? AND status = "Inactive" AND is_checkout = false';
 
 
     connection.query(countSql, [userId], function (err, result) {
@@ -119,7 +119,7 @@ const getCartCountbyStatus=(req, res) => {
      const userId = req.params.userId;
 
   // Select query to count the number of packages for the specified user
-  const countSql = 'SELECT COUNT(*) AS notificationCount FROM cart WHERE account_id = ? AND status = "active" ';
+  const countSql = 'SELECT COUNT(*) AS notificationCount FROM cart WHERE account_id = ? AND status = "Active" ';
 
 
   connection.query(countSql, [userId], function (err, result) {
@@ -139,7 +139,7 @@ const getPackagefromCart = (req, res) => {
      const userId = req.params.userId;
 
   // Select query to retrieve package names for the specified user with inactive status
-  const selectSql = 'SELECT package_type FROM cart WHERE account_id = ? AND status = "inactive" AND is_checkout = false';
+  const selectSql = 'SELECT package_type FROM cart WHERE account_id = ? AND status = "Inactive" AND is_checkout = false';
 
   connection.query(selectSql, [userId], function (err, result) {
     if (err) {
@@ -157,7 +157,7 @@ const getCartDetails = (req, res) => {
      const userId = req.params.userId;
 
   // Select query to retrieve package type name and price for the specified user
-  const selectSql = 'SELECT id, package_type, price FROM cart WHERE account_id = ? AND status= "inactive" AND is_checkout = false';
+  const selectSql = 'SELECT id, package_type, price FROM cart WHERE account_id = ? AND status= "Inactive" AND is_checkout = false';
 
   connection.query(selectSql, [userId], function (err, results) {
     if (err) {
@@ -180,7 +180,7 @@ const inactiveCartItems = (req, res) => {
     SELECT c.id, c.package_type, c.price, c.status, a.username AS username
     FROM cart c
     JOIN account a ON c.account_id = a.id
-    WHERE c.status = 'inactive'
+    WHERE c.status = 'Inactive'
   `;
 
   connection.query(sql, (err, results) => {
@@ -198,7 +198,7 @@ const activeCartItems = (req, res) => {
     SELECT c.id, c.package_type, c.price, c.status, a.username AS username
     FROM cart c
     JOIN account a ON c.account_id = a.id
-    WHERE c.status = 'active'
+    WHERE c.status = 'Active'
   `;
 
   connection.query(sql, (err, results) => {
@@ -242,7 +242,7 @@ const deleteCart=(req, res) => {
       return res.status(500).json({ error: "Internal Server Error" });
     }
   
-    if (!result || result.length === 0 || result[0].status !== 'inactive') {
+    if (!result || result.length === 0 || result[0].status !== 'Inactive') {
       return res.status(400).json({ error: "Cannot delete an active package" });
     }
   
@@ -287,7 +287,7 @@ const updateCart = (req, res) => {
           const updatePackageSql = `
             UPDATE cart 
             SET 
-              status = "active",
+              status = "Active",
               active_at = CURRENT_TIMESTAMP,
               Expire_At = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 30 DAY)  -- Update expiration to 10 minutes later
             WHERE id = ?

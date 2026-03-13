@@ -17,6 +17,7 @@ import {
   ModalBody,
   ModalHeader,
 } from "react-bootstrap";
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 class DegreeField extends Component {
   constructor(props) {
@@ -84,9 +85,9 @@ class DegreeField extends Component {
       let status = filters.status ?? this.state.isActive;
       if (status === "all") {
         // ✅ omit status completely for "All"
-      } else if (status.toLowerCase() === "active") {
+      } else if (status.toLowerCase() === "Active") {
         params.status = "Active"; // match your backend
-      } else if (status.toLowerCase() === "inactive") {
+      } else if (status.toLowerCase() === "Inactive") {
         params.status = "Inactive"; // match your backend
       }
 
@@ -134,11 +135,11 @@ class DegreeField extends Component {
 
     // Map data for Excel
     const dataToExport = degreeFieldData.map((degreeField) => ({
-      "Degree": degreeField.degree_type_name,
+      // "Degree": degreeField.degree_type_name,
       "Degree Field": degreeField.name,
-      "Status": degreeField.status,
-      "Created At": this.formatDate(degreeField.created_at),
-      "Updated At": this.formatDate(degreeField.updated_at),
+      // "Status": degreeField.status,
+      // "Created At": this.formatDate(degreeField.created_at),
+      // "Updated At": this.formatDate(degreeField.updated_at),
     }));
 
     // Create worksheet
@@ -213,7 +214,7 @@ class DegreeField extends Component {
           const jsonData = XLSX.utils.sheet_to_json(sheet);
 
           const degreefieldData = jsonData
-            .map(row => ({ name: row.name?.toString().trim() }))
+            .map(row => ({ name: row["Degree Field"]?.toString().trim() }))
             .filter(row => row.name);
 
           if (!degreefieldData.length) {
@@ -255,8 +256,8 @@ class DegreeField extends Component {
         } else {
           await api.post(`${this.apiBaseUrl}adddegreefield`, {
             name: inputValue,
-            t_id: selectedDegreeType, 
-             userId,
+            t_id: selectedDegreeType,
+            userId,
           });
 
           this.fetchDegreeFields(1);
@@ -298,17 +299,24 @@ class DegreeField extends Component {
       );
 
       if (response.data?.success) {
+
+        const newStatus = deleteStatus === "Active" ? "Inactive" : "Active";
+
+        this.setState((prevState) => ({
+          degreeFieldData: prevState.degreeFieldData.map((item) =>
+            item.id === deleteId ? { ...item, status: newStatus } : item
+          ),
+          showDeleteConfirm: false,
+          deleteId: null,
+          deleteStatus: null,
+        }));
+
         toast.success(
-          deleteStatus === "active"
+          deleteStatus === "Active"
             ? "Inactivated successfully"
             : "Activated successfully"
         );
 
-        // Refresh table
-        this.setState(
-          { showDeleteConfirm: false, deleteId: null, deleteStatus: null },
-          this.fetchDegreeFields
-        );
       } else {
         toast.error(response.data?.message || "Operation failed");
       }
@@ -320,40 +328,39 @@ class DegreeField extends Component {
     }
   };
 
-
   cancelDelete = () => {
     this.setState({ showDeleteConfirm: false, deleteId: null });
   };
 
-handleSearch = async (e) => {
-  const { name, value } = e.target;
-  ["name", "created_at", "updated_at"].forEach((input) => {
-    if (input !== name) {
-      const ele = document.getElementById(input);
-      if (ele) ele.value = "";
+  handleSearch = async (e) => {
+    const { name, value } = e.target;
+    ["name", "created_at", "updated_at"].forEach((input) => {
+      if (input !== name) {
+        const ele = document.getElementById(input);
+        if (ele) ele.value = "";
+      }
+    });
+
+    this.setState({ currentPage: 1 });
+
+    try {
+      const res = await axios.get(`${this.apiBaseUrl}getallDegreeFields`, {
+        params: {
+          name: name,
+          search: value,
+          status: this.state.isActive,
+          page: 1,
+          limit: this.itemsPerPage,
+        },
+      });
+      this.setState({
+        degreeFieldData: res.data.degreefields || [],
+        totalDegreeFileds: res.data.total || 0,
+      });
+    } catch (error) {
+      console.error("Error searching degreefield:", error);
     }
-  });
-
-  this.setState({ currentPage: 1 });
-
-  try {
-    const res = await axios.get(`${this.apiBaseUrl}getallDegreeFields`, {
-      params: {
-        name: name,  
-        search: value,
-        status: this.state.isActive,
-        page: 1,
-        limit: this.itemsPerPage,
-      },
-    });
-    this.setState({
-      degreeFieldData: res.data.degreefields || [],
-      totalDegreeFileds: res.data.total || 0,
-    });
-  } catch (error) {
-    console.error("Error searching degreefield:", error);
-  }
-};
+  };
 
   resetSearch = () => {
     ["name", "created_at", "updated_at"].forEach((id) => {
@@ -408,8 +415,8 @@ handleSearch = async (e) => {
                   onChange={(e) => this.setState({ isActive: e.target.value })}
                 >
                   <option value="all">All</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
                 </select>
               </div>
 
@@ -570,29 +577,45 @@ handleSearch = async (e) => {
                             {this.formatDate(item.updated_at)}
                           </td>
                           <td className="text-center">
-                            {item.status}
+                            <span className={`badge ${item.status === "Active" ? "bg-success" : "bg-danger"}`}>
+                              {item.status}
+                            </span>
                           </td>
 
                           <td className="status text-center">
                             <div className="d-flex justify-content-center align-items-center gap-3">
-                              <button onClick={() => this.toggleForm(item)} className="icon-btn">
-                                <span className="la la-pencil"></span>
+
+                              {/* Edit */}
+                              <button
+                                onClick={() => this.toggleForm(item)}
+                                className="icon-btn"
+                                title="Update"
+                              >
+                                <i className="bi bi-pencil-square text-primary"></i>
                               </button>
 
+                              {/* Activate / Inactivate */}
                               <button
                                 onClick={() => this.confirmDelete(item.id, item.status)}
                                 className="icon-btn"
+                                title={item.status === "Active" ? "Inactivate" : "Activate"}
                               >
                                 {item.status === "Active" ? (
-                                  <span className="la la-times-circle text-danger"></span>
+                                  <i className="bi bi-x-circle text-danger"></i>
                                 ) : (
-                                  <span className="la la-check-circle text-success"></span>
+                                  <i className="bi bi-check-circle text-success"></i>
                                 )}
                               </button>
 
-                              <button onClick={() => this.toggleHistory(item)} className="icon-btn">
-                                <span className="la la-history"></span>
+                              {/* History */}
+                              <button
+                                onClick={() => this.toggleHistory(item)}
+                                className="icon-btn"
+                                title="View History"
+                              >
+                                <i className="bi bi-clock-history text-dark"></i>
                               </button>
+
                             </div>
                           </td>
 

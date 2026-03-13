@@ -217,18 +217,23 @@ class CandidateInfo extends Component {
                   <div className="d-flex gap-2 mt-4 mt-md-0">
                     <ApplicantCard
                       candidate={candidateData}
-                      onStatusChange={(candidateId, status) => {
-                        const { selectedJobId } = this.props; // get jobId from props
+                      onStatusChange={(candidateId, status, interviewDay, interviewTime) => {
+                        const { selectedJobId } = this.props;
                         api
-                          .post(
-                            `/updatestatus`,
-                            { candidateId, jobId: selectedJobId, status }, // ✅ include jobId
-                          )
+                          .post("/updatestatus", {
+                            candidateId,
+                            jobId: selectedJobId,
+                            status,
+                            interview_day: interviewDay || null,
+                            interview_time: interviewTime || null,
+                          })
                           .then(() => {
                             this.setState({
                               candidateData: {
                                 ...candidateData,
                                 candidateStatus: status,
+                                interview_day: interviewDay || candidateData.interview_day,
+                                interview_time: interviewTime || candidateData.interview_time,
                               },
                             });
                           })
@@ -289,22 +294,22 @@ class CandidateInfo extends Component {
                         {candidateData.experience.map((exp, idx) => {
                           const start = exp.start_date
                             ? new Date(exp.start_date).toLocaleDateString(
-                                "en-US",
-                                {
-                                  month: "short",
-                                  year: "numeric",
-                                },
-                              )
+                              "en-US",
+                              {
+                                month: "short",
+                                year: "numeric",
+                              },
+                            )
                             : "";
 
                           const end = exp.end_date
                             ? new Date(exp.end_date).toLocaleDateString(
-                                "en-US",
-                                {
-                                  month: "short",
-                                  year: "numeric",
-                                },
-                              )
+                              "en-US",
+                              {
+                                month: "short",
+                                year: "numeric",
+                              },
+                            )
                             : "Present";
 
                           return (
@@ -536,53 +541,7 @@ class CandidateInfo extends Component {
                     </p>
                   </div>
 
-                  {/* Interview Schedule */}
-                  <div className="card shadow-sm rounded-4 p-4 mb-4">
-                    <h6 className="fw-bold">Interview Schedule</h6>
-                    <input
-                      type="date"
-                      className="form-control mb-2"
-                      value={this.state.interviewDay}
-                      onChange={this.handleInterviewDayChange}
-                    />
-                    <input
-                      type="time"
-                      className="form-control mb-2"
-                      value={this.state.interviewTime}
-                      onChange={this.handleInterviewTimeChange}
-                    />
-                    <button
-                      className="btn btn-success w-100"
-                      onClick={this.handleScheduleInterview}
-                    >
-                      Schedule Interview
-                    </button>
-                    <h6 className="fw-bold mt-3">Scheduled Interview</h6>
-                    {candidateData.interview_day &&
-                      candidateData.interview_time && (
-                        <p className="mt-1 text-muted">
-                          Scheduled on{" "}
-                          {(() => {
-                            const d = new Date(candidateData.interview_day);
-                            const day = String(d.getDate()).padStart(2, "0");
-                            const month = d.toLocaleString("en-GB", {
-                              month: "short",
-                            });
-                            const year = d.getFullYear();
-                            return `${day}-${month}-${year}`;
-                          })()}{" "}
-                          at{" "}
-                          {(() => {
-                            const [hour, minute] = candidateData.interview_time
-                              .split(":")
-                              .map(Number);
-                            const ampm = hour >= 12 ? "PM" : "AM";
-                            const hour12 = hour % 12 === 0 ? 12 : hour % 12;
-                            return `${hour12}:${String(minute).padStart(2, "0")} ${ampm}`;
-                          })()}
-                        </p>
-                      )}
-                  </div>
+
                   {/* Internal Notes */}
                   <div className="card shadow-sm rounded-4 p-4">
                     <h6 className="fw-bold">Internal Notes</h6>

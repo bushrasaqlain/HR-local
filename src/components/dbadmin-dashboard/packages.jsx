@@ -18,6 +18,7 @@ import {
     ModalHeader,
 } from "react-bootstrap";
 import AsyncSelect from "react-select/async";
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 class Packages extends Component {
     constructor(props) {
@@ -87,7 +88,7 @@ class Packages extends Component {
     loadCurrencies = async (inputValue) => {
         try {
             const res = await axios.get(`${this.apiBaseUrl}getallcurrencies`, {
-                params: { search: inputValue || "", page: 1, limit: 15, status: 'active' },
+                params: { search: inputValue || "", page: 1, limit: 15, status: 'Active' },
             });
             return res.data.currencies.map((c) => ({ label: c.code, value: c.id }));
         } catch (err) {
@@ -130,9 +131,9 @@ class Packages extends Component {
             "Duration value": pkg.duration_value,
             "Price": pkg.price,
             "Currency": pkg.currency,
-            "Status": pkg.status,
-            "Created At": this.formatDate(pkg.created_at),
-            "Updated At": this.formatDate(pkg.updated_at),
+            // "Status": pkg.status,
+            // "Created At": this.formatDate(pkg.created_at),
+            // "Updated At": this.formatDate(pkg.updated_at),
         }));
 
 
@@ -353,11 +354,11 @@ class Packages extends Component {
         });
     };
     handleDelete = async () => {
-        const { deleteId, isActive } = this.state;
+        const { deleteId, deleteStatus } = this.state;
         try {
             await api.delete(`${this.apiBaseUrl}packages/deletepackage/${deleteId}`);
             toast.success(
-                isActive === "active"
+                deleteStatus === "Active"
                     ? "Inactivated successfully"
                     : "Activated successfully"
             );
@@ -411,8 +412,8 @@ class Packages extends Component {
                                     onChange={(e) => this.setState({ isActive: e.target.value })}
                                 >
                                     <option value="all">All</option>
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
                                 </select>
                             </div>
 
@@ -651,32 +652,47 @@ class Packages extends Component {
                                                         {this.formatDate(item.updated_at)}
                                                     </td>
                                                     <td className="text-center">
-                                                        {item.status}
+                                                        <span className={`badge ${item.status === "Active" ? "bg-success" : "bg-danger"}`}>
+                                                            {item.status}
+                                                        </span>
                                                     </td>
 
                                                     <td className="status text-center">
                                                         <div className="d-flex justify-content-center align-items-center gap-3">
-                                                            <button onClick={() => this.toggleForm(item)} className="icon-btn">
-                                                                <span className="la la-pencil"></span>
+
+                                                            {/* Edit */}
+                                                            <button
+                                                                onClick={() => this.toggleForm(item)}
+                                                                className="icon-btn"
+                                                                title="Update"
+                                                            >
+                                                                <i className="bi bi-pencil-square text-primary"></i>
                                                             </button>
 
+                                                            {/* Activate / Inactivate */}
                                                             <button
                                                                 onClick={() => this.confirmDelete(item.id, item.status)}
                                                                 className="icon-btn"
+                                                                title={item.status === "Active" ? "Inactivate" : "Activate"}
                                                             >
-                                                                {item.status === "active" ? (
-                                                                    <span className="la la-times-circle text-danger"></span>
+                                                                {item.status === "Active" ? (
+                                                                    <i className="bi bi-x-circle text-danger"></i>
                                                                 ) : (
-                                                                    <span className="la la-check-circle text-success"></span>
+                                                                    <i className="bi bi-check-circle text-success"></i>
                                                                 )}
                                                             </button>
 
-                                                            <button onClick={() => this.toggleHistory(item)} className="icon-btn">
-                                                                <span className="la la-history"></span>
+                                                            {/* History */}
+                                                            <button
+                                                                onClick={() => this.toggleHistory(item)}
+                                                                className="icon-btn"
+                                                                title="View History"
+                                                            >
+                                                                <i className="bi bi-clock-history text-dark"></i>
                                                             </button>
+
                                                         </div>
                                                     </td>
-
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -809,7 +825,7 @@ class Packages extends Component {
                     <Modal show={showDeleteConfirm} onHide={this.cancelDelete} centered>
                         <Modal.Header closeButton>
                             <Modal.Title style={{ fontSize: "1rem", fontWeight: 600 }}>
-                                Confirm {deleteStatus === "active" ? "Inactivate" : "Activate"}
+                                Confirm {deleteStatus === "Active" ? "Inactivate" : "Activate"}
                             </Modal.Title>
                         </Modal.Header>
 
@@ -817,7 +833,7 @@ class Packages extends Component {
                             <p style={{ marginBottom: 0 }}>
                                 Are you sure you want to{" "}
                                 <strong>
-                                    {deleteStatus === "active" ? "inactivate" : "activate"}
+                                    {deleteStatus === "Active" ? "inactivate" : "activate"}
                                 </strong>{" "}
                                 this Country?
                             </p>
@@ -829,10 +845,10 @@ class Packages extends Component {
                             </Button>
 
                             <Button
-                                variant={deleteStatus === "active" ? "danger" : "success"}
+                                variant={deleteStatus === "Active" ? "danger" : "success"}
                                 onClick={this.handleDelete}
                             >
-                                {deleteStatus === "active" ? "Inactivate" : "Activate"}
+                                {deleteStatus === "Active" ? "Inactivate" : "Activate"}
                             </Button>
                         </Modal.Footer>
                     </Modal>

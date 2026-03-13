@@ -14,7 +14,7 @@ const createTableQuery = `
     FOREIGN KEY (country_id) REFERENCES countries(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    status ENUM('active', 'inactive') DEFAULT 'active'
+    status ENUM('Active', 'Inactive') DEFAULT 'Active'
   )
 `;
 
@@ -70,7 +70,7 @@ const addDistrict = (req, res) => {
           entityType: "district",
           entityId: districtId,
           action: "ADDED",
-          data: { name: districtName, country_id, status: "active" },
+          data: { name: districtName, country_id, status: "Active" },
           changedBy: userId,
         });
       });
@@ -111,7 +111,7 @@ const addDistrict = (req, res) => {
           entityType: "district",
           entityId: districtId,
           action: "ADDED",
-          data: { name, country_id, status: "active" },
+          data: { name, country_id, status: "Active" },
           changedBy: userId,
         });
 
@@ -164,7 +164,7 @@ const getAllDistricts = (req, res) => {
   const name = req.query.name || "district"; // column to search
   const search = req.query.search || "";
   const countryId = req.query.country_id ? parseInt(req.query.country_id) : null;
-  const status = req.query.status || "active";
+  const status = req.query.status || "Active";
 
   let whereConditions = [];
   let values = [];
@@ -258,7 +258,7 @@ const updateStatus = (req, res) => {
     if (results.length === 0) return res.status(404).json({ error: "District not found" });
 
     const currentDistrict = results[0];
-    const newStatus = currentDistrict.status === "active" ? "inactive" : "active";
+    const newStatus = currentDistrict.status === "Active" ? "Inactive" : "Active";
 
     const updateQuery = "UPDATE districts SET status = ? WHERE id = ?";
     connection.query(updateQuery, [newStatus, id], (err2) => {
