@@ -87,6 +87,7 @@ export const companymenuitem = [
       { key: "postJob", label: "Post Job" },
       { key: "jobList", label: "Job Post List" },
       { key: "packagesList", label: "Packages List" },
+      { key: "pricingform", label: "Pricing Form"},
     ],
   },
 
