@@ -13,6 +13,7 @@ import PostJob from "./postJob.jsx";
 import Profile from "./dashboard/profile.jsx";
 import TopCardBlock from "./dashboard/TopCardBlock.jsx";
 import ShortlistedCandidates from "./shortlistedcandidates.jsx";
+import ApprovedCandidates from "./approved.jsx";
 
 const CompanyDashboardArea = ({ activeTab, onTabChange, jobListFilterStatus }) => {
     const router = useRouter();
@@ -82,6 +83,8 @@ const CompanyDashboardArea = ({ activeTab, onTabChange, jobListFilterStatus }) =
                 return <PackagesList />;
             case "shortlistedcandidates":
                 return <ShortlistedCandidates />;
+            case "approved":
+                return <ApprovedCandidates />;
             case "chatBox":
                 return <ChatBox />;
 

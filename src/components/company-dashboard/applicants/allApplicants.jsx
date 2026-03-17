@@ -39,31 +39,67 @@ class AllApplicants extends Component {
         rejected: 0,
         approved: 0,
       },
-      // New state for split view
       splitViewActive: false,
       selectedCandidateId: null,
+      // Add window width to state for responsive handling
+      windowWidth: typeof window !== 'undefined' ? window.innerWidth : 1200,
+      // Track if we're in mobile detail view
+      mobileDetailView: false,
     };
     this.openCandidatePage = this.openCandidatePage.bind(this);
+  }
+
+  // Add resize listener
+  componentDidMount() {
+    this.fetchAllCandidates();
+    this.fetchPostedJobs();
+    window.addEventListener('resize', this.handleResize);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('resize', this.handleResize);
+  }
+
+  handleResize = () => {
+    this.setState({ windowWidth: window.innerWidth });
+    // If screen becomes larger and we're in mobile detail view, switch to split view
+    if (this.state.mobileDetailView && window.innerWidth > 768) {
+      this.setState({ mobileDetailView: false, splitViewActive: true });
+    }
+    // If screen becomes smaller and we're in split view, switch to mobile detail view if a candidate is selected
+    if (this.state.splitViewActive && window.innerWidth <= 768 && this.state.selectedCandidate) {
+      this.setState({ splitViewActive: false, mobileDetailView: true });
+    }
   }
 
   openCandidatePage(candidate) {
     console.log("Selected Candidate object:", candidate);
 
+    const isMobile = this.state.windowWidth <= 768;
+    
     this.setState({
       selectedCandidate: candidate,
       selectedCandidateId: candidate.id,
-      splitViewActive: true, // Activate split view
+      // On mobile, hide list and show only details
+      splitViewActive: !isMobile, // Only use split view on non-mobile
+      mobileDetailView: isMobile, // On mobile, use detail view
       showCandidateInfo: true,
     });
   }
 
-  // Add method to close split view
+  closeDetailView = () => {
+    this.setState({
+      mobileDetailView: false,
+      splitViewActive: false,
+      // Keep selectedCandidateId to maintain highlighting
+      // Don't clear selectedCandidate yet to keep highlight
+    });
+  }
+
   closeSplitView = () => {
     this.setState({
       splitViewActive: false,
-      selectedCandidate: null,
-      selectedCandidateId: null,
-      showCandidateInfo: false,
+      // Keep selectedCandidateId to maintain highlighting
     });
   }
 
@@ -94,11 +130,6 @@ class AllApplicants extends Component {
       toast.error("Failed to load posted jobs");
     }
   };
-
-  componentDidMount() {
-    this.fetchAllCandidates();
-    this.fetchPostedJobs();
-  }
 
   handleSearch = (searchFilters) => {
     this.setState({ searchFilters, currentPage: 1 }, () => {
@@ -319,7 +350,16 @@ class AllApplicants extends Component {
   /* ================= RENDER ================= */
 
   render() {
-    const { currentPage, itemsPerPage, counts, splitViewActive, selectedCandidate } = this.state;
+    const { 
+      currentPage, 
+      itemsPerPage, 
+      counts, 
+      splitViewActive, 
+      selectedCandidate, 
+      selectedCandidateId,
+      mobileDetailView,
+      windowWidth 
+    } = this.state;
 
     const filteredApplicants = this.filterApplicants();
 
@@ -332,58 +372,125 @@ class AllApplicants extends Component {
 
     const totalPages = Math.ceil(filteredApplicants.length / itemsPerPage);
 
+    // Responsive breakpoints
+    const isMobile = windowWidth <= 768;
+    const isTablet = windowWidth > 768 && windowWidth <= 1024;
+
+    // Determine split view layout based on screen size
+    const leftPanelWidth = isMobile ? '100%' : (isTablet ? '35%' : '25%');
+    const rightPanelWidth = isMobile ? '100%' : (isTablet ? '65%' : '75%');
+
+    // Determine what to show
+    const showSplitView = splitViewActive && selectedCandidate && !isMobile;
+    const showMobileDetail = mobileDetailView && selectedCandidate && isMobile;
+    const showListView = !showSplitView && !showMobileDetail;
+
     return (
       <>
         <Head>
           <title>All Applicants</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         </Head>
-        <Container fluid className="candidate-dashboard">
+        <Container fluid className="candidate-dashboard px-2 px-sm-3 px-md-4">
           <style jsx>{`
             .candidate-dashboard {
               background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
               min-height: 100vh;
-              padding: 2rem;
+              padding: 1rem;
+            }
+            
+            @media (min-width: 768px) {
+              .candidate-dashboard {
+                padding: 1.5rem;
+              }
+            }
+            
+            @media (min-width: 1024px) {
+              .candidate-dashboard {
+                padding: 2rem;
+              }
             }
             
             .job-selector-card {
               background: rgba(255, 255, 255, 0.95);
               backdrop-filter: blur(10px);
-              border-radius: 20px;
-              padding: 2rem;
+              border-radius: 15px;
+              padding: 1.2rem;
               box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
               border: 1px solid rgba(255, 255, 255, 0.2);
-              margin-bottom: 2rem;
+              margin-bottom: 1rem;
+            }
+            
+            @media (min-width: 768px) {
+              .job-selector-card {
+                padding: 1.5rem;
+                border-radius: 20px;
+              }
+            }
+            
+            @media (min-width: 1024px) {
+              .job-selector-card {
+                padding: 2rem;
+              }
             }
             
             .job-label {
-              font-size: 1.1rem;
+              font-size: 0.9rem;
               font-weight: 600;
               color: #2d3748;
-              margin-bottom: 0.8rem;
+              margin-bottom: 0.5rem;
               display: flex;
               align-items: center;
               gap: 0.5rem;
             }
             
+            @media (min-width: 768px) {
+              .job-label {
+                font-size: 1rem;
+                margin-bottom: 0.8rem;
+              }
+            }
+            
+            @media (min-width: 1024px) {
+              .job-label {
+                font-size: 1.1rem;
+              }
+            }
+            
             .job-label i {
               color: #667eea;
-              font-size: 1.3rem;
+              font-size: 1.1rem;
+            }
+            
+            @media (min-width: 768px) {
+              .job-label i {
+                font-size: 1.3rem;
+              }
             }
             
             .styled-select {
               background: white;
               border: 2px solid #e2e8f0;
-              border-radius: 15px;
-              padding: 1rem 1.5rem;
-              font-size: 1rem;
+              border-radius: 12px;
+              padding: 0.8rem 1rem;
+              font-size: 0.9rem;
               color: #2d3748;
               cursor: pointer;
               transition: all 0.3s ease;
               appearance: none;
               background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23667eea' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
               background-repeat: no-repeat;
-              background-position: right 1.5rem center;
-              background-size: 1.2rem;
+              background-position: right 1rem center;
+              background-size: 1rem;
+            }
+            
+            @media (min-width: 768px) {
+              .styled-select {
+                padding: 1rem 1.5rem;
+                font-size: 1rem;
+                border-radius: 15px;
+                background-size: 1.2rem;
+              }
             }
             
             .styled-select:hover, .styled-select:focus {
@@ -394,19 +501,33 @@ class AllApplicants extends Component {
             
             .stats-cards {
               display: grid;
-              grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-              gap: 1rem;
-              margin-bottom: 2rem;
+              grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+              gap: 0.8rem;
+              margin-bottom: 1.5rem;
+            }
+            
+            @media (min-width: 768px) {
+              .stats-cards {
+                gap: 1rem;
+                margin-bottom: 2rem;
+              }
             }
             
             .stat-card {
               background: white;
-              border-radius: 15px;
-              padding: 1.2rem;
+              border-radius: 12px;
+              padding: 1rem;
               text-align: center;
               box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
               border: 1px solid rgba(0, 0, 0, 0.05);
               transition: transform 0.3s ease;
+            }
+            
+            @media (min-width: 768px) {
+              .stat-card {
+                padding: 1.2rem;
+                border-radius: 15px;
+              }
             }
             
             .stat-card:hover {
@@ -414,20 +535,40 @@ class AllApplicants extends Component {
             }
             
             .stat-icon {
-              font-size: 2rem;
-              margin-bottom: 0.5rem;
-            }
-            
-            .stat-label {
-              font-size: 0.9rem;
-              color: #718096;
+              font-size: 1.5rem;
               margin-bottom: 0.3rem;
             }
             
+            @media (min-width: 768px) {
+              .stat-icon {
+                font-size: 2rem;
+                margin-bottom: 0.5rem;
+              }
+            }
+            
+            .stat-label {
+              font-size: 0.8rem;
+              color: #718096;
+              margin-bottom: 0.2rem;
+            }
+            
+            @media (min-width: 768px) {
+              .stat-label {
+                font-size: 0.9rem;
+                margin-bottom: 0.3rem;
+              }
+            }
+            
             .stat-value {
-              font-size: 1.5rem;
+              font-size: 1.2rem;
               font-weight: 700;
               color: #2d3748;
+            }
+            
+            @media (min-width: 768px) {
+              .stat-value {
+                font-size: 1.5rem;
+              }
             }
             
             .stat-value.total { color: #667eea; }
@@ -437,21 +578,37 @@ class AllApplicants extends Component {
             
             .search-wrapper {
               background: white;
-              border-radius: 50px;
-              padding: 0.3rem;
+              border-radius: 40px;
+              padding: 0.2rem;
               box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-              margin-bottom: 2rem;
+              margin-bottom: 1.5rem;
               display: flex;
               align-items: center;
+            }
+            
+            @media (min-width: 768px) {
+              .search-wrapper {
+                border-radius: 50px;
+                padding: 0.3rem;
+                margin-bottom: 2rem;
+              }
             }
             
             .search-input {
               flex: 1;
               border: none;
-              padding: 1rem 1.5rem;
-              font-size: 1rem;
+              padding: 0.8rem 1rem;
+              font-size: 0.9rem;
               background: transparent;
-              border-radius: 50px;
+              border-radius: 40px;
+            }
+            
+            @media (min-width: 768px) {
+              .search-input {
+                padding: 1rem 1.5rem;
+                font-size: 1rem;
+                border-radius: 50px;
+              }
             }
             
             .search-input:focus {
@@ -462,12 +619,23 @@ class AllApplicants extends Component {
               background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
               color: white;
               border: none;
-              padding: 0.8rem 2rem;
-              border-radius: 50px;
+              padding: 0.6rem 1.5rem;
+              border-radius: 40px;
               font-weight: 600;
+              font-size: 0.9rem;
               cursor: pointer;
               transition: all 0.3s ease;
-              margin: 0.3rem;
+              margin: 0.2rem;
+              white-space: nowrap;
+            }
+            
+            @media (min-width: 768px) {
+              .search-button {
+                padding: 0.8rem 2rem;
+                border-radius: 50px;
+                font-size: 1rem;
+                margin: 0.3rem;
+              }
             }
             
             .search-button:hover {
@@ -475,46 +643,84 @@ class AllApplicants extends Component {
               box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
             }
             
-            /* Split view container */
+            /* Split view container - Responsive */
             .split-view-container {
               display: flex;
-              gap: 1.5rem;
-              min-height: calc(100vh - 250px);
+              flex-direction: ${isMobile ? 'column' : 'row'};
+              gap: 1rem;
+              min-height: ${isMobile ? 'auto' : 'calc(100vh - 250px)'};
             }
             
-            /* Left panel - 25% */
+            @media (min-width: 768px) {
+              .split-view-container {
+                gap: 1.5rem;
+              }
+            }
+            
+            /* Left panel - Responsive */
             .left-panel {
-              flex: 0 0 25%;
+              flex: ${isMobile ? '1 1 auto' : `0 0 ${leftPanelWidth}`};
               background: white;
-              border-radius: 20px;
-              padding: 1.5rem;
+              border-radius: 15px;
+              padding: 1rem;
               box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
               overflow-y: auto;
-              max-height: calc(100vh - 250px);
+              max-height: ${isMobile ? '400px' : 'calc(100vh - 250px)'};
+              margin-bottom: ${isMobile ? '1rem' : '0'};
             }
             
-            /* Right panel - 75% */
+            @media (min-width: 768px) {
+              .left-panel {
+                padding: 1.2rem;
+                border-radius: 18px;
+              }
+            }
+            
+            @media (min-width: 1024px) {
+              .left-panel {
+                padding: 1.5rem;
+                border-radius: 20px;
+              }
+            }
+            
+            /* Right panel - Responsive */
             .right-panel {
-              flex: 0 0 75%;
+              flex: ${isMobile ? '1 1 auto' : `0 0 ${rightPanelWidth}`};
               background: white;
-              border-radius: 20px;
-              padding: 1.5rem;
+              border-radius: 15px;
+              padding: 1rem;
               box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
               overflow-y: auto;
-              max-height: calc(100vh - 250px);
+              max-height: ${isMobile ? 'auto' : 'calc(100vh - 250px)'};
               position: relative;
+            }
+            
+            @media (min-width: 768px) {
+              .right-panel {
+                padding: 1.2rem;
+                border-radius: 18px;
+              }
+            }
+            
+            @media (min-width: 1024px) {
+              .right-panel {
+                padding: 1.5rem;
+                border-radius: 20px;
+              }
             }
             
             /* Close button for split view */
             .close-split-view {
-              position: absolute;
-              top: 1rem;
-              right: 1rem;
+              position: ${isMobile ? 'relative' : 'absolute'};
+              top: ${isMobile ? '0' : '1rem'};
+              right: ${isMobile ? '0' : '1rem'};
+              margin-bottom: ${isMobile ? '1rem' : '0'};
+              margin-left: ${isMobile ? 'auto' : '0'};
               background: #fee2e2;
               border: none;
               border-radius: 50%;
-              width: 35px;
-              height: 35px;
+              width: 32px;
+              height: 32px;
               display: flex;
               align-items: center;
               justify-content: center;
@@ -524,9 +730,45 @@ class AllApplicants extends Component {
               z-index: 10;
             }
             
+            @media (min-width: 768px) {
+              .close-split-view {
+                width: 35px;
+                height: 35px;
+              }
+            }
+            
             .close-split-view:hover {
               background: #fecaca;
               transform: scale(1.1);
+            }
+            
+            /* Mobile detail view */
+            .mobile-detail-view {
+              background: white;
+              border-radius: 15px;
+              padding: 1rem;
+              box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+              position: relative;
+            }
+            
+            .back-to-list {
+              display: inline-flex;
+              align-items: center;
+              gap: 0.5rem;
+              background: #f7fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 50px;
+              padding: 0.5rem 1rem;
+              margin-bottom: 1rem;
+              color: #2d3748;
+              font-size: 0.9rem;
+              cursor: pointer;
+              transition: all 0.3s ease;
+            }
+            
+            .back-to-list:hover {
+              background: #edf2f7;
+              border-color: #cbd5e0;
             }
             
             /* Compact candidate list in split view */
@@ -539,12 +781,20 @@ class AllApplicants extends Component {
             .compact-candidate-item {
               display: flex;
               align-items: center;
-              gap: 1rem;
-              padding: 0.75rem;
-              border-radius: 10px;
+              gap: 0.8rem;
+              padding: 0.6rem;
+              border-radius: 8px;
               cursor: pointer;
               transition: all 0.2s ease;
-              border: 1px solid transparent;
+              border: 2px solid transparent;
+            }
+            
+            @media (min-width: 768px) {
+              .compact-candidate-item {
+                gap: 1rem;
+                padding: 0.75rem;
+                border-radius: 10px;
+              }
             }
             
             .compact-candidate-item:hover {
@@ -553,45 +803,103 @@ class AllApplicants extends Component {
             }
             
             .compact-candidate-item.selected {
-              background: linear-gradient(135deg, #667eea10 0%, #764ba210 100%);
+              background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
               border-color: #667eea;
+              box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
             }
             
             .compact-avatar {
-              width: 40px;
-              height: 40px;
+              width: 35px;
+              height: 35px;
               border-radius: 50%;
               object-fit: cover;
               border: 2px solid #667eea;
             }
             
+            .compact-candidate-item.selected .compact-avatar {
+              border-color: #764ba2;
+              box-shadow: 0 0 0 2px rgba(118, 75, 162, 0.3);
+            }
+            
+            @media (min-width: 768px) {
+              .compact-avatar {
+                width: 40px;
+                height: 40px;
+              }
+            }
+            
             .compact-info {
               flex: 1;
+              min-width: 0; /* Prevent overflow */
             }
             
             .compact-name {
               font-weight: 600;
               color: #2d3748;
-              font-size: 0.9rem;
+              font-size: 0.85rem;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            
+            .compact-candidate-item.selected .compact-name {
+              color: #667eea;
+              font-weight: 700;
+            }
+            
+            @media (min-width: 768px) {
+              .compact-name {
+                font-size: 0.9rem;
+              }
             }
             
             .compact-email {
-              font-size: 0.8rem;
+              font-size: 0.75rem;
               color: #718096;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            
+            @media (min-width: 768px) {
+              .compact-email {
+                font-size: 0.8rem;
+              }
             }
             
             .compact-status {
-              font-size: 0.7rem;
-              padding: 0.2rem 0.5rem;
+              font-size: 0.65rem;
+              padding: 0.2rem 0.4rem;
               border-radius: 50px;
               display: inline-block;
+              white-space: nowrap;
             }
             
+            @media (min-width: 768px) {
+              .compact-status {
+                font-size: 0.7rem;
+                padding: 0.2rem 0.5rem;
+              }
+            }
+            
+            /* Table responsive */
             .candidates-table-card {
               background: white;
-              border-radius: 20px;
-              padding: 1.5rem;
+              border-radius: 15px;
+              padding: 1rem;
               box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+              overflow-x: auto;
+            }
+            
+            @media (min-width: 768px) {
+              .candidates-table-card {
+                padding: 1.5rem;
+                border-radius: 20px;
+              }
+            }
+            
+            .table {
+              min-width: 500px; /* Ensure table doesn't get too compressed */
             }
             
             .table-header {
@@ -600,16 +908,26 @@ class AllApplicants extends Component {
             }
             
             .table-header th {
-              padding: 1.2rem 1rem;
+              padding: 1rem 0.8rem;
               font-weight: 600;
               text-transform: uppercase;
-              font-size: 0.9rem;
-              letter-spacing: 1px;
+              font-size: 0.8rem;
+              letter-spacing: 0.5px;
+              white-space: nowrap;
+            }
+            
+            @media (min-width: 768px) {
+              .table-header th {
+                padding: 1.2rem 1rem;
+                font-size: 0.9rem;
+                letter-spacing: 1px;
+              }
             }
             
             .candidate-row {
               transition: all 0.3s ease;
               cursor: pointer;
+              border: 2px solid transparent;
             }
             
             .candidate-row:hover {
@@ -618,14 +936,32 @@ class AllApplicants extends Component {
               box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
             }
             
+            .candidate-row.selected {
+              background: linear-gradient(135deg, #667eea10 0%, #764ba210 100%);
+              border-left: 4px solid #667eea;
+              border-right: 4px solid #764ba2;
+            }
+            
             .candidate-avatar {
-              width: 50px;
-              height: 50px;
+              width: 40px;
+              height: 40px;
               border-radius: 50%;
               object-fit: cover;
               border: 3px solid #667eea;
               box-shadow: 0 5px 10px rgba(102, 126, 234, 0.2);
               transition: all 0.3s ease;
+            }
+            
+            .candidate-row.selected .candidate-avatar {
+              border-color: #764ba2;
+              transform: scale(1.05);
+            }
+            
+            @media (min-width: 768px) {
+              .candidate-avatar {
+                width: 50px;
+                height: 50px;
+              }
             }
             
             .candidate-avatar:hover {
@@ -637,6 +973,18 @@ class AllApplicants extends Component {
               font-weight: 600;
               color: #2d3748;
               transition: color 0.3s ease;
+              font-size: 0.9rem;
+            }
+            
+            .candidate-row.selected .candidate-name {
+              color: #667eea;
+              font-weight: 700;
+            }
+            
+            @media (min-width: 768px) {
+              .candidate-name {
+                font-size: 1rem;
+              }
             }
             
             .candidate-name:hover {
@@ -644,13 +992,22 @@ class AllApplicants extends Component {
             }
             
             .status-badge {
-              padding: 0.5rem 1rem;
+              padding: 0.4rem 0.8rem;
               border-radius: 50px;
               font-weight: 600;
-              font-size: 0.85rem;
+              font-size: 0.75rem;
               display: inline-block;
               text-align: center;
-              min-width: 100px;
+              min-width: 80px;
+              white-space: nowrap;
+            }
+            
+            @media (min-width: 768px) {
+              .status-badge {
+                padding: 0.5rem 1rem;
+                font-size: 0.85rem;
+                min-width: 100px;
+              }
             }
             
             .status-pending {
@@ -671,40 +1028,83 @@ class AllApplicants extends Component {
             .city-badge {
               background: #e2e8f0;
               color: #2d3748;
-              padding: 0.5rem 1rem;
+              padding: 0.4rem 0.8rem;
               border-radius: 50px;
-              font-size: 0.85rem;
+              font-size: 0.75rem;
               display: inline-block;
+              white-space: nowrap;
+            }
+            
+            @media (min-width: 768px) {
+              .city-badge {
+                padding: 0.5rem 1rem;
+                font-size: 0.85rem;
+              }
             }
             
             .empty-state {
               text-align: center;
-              padding: 4rem 2rem;
+              padding: 2rem 1rem;
+            }
+            
+            @media (min-width: 768px) {
+              .empty-state {
+                padding: 4rem 2rem;
+              }
             }
             
             .empty-icon {
-              font-size: 5rem;
+              font-size: 3rem;
               color: #cbd5e0;
-              margin-bottom: 1.5rem;
+              margin-bottom: 1rem;
+            }
+            
+            @media (min-width: 768px) {
+              .empty-icon {
+                font-size: 5rem;
+                margin-bottom: 1.5rem;
+              }
             }
             
             .empty-text {
-              font-size: 1.2rem;
+              font-size: 1rem;
               color: #718096;
-              margin-bottom: 1rem;
+              margin-bottom: 0.8rem;
+            }
+            
+            @media (min-width: 768px) {
+              .empty-text {
+                font-size: 1.2rem;
+                margin-bottom: 1rem;
+              }
             }
             
             .pagination-wrapper {
               display: flex;
               justify-content: center;
-              margin-top: 2rem;
+              margin-top: 1.5rem;
+              overflow-x: auto;
+              padding: 0.5rem 0;
+            }
+            
+            @media (min-width: 768px) {
+              .pagination-wrapper {
+                margin-top: 2rem;
+              }
             }
             
             .custom-pagination {
               display: flex;
-              gap: 0.5rem;
+              gap: 0.3rem;
               list-style: none;
               padding: 0;
+              margin: 0;
+            }
+            
+            @media (min-width: 768px) {
+              .custom-pagination {
+                gap: 0.5rem;
+              }
             }
             
             .page-item {
@@ -715,8 +1115,8 @@ class AllApplicants extends Component {
               display: flex;
               align-items: center;
               justify-content: center;
-              width: 40px;
-              height: 40px;
+              width: 32px;
+              height: 32px;
               border-radius: 50%;
               background: white;
               color: #2d3748;
@@ -724,6 +1124,15 @@ class AllApplicants extends Component {
               transition: all 0.3s ease;
               border: 1px solid #e2e8f0;
               font-weight: 500;
+              font-size: 0.85rem;
+            }
+            
+            @media (min-width: 768px) {
+              .page-link {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+              }
             }
             
             .page-link:hover, .page-item.active .page-link {
@@ -733,12 +1142,29 @@ class AllApplicants extends Component {
               transform: scale(1.1);
               box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
             }
+            
+            /* Mobile specific styles */
+            @media (max-width: 768px) {
+              .table td, .table th {
+                padding: 0.6rem;
+              }
+              
+              .d-flex.align-items-center.gap-3 {
+                gap: 0.5rem !important;
+              }
+              
+              .candidate-avatar {
+                width: 35px;
+                height: 35px;
+                border-width: 2px;
+              }
+            }
           `}</style>
 
           <Row className="justify-content-center">
-            <Col lg={splitViewActive ? "12" : "10"}>
+            <Col lg={splitViewActive ? "12" : "10"} xs="12">
               {/* Job Selection Card */}
-              <div className="job-selector-card animate__animated animate__fadeInDown">
+              <div className="job-selector-card">
                 <div className="job-label">
                   <i className="fas fa-briefcase"></i>
                   <span>Select Job Position</span>
@@ -751,8 +1177,10 @@ class AllApplicants extends Component {
                     await this.setState({
                       selectedJobId,
                       showFilters: !!selectedJobId,
-                      splitViewActive: false, // Close split view when changing job
+                      splitViewActive: false,
+                      mobileDetailView: false,
                       selectedCandidate: null,
+                      selectedCandidateId: null,
                     });
                     if (selectedJobId) this.fetchAllCandidates();
                   }}
@@ -768,18 +1196,18 @@ class AllApplicants extends Component {
 
               {this.state.showFilters && (
                 <>
-                  {/* Conditional rendering: Split view or Full view */}
-                  {splitViewActive && selectedCandidate ? (
+                  {/* Split View - Desktop/Tablet */}
+                  {showSplitView && (
                     <div className="split-view-container">
-                      {/* Left Panel - 25% - Candidate List */}
+                      {/* Left Panel - Candidate List */}
                       <div className="left-panel">
-                        <h5 className="mb-3">Candidates List</h5>
+                        <h5 className="mb-2 mb-md-3">Candidates List</h5>
                         <div className="compact-candidate-list">
                           {currentCandidates.map((candidate) => (
                             <div
                               key={candidate.id}
                               className={`compact-candidate-item ${
-                                candidate.id === this.state.selectedCandidateId ? 'selected' : ''
+                                candidate.id === selectedCandidateId ? 'selected' : ''
                               }`}
                               onClick={() => this.openCandidatePage(candidate)}
                             >
@@ -797,14 +1225,7 @@ class AllApplicants extends Component {
                               />
                               <div className="compact-info">
                                 <div className="compact-name">{candidate.full_name}</div>
-                                <div className="compact-email">{candidate.email || "No email"}</div>
-                                <span className={`compact-status ${
-                                  candidate.candidateStatus === "Pending" ? "status-pending" :
-                                  candidate.candidateStatus === "Rejected" ? "status-rejected" :
-                                  "status-shortlisted"
-                                }`}>
-                                  {candidate.candidateStatus || "Pending"}
-                                </span>
+                                <div className="compact-email">{candidate.email || ''}</div>
                               </div>
                             </div>
                           ))}
@@ -812,7 +1233,7 @@ class AllApplicants extends Component {
                         
                         {/* Pagination in split view */}
                         {filteredApplicants.length > itemsPerPage && (
-                          <div className="pagination-wrapper mt-3">
+                          <div className="pagination-wrapper mt-2 mt-md-3">
                             <ul className="custom-pagination">
                               <li className="page-item">
                                 <a 
@@ -848,7 +1269,7 @@ class AllApplicants extends Component {
                         )}
                       </div>
 
-                      {/* Right Panel - 75% - Candidate Details */}
+                      {/* Right Panel - Candidate Details */}
                       <div className="right-panel">
                         <button 
                           className="close-split-view"
@@ -864,22 +1285,39 @@ class AllApplicants extends Component {
                         />
                       </div>
                     </div>
-                  ) : (
-                    /* Full view - Table only */
-                    <div className="candidates-table-card animate__animated animate__fadeInUp">
+                  )}
+
+                  {/* Mobile Detail View */}
+                  {showMobileDetail && (
+                    <div className="mobile-detail-view">
+                      <div className="back-to-list" onClick={this.closeDetailView}>
+                        <i className="fas fa-arrow-left"></i>
+                        <span>Back to Candidates List</span>
+                      </div>
+                      <CandidateInfo
+                        candidate={selectedCandidate}
+                        selectedJobId={this.state.selectedJobId}
+                        onBack={this.closeDetailView}
+                      />
+                    </div>
+                  )}
+
+                  {/* List View - Shown when not in split view or mobile detail view */}
+                  {showListView && (
+                    <div className="candidates-table-card">
                       {currentCandidates.length > 0 ? (
                         <>
                           <div className="table-responsive">
-                            <table className="table table-rounded align-middle">
+                            <table className="table table-rounded align-middle mb-0">
                               <thead className="text-center rounded">
                                 <tr>
-                                  <th className="text-white p-3 border-bottom border-1"
+                                  <th className="text-white p-2 p-md-3 border-bottom border-1"
                                       style={{ background: "#5f8190"}}>Candidate
                                   </th>
-                                  <th className="text-white p-3 border-bottom border-1"
+                                  <th className="text-white p-2 p-md-3 border-bottom border-1"
                                       style={{ background: "#5f8190"}}>Status
                                   </th>
-                                  <th className="text-white p-3 border-bottom border-1"
+                                  <th className="text-white p-2 p-md-3 border-bottom border-1"
                                       style={{ background: "#5f8190"}}>Location
                                   </th>
                                 </tr>
@@ -888,11 +1326,14 @@ class AllApplicants extends Component {
                                 {currentCandidates.map((candidate, index) => (
                                   <tr 
                                     key={candidate.id} 
-                                    className="candidate-row"
+                                    className={`candidate-row ${
+                                      candidate.id === selectedCandidateId ? 'selected' : ''
+                                    }`}
                                     style={{ animation: `fadeInUp 0.5s ease ${index * 0.1}s` }}
+                                    onClick={() => this.openCandidatePage(candidate)}
                                   >
                                     <td>
-                                      <div className="d-flex align-items-center gap-3">
+                                      <div className="d-flex align-items-center gap-2 gap-md-3">
                                         <img
                                           src={
                                             candidate.passport_photo
@@ -906,16 +1347,12 @@ class AllApplicants extends Component {
                                           }}
                                         />
                                         <div>
-                                          <div
-                                            onClick={() => this.openCandidatePage(candidate)}
-                                            className="candidate-name"
-                                            style={{ cursor: "pointer" }}
-                                          >
+                                          <div className="candidate-name">
                                             {candidate.full_name}
                                           </div>
-                                          <small className="text-muted">
-                                            {candidate.email || "No email provided"}
-                                          </small>
+                                          {!isMobile && (
+                                            <small className="text-muted">{candidate.email}</small>
+                                          )}
                                         </div>
                                       </div>
                                     </td>
@@ -930,7 +1367,7 @@ class AllApplicants extends Component {
                                     </td>
                                     <td className="text-center">
                                       <span className="city-badge">
-                                        <i className="fas fa-map-marker-alt me-2"></i>
+                                        <i className="fas fa-map-marker-alt me-1 me-md-2"></i>
                                         {candidate.city_name || "Not specified"}
                                       </span>
                                     </td>
@@ -956,20 +1393,34 @@ class AllApplicants extends Component {
                                     <i className="fas fa-chevron-left"></i>
                                   </a>
                                 </li>
-                                {[...Array(totalPages)].map((_, i) => (
-                                  <li key={i} className={`page-item ${currentPage === i + 1 ? 'active' : ''}`}>
-                                    <a 
-                                      className="page-link" 
-                                      href="#" 
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        this.handlePageChange(i + 1);
-                                      }}
-                                    >
-                                      {i + 1}
-                                    </a>
-                                  </li>
-                                ))}
+                                {[...Array(Math.min(totalPages, isMobile ? 5 : totalPages))].map((_, i) => {
+                                  // Show limited page numbers on mobile
+                                  let pageNum = i + 1;
+                                  if (isMobile && totalPages > 5) {
+                                    if (currentPage <= 3) {
+                                      pageNum = i + 1;
+                                    } else if (currentPage >= totalPages - 2) {
+                                      pageNum = totalPages - 4 + i;
+                                    } else {
+                                      pageNum = currentPage - 2 + i;
+                                    }
+                                  }
+                                  
+                                  return (
+                                    <li key={i} className={`page-item ${currentPage === pageNum ? 'active' : ''}`}>
+                                      <a 
+                                        className="page-link" 
+                                        href="#" 
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          this.handlePageChange(pageNum);
+                                        }}
+                                      >
+                                        {pageNum}
+                                      </a>
+                                    </li>
+                                  );
+                                })}
                                 <li className="page-item">
                                   <a 
                                     className="page-link" 
@@ -994,7 +1445,7 @@ class AllApplicants extends Component {
                           <div className="empty-text">
                             No candidates found for this position
                           </div>
-                          <p className="text-muted">
+                          <p className="text-muted small mb-0">
                             Try adjusting your search or check back later for new applications
                           </p>
                         </div>

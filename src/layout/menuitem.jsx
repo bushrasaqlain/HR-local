@@ -93,7 +93,7 @@ export const companymenuitem = [
 
   { key: "allApplicants", label: "All Applicants", type: "single" },
   { key: "shortlistedcandidates", label: "Shortlisted", type: "single" },
-  // { key: "chatBox", label: "Messages", type: "single" },
+  { key: "approved", label: "Approved", type: "single" },
 ];
 
 

@@ -8,7 +8,7 @@ import CandidateInfo from "./applicants/candidateinfo";
 import Head from "next/head";
 import ChatBox from "./messages/chatBox";
 
-class ShortlistedCandidates extends Component {
+class ApprovedCandidates extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -35,7 +35,7 @@ class ShortlistedCandidates extends Component {
       counts: {
         all: 0,
         pending: 0,
-        shortlisted: 0,
+        Approved: 0,
         rejected: 0,
         approved: 0,
       },
@@ -269,7 +269,7 @@ class ShortlistedCandidates extends Component {
         {
           candidates,
           allApplicants: candidates,
-          selectedStatus: "Shortlisted",
+          selectedStatus: "Approved",
           splitViewActive: false,
           mobileDetailView: false,
           selectedCandidate: null,
@@ -306,14 +306,14 @@ class ShortlistedCandidates extends Component {
     const counts = {
       all: applicants.length,
       pending: 0,
-      shortlisted: 0,
+      Approved: 0,
       rejected: 0,
       approved: 0,
     };
 
     applicants.forEach((a) => {
       if (a.candidateStatus === "Pending") counts.pending++;
-      if (a.candidateStatus === "Shortlisted") counts.shortlisted++;
+      if (a.candidateStatus === "Approved") counts.Approved++;
       if (a.candidateStatus === "Rejected") counts.rejected++;
       if (a.candidateStatus === "Approved") counts.approved++;
     });
@@ -324,7 +324,7 @@ class ShortlistedCandidates extends Component {
   handleApplicationStatus = async (
     candidateId,
     jobId,
-    status = "Shortlisted",
+    status = "Approved",
   ) => {
     if (!jobId) {
       toast.error("Job ID is required to update status");
@@ -487,7 +487,7 @@ class ShortlistedCandidates extends Component {
     return (
       <>
         <Head>
-          <title>Shortlisted Candidates</title>
+          <title>Approved Candidates</title>
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         </Head>
         <Container fluid className="candidate-dashboard px-2 px-sm-3 px-md-4">
@@ -917,7 +917,7 @@ class ShortlistedCandidates extends Component {
             }
             
             .status-pending { background: #fef3c7; color: #92400e; }
-            .status-shortlisted { background: #d1fae5; color: #065f46; }
+            .status-Approved { background: #d1fae5; color: #065f46; }
             .status-rejected { background: #fee2e2; color: #991b1b; }
             .status-approved { background: #dbeafe; color: #1e40af; }
             
@@ -1257,9 +1257,9 @@ class ShortlistedCandidates extends Component {
                                         candidate.candidateStatus === "Pending" ? "status-pending" :
                                         candidate.candidateStatus === "Rejected" ? "status-rejected" :
                                         candidate.candidateStatus === "Approved" ? "status-approved" :
-                                        "status-shortlisted"
+                                        "status-Approved"
                                       }`}>
-                                        {candidate.candidateStatus || "Shortlisted"}
+                                        {candidate.candidateStatus || "Approved"}
                                       </span>
                                     </td>
 
@@ -1415,7 +1415,7 @@ class ShortlistedCandidates extends Component {
                             <i className="fas fa-users-slash"></i>
                           </div>
                           <div className="empty-text">
-                            No shortlisted candidates found for this position
+                            No Approved candidates found for this position
                           </div>
                           <p className="text-muted small mb-0">
                             Try adjusting your search or check back later
@@ -1533,4 +1533,4 @@ class ShortlistedCandidates extends Component {
   }
 }
 
-export default ShortlistedCandidates;
+export default ApprovedCandidates;

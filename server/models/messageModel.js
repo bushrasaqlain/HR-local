@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS messages (
   senderId INT,
   receiverId INT,
   message TEXT,
+  jobId INT,
   is_read BOOLEAN DEFAULT FALSE,
   timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   deleted_by_sender BOOLEAN DEFAULT FALSE,
