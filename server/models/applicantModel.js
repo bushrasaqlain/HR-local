@@ -176,7 +176,54 @@ const getAllApplicants = async (req, res) => {
         COALESCE(
           (SELECT a1.message FROM applications a1 WHERE a1.candidate_id = c.id AND a1.job_id = ? ORDER BY a1.created_at DESC LIMIT 1),
           NULL
-        ) AS message
+        ) AS message,
+         COALESCE(
+ (SELECT a1.candidate_response 
+  FROM applications a1 
+  WHERE a1.candidate_id = c.id AND a1.job_id = ? 
+  ORDER BY a1.id DESC LIMIT 1),
+ NULL
+) AS candidate_response,
+
+COALESCE(
+ (SELECT a1.requested_interview_day 
+  FROM applications a1 
+  WHERE a1.candidate_id = c.id AND a1.job_id = ? 
+  ORDER BY a1.id DESC LIMIT 1),
+ NULL
+) AS requested_interview_day,
+
+COALESCE(
+ (SELECT a1.requested_interview_time 
+  FROM applications a1 
+  WHERE a1.candidate_id = c.id AND a1.job_id = ? 
+  ORDER BY a1.id DESC LIMIT 1),
+ NULL
+) AS requested_interview_time,
+
+COALESCE(
+ (SELECT a1.company_status 
+  FROM applications a1 
+  WHERE a1.candidate_id = c.id AND a1.job_id = ? 
+  ORDER BY a1.id DESC LIMIT 1),
+ 'pending'
+) AS company_status,
+
+COALESCE(
+ (SELECT a1.company_offered_day 
+  FROM applications a1 
+  WHERE a1.candidate_id = c.id AND a1.job_id = ? 
+  ORDER BY a1.id DESC LIMIT 1),
+ NULL
+) AS company_offered_day,
+
+COALESCE(
+ (SELECT a1.company_offered_time 
+  FROM applications a1 
+  WHERE a1.candidate_id = c.id AND a1.job_id = ? 
+  ORDER BY a1.id DESC LIMIT 1),
+ NULL
+) AS company_offered_time
       FROM account a
       INNER JOIN candidate_info c ON a.id = c.account_id
       LEFT JOIN license_types li ON c.license_type = li.id
@@ -187,7 +234,21 @@ const getAllApplicants = async (req, res) => {
     const candidatesRaw = await new Promise((resolve, reject) => {
       connection.query(
         candidateQuery,
-        [jobId, jobId, jobId, jobId, ...values, limit, offset],
+        [
+ jobId, 
+ jobId,
+ jobId, 
+ jobId, 
+ jobId, 
+ jobId, 
+ jobId, 
+ jobId, 
+ jobId, 
+ jobId, 
+ ...values,
+ limit,
+ offset
+],
         (err, res) => (err ? reject(err) : resolve(res)),
       );
     });

@@ -146,8 +146,8 @@ class AvailabilityStep extends Component {
         <h5 className="mb-3">Availability</h5>
 
         <Button
-          color="outline-primary"
-          className="mb-3"
+          color="outline-secondry"
+          className="mb-3 custom-progress-bar text-white"
           onClick={this.openAddModal}
         >
           + Add Availability
@@ -177,7 +177,8 @@ class AvailabilityStep extends Component {
                   <td>
                     <Button
                       size="sm"
-                      color="outline-primary"
+                      color="outline-secondry"
+                      className="custom-progress-bar text-white"
                       onClick={() => this.openEditModal(index)}
                     >
                       Edit
@@ -262,7 +263,7 @@ class AvailabilityStep extends Component {
               Cancel
             </Button>
             <Button
-              color="primary"
+              className="custom-progress-bar text-white"
               disabled={
                 !form.day || !form.shift || !form.startTime || !form.endTime
               }

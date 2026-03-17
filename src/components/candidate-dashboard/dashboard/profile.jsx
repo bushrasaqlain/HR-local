@@ -170,9 +170,9 @@ class Profile extends Component {
 
                     <div className="progress mb-2">
                       <div
-                        className="progress-bar bg-info"
+                        className="progress-bar"
                         style={{
-                          width: `${dashboardStats.profilecompletionpercentage}%`,
+                          width: `${dashboardStats.profilecompletionpercentage}%`, background: "#5F8190"
                         }}
                       >
                         {dashboardStats.profilecompletionpercentage}%
@@ -184,7 +184,8 @@ class Profile extends Component {
                     </p>
 
                     <button
-                      className="btn btn-primary btn-sm w-100"
+                      className="btn custom-progress-bar text-white btn-sm w-100"
+                      
                       onClick={this.handleEditProfile}
                     >
                       Complete Profile
@@ -218,19 +219,19 @@ class Profile extends Component {
                     />
                   </div>
 
-                  <h5>{formData.full_name || "Your Name"}</h5>
-                  <p className="text-muted small">
-                    {formData.total_experience || 0} experience
-                  </p>
+                  <h5 className="mb-3">{formData.full_name || "Your Name"}</h5>
+                 
 
-                  <span className="badge bg-info mb-3">
+                  <span className="badge mb-3"
+                  style={{ background: "#5F8190"}}>
                     Available for Interview
                   </span>
 
                   <div>
                     <button
-                      className="btn btn-outline-primary mb-3 btn-sm w-100"
+                      className="btn mb-3 custom-progress-bar text-white btn-sm w-100"
                       onClick={this.handleEditProfile}
+                      
                     >
                       Edit Profile
                     </button>

@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import * as XLSX from "xlsx";
 import MetaTags from "react-meta-tags";
+import { withRouter } from "next/router";
 import {
   Card,
   Row,
@@ -23,6 +24,7 @@ class LicenseType extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      highlightId: null,
       licenseTypes: [],
       showModal: false,
       inputValue: "",
@@ -30,8 +32,6 @@ class LicenseType extends Component {
       deleteId: null,
       deleteStatus: null,
       showDeleteConfirm: false,
-      showHistoryModal: false,
-      history: [],
       currentPage: 1,
       totallicenseTypes: 0,
       isActive: "all",
@@ -66,12 +66,24 @@ class LicenseType extends Component {
       this.setState({
         licenseTypes: response.data.licenseTypes || [],
         totallicenseTypes: response.data.total || 0,
+      }, () => {
+        // ✅ highlight check
+        const lastHistoryType = sessionStorage.getItem("lastHistoryType");
+        const lastHistoryId = sessionStorage.getItem("lastHistoryId");
+
+        if (lastHistoryType === "license_types" && lastHistoryId) {
+          this.setState({ highlightId: parseInt(lastHistoryId) });
+          setTimeout(() => {
+            this.setState({ highlightId: null });
+            sessionStorage.removeItem("lastHistoryId");
+            sessionStorage.removeItem("lastHistoryType");
+          }, 3000);
+        }
       });
     } catch (error) {
       console.error("Error fetching licenseTypes:", error);
     }
   };
-
   handleExcelExport = () => {
     const { licenseTypes } = this.state;
 
@@ -182,11 +194,6 @@ class LicenseType extends Component {
     } else {
       this.setState({ editId: null, inputValue: "", showModal: true });
     }
-  };
-
-  toggleHistory = (item = null) => {
-    if (item) this.fetchHistory(item.id);
-    this.setState({ showHistoryModal: true });
   };
 
   handleSave = async () => {
@@ -310,8 +317,6 @@ class LicenseType extends Component {
       showModal,
       inputValue,
       showDeleteConfirm,
-      showHistoryModal,
-      history,
       currentPage,
       totallicenseTypes,
       deleteStatus,
@@ -320,8 +325,16 @@ class LicenseType extends Component {
     } = this.state;
     const totalPages = Math.ceil(totallicenseTypes / this.itemsPerPage);
 
+    const highlightStyle = `
+        .highlight-row td {
+            background-color: #fff3cd !important;
+            transition: background-color 0.5s ease;
+        }
+    `;
+
     return (
       <React.Fragment>
+        <style>{highlightStyle}</style>
         <MetaTags>
           <title>LicenseType | List</title>
         </MetaTags>
@@ -488,7 +501,10 @@ class LicenseType extends Component {
 
                     <tbody>
                       {licenseTypes.map((item) => (
-                        <tr key={item.id}>
+                        <tr
+                          key={item.id}
+                          className={this.state.highlightId === item.id ? "highlight-row" : ""}
+                        >
                           <td className="text-center">{item.name}</td>
                           <td className="text-center">
                             {this.formatDate(item.created_at)}
@@ -497,7 +513,7 @@ class LicenseType extends Component {
                             {this.formatDate(item.updated_at)}
                           </td>
                           <td className="text-center">
-                            <span className={`badge ${item.status === "Active" ? "bg-success" : "bg-danger"}`}>
+                            <span className={`badge ${item.status === "Active" ? "badge-active-custom" : "badge-inactive-custom"}`}>
                               {item.status}
                             </span>
                           </td>
@@ -529,9 +545,9 @@ class LicenseType extends Component {
 
                               {/* History */}
                               <button
-                                onClick={() => this.toggleHistory(item)}
                                 className="icon-btn"
                                 title="View History"
+                                onClick={() => this.props.router.push(`/history/license_types/${item.id}`)}
                               >
                                 <i className="bi bi-clock-history text-dark"></i>
                               </button>
@@ -613,57 +629,10 @@ class LicenseType extends Component {
               </Button>
             </Modal.Footer>
           </Modal>
-
-          {/* History Modal */}
-          <Modal
-            show={showHistoryModal}
-            onHide={() => this.setState({ showHistoryModal: false })}
-            centered
-            scrollable
-          >
-            <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
-              <Modal.Title style={{ fontSize: "1rem", marginBottom: 0 }}>
-                History
-              </Modal.Title>
-            </Modal.Header>
-
-            <Modal.Body style={{ paddingTop: "0.5rem" }}>
-              {history.map((item, idx) => (
-                <div
-                  key={item.id || idx}
-                  className="p-2 mb-2 rounded"
-                  style={{
-                    backgroundColor: idx % 2 === 0 ? "#f8f9fa" : "#e9ecef",
-                    border: "1px solid #dee2e6",
-                    fontSize: "14px",
-                  }}
-                >
-                  <strong> {item.data.name} </strong> was{" "}
-                  <span
-                    style={{
-                      color:
-                        item.action === "ADDED"
-                          ? "green"
-                          : item.action === "UPDATED"
-                            ? "purple"
-                            : item.action === "ACTIVE"
-                              ? "teal"
-                              : "red",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {item.action}
-                  </span>{" "}
-                  by <em>{item.changed_by_name}</em> on{" "}
-                  {this.formatDate(item.changed_at)}
-                </div>
-              ))}
-            </Modal.Body>
-          </Modal>
         </div>
       </React.Fragment>
     );
   }
 }
 
-export default LicenseType;
+export default withRouter(LicenseType);

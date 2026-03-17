@@ -1,62 +1,52 @@
-import SearchBox from "./SearchBox";
-import ContactList from "./ContactList";
-import ContentField from "./ContentField";
-import { useDispatch } from "react-redux";
-import { chatSidebarToggle } from "../../../../features/toggle/toggleSlice";
-import { Container } from "reactstrap";
+import React, { Component } from "react";
+import { Row, Col, Container } from "reactstrap";
+import CandidateMessages from "./ContentField";
 import Head from "next/head";
 
-const ChatBox = ({userId}) => {
-  const dispatch = useDispatch();
+class CandidateChatBox extends Component {
+  constructor(props) {
+    super(props);
+    
+    console.log("CandidateChatBox received props:", props);
+    
+    this.state = {
+      companyId: props.companyId || sessionStorage.getItem("companyId"),    
+      companyName: props.companyName || "",
+      jobId: props.jobId || sessionStorage.getItem("jobId"),
+      candidateId: sessionStorage.getItem("candidateId"), 
+      senderId: sessionStorage.getItem("userId"), 
+    };
 
-  const chatToggle = () => {
-    dispatch(chatSidebarToggle());
-  };
-  return (
-    <>
-    <Head>
-      <title>Messages</title>
-    </Head>
-       <Container fluid>
-      
- <div className="row">
-      <div
-        className="contacts_column mt-3 col-xl-4 col-lg-5 col-md-12 col-sm-12 chat"
-        id="chat_contacts"
-      >
-        <div className="card contacts_card">
-          <div className="card-header">
-            {/* Startclose chatbox in mobile menu */}
-            <div
-              className="fix-icon position-absolute top-0 end-0 show-1023"
-              onClick={chatToggle}
-            >
-              <span className="flaticon-close"></span>
-            </div>
-            {/* close chatbox in mobile menu */}
-            <div className="search-box-one">
-              <SearchBox userId={userId}/>
-            </div>
-          </div>
-          {/* End cart-heaer */}
+    console.log("CandidateChatBox state:", this.state);
+  }
 
-          <div className="card-body contacts_body">
-            <ContactList userId={userId} />
-          </div>
-        </div>
-      </div>
-      {/* End chat_contact */}
+  render() {
+    const { companyId, companyName, jobId, candidateId, senderId } = this.state;
+    const { onBack } = this.props;
 
-      <div className=" mt-3 col-xl-8 col-lg-7 col-md-12 col-sm-12 chat">
-        <ContentField userId={userId}/>
-      </div>
-      {/* chatbox-field-content */}
-    </div>
-    </Container>
-    </>
- 
-   
-  );
-};
+    return (
+      <Container fluid>    
+        <Head>
+          <title>Messages</title>
+        </Head>
+        <button className="btn btn-outline-secondary custom-progress text-white mb-4 mt-4" onClick={onBack}>
+          ← Back
+        </button>
 
-export default ChatBox;
+        <Row>
+          <Col lg="12" className="chat">
+            <CandidateMessages
+              senderId={senderId}              // Current user (candidate) - THIS IS THE SENDER
+              receiverId={companyId}            // Company's account_id - THIS IS THE RECEIVER
+              candidateId={candidateId}         // Candidate ID
+              jobId={jobId}
+              companyName={companyName}
+            />
+          </Col>
+        </Row>
+      </Container>
+    );
+  }
+}
+
+export default CandidateChatBox;

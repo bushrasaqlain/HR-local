@@ -4,6 +4,7 @@ import Pagination from "../common/pagination.jsx";
 import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import MetaTags from "react-meta-tags";
+import { withRouter } from "next/router";
 import * as XLSX from "xlsx";
 import {
   Card,
@@ -23,6 +24,7 @@ class Currency extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      highlightId: null,
       currencies: [],
       showModal: false,
       inputValue: "",
@@ -64,12 +66,30 @@ class Currency extends Component {
       const response = await axios.get(`${this.apiBaseUrl}getallcurrencies`, {
         params: { page, limit: this.itemsPerPage, status },
       });
-      this.setState({
-        currencies: response.data.currencies || [],
-        totalCurrency: response.data.total || 0,
-      });
+
+      this.setState(
+        {
+          currencies: response.data.currencies || [],
+          totalCurrency: response.data.total || 0,
+        },
+        () => {
+          // ✅ Highlight logic
+          const lastHistoryType = sessionStorage.getItem("lastHistoryType");
+          const lastHistoryId = sessionStorage.getItem("lastHistoryId");
+
+          if (lastHistoryType === "currency" && lastHistoryId) {
+            this.setState({ highlightId: parseInt(lastHistoryId) });
+
+            setTimeout(() => {
+              this.setState({ highlightId: null });
+              sessionStorage.removeItem("lastHistoryId");
+              sessionStorage.removeItem("lastHistoryType");
+            }, 3000);
+          }
+        }
+      );
     } catch (error) {
-      console.error("Error fetching profesion:", error);
+      console.error("Error fetching Currency:", error);
     }
   };
 
@@ -295,8 +315,16 @@ class Currency extends Component {
     } = this.state;
     const totalPages = Math.ceil(totalCurrency / this.itemsPerPage);
 
+    const highlightStyle = `
+        .highlight-row td {
+            background-color: #fff3cd !important;
+            transition: background-color 0.5s ease;
+        }
+    `;
+
     return (
       <React.Fragment>
+        <style>{highlightStyle}</style>
         <MetaTags>
           <title>Currency | List</title>
         </MetaTags>
@@ -463,7 +491,10 @@ class Currency extends Component {
 
                     <tbody>
                       {currencies.map((item) => (
-                        <tr key={item.id}>
+                        <tr
+                          key={item.id}
+                          className={this.state.highlightId === item.id ? "highlight-row" : ""}
+                        >
                           <td className="text-center">{item.code}</td>
                           <td className="text-center">
                             {this.formatDate(item.created_at)}
@@ -472,7 +503,7 @@ class Currency extends Component {
                             {this.formatDate(item.updated_at)}
                           </td>
                           <td className="text-center">
-                            <span className={`badge ${item.status === "Active" ? "bg-success" : "bg-danger"}`}>
+                            <span className={`badge ${item.status === "Active" ? "badge-active-custom" : "badge-inactive-custom"}`}>
                               {item.status}
                             </span>
                           </td>
@@ -504,9 +535,9 @@ class Currency extends Component {
 
                               {/* History */}
                               <button
-                                onClick={() => this.toggleHistory(item)}
                                 className="icon-btn"
                                 title="View History"
+                                onClick={() => this.props.router.push(`/history/currency/${item.id}`)}
                               >
                                 <i className="bi bi-clock-history text-dark"></i>
                               </button>
@@ -599,8 +630,8 @@ class Currency extends Component {
             centered
             scrollable
           >
-            <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
-              <Modal.Title style={{ fontSize: "1rem", marginBottom: 0 }}>
+            <Modal.Header closeButton style={{ paddingBottom: "0.25rem", backgroundColor: "#3f5f66" }}>
+              <Modal.Title style={{ fontSize: "1.25rem", marginBottom: 0, color: "#ffffff" }}>
                 History
               </Modal.Title>
             </Modal.Header>
@@ -616,7 +647,7 @@ class Currency extends Component {
                     fontSize: "14px",
                   }}
                 >
-                  <strong> {item.data.name} </strong> was{" "}
+                  <strong> {item.data.code || item.data.name} </strong> was{" "}
                   <span
                     style={{
                       color:
@@ -644,4 +675,4 @@ class Currency extends Component {
   }
 }
 
-export default Currency;
+export default withRouter(Currency);

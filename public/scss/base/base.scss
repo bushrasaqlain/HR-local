@@ -42,7 +42,7 @@ body {
   color: #363636;
   line-height: 28px;
   font-weight: 200;
-  background: #ffffff;
+  background: #363636;
   -webkit-font-smoothing: antialiased;
   -moz-font-smoothing: antialiased;
   font-family: 'Poppins', calibri;
@@ -561,4 +561,37 @@ textarea::-ms-input-placeholder {
 }
 .job-block .inner-box:hover {
   border-color: #ff4da6;
+}
+.custom-bg {
+  background-color: #36565F;
+}
+.custom-btn {
+  background: #36565F;
+  border: #36565F;
+  color: white;
+}
+// Custom progress bar color
+.custom-progress-bar {
+  background-color: #36565F !important;
+  color: white;
+}
+.custom-progress {
+  background-color: #5f8190 !important;
+  color: white;
+}
+// If you want to style the track as well
+.progress {
+  background-color: #e9ecef;
+}
+.custom-job-select option:hover,
+.custom-job-select option:checked,
+.custom-job-select option:focus {
+  background: #36565F !important;
+  color: white !important;
+}
+
+/* For better cross-browser support */
+.custom-job-select option:checked {
+  background: #36565F linear-gradient(0deg, #36565F 0%, #36565F 100%) !important;
+  color: white !important;
 }

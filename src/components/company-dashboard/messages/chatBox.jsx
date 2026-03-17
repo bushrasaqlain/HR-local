@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import { Row, Col, Card, CardBody, CardHeader } from "reactstrap";
+import { Row, Col, Card, CardBody, CardHeader, Container } from "reactstrap";
 import MessagesList from "./messagesList";
 import SenderMessages from "./senderMessages";
 import Head from "next/head";
@@ -7,13 +7,18 @@ import Head from "next/head";
 class ChatBox extends Component {
   constructor(props) {
     super(props);
+
+    console.log("ChatBox received props:", props);
+
     this.state = {
-      selectedContactId: null,
-      selectedContactName: "",
-      userId: sessionStorage.getItem("userId"),
+      selectedContactId: props.selectedContactId || null,
+      selectedContactName: props.selectedContactName || "",
+      candidateId: props.candidateId || sessionStorage.getItem("candidateId"), // From applications table
+      selectedjobId: props.selectedJobId || sessionStorage.getItem("jobId"),
+      senderId: sessionStorage.getItem("userId"), // Current logged-in user (company)
     };
 
-    // Add a ref to access MessagesList methods
+    console.log("ChatBox state:", this.state);
     this.messagesListRef = React.createRef();
   }
 
@@ -25,39 +30,42 @@ class ChatBox extends Component {
   };
 
   render() {
-    const { userId, selectedContactId, selectedContactName } = this.state;
+    const {
+      candidateId,
+      selectedjobId,
+      selectedContactName,
+      selectedContactId,
+      senderId,
+    } = this.state;
+    const { onBack } = this.props;
 
     return (
-      <>    
-      <Head>
-        <title>Messages</title>
-      </Head>
-      <Row>
-        {/* Contacts Column */}
-        <Col xl="4" lg="5" md="12" sm="12" className="chat">
-          <Card className="contacts_card">
-            <CardHeader>Contacts</CardHeader>
-            <CardBody className="contacts_body">
-              <MessagesList
-                ref={this.messagesListRef} // attach ref here
-                onSelectContact={this.handleSelectContact}
-              />
-            </CardBody>
-          </Card>
-        </Col>
+      <Container fluid>
+        <Head>
+          <title>Messages</title>
+        </Head>
+        <button
+          className="btn btn-outline-secondary custom-progress text-white mb-4 mt-4"
+          onClick={onBack}
+        >
+          ← Back
+        </button>
 
-        {/* Messages Column */}
-        <Col xl="8" lg="7" md="12" sm="12" className="chat">
-          <SenderMessages
-            userId={userId}
-            receiverId={selectedContactId}
-            receiverName={selectedContactName}
-            refreshContacts={() => this.messagesListRef.current.fetchContacts()} // now works
-          />
-        </Col>
-      </Row>
-      </>
-  
+        <Row>
+          <Col lg="12" className="chat">
+            <SenderMessages
+              senderId={senderId} // Current user (company) - THIS IS THE SENDER
+              receiverId={selectedContactId} // Candidate's account_id - THIS IS THE RECEIVER
+              candidateId={candidateId} // For status updates if needed
+              jobId={selectedjobId}
+              receiverName={selectedContactName}
+              refreshContacts={() =>
+                this.messagesListRef.current?.fetchContacts()
+              }
+            />
+          </Col>
+        </Row>
+      </Container>
     );
   }
 }

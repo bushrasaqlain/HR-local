@@ -22,7 +22,7 @@ router.get("/getallcompanies",companyController.getAllCompanies);
 
 router.put("/updateCompanyinfo", logo.single("logo"), companyController.updateCompanyinfo);
 
-router.put("/updateStatus/:id/:status",companyController.updateCompanySatus)
+router.put("/updateStatus/:id/:status/:userId", companyController.updateCompanySatus)
 
 router.get("/getCount/:userId",companyController.getCount)
 

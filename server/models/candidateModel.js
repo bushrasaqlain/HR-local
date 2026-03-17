@@ -29,6 +29,7 @@ const createCandidateTable = () => {
   district INT,
   city INT,
   otherPreferredCities JSON,
+  skills JSON,
 
 
   current_salary INT,
@@ -227,7 +228,7 @@ const getAllCandidates = (req, res) => {
     });
   });
 };
-const updateStatus = (id, status, res) => {
+const updateStatus = (id, status, userId, res) => {
   if (!id || !status) {
     return res
       .status(400)
@@ -251,9 +252,9 @@ const updateStatus = (id, status, res) => {
       tableName: "history",
       entityType: "candidate",
       entityId: id,
-      action: "UPDATED",
+      action: status === "Active" ? "ACTIVE" : "INACTIVE",  // ✅ fix
       data: { status },
-      changedBy: id,
+      changedBy: userId,  
     });
 
     return res
@@ -509,17 +510,35 @@ const getCandidateInfo = (req, res) => {
 
     // -------- Profile completion logic (UPDATED) --------
     const fieldsToCheck = [
-      "full_name", "phone", "date_of_birth", "gender", "marital_status",
-      "total_experience", "license_type_id", "license_number",
-      "otherPreferredCities", "address", "country_id", "district_id",
-      "city_id", "skills", "Links", "current_salary", "expected_salary",
-      "passport_photo", "resume"
+      "full_name",
+      "phone",
+      "date_of_birth",
+      "gender",
+      "marital_status",
+      "total_experience",
+      "license_type_id",
+      "license_number",
+      "otherPreferredCities",
+      "address",
+      "country_id",
+      "district_id",
+      "city_id",
+      "skills",
+      "Links",
+      "current_salary",
+      "expected_salary",
+      "passport_photo",
+      "resume",
     ];
 
     let completedCount = 0;
 
-    fieldsToCheck.forEach(field => {
-      if (field === "otherPreferredCities" || field === "skills" || field === "Links") {
+    fieldsToCheck.forEach((field) => {
+      if (
+        field === "otherPreferredCities" ||
+        field === "skills" ||
+        field === "Links"
+      ) {
         if (parseJSON(candidate[field]).length > 0) completedCount++;
       } else if (candidate[field]) {
         completedCount++;
@@ -533,32 +552,41 @@ const getCandidateInfo = (req, res) => {
 
     Promise.all([
       new Promise((resolve, reject) => {
-        connection.query(availabilitySql, [candidate.candidate_id], (err, rows) => {
-          if (err) return reject(err);
-          resolve(rows.length > 0);
-        });
+        connection.query(
+          availabilitySql,
+          [candidate.candidate_id],
+          (err, rows) => {
+            if (err) return reject(err);
+            resolve(rows.length > 0);
+          },
+        );
       }),
       new Promise((resolve, reject) => {
-        connection.query(certificatesSql, [candidate.candidate_id], (err, rows) => {
-          if (err) return reject(err);
-          resolve(rows.length > 0);
-        });
+        connection.query(
+          certificatesSql,
+          [candidate.candidate_id],
+          (err, rows) => {
+            if (err) return reject(err);
+            resolve(rows.length > 0);
+          },
+        );
       }),
       new Promise((resolve, reject) => {
         connection.query(researchSql, [candidate.candidate_id], (err, rows) => {
           if (err) return reject(err);
           resolve(rows.length > 0);
         });
-      })
+      }),
     ])
       .then(([hasAvailability, hasCertificates, hasResearch]) => {
-
         if (hasAvailability) completedCount++;
         if (hasCertificates) completedCount++;
         if (hasResearch) completedCount++;
 
         const totalFields = fieldsToCheck.length + 3; // +3 for availability, certificates, research
-        const profile_completion_percent = Math.round((completedCount / totalFields) * 100); // ✅ declare & assign here
+        const profile_completion_percent = Math.round(
+          (completedCount / totalFields) * 100,
+        ); // ✅ declare & assign here
 
         // -------- Response object --------
         const response = {
@@ -573,7 +601,9 @@ const getCandidateInfo = (req, res) => {
           marital_status: candidate.marital_status || "",
           total_experience: candidate.total_experience || "",
           license_type: {
-            id: candidate.license_type_id ? Number(candidate.license_type_id) : null,
+            id: candidate.license_type_id
+              ? Number(candidate.license_type_id)
+              : null,
             name: candidate.license_type_name || "",
           },
           license_number: candidate.license_number || "",
@@ -609,7 +639,7 @@ const getCandidateInfo = (req, res) => {
 
           // Detailed lists
           shortlisted_companies: [],
-          approved_companies: []
+          approved_companies: [],
         };
 
         // -------- Tracking Queries --------
@@ -634,6 +664,9 @@ const getCandidateInfo = (req, res) => {
   a.interview_time,
   a.job_id,
   a.candidate_id,
+  a.candidate_response,
+  a.company_status,
+  ci.account_id,
           ci.id AS company_id, 
           ci.company_name,
           ci.logo,
@@ -647,45 +680,65 @@ const getCandidateInfo = (req, res) => {
 
         Promise.all([
           new Promise((resolve, reject) => {
-            connection.query(searchCountSql, [candidate.candidate_id], (err, rows) => {
-              if (err) return reject(err);
-              response.appeared_in_search = rows[0]?.appeared_in_search || 0;
-              response.profile_views = rows[0]?.profile_views || 0;
-              resolve();
-            });
+            connection.query(
+              searchCountSql,
+              [candidate.candidate_id],
+              (err, rows) => {
+                if (err) return reject(err);
+                response.appeared_in_search = rows[0]?.appeared_in_search || 0;
+                response.profile_views = rows[0]?.profile_views || 0;
+                resolve();
+              },
+            );
           }),
           new Promise((resolve, reject) => {
-            connection.query(applicationStatusSql, [candidate.candidate_id], (err, rows) => {
-              if (err) return reject(err);
-              rows.forEach(r => {
-                if (r.status === "Shortlisted") response.shortlisted_count = r.count;
-                if (r.status === "Approved") response.approved_count = r.count;
-                if (r.status === "Interview") response.interview_count = r.count;
-              });
-              resolve();
-            });
+            connection.query(
+              applicationStatusSql,
+              [candidate.candidate_id],
+              (err, rows) => {
+                if (err) return reject(err);
+                rows.forEach((r) => {
+                  if (r.status === "Shortlisted")
+                    response.shortlisted_count = r.count;
+                  if (r.status === "Approved")
+                    response.approved_count = r.count;
+                  if (r.status === "Interview")
+                    response.interview_count = r.count;
+                });
+                resolve();
+              },
+            );
           }),
           new Promise((resolve, reject) => {
-            connection.query(companyDetailsSql, [candidate.candidate_id], (err, rows) => {
-              if (err) return reject(err);
-              rows.forEach(row => {
-                const companyData = {
-                  company_id: row.company_id,
-                  company_name: row.company_name,
-                  logo: row.logo,
-                  job_id: row.job_id,
-                  job_title: row.job_title,
-                  interview_day: row.interview_day || null,
-                  interview_time: row.interview_time || null,
-                  candidate_id: row.candidate_id
-                  // account_id: row.account_id
-                };
-                if (row.status === "Shortlisted") response.shortlisted_companies.push(companyData);
-                if (row.status === "Approved") response.approved_companies.push(companyData);
-              });
-              resolve();
-            });
-          })
+            connection.query(
+              companyDetailsSql,
+              [candidate.candidate_id],
+              (err, rows) => {
+                if (err) return reject(err);
+                rows.forEach((row) => {
+                  const companyData = {
+                    accountId: row.account_id,
+                    candidate_response: row.candidate_response,
+                    company_status: row.company_status,
+                    company_id: row.company_id,
+                    company_name: row.company_name,
+                    logo: row.logo,
+                    job_id: row.job_id,
+                    job_title: row.job_title,
+                    interview_day: row.interview_day || null,
+                    interview_time: row.interview_time || null,
+                    candidate_id: row.candidate_id,
+                    // account_id: row.account_id
+                  };
+                  if (row.status === "Shortlisted")
+                    response.shortlisted_companies.push(companyData);
+                  if (row.status === "Approved")
+                    response.approved_companies.push(companyData);
+                });
+                resolve();
+              },
+            );
+          }),
         ])
           .then(() => {
             if (!skillIds.length) return res.json(response);
@@ -694,20 +747,19 @@ const getCandidateInfo = (req, res) => {
             connection.query(skillsSql, [skillIds], (err, skillsRows) => {
               if (err) return res.status(500).json({ error: err.message });
 
-              response.skills = skillsRows.map(s => ({
+              response.skills = skillsRows.map((s) => ({
                 id: s.id,
-                name: s.name
+                name: s.name,
               }));
 
               res.json(response);
             });
           })
-          .catch(err => res.status(500).json({ error: err.message }));
+          .catch((err) => res.status(500).json({ error: err.message }));
       })
-      .catch(err => res.status(500).json({ error: err.message }));
+      .catch((err) => res.status(500).json({ error: err.message }));
   });
 };
-
 
 const editCandidateInfo = (req, res) => {
   const accountId = Number(req.params.accountId);
@@ -773,7 +825,6 @@ const editCandidateInfo = (req, res) => {
     updateFields.push("passport_photo = ?");
     updateValues.push(passportPhotoPath);
   }
-
 
   if (!updateFields.length) {
     return res.json({ message: "Nothing to update" });

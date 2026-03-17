@@ -56,26 +56,24 @@ class DashboardHeader extends Component {
     const profileCompleted =
       sessionStorage.getItem("profile_completed") === "true";
 
-    if (!accountType) {
+    if (!accountType)
       // optional: redirect to login
       return;
-    }
+
+    const savedTab = sessionStorage.getItem("activeTab");
+
 
     // ✅ Set all user info at once
     this.setState({
       userInfo: { userId, displayName, accountType, profileCompleted },
-      activeTab:
-        accountType === "db_admin"
-          ? "country"
-          : accountType === "reg_admin"
-            ? "company"
-            : accountType === "employer"
-              ? "profile"
+      activeTab: savedTab || (  
+        accountType === "db_admin" ? "country"
+          : accountType === "reg_admin" ? "company"
+            : accountType === "employer" ? "profile"
               : accountType === "candidate"
-                ? profileCompleted
-                  ? "profile"
-                  : "register"
-                : null,
+                ? profileCompleted ? "profile" : "register"
+                : null
+      ),
     });
 
     window.addEventListener("scroll", this.changeBackground);
@@ -133,6 +131,7 @@ class DashboardHeader extends Component {
 
   // Add this method to handle tab changes from child components
   handleTabChange = (tabKey, filterStatus = null) => {
+    sessionStorage.setItem("activeTab", tabKey);
     this.setState({
       activeTab: tabKey,
       jobListFilterStatus: filterStatus,
@@ -140,10 +139,10 @@ class DashboardHeader extends Component {
   };
   renderMenuItems = (isMobile) => {
     const { userInfo, activeTab, openMobileDropdown } = this.state;
-    const accountType = userInfo?.accountType; // optional chaining
+    const accountType = userInfo?.accountType;
     const profileCompleted = userInfo?.profileCompleted;
 
-    if (!accountType) return null; // don't render until we have userInfo
+    if (!accountType) return null;
 
     let items = [];
     if (accountType === "db_admin") items = dbadminmenuitem;
@@ -152,11 +151,11 @@ class DashboardHeader extends Component {
     else if (accountType === "candidate") {
       items = profileCompleted
         ? candidatesmenuitem.filter(
-            (item) =>
-              item.key === "profile" ||
-              item.key === "lists" ||
-              item.key === "chatbox",
-          )
+          (item) =>
+            item.key === "profile" ||
+            item.key === "lists" ||
+            item.key === "chatbox",
+        )
         : candidatesmenuitem.filter((item) => item.key === "register");
     }
 
@@ -165,16 +164,22 @@ class DashboardHeader extends Component {
         return (
           <NavItem key={item.key} className={isMobile ? "mb-2" : ""}>
             <Button
-              color="dark"
+              color="custom-progress-bar"
               outline
               className={`text-white ${activeTab === item.key ? "border-bottom border-white border-2" : ""}`}
-              onClick={() =>
+              onClick={() => {
+                if (this.props.headerOnly) {
+                  window.history.back();
+                  return;
+                }
+                // ✅ Tab save karo
+                sessionStorage.setItem("activeTab", item.key);
                 this.setState({
                   activeTab: item.key,
                   isMobileMenuOpen: false,
                   openMobileDropdown: null,
-                })
-              }
+                });
+              }}
             >
               <i className={`las ${item.icon} me-1`}></i>
               {item.label}
@@ -183,7 +188,6 @@ class DashboardHeader extends Component {
         );
       }
 
-      // Dropdown item
       return (
         <Dropdown
           key={item.key}
@@ -195,13 +199,13 @@ class DashboardHeader extends Component {
           toggle={() =>
             isMobile
               ? this.setState((prev) => ({
-                  openMobileDropdown:
-                    prev.openMobileDropdown === item.key ? null : item.key,
-                }))
+                openMobileDropdown:
+                  prev.openMobileDropdown === item.key ? null : item.key,
+              }))
               : this.setState((prev) => ({
-                  openDesktopDropdown:
-                    prev.openDesktopDropdown === item.key ? null : item.key,
-                }))
+                openDesktopDropdown:
+                  prev.openDesktopDropdown === item.key ? null : item.key,
+              }))
           }
           nav={!isMobile}
           inNavbar={!isMobile}
@@ -209,7 +213,7 @@ class DashboardHeader extends Component {
         >
           <DropdownToggle
             caret
-            color="dark"
+            color="custom-progress-bar text-white"
             outline={!isMobile}
             style={{
               color: "#fff",
@@ -222,27 +226,34 @@ class DashboardHeader extends Component {
             {item.label}
           </DropdownToggle>
           <DropdownMenu
+            className="custom-progress-bar"
             style={{
-              backgroundColor: "#faf6f6",
+              backgroundColor: "#36565F",
               width: isMobile ? "100%" : undefined,
             }}
           >
             {item.children.map((child) => (
               <DropdownItem
                 key={child.key}
-                onClick={() =>
+                onClick={() => {
+                  if (this.props.headerOnly) {
+                    window.history.back();
+                    return;
+                  }
+                  // ✅ Tab save karo
+                  sessionStorage.setItem("activeTab", child.key);
                   this.setState({
                     activeTab: child.key,
                     isMobileMenuOpen: false,
                     openMobileDropdown: null,
-                    openDesktopDropdown: null, // ✅ add this
+                    openDesktopDropdown: null,
                     [item.key]: false,
-                  })
-                }
+                  });
+                }}
                 style={{
-                  color: activeTab === child.key ? "#fff" : "#000",
+                  color: activeTab === child.key ? "#36565F" : "#fff",
                   backgroundColor:
-                    activeTab === child.key ? "#181a1dff" : "#faf6f6",
+                    activeTab === child.key ? "#e2f0f0" : "#36565F",
                 }}
               >
                 {child.label}
@@ -255,6 +266,7 @@ class DashboardHeader extends Component {
   };
 
   render() {
+    const { headerOnly } = this.props;
     const { navbar, userDropdownOpen, menuDropdownOpen, activeTab, userInfo } =
       this.state;
     const { accountType, displayName, userId } = userInfo;
@@ -272,7 +284,7 @@ class DashboardHeader extends Component {
 
     return (
       <>
-        <Navbar color="dark" dark expand="md" fixed="top" className="shadow-sm">
+        <Navbar expand="md" fixed="top" className="shadow-sm custom-bg ">
           <div className="container-fluid d-flex align-items-center justify-content-between flex-nowrap py-2">
             {/* Left: Logo + Desktop Menu */}
             <div className="d-flex align-items-center gap-3 flex-nowrap">
@@ -296,15 +308,7 @@ class DashboardHeader extends Component {
               onClick={this.toggleMobileMenu}
               className="d-md-none"
             />
-
-            {/* Menu: Desktop */}
-            {/* <div className="d-none d-md-flex align-items-center gap-3">
-        {this.renderMenuItems(false)}
- 
-    </div> */}
           </div>
-
-          {/* Right: User */}
           {/* Right: User */}
           <div className="d-flex align-items-center flex-nowrap ms-auto">
             {/* Welcome text */}
@@ -323,7 +327,7 @@ class DashboardHeader extends Component {
               >
                 <DropdownToggle tag="span">
                   <i className="las la-user-circle fs-2 text-white cursor-pointer"></i>
-                </DropdownToggle>    
+                </DropdownToggle>
                 <DropdownMenu end>
                   {dropdownItem(userId).map((item) => (
                     <DropdownItem
@@ -342,7 +346,7 @@ class DashboardHeader extends Component {
           {/* Mobile Menu */}
           {this.state.isMobileMenuOpen && (
             <div
-              className="d-md-none bg-dark text-white p-3"
+              className="d-md-none custom-progress-bar text-white p-3"
               style={{
                 position: "absolute",
                 top: "60px",
@@ -355,7 +359,7 @@ class DashboardHeader extends Component {
               {this.renderMenuItems(true)}
 
               {/* Welcome + Name */}
-              <div className="my-2 px-2 p-2 border-top border-bottom border-secondary">
+              <div className="my-2 px-2 p-2 border-top border-bottom custom-progress-bar">
                 <div>
                   <strong>{displayName || "Admin"}</strong>
                 </div>
@@ -379,37 +383,39 @@ class DashboardHeader extends Component {
         </Navbar>
 
         {/* Dashboard content */}
-        <div className="dashboard-wrapper">
-          <div className="dashboard-content">
-            {accountType === "db_admin" && (
-              <DBAdminDashboardArea
-                activeTab={activeTab}
-                onTabChange={this.handleTabChange}
-              />
-            )}
-            {accountType === "reg_admin" && (
-              <RegAdminDashboardArea
-                activeTab={activeTab}
-                onTabChange={this.handleTabChange}
-              />
-            )}
-            {accountType === "employer" && (
-              <CompanyDashboardArea
-                activeTab={activeTab}
-                onTabChange={this.handleTabChange}
-                jobListFilterStatus={this.state.jobListFilterStatus}
-              />
-            )}
-            {accountType === "candidate" && (
-              <CandidateDashboardArea
-                activeTab={activeTab}
-                onProfileComplete={this.handleProfileComplete}
-              />
-            )}
-          </div>
+        {!headerOnly && (
+          <div className="dashboard-wrapper">
+            <div className="dashboard-content">
+              {accountType === "db_admin" && (
+                <DBAdminDashboardArea
+                  activeTab={activeTab}
+                  onTabChange={this.handleTabChange}
+                />
+              )}
+              {accountType === "reg_admin" && (
+                <RegAdminDashboardArea
+                  activeTab={activeTab}
+                  onTabChange={this.handleTabChange}
+                />
+              )}
+              {accountType === "employer" && (
+                <CompanyDashboardArea
+                  activeTab={activeTab}
+                  onTabChange={this.handleTabChange}
+                  jobListFilterStatus={this.state.jobListFilterStatus}
+                />
+              )}
+              {accountType === "candidate" && (
+                <CandidateDashboardArea
+                  activeTab={activeTab}
+                  onProfileComplete={this.handleProfileComplete}
+                />
+              )}
+            </div>
 
-          <DashboardFooter className="dashboard-footer" />
-        </div>
+            <DashboardFooter className="dashboard-footer" />
+          </div>
+        )}
       </>
     );
   }

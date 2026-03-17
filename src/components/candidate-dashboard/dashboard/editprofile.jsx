@@ -822,17 +822,16 @@ class EditProfile extends Component {
                   </td>
                   <td>
                     <button
-                      className="btn btn-sm btn-outline-primary me-2"
+                      className="btn btn-sm me-2"
+                      style={{
+                        background: "#36565F",
+                        border: "#36565F",
+                        color: "white",
+                      }}
                       onClick={() => this.openEditLinkModal(index)}
                     >
                       Edit
                     </button>
-                    {/* <button
-                    className="btn btn-sm btn-outline-danger"
-                    onClick={() => this.handleRemoveLink(index)}
-                  >
-                    Delete
-                  </button> */}
                   </td>
                 </tr>
               ))
@@ -849,6 +848,7 @@ class EditProfile extends Component {
         <button
           className="btn btn-outline-primary"
           onClick={this.handleAddLink}
+          style={{ background: "#36565F", border: "#36565F", color: "white" }}
         >
           + Add Link
         </button>
@@ -893,12 +893,13 @@ class EditProfile extends Component {
                     />
                   </div>
 
-                  <div className="mb-3">
+                  <div className="mb-3 text-dark">
                     <label>URL</label>
                     <Input
                       type="url"
                       placeholder="https://"
                       value={newLink.url}
+                      className="text-dark"
                       onChange={(e) =>
                         this.setState({
                           newLink: { ...newLink, url: e.target.value },
@@ -917,6 +918,7 @@ class EditProfile extends Component {
                   </button>
                   <button
                     className="btn btn-primary"
+                    style={{ background: "#36565F", border: "#36565F" }}
                     onClick={this.handleSaveLink}
                   >
                     Save
@@ -940,8 +942,8 @@ class EditProfile extends Component {
             <div className="d-flex justify-content-between align-items-center mb-2">
               <h5 className="mb-0">Personal Information</h5>
               <Button
-                color="primary"
-                className="p-1"
+                // color="primary"
+                className="p-1 custom-progress-bar"
                 onClick={() =>
                   this.setState({ showPersonalInfoModal: true }, async () => {
                     const { formData } = this.state;
@@ -1063,7 +1065,10 @@ class EditProfile extends Component {
         {/* ---------- BACK BUTTON ABOVE EVERYTHING ---------- */}
         {this.props.onBack && (
           <div className="mb-3">
-            <button className="btn btn-secondary" onClick={this.props.onBack}>
+            <button
+              className="btn custom-progress text-white"
+              onClick={this.props.onBack}
+            >
               &larr; Back
             </button>
           </div>
@@ -1111,7 +1116,7 @@ class EditProfile extends Component {
                       {/* "Choose File" button */}
                       <label
                         htmlFor="profilePhotoInput"
-                        className="btn btn-sm btn-outline-primary mt-2"
+                        className="btn btn-sm custom-progress-bar text-white mt-2"
                         style={{ cursor: "pointer" }}
                       >
                         Update
@@ -1131,12 +1136,14 @@ class EditProfile extends Component {
                     )}
                   </div>
                 </div>
-                <h6>
+                <h6 style={{ color: "#36565F" }}>
                   Profile Completion: {this.state.profileCompletion || 0}%
                 </h6>
                 <Progress
                   value={this.state.profileCompletion || 0}
                   className="mb-4"
+                  barClassName="custom-progress-bar"
+                  style={{ background: "#e9ecef" }} // Background track color
                 />
 
                 {steps.map((step, index) => {
@@ -1171,14 +1178,16 @@ class EditProfile extends Component {
                   return (
                     <div
                       key={index}
-                      style={{ cursor: "pointer" }}
-                      className={`mb-3 ${
-                        this.state.activeStep === index + 1
-                          ? "fw-bold text-primary"
-                          : missingSteps[stepKey]
-                            ? "text-danger fw-bold"
-                            : "text-muted"
-                      }`}
+                      style={{
+                        cursor: "pointer",
+                        color:
+                          this.state.activeStep === index + 1
+                            ? "#36565F"
+                            : missingSteps[stepKey]
+                              ? "#dc3545" // bootstrap danger color
+                              : "#6c757d", // bootstrap muted color
+                      }}
+                      className={`mb-3 fw-${this.state.activeStep === index + 1 ? "bold" : "normal"}`}
                       onClick={() => this.setState({ activeStep: index + 1 })}
                     >
                       {index + 1}. {step}

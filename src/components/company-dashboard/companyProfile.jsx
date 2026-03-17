@@ -337,7 +337,8 @@ console.log("FormData state:", formData);
       </Head>
         <div className="company-profile-page">
         {/* Cover Header */}
-        <div className="profile-cover">
+        <div className="profile-cover"
+        style={{background: "#36565F"}}>
           <div className="profile-info d-flex align-items-center">
             <div className="profile-avatar">
               {logoImg ? (
@@ -359,7 +360,7 @@ console.log("FormData state:", formData);
 
             <div className="ms-4">
               <h3 className="mb-1">{formData.company_name || "Company Name"}</h3>
-              <p className="text-muted mb-0">{formData.account_email}</p>
+              <p className="text-white mb-0">{formData.account_email}</p>
             </div>
           </div>
         </div>
@@ -537,7 +538,7 @@ console.log("FormData state:", formData);
                   </Col>
 
                   <Col md={12} className="text-end">
-                    <Button color="primary" className="px-4">
+                    <Button  className="px-4 custom-progress-bar">
                       Save Changes
                     </Button>
                   </Col>

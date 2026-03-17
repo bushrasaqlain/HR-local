@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import MetaTags from "react-meta-tags";
 import AsyncSelect from "react-select/async";
+import { withRouter } from "next/router";
 import * as XLSX from "xlsx";
 import {
   Card,
@@ -24,6 +25,7 @@ class Districts extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      highlightId: null,
       districts: [],
       showModal: false,
       inputValue: "",
@@ -31,8 +33,6 @@ class Districts extends Component {
       updateStatus: null,
       updateId: null,
       showUpdateStatus: false,
-      showHistoryModal: false,
-      history: [],
       currentPage: 1,
       totalCountries: 0,
       isActive: "all",
@@ -92,6 +92,19 @@ class Districts extends Component {
       this.setState({
         districts: response.data.districts || [],
         totalCountries: response.data.total || 0,
+      }, () => {
+        // ✅ highlight check
+        const lastHistoryType = sessionStorage.getItem("lastHistoryType");
+        const lastHistoryId = sessionStorage.getItem("lastHistoryId");
+
+        if (lastHistoryType === "district" && lastHistoryId) {
+          this.setState({ highlightId: parseInt(lastHistoryId) });
+          setTimeout(() => {
+            this.setState({ highlightId: null });
+            sessionStorage.removeItem("lastHistoryId");
+            sessionStorage.removeItem("lastHistoryType");
+          }, 3000);
+        }
       });
     } catch (error) {
       console.error("Error fetching districts:", error);
@@ -150,18 +163,19 @@ class Districts extends Component {
     this.setState({ currentPage: page });
   };
 
-  toggleHistory = (item = null) => {
-    if (item) this.fetchHistory(item.id);
-    this.setState({ showHistoryModal: true });
-  };
-
   fetchHistory = async (id) => {
     if (!id) return;
     try {
       const res = await axios.get(`${this.apiBaseUrl}dbadminhistory`, {
         params: { entity_type: "district", entity_id: id },
       });
-      this.setState({ history: res.data || [] });
+
+      const history = (res.data || []).map((item) => ({
+        ...item,
+        data: typeof item.data === "string" ? JSON.parse(item.data) : item.data,
+      }));
+
+      this.setState({ history });
     } catch (error) {
       console.error("Error fetching history:", error);
     }
@@ -315,16 +329,16 @@ class Districts extends Component {
     const { updateId, updateStatus, districts } = this.state;
 
     try {
-      await api.put(`${this.apiBaseUrl}updateStatus/${updateId}`, {
-        // Pass the new status to backend
-        status: updateStatus === "Active" ? "Inactive" : "Active",
-      });
 
-      // Update frontend state immediately
+      await api.put(`${this.apiBaseUrl}updateDistrictStatus/${updateId}`);
+
       this.setState({
         districts: districts.map((district) =>
           district.id === updateId
-            ? { ...district, status: updateStatus === "Active" ? "Inactive" : "Active" }
+            ? {
+              ...district,
+              status: updateStatus === "Active" ? "Inactive" : "Active",
+            }
             : district
         ),
         showUpdateStatus: false,
@@ -337,6 +351,7 @@ class Districts extends Component {
           ? "District inactivated successfully"
           : "District activated successfully"
       );
+
     } catch (error) {
       console.error("Error updating district status:", error);
     }
@@ -353,7 +368,6 @@ class Districts extends Component {
       showModal,
       inputValue,
       showUpdateStatus,
-      showHistoryModal,
       history,
       currentPage,
       totalDistricts,
@@ -363,8 +377,16 @@ class Districts extends Component {
     } = this.state;
     const totalPages = Math.ceil(totalDistricts / this.itemsPerPage);
 
+    const highlightStyle = `
+        .highlight-row td {
+            background-color: #fff3cd !important;
+            transition: background-color 0.5s ease;
+        }
+    `;
+
     return (
       <React.Fragment>
+        <style>{highlightStyle}</style>
         <MetaTags>
           <title>Districts | List</title>
         </MetaTags>
@@ -558,7 +580,10 @@ class Districts extends Component {
 
                     <tbody>
                       {districts.map((item) => (
-                        <tr key={item.id}>
+                        <tr
+                          key={item.id}
+                          className={this.state.highlightId === item.id ? "highlight-row" : ""}
+                        >
                           <td className="text-center">{item.name}</td>
                           <td className="text-center">{item.country_name}</td>
                           <td className="text-center">
@@ -568,7 +593,7 @@ class Districts extends Component {
                             {this.formatDate(item.updated_at)}
                           </td>
                           <td className="text-center">
-                            <span className={`badge ${item.status === "Active" ? "bg-success" : "bg-danger"}`}>
+                            <span className={`badge ${item.status === "Active" ? "badge-active-custom" : "badge-inactive-custom"}`}>
                               {item.status}
                             </span>
                           </td>
@@ -599,9 +624,9 @@ class Districts extends Component {
 
                               {/* History */}
                               <button
-                                onClick={() => this.toggleHistory(item)}
                                 className="icon-btn"
                                 title="View History"
+                                onClick={() => this.props.router.push(`/history/district/${item.id}`)}
                               >
                                 <i className="bi bi-clock-history text-dark"></i>
                               </button>
@@ -731,61 +756,10 @@ class Districts extends Component {
               </Button>
             </Modal.Footer>
           </Modal>
-
-          {/* History Modal */}
-          <Modal
-            show={showHistoryModal}
-            onHide={() => this.setState({ showHistoryModal: false })}
-            centered
-            scrollable
-          >
-            <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
-              <Modal.Title style={{ fontSize: "1rem", marginBottom: 0 }}>
-                History
-              </Modal.Title>
-            </Modal.Header>
-
-            <Modal.Body style={{ paddingTop: "0.5rem" }}>
-              {history.map((item, idx) => (
-                <div
-                  key={item.id || idx}
-                  className="p-2 mb-2 rounded"
-                  style={{
-                    backgroundColor: idx % 2 === 0 ? "#f8f9fa" : "#e9ecef",
-                    border: "1px solid #dee2e6",
-                    fontSize: "14px",
-                  }}
-                >
-                  <strong> {item.data.name} </strong> was{" "}
-                  <span
-                    style={{
-                      color:
-                        item.action === "ADDED"
-                          ? "green"
-                          : item.action === "UPDATED"
-                            ? "purple"
-                            : item.action === "ACTIVE"
-                              ? "teal"
-                              : "red",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {item.action}
-                  </span>{" "}
-                  by{" "}
-                  <em>
-                    {" "}
-                    <strong>{item.changed_by_name}</strong>
-                  </em>{" "}
-                  on {this.formatDate(item.changed_at)}
-                </div>
-              ))}
-            </Modal.Body>
-          </Modal>
         </div>
       </React.Fragment>
     );
   }
 }
 
-export default Districts;
+export default withRouter(Districts);

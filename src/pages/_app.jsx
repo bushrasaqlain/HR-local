@@ -1,9 +1,11 @@
 "use client";
+import { useRouter } from "next/router";
 
 import { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { ToastContainer } from "react-toastify";
 import { Elements } from "@stripe/react-stripe-js";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { loadStripe } from "@stripe/stripe-js";
 import { Provider } from "react-redux";
 import { store } from "../redux/store";
@@ -29,6 +31,7 @@ function AppContent({ Component, pageProps }) {
   const accountType = useSelector((state) => state.user.accountType);
   const [restored, setRestored] = useState(false);
   const dispatch = useDispatch();
+  const router = useRouter();
 
   // Restore user from sessionStorage
   useEffect(() => {
@@ -52,10 +55,16 @@ function AppContent({ Component, pageProps }) {
     role === "employer" ||
     role === "candidate";
 
-  return isDashboardRoute ? (
-    <DashboardHeader key="dashboard">
+  const isHistoryPage = router.pathname.startsWith("/history");
+
+  return isHistoryPage ? (
+    // ✅ Sirf navbar, no dashboard content
+    <>
+      <DashboardHeader key="history" headerOnly={true} />
       <Component {...pageProps} />
-    </DashboardHeader>
+    </>
+  ) : isDashboardRoute ? (
+    <DashboardHeader key="dashboard" />
   ) : (
     <PublicLayout key="public">
       <DefaulHeader2 />

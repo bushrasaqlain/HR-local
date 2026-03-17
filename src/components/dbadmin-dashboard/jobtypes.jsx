@@ -3,6 +3,7 @@ import axios from "axios";
 import Pagination from "../common/pagination.jsx";
 import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
+import { withRouter } from "next/router";
 import MetaTags from "react-meta-tags";
 import {
   Card,
@@ -22,6 +23,7 @@ class Jobtype extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      highlightId: null,
       jobtype: [],
       showModal: false,
       inputValue: "",
@@ -29,8 +31,6 @@ class Jobtype extends Component {
       deleteId: null,
       deleteStatus: null,
       showDeleteConfirm: false,
-      showHistoryModal: false,
-      history: [],
       currentPage: 1,
       totalJobType: 0,
       isActive: "all",
@@ -65,9 +65,22 @@ class Jobtype extends Component {
       this.setState({
         jobtype: response.data.jobtypes || [],
         totalJobType: response.data.total || 0,
+      }, () => {
+        // ✅ highlight check
+        const lastHistoryType = sessionStorage.getItem("lastHistoryType");
+        const lastHistoryId = sessionStorage.getItem("lastHistoryId");
+
+        if (lastHistoryType === "jobtype" && lastHistoryId) {
+          this.setState({ highlightId: parseInt(lastHistoryId) });
+          setTimeout(() => {
+            this.setState({ highlightId: null });
+            sessionStorage.removeItem("lastHistoryId");
+            sessionStorage.removeItem("lastHistoryType");
+          }, 3000);
+        }
       });
     } catch (error) {
-      console.error("Error fetching profesion:", error);
+      console.error("Error fetching jobtype:", error);
     }
   };
 
@@ -183,11 +196,6 @@ class Jobtype extends Component {
     }
   };
 
-  toggleHistory = (item = null) => {
-    if (item) this.fetchHistory(item.id);
-    this.setState({ showHistoryModal: true });
-  };
-
   handleSave = async () => {
     const { editId, inputValue } = this.state;
     try {
@@ -283,8 +291,6 @@ class Jobtype extends Component {
       showModal,
       inputValue,
       showDeleteConfirm,
-      showHistoryModal,
-      history,
       currentPage,
       totalJobType,
       deleteStatus,
@@ -293,8 +299,16 @@ class Jobtype extends Component {
     } = this.state;
     const totalPages = Math.ceil(totalJobType / this.itemsPerPage);
 
+    const highlightStyle = `
+        .highlight-row td {
+            background-color: #fff3cd !important;
+            transition: background-color 0.5s ease;
+        }
+    `;
+
     return (
       <React.Fragment>
+        <style>{highlightStyle}</style>
         <MetaTags>
           <title>Jobtype | List</title>
         </MetaTags>
@@ -460,7 +474,10 @@ class Jobtype extends Component {
 
                     <tbody>
                       {jobtype.map((item) => (
-                        <tr key={item.id}>
+                        <tr
+                          key={item.id}
+                          className={this.state.highlightId === item.id ? "highlight-row" : ""}
+                        >
                           <td className="text-center">{item.name}</td>
                           <td className="text-center">
                             {this.formatDate(item.created_at)}
@@ -469,7 +486,7 @@ class Jobtype extends Component {
                             {this.formatDate(item.updated_at)}
                           </td>
                           <td className="text-center">
-                            <span className={`badge ${item.status === "Active" ? "bg-success" : "bg-danger"}`}>
+                            <span className={`badge ${item.status === "Active" ? "badge-active-custom" : "badge-inactive-custom"}`}>
                               {item.status}
                             </span>
                           </td>
@@ -501,9 +518,9 @@ class Jobtype extends Component {
 
                               {/* History */}
                               <button
-                                onClick={() => this.toggleHistory(item)}
                                 className="icon-btn"
                                 title="View History"
+                                onClick={() => this.props.router.push(`/history/jobtype/${item.id}`)}
                               >
                                 <i className="bi bi-clock-history text-dark"></i>
                               </button>
@@ -586,57 +603,10 @@ class Jobtype extends Component {
               </Button>
             </Modal.Footer>
           </Modal>
-
-          {/* History Modal */}
-          <Modal
-            show={showHistoryModal}
-            onHide={() => this.setState({ showHistoryModal: false })}
-            centered
-            scrollable
-          >
-            <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
-              <Modal.Title style={{ fontSize: "1rem", marginBottom: 0 }}>
-                History
-              </Modal.Title>
-            </Modal.Header>
-
-            <Modal.Body style={{ paddingTop: "0.5rem" }}>
-              {history.map((item, idx) => (
-                <div
-                  key={item.id || idx}
-                  className="p-2 mb-2 rounded"
-                  style={{
-                    backgroundColor: idx % 2 === 0 ? "#f8f9fa" : "#e9ecef",
-                    border: "1px solid #dee2e6",
-                    fontSize: "14px",
-                  }}
-                >
-                  <strong> {item.data.name} </strong> was{" "}
-                  <span
-                    style={{
-                      color:
-                        item.action === "ADDED"
-                          ? "green"
-                          : item.action === "UPDATED"
-                            ? "purple"
-                            : item.action === "ACTIVE"
-                              ? "teal"
-                              : "red",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {item.action}
-                  </span>{" "}
-                  by <em>{item.changed_by_name}</em> on{" "}
-                  {this.formatDate(item.changed_at)}
-                </div>
-              ))}
-            </Modal.Body>
-          </Modal>
         </div>
       </React.Fragment>
     );
   }
 }
 
-export default Jobtype;
+export default withRouter(Jobtype);

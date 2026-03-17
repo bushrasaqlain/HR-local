@@ -3,7 +3,8 @@ import { Container, Row, Col, Nav, NavItem, NavLink } from 'reactstrap';
 
 const DashboardFooter = () => {
   return (
-    <footer className="footer bg-dark text-white py-3 mt-3 fixed-bottom dashboard-footer">
+    <footer className="footer text-white py-3 mt-3 fixed-bottom dashboard-footer"
+    style={{ background: "#192b31"}}>
       <Container>
         <Row className="align-items-center">
           {/* Left Side */}

@@ -2,24 +2,26 @@ import React from "react";
 import { Modal, ModalHeader, ModalBody } from "reactstrap";
 
 const HistoryModal = ({ isOpen, toggle, historyData }) => {
-const renderValue = (value) => {
-  if (value === null || value === undefined) return "-";
+  const renderValue = (value) => {
+    if (value === null || value === undefined) return "-";
 
-  if (Array.isArray(value)) return value.join(", ");
+    if (Array.isArray(value)) return value.join(", ");
 
-  if (typeof value === "object") {
-    if (value.name) return value.name;
-    if (value.title) return value.title;
-    return JSON.stringify(value);
-  }
+    if (typeof value === "object") {
+      if (value.name) return value.name;
+      if (value.title) return value.title;
+      return JSON.stringify(value);
+    }
 
-  return value;
-};
+    return value;
+  };
 
 
   return (
     <Modal isOpen={isOpen} toggle={toggle} size="lg" centered>
-      <ModalHeader toggle={toggle}>History</ModalHeader>
+      <ModalHeader toggle={toggle} className="custom-modal-header">
+        History
+      </ModalHeader>
 
       <ModalBody
         style={{
@@ -48,7 +50,7 @@ const renderValue = (value) => {
                   marginBottom: "10px",
                 }}
               >
-                <span style={{ fontWeight: "600", color: "#0d6efd" }}>
+                <span style={{ fontWeight: "600", color: "#3f5f66" }}>
                   {item.action}
                 </span>
                 <span style={{ fontSize: "12px", color: "#6c757d" }}>
@@ -58,7 +60,7 @@ const renderValue = (value) => {
 
               {/* Meta */}
               <p style={{ margin: "4px 0", fontSize: "14px" }}>
-                <strong>Changed By:</strong>{" "}
+                <strong style={{color: "#2c9cf8"}}>Changed By:</strong>{" "}
                 {item.changed_by_name || item.changed_by}
               </p>
 
@@ -71,7 +73,7 @@ const renderValue = (value) => {
                     borderTop: "1px solid #dee2e6",
                   }}
                 >
-                  <strong style={{ fontSize: "14px" }}>Updated Data</strong>
+                  <strong style={{ fontSize: "14px", color: "green" }}>Updated Data</strong>
 
                   <div
                     style={{

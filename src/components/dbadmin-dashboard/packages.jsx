@@ -4,6 +4,7 @@ import Pagination from "../common/pagination.jsx";
 import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import MetaTags from "react-meta-tags";
+import { withRouter } from "next/router";
 import * as XLSX from "xlsx";
 import {
     Card,
@@ -24,6 +25,7 @@ class Packages extends Component {
     constructor(props) {
         super(props);
         this.state = {
+            highlightId: null,
             packages: [],
             showModal: false,
             editId: null,
@@ -42,8 +44,6 @@ class Packages extends Component {
             deleteId: null,
             deleteStatus: null,
             showDeleteConfirm: false,
-            showHistoryModal: false,
-            history: [],
             currentPage: 1,
             totalPackages: 0,
             isActive: "all",
@@ -79,6 +79,19 @@ class Packages extends Component {
             this.setState({
                 packages: response.data.packages || [],
                 totalPackages: response.data.total || 0,
+            }, () => {
+                // ✅ highlight check
+                const lastHistoryType = sessionStorage.getItem("lastHistoryType");
+                const lastHistoryId = sessionStorage.getItem("lastHistoryId");
+
+                if (lastHistoryType === "package" && lastHistoryId) {
+                    this.setState({ highlightId: parseInt(lastHistoryId) });
+                    setTimeout(() => {
+                        this.setState({ highlightId: null });
+                        sessionStorage.removeItem("lastHistoryId");
+                        sessionStorage.removeItem("lastHistoryType");
+                    }, 3000);
+                }
             });
         } catch (error) {
             console.error("Error fetching packages:", error);
@@ -250,11 +263,6 @@ class Packages extends Component {
         this.setState({ currentPage: page });
     };
 
-    toggleHistory = (item = null) => {
-        if (item) this.fetchHistory(item.id);
-        this.setState({ showHistoryModal: true });
-    };
-
     fetchHistory = async (id) => {
         if (!id) return;
         try {
@@ -378,8 +386,6 @@ class Packages extends Component {
             showModal,
             inputValue,
             showDeleteConfirm,
-            showHistoryModal,
-            history,
             currentPage,
             totalPackages,
             deleteStatus,
@@ -392,8 +398,16 @@ class Packages extends Component {
         } = this.state;
         const totalPages = Math.ceil(totalPackages / this.itemsPerPage);
 
+        const highlightStyle = `
+        .highlight-row td {
+            background-color: #fff3cd !important;
+            transition: background-color 0.5s ease;
+        }
+    `;
+
         return (
             <React.Fragment>
+                <style>{highlightStyle}</style>
                 <MetaTags>
                     <title>Packages | List</title>
                 </MetaTags>
@@ -640,7 +654,10 @@ class Packages extends Component {
 
                                         <tbody>
                                             {packages.map((item) => (
-                                                <tr key={item.id}>
+                                                <tr
+                                                    key={item.id}
+                                                    className={this.state.highlightId === item.id ? "highlight-row" : ""}
+                                                >
                                                     <td className="text-center">{item.price}</td>
                                                     <td className="text-center">{item.duration_unit}</td>
                                                     <td className="text-center">{item.duration_value}</td>
@@ -652,7 +669,7 @@ class Packages extends Component {
                                                         {this.formatDate(item.updated_at)}
                                                     </td>
                                                     <td className="text-center">
-                                                        <span className={`badge ${item.status === "Active" ? "bg-success" : "bg-danger"}`}>
+                                                        <span className={`badge ${item.status === "Active" ? "badge-active-custom" : "badge-inactive-custom"}`}>
                                                             {item.status}
                                                         </span>
                                                     </td>
@@ -684,9 +701,9 @@ class Packages extends Component {
 
                                                             {/* History */}
                                                             <button
-                                                                onClick={() => this.toggleHistory(item)}
                                                                 className="icon-btn"
                                                                 title="View History"
+                                                                onClick={() => this.props.router.push(`/history/package/${item.id}`)}
                                                             >
                                                                 <i className="bi bi-clock-history text-dark"></i>
                                                             </button>
@@ -852,63 +869,10 @@ class Packages extends Component {
                             </Button>
                         </Modal.Footer>
                     </Modal>
-
-
-                    {/* History Modal */}
-                    <Modal
-                        show={showHistoryModal}
-                        onHide={() => this.setState({ showHistoryModal: false })}
-                        centered
-                        scrollable
-                    >
-                        <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
-                            <Modal.Title style={{ fontSize: "1rem", marginBottom: 0 }}>
-                                History
-                            </Modal.Title>
-                        </Modal.Header>
-
-                        <Modal.Body style={{ paddingTop: "0.5rem" }}>
-                            {history.map((item, idx) => (
-                                <div
-                                    key={item.id || idx}
-                                    className="p-2 mb-2 rounded"
-                                    style={{
-                                        backgroundColor: idx % 2 === 0 ? "#f8f9fa" : "#e9ecef",
-                                        border: "1px solid #dee2e6",
-                                        fontSize: "14px",
-                                    }}
-                                >
-                                    <strong>
-                                        Price : {item.data.price},Duration {item.data.duration_value}
-                                        {item.data.duration_unit}
-
-                                    </strong> was{" "}
-
-                                    <span
-                                        style={{
-                                            color:
-                                                item.action === "ADDED"
-                                                    ? "green"
-                                                    : item.action === "UPDATED"
-                                                        ? "purple"
-                                                        : item.action === "ACTIVE"
-                                                            ? "teal"
-                                                            : "red",
-                                            fontWeight: "bold",
-                                        }}
-                                    >
-                                        {item.action}
-                                    </span>{" "}
-                                    by <em>{item.changed_by_name}</em> on{" "}
-                                    {this.formatDate(item.changed_at)}
-                                </div>
-                            ))}
-                        </Modal.Body>
-                    </Modal>
                 </div>
             </React.Fragment>
         );
     }
 }
 
-export default Packages;
+export default withRouter(Packages);

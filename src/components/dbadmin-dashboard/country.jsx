@@ -1,4 +1,6 @@
 import React, { Component } from "react";
+import { withRouter } from "next/router";
+import Link from "next/link";
 import axios from "axios";
 import Pagination from "../common/pagination.jsx";
 import { toast } from "react-toastify";
@@ -23,6 +25,7 @@ class Country extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      highlightId: null,
       countries: [],
       showModal: false,
       inputValue: "",
@@ -64,10 +67,26 @@ class Country extends Component {
       const response = await axios.get(`${this.apiBaseUrl}getallCountries`, {
         params: { page, limit: this.itemsPerPage, status },
       });
+
       this.setState({
         countries: response.data.countries || [],
         totalCountries: response.data.total || 0,
+      }, () => {
+        // ✅ Data aane KE BAAD highlight check karo
+        const lastHistoryType = sessionStorage.getItem("lastHistoryType");
+        const lastHistoryId = sessionStorage.getItem("lastHistoryId");
+
+        if (lastHistoryType === "country" && lastHistoryId) {
+          this.setState({ highlightId: parseInt(lastHistoryId) });
+
+          setTimeout(() => {
+            this.setState({ highlightId: null });
+            sessionStorage.removeItem("lastHistoryId");
+            sessionStorage.removeItem("lastHistoryType");
+          }, 3000);
+        }
       });
+
     } catch (error) {
       console.error("Error fetching countries:", error);
     }
@@ -239,10 +258,6 @@ class Country extends Component {
     }
   };
 
-  toggleHistory = (item = null) => {
-    if (item) this.fetchHistory(item.id);
-    this.setState({ showHistoryModal: true });
-  };
   fetchHistory = async (id) => {
     if (!id) return;
     try {
@@ -292,8 +307,6 @@ class Country extends Component {
       showModal,
       inputValue,
       showUpdateStatus,
-      showHistoryModal,
-      history,
       currentPage,
       totalCountries,
       updateStatus,
@@ -302,8 +315,16 @@ class Country extends Component {
     } = this.state;
     const totalPages = Math.ceil(totalCountries / this.itemsPerPage);
 
+    const highlightStyle = `
+        .highlight-row td {
+            background-color: #fff3cd !important;
+            transition: background-color 0.5s ease;
+        }
+    `;
+
     return (
       <React.Fragment>
+        <style>{highlightStyle}</style>
         <MetaTags>
           <title>Country | List</title>
         </MetaTags>
@@ -366,7 +387,7 @@ class Country extends Component {
                           className="text-center"
                           style={{ borderBottom: "1px solid #ccc" }}
                         >
-                          <div className="d-flex flex-column align-items-center gap-1">
+                          <div className="d-flex flex-column align-items-center gap-1" style={{ padding: '12px 14px' }}>
                             <small
                               className="text-dark fw-bold"
                               style={{ fontSize: "1rem" }}
@@ -463,7 +484,10 @@ class Country extends Component {
 
                     <tbody>
                       {countries.map((item) => (
-                        <tr key={item.id}>
+                        <tr
+                          key={item.id}
+                          className={this.state.highlightId === item.id ? "highlight-row" : ""}
+                        >
                           <td className="text-center">{item.name}</td>
                           <td className="text-center">
                             {this.formatDate(item.created_at)}
@@ -472,7 +496,7 @@ class Country extends Component {
                             {this.formatDate(item.updated_at)}
                           </td>
                           <td className="text-center">
-                            <span className={`badge ${item.status === "Active" ? "bg-success" : "bg-danger"}`}>
+                            <span className={`badge ${item.status === "Active" ? "badge-active-custom" : "badge-inactive-custom"}`}>
                               {item.status}
                             </span>
                           </td>
@@ -504,9 +528,9 @@ class Country extends Component {
 
                               {/* History */}
                               <button
-                                onClick={() => this.toggleHistory(item)}
                                 className="icon-btn"
                                 title="View History"
+                                onClick={() => this.props.router.push(`/history/country/${item.id}`)}
                               >
                                 <i className="bi bi-clock-history text-dark"></i>
                               </button>
@@ -590,57 +614,10 @@ class Country extends Component {
             </Modal.Footer>
           </Modal>
 
-
-          {/* History Modal */}
-          <Modal
-            show={showHistoryModal}
-            onHide={() => this.setState({ showHistoryModal: false })}
-            centered
-            scrollable
-          >
-            <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
-              <Modal.Title style={{ fontSize: "1rem", marginBottom: 0 }}>
-                History
-              </Modal.Title>
-            </Modal.Header>
-
-            <Modal.Body style={{ paddingTop: "0.5rem" }}>
-              {history.map((item, idx) => (
-                <div
-                  key={item.id || idx}
-                  className="p-2 mb-2 rounded"
-                  style={{
-                    backgroundColor: idx % 2 === 0 ? "#f8f9fa" : "#e9ecef",
-                    border: "1px solid #dee2e6",
-                    fontSize: "14px",
-                  }}
-                >
-                  <strong> {item.data.name} </strong> was{" "}
-                  <span
-                    style={{
-                      color:
-                        item.action === "ADDED"
-                          ? "green"
-                          : item.action === "UPDATED"
-                            ? "purple"
-                            : item.action === "ACTIVE"
-                              ? "teal"
-                              : "red",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {item.action}
-                  </span>{" "}
-                  by <em>{item.changed_by_name}</em> on{" "}
-                  {this.formatDate(item.changed_at)}
-                </div>
-              ))}
-            </Modal.Body>
-          </Modal>
         </div>
-      </React.Fragment>
+      </React.Fragment >
     );
   }
 }
 
-export default Country;
+export default withRouter(Country);

@@ -8,6 +8,8 @@ const updateApplcantStatus=(req,res)=>{
     applicantModel.updateApplcantStatus(req,res);
 }
 
+
+
 module.exports={
     getAllApplicants,
     updateApplcantStatus,

@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import Head from "next/head";
 import AsyncSelect from "react-select/async";
+import { withRouter } from "next/router";
 import * as XLSX from "xlsx";
 import {
   Card,
@@ -20,6 +21,7 @@ class City extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      highlightId: null,
       cities: [],
       showModal: false,
       inputValue: "",
@@ -27,8 +29,6 @@ class City extends Component {
       updateStatus: null,
       updateId: null,
       showUpdateStatus: false,
-      showHistoryModal: false,
-      history: [],
       currentPage: 1,
       totalCities: 0,
       isActive: "all",
@@ -89,6 +89,19 @@ class City extends Component {
       this.setState({
         cities: response.data.cities || [],
         totalCities: response.data.total || 0,
+      }, () => {
+        // ✅ highlight check
+        const lastHistoryType = sessionStorage.getItem("lastHistoryType");
+        const lastHistoryId = sessionStorage.getItem("lastHistoryId");
+
+        if (lastHistoryType === "city" && lastHistoryId) {
+          this.setState({ highlightId: parseInt(lastHistoryId) });
+          setTimeout(() => {
+            this.setState({ highlightId: null });
+            sessionStorage.removeItem("lastHistoryId");
+            sessionStorage.removeItem("lastHistoryType");
+          }, 3000);
+        }
       });
     } catch (error) {
       console.error("Error fetching cities:", error);
@@ -190,12 +203,6 @@ class City extends Component {
     XLSX.writeFile(workbook, "Cities.xlsx");
 
     toast.success("Cities exported successfully");
-  };
-
-  toggleHistory = async (item = null) => {
-    if (!item) return;
-    await this.fetchHistory(item.id);
-    this.setState({ showHistoryModal: true });
   };
 
   fetchHistory = async (id) => {
@@ -317,7 +324,7 @@ class City extends Component {
     const { updateId, updateStatus, cities } = this.state;
 
     try {
-      await api.put(`${this.apiBaseUrl}updateStatus/${updateId}`, {
+      await api.put(`${this.apiBaseUrl}updateCityStatus/${updateId}`, {
         // Pass the new status to backend
         status: updateStatus === "Active" ? "Inactive" : "Active",
       });
@@ -354,7 +361,6 @@ class City extends Component {
       showModal,
       inputValue,
       showUpdateStatus,
-      showHistoryModal,
       currentPage,
       totalCities,
       isActive,
@@ -365,8 +371,16 @@ class City extends Component {
     } = this.state;
     const totalPages = Math.ceil(totalCities / this.itemsPerPage);
 
+    const highlightStyle = `
+        .highlight-row td {
+            background-color: #fff3cd !important;
+            transition: background-color 0.5s ease;
+        }
+    `;
+
     return (
       <React.Fragment>
+        <style>{highlightStyle}</style>
         <Head>
           <title>City | List</title>
         </Head>
@@ -591,14 +605,17 @@ class City extends Component {
 
                     <tbody>
                       {cities.map((item) => (
-                        <tr key={item.id}>
+                        <tr
+                          key={item.id}
+                          className={this.state.highlightId === item.id ? "highlight-row" : ""}
+                        >
                           <td>{item.name}</td>
                           <td>{item.district_name}</td>
                           <td>{item.country_name}</td>
                           <td>{this.formatDate(item.created_at)}</td>
                           <td>{this.formatDate(item.updated_at)}</td>
                           <td className="text-center">
-                            <span className={`badge ${item.status === "Active" ? "bg-success" : "bg-danger"}`}>
+                            <span className={`badge ${item.status === "Active" ? "badge-active-custom" : "badge-inactive-custom"}`}>
                               {item.status}
                             </span>
                           </td>
@@ -629,9 +646,9 @@ class City extends Component {
 
                               {/* History */}
                               <button
-                                onClick={() => this.toggleHistory(item)}
                                 className="icon-btn"
                                 title="View History"
+                                onClick={() => this.props.router.push(`/history/city/${item.id}`)}
                               >
                                 <i className="bi bi-clock-history text-dark"></i>
                               </button>
@@ -752,58 +769,9 @@ class City extends Component {
             </Button>
           </Modal.Footer>
         </Modal>
-
-        <Modal
-          show={showHistoryModal}
-          onHide={() => this.setState({ showHistoryModal: false })}
-          centered
-          scrollable
-        >
-          <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
-            <Modal.Title style={{ fontSize: "1rem", marginBottom: 0 }}>
-              History
-            </Modal.Title>
-          </Modal.Header>
-
-          <Modal.Body style={{ paddingTop: "0.5rem" }}>
-            {(Array.isArray(history) ? history : []).map((item, idx) => (
-              <div
-                key={item.id || idx}
-                className="p-2 mb-2 rounded"
-                style={{
-                  backgroundColor: idx % 2 === 0 ? "#f8f9fa" : "#e9ecef",
-                  border: "1px solid #dee2e6",
-                  fontSize: "14px",
-                }}
-              >
-                <strong>{item.data.name}</strong> was{" "}
-                <span
-                  style={{
-                    color:
-                      item.action === "ADDED"
-                        ? "green"
-                        : item.action === "UPDATED"
-                          ? "purple"
-                          : item.action === "ACTIVE"
-                            ? "teal"
-                            : "red",
-                    fontWeight: "bold",
-                  }}
-                >
-                  {item.action}
-                </span>{" "}
-                by{" "}
-                <em>
-                  <strong>{item.changed_by_name}</strong>
-                </em>{" "}
-                on {this.formatDate(item.changed_at)}
-              </div>
-            ))}
-          </Modal.Body>
-        </Modal>
       </React.Fragment>
     );
   }
 }
 
-export default City;
+export default withRouter(City);

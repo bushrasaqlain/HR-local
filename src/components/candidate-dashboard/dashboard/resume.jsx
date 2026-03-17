@@ -131,7 +131,8 @@ handleSaveResume = async () => {
               </td>
               <td className="text-center">
                 <Button
-                  color="outline-primary"
+                  color="outline"
+                  className="custom-progress-bar text-white"
                   size="sm"
                   onClick={this.handleResumeClick}
                   disabled={loading}

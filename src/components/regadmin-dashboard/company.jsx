@@ -18,6 +18,7 @@ import {
   DropdownMenu,
   DropdownItem,
 } from "reactstrap";
+import "bootstrap-icons/font/bootstrap-icons.css";
 import DetailModal from "../common/DetailModal";
 import HistoryModal from "../common/HistoryModal";
 import Head from "next/head";
@@ -25,6 +26,9 @@ class CompanyData extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      showConfirmModal: false,
+      confirmId: null,
+      confirmStatus: null,
       companyData: [],
       editingRow: null,
       currentPage: 1,
@@ -41,7 +45,7 @@ class CompanyData extends Component {
       selectedCompany: null,
       historyModalOpen: false,
       historyData: [],
-       successMessage: "",
+      successMessage: "",
     };
     this.tableHeaders = [
       // { key: "id", label: "Id" },
@@ -95,26 +99,28 @@ class CompanyData extends Component {
       });
   };
 
-updateCompanyStatus = (id, status) => {
-  const apiUrl = `${this.apibasurl}company-info/updatestatus/${id}/${status}`;
+  updateCompanyStatus = (id, status) => {
+    const userId = sessionStorage.getItem("userId");
+    console.log("userId from session:", userId);
+    const apiUrl = `${this.apibasurl}company-info/updateStatus/${id}/${status}/${userId}`;
 
-  api.put(apiUrl).then((res) => {
-    if (res.status === 200) {
-      this.setState((prevState) => ({
-        companyData: prevState.companyData.map((item) =>
-          item.id === id ? { ...item, isActive: status } : item
-        ),
-        editingRow: null,
-        successMessage: "Company status updated successfully!", // show message
-      }));
+    api.put(apiUrl).then((res) => {
+      if (res.status === 200) {
+        this.setState((prevState) => ({
+          companyData: prevState.companyData.map((item) =>
+            item.id === id ? { ...item, isActive: status } : item
+          ),
+          editingRow: null,
+          successMessage: "Company status updated successfully!", // show message
+        }));
 
-      // Optionally hide the message after 3 seconds
-      setTimeout(() => {
-        this.setState({ successMessage: "" });
-      }, 3000);
-    }
-  });
-};
+        // Optionally hide the message after 3 seconds
+        setTimeout(() => {
+          this.setState({ successMessage: "" });
+        }, 3000);
+      }
+    });
+  };
 
   getHistory = (id) => {
     const accountType = "employer";
@@ -180,6 +186,17 @@ updateCompanyStatus = (id, status) => {
     }));
   };
 
+  confirmStatus = (id, status) => {
+    this.setState({ showConfirmModal: true, confirmId: id, confirmStatus: status });
+  };
+
+  handleConfirmStatus = () => {
+    const { confirmId, confirmStatus } = this.state;
+    const newStatus = confirmStatus === "Active" ? "Inactive" : "Active";
+    this.updateCompanyStatus(confirmId, newStatus);
+    this.setState({ showConfirmModal: false, confirmId: null, confirmStatus: null });
+  };
+
   render() {
     const {
       companyData,
@@ -197,16 +214,16 @@ updateCompanyStatus = (id, status) => {
 
     return (
       <>
-      <Head>
-        <title>Company | List</title>
-      </Head>
-      {this.state.successMessage && (
-  <div className="text-center">
+        <Head>
+          <title>Company | List</title>
+        </Head>
+        {this.state.successMessage && (
+          <div className="text-center">
 
-    {/* Message text */}
-    <span className="align-center text-success bg-light h-30 p-2 border-success">{this.state.successMessage}</span>
-  </div>
-)}
+            {/* Message text */}
+            <span className="align-center text-success bg-light h-30 p-2 border-success">{this.state.successMessage}</span>
+          </div>
+        )}
         {/* Status Filter */}
         <Row className="mb-4 align-items-center">
           <Col>
@@ -234,10 +251,7 @@ updateCompanyStatus = (id, status) => {
         <Card>
           <CardBody>
             <div className="table-responsive">
-              <Table
-                className="align-middle p-2 table table-striped"
-                style={{ tableLayout: "auto", width: "100%" }}
-              >
+              <Table className="table table-striped custom-table text-center align-middle">
                 <thead className="table-light text-center align-middle">
                   <tr>
                     {this.tableHeaders.map((header) => (
@@ -291,109 +305,74 @@ updateCompanyStatus = (id, status) => {
                         {this.tableHeaders.map((header) => {
                           if (header.key === "action") {
                             return (
-                              <td key={header.key} className="text-center">
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    alignItems: "center",
-                                    gap: "6px",
-                                  }}
-                                >
-                                  {/* Buttons row */}
-                                  <div style={{ display: "flex", gap: "6px" }}>
-                                    <td className="text-center">
-                                      {/* Buttons row */}
-                                      <div
-                                        style={{ display: "flex", gap: "6px" }}
-                                      >
-                                        <Button
-                                          color="primary"
-                                          onClick={() =>
-                                            this.setState({
-                                              editingRow:
-                                                editingRow === item.id
-                                                  ? null
-                                                  : item.id,
-                                            })
-                                          }
-                                        >
-                                          <i className="la la-edit" />
-                                        </Button>
+                              <td key={header.key} className="status text-center">
+                                <div className="d-flex justify-content-center align-items-center gap-3">
 
-                                        <Button
-                                          color="outline-danger"
-                                          onClick={() =>
-                                            this.toggleModal({
-                                              title: "Company Details",
-                                              details: item,
-                                              fields: [
-                                                "company_name",
-                                                "business_entity_type",
-                                                "NTN",
-                                                "size_of_company",
-                                                "established_date",
-                                                "phone",
-                                                "company_website",
-                                                "country_name",
-                                                "city_name",
-                                                "district_name",
-                                                "company_address",
-                                                "created_at",
-                                                "updated_at",
-                                              ],
-                                            })
-                                          }
-                                        >
-                                          <i className="la la-eye" />
-                                        </Button>
+                                  {/* Edit */}
+                                  <button
+                                    onClick={() => this.toggleModal({
+                                      title: "Company Details",
+                                      details: item,
+                                      fields: [
+                                        "company_name", "business_entity_type", "NTN",
+                                        "size_of_company", "established_date", "phone",
+                                        "company_website", "country_name", "city_name",
+                                        "district_name", "company_address", "created_at", "updated_at",
+                                      ],
+                                    })}
+                                    className="icon-btn"
+                                    title="View Details"
+                                  >
+                                    <i className="bi bi-eye text-primary"></i>
+                                  </button>
 
-                                        <Button
-                                          color="outline-info"
-                                          onClick={() =>
-                                            this.getHistory(item.account_id)
-                                          }
-                                        >
-                                          <i className="la la-history" />
-                                        </Button>
-                                      </div>
+                                  {/* Activate / Inactivate */}
+                                  <button
+                                    onClick={() => this.confirmStatus(item.id, item.isActive)}
+                                    className="icon-btn"
+                                    title={item.isActive === "Active" ? "Inactivate" : "Activate"}
+                                  >
+                                    {item.isActive === "Active" ? (
+                                      <i className="bi bi-x-circle text-danger"></i>
+                                    ) : (
+                                      <i className="bi bi-check-circle text-success"></i>
+                                    )}
+                                  </button>
 
-                                      {/* Dropdown appears BELOW edit button */}
-                                      {editingRow === item.id && (
-                                        <Input
-                                          type="select"
-                                          style={{ width: "120px" }}
-                                          value={item.isActive} // ✅ USE STRING DIRECTLY
-                                          onChange={(e) =>
-                                            this.updateCompanyStatus(
-                                              item.id,
-                                              e.target.value,
-                                            )
-                                          }
-                                        >
-                                          <option value="Active">Active</option>
-                                          <option value="Inactive">
-                                            InActive
-                                          </option>
-                                        </Input>
-                                      )}
-                                    </td>
-                                  </div>
+                                  {/* History */}
+                                  <button
+                                    onClick={() => this.getHistory(item.account_id)}
+                                    className="icon-btn"
+                                    title="View History"
+                                  >
+                                    <i className="bi bi-clock-history text-dark"></i>
+                                  </button>
+
                                 </div>
+                              </td>
+                            );
+                          }
+
+                          if (header.key === "isActive") {
+                            return (
+                              <td key={header.key} className="text-center">
+                                <span
+                                  className={`badge ${item.isActive === "Active"
+                                      ? "badge-active-custom"
+                                      : "badge-inactive-custom"
+                                    }`}
+                                >
+                                  {item.isActive}
+                                </span>
                               </td>
                             );
                           }
 
                           return (
                             <td key={header.key} className="text-center">
-                              {item[header.key] !== null &&
-                              item[header.key] !== undefined &&
-                              item[header.key] !== ""
-                                ? item[header.key]
-                                : "-"}
+                              {item[header.key] ? item[header.key] : "-"}
                             </td>
                           );
-
                           // return <td key={header.key}>{item[header.key]}</td>;
                         })}
                       </tr>
@@ -425,6 +404,46 @@ updateCompanyStatus = (id, status) => {
           toggle={() => this.setState({ historyModalOpen: false })}
           historyData={this.state.historyData}
         />
+
+        {/* Confirm Status Modal */}
+        {this.state.showConfirmModal && (
+          <div style={{
+            position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
+            backgroundColor: "rgba(0,0,0,0.5)", zIndex: 9999,
+            display: "flex", alignItems: "center", justifyContent: "center"
+          }}>
+            <div style={{
+              background: "#fff", borderRadius: "10px", padding: "24px",
+              minWidth: "300px", textAlign: "center",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.2)"
+            }}>
+              <h6 style={{ fontWeight: 600, marginBottom: "12px" }}>
+                Confirm {this.state.confirmStatus === "Active" ? "Inactivate" : "Activate"}
+              </h6>
+              <p style={{ marginBottom: "20px" }}>
+                Are you sure you want to{" "}
+                <strong>
+                  {this.state.confirmStatus === "Active" ? "inactivate" : "activate"}
+                </strong>{" "}
+                this Company?
+              </p>
+              <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => this.setState({ showConfirmModal: false })}
+                >
+                  Cancel
+                </button>
+                <button
+                  className={`btn btn-sm ${this.state.confirmStatus === "Active" ? "btn-danger" : "btn-success"}`}
+                  onClick={this.handleConfirmStatus}
+                >
+                  {this.state.confirmStatus === "Active" ? "Inactivate" : "Activate"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Pagination */}
         {totalPages >= 1 && (

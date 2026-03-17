@@ -92,14 +92,14 @@ export const companymenuitem = [
 
 
   { key: "allApplicants", label: "All Applicants", type: "single" },
-  { key: "shortlistedcandidates", label: "Shortlisted Applicants", type: "single" },
-  { key: "chatBox", label: "Messages", type: "single" },
+  { key: "shortlistedcandidates", label: "Shortlisted", type: "single" },
+  // { key: "chatBox", label: "Messages", type: "single" },
 ];
 
 
 export const candidatesmenuitem = [
   { key: "profile", label: "Profile" },
   { key: "lists", label: "Job List" },
-  { key: "chatbox", label: "Message"},
+  // { key: "chatbox", label: "Message"},
   { key: "register", label: "Candidate Register Form"},
 ]
