@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import axios from "axios";
 import Pagination from "../common/pagination.jsx";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import MetaTags from "react-meta-tags";
 import { withRouter } from "next/router";
@@ -35,6 +35,8 @@ class Degreetype extends Component {
       currentPage: 1,
       totalDegreetype: 0,
       isActive: "all",
+      successMessage: "",
+      errorMessage: "",
 
     };
 
@@ -126,7 +128,8 @@ class Degreetype extends Component {
   handleExcelExport = () => {
     const { degreetypes } = this.state;
     if (!degreetypes.length) {
-      toast.info("No data to export");
+      this.setState({ errorMessage: "No data to export" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
@@ -143,6 +146,8 @@ class Degreetype extends Component {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Degree");
 
     XLSX.writeFile(workbook, "Degree.xlsx");
+    this.setState({ successMessage: "Degree types exported successfully" });
+    setTimeout(() => this.setState({ successMessage: "" }), 3000);
   };
 
 
@@ -153,7 +158,8 @@ class Degreetype extends Component {
     const userId = sessionStorage.getItem("userId");
 
     if (!userId) {
-      toast.error("User not logged in");
+      this.setState({ errorMessage: "User not logged in" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
@@ -172,7 +178,8 @@ class Degreetype extends Component {
           .filter(row => row.name);
 
         if (!formattedData.length) {
-          toast.error("No valid degree types names found");
+          this.setState({ errorMessage: "No valid degree types names found" });
+          setTimeout(() => this.setState({ errorMessage: "" }), 3000);
           return;
         }
 
@@ -182,7 +189,9 @@ class Degreetype extends Component {
           userId,
         });
 
-        toast.success("degree types imported successfully");
+        this.setState({ successMessage: "Degree types imported successfully" });
+        setTimeout(() => this.setState({ successMessage: "" }), 3000);
+        this.fetchdegreetype(1);
         this.fetchdegreetype(1);
       };
 
@@ -190,7 +199,8 @@ class Degreetype extends Component {
       e.target.value = "";
     } catch (err) {
       console.error(err);
-      toast.error("Failed to import Excel");
+      this.setState({ errorMessage: "Failed to import Excel" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -210,9 +220,17 @@ class Degreetype extends Component {
         await api.post(`${this.apiBaseUrl}adddegreetype`, { name: inputValue });
         this.fetchdegreetype(1);
       }
-      this.setState({ showModal: false, inputValue: "", editId: null });
+      this.setState({
+        showModal: false,
+        inputValue: "",
+        editId: null,
+        successMessage: editId ? "Degree type updated successfully!" : "Degree type added successfully!",
+      });
+      setTimeout(() => this.setState({ successMessage: "" }), 3000);
     } catch (error) {
       console.error("Error saving degreetype:", error);
+      this.setState({ errorMessage: "Something went wrong" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -227,14 +245,20 @@ class Degreetype extends Component {
     const { deleteId, deleteStatus } = this.state;
     try {
       await api.delete(`${this.apiBaseUrl}deletedegreetype/${deleteId}`);
-      toast.success(
-        deleteStatus === "Active"
-          ? "Inactivated successfully"
-          : "Activated successfully"
+      this.setState(
+        {
+          showDeleteConfirm: false,
+          successMessage: deleteStatus === "Active"
+            ? "Inactivated successfully"
+            : "Activated successfully",
+        },
+        this.fetchdegreetype
       );
-      this.setState({ showDeleteConfirm: false }, this.fetchdegreetype);
+      setTimeout(() => this.setState({ successMessage: "" }), 3000);
     } catch (error) {
       console.error("Error deleting degreetype:", error);
+      this.setState({ errorMessage: "Failed to update status" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -294,6 +318,8 @@ class Degreetype extends Component {
       deleteStatus,
       isActive,
       editId,
+      successMessage,
+      errorMessage
     } = this.state;
     const totalPages = Math.ceil(totalDegreetype / this.itemsPerPage);
 
@@ -357,6 +383,21 @@ class Degreetype extends Component {
 
 
             </div>
+
+            {successMessage && (
+              <div className="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+                <i className="bi bi-check-circle-fill text-success"></i>
+                <span>{successMessage}</span>
+                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ successMessage: "" })} />
+              </div>
+            )}
+            {errorMessage && (
+              <div className="alert alert-danger alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+                <i className="bi bi-x-circle-fill"></i>
+                <span>{errorMessage}</span>
+                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ errorMessage: "" })} />
+              </div>
+            )}
 
             <Card>
               <CardBody>

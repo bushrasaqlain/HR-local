@@ -112,17 +112,17 @@ class FormContent extends Component {
 
 
       // ✅ Role-based routing
-     const { accountType, profile_completed } = res.data;
+      const { accountType, profile_completed } = res.data;
 
-if (accountType === "candidate") {
-  if (profile_completed) {
-    router.push("/dashboard-header"); // candidate dashboard
-  } else {
-    router.push("/dashboard-header"); // complete profile
-  }
-} else {
-  router.push("/dashboard-header"); // other account types
-}
+      if (accountType === "candidate") {
+        if (profile_completed) {
+          router.push("/dashboard-header"); // candidate dashboard
+        } else {
+          router.push("/dashboard-header"); // complete profile
+        }
+      } else {
+        router.push("/dashboard-header"); // other account types
+      }
 
     } catch (err) {
       console.error(err);
@@ -206,7 +206,7 @@ if (accountType === "candidate") {
           </div>
           <div className="text mb-3">
             Don&apos;t have an account?{" "}
-            <Link href="/register">
+            <Link href="/?page=register">
               <span className="signup">Signup</span>
             </Link>
           </div>

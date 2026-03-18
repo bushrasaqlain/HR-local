@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import axios from "axios";
 import Pagination from "../common/pagination.jsx";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import Head from "next/head";
 import AsyncSelect from "react-select/async";
@@ -35,6 +35,8 @@ class City extends Component {
       selectedDistrict: null,
       isImportMode: false,
       importFile: null,
+      successMessage: "",
+      errorMessage: "",
 
     };
 
@@ -178,7 +180,8 @@ class City extends Component {
     const { cities } = this.state;
 
     if (!cities || !cities.length) {
-      toast.info("No cities available to export");
+      this.setState({ errorMessage: "No cities available to export" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
@@ -202,7 +205,8 @@ class City extends Component {
     // Write file
     XLSX.writeFile(workbook, "Cities.xlsx");
 
-    toast.success("Cities exported successfully");
+    this.setState({ successMessage: "Cities exported successfully" });
+    setTimeout(() => this.setState({ successMessage: "" }), 3000);
   };
 
   fetchHistory = async (id) => {
@@ -245,14 +249,16 @@ class City extends Component {
     if (!selectedDistrict) {
 
 
-      toast.error("Please select a district.");
+      this.setState({ errorMessage: "Please select a district." });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
     try {
       if (isImportMode) {
         if (!importFile) {
-          toast.error("Please select an Excel file.");
+          this.setState({ errorMessage: "Please select an Excel file." });
+          setTimeout(() => this.setState({ errorMessage: "" }), 3000);
           return;
         }
 
@@ -267,7 +273,8 @@ class City extends Component {
             .map(row => ({ name: row["City Name"]?.toString().trim() }))
             .filter(row => row.name);
           if (!citiesData.length) {
-            toast.error("No valid city names found in Excel");
+            this.setState({ errorMessage: "No valid city names found in Excel" });
+            setTimeout(() => this.setState({ errorMessage: "" }), 3000);
             return;
           }
 
@@ -279,9 +286,15 @@ class City extends Component {
 
           });
 
-          toast.success("Cities imported successfully");
+          this.setState({
+            showModal: false,
+            importFile: null,
+            isImportMode: false,
+            selectedDistrict: null,
+            successMessage: "Cities imported successfully",
+          });
+          setTimeout(() => this.setState({ successMessage: "" }), 3000);
           this.fetchCities(1);
-          this.setState({ showModal: false, importFile: null, isImportMode: false, selectedDistrict: null });
         };
 
         reader.readAsArrayBuffer(importFile);
@@ -305,7 +318,9 @@ class City extends Component {
           inputValue: "",
           selectedDistrict: null,
           editId: null,
+          successMessage: editId ? "City updated successfully!" : "City added successfully!",
         });
+        setTimeout(() => this.setState({ successMessage: "" }), 3000);
       }
     } catch (error) {
       console.error("Error saving city:", error.response?.data || error);
@@ -341,13 +356,16 @@ class City extends Component {
         updateStatus: null,
       });
 
-      toast.success(
-        updateStatus === "Active"
+      this.setState({
+        successMessage: updateStatus === "Active"
           ? "City inactivated successfully"
-          : "City activated successfully"
-      );
+          : "City activated successfully",
+      });
+      setTimeout(() => this.setState({ successMessage: "" }), 3000);
     } catch (error) {
       console.error("Error updating city status:", error);
+      this.setState({ errorMessage: "Failed to update status" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -368,6 +386,8 @@ class City extends Component {
       editId,
       updateStatus,
       selectedDistrict,
+      successMessage,
+      errorMessage
     } = this.state;
     const totalPages = Math.ceil(totalCities / this.itemsPerPage);
 
@@ -452,6 +472,21 @@ class City extends Component {
               </div>
 
             </div>
+
+            {successMessage && (
+              <div className="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+                <i className="bi bi-check-circle-fill text-success"></i>
+                <span>{successMessage}</span>
+                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ successMessage: "" })} />
+              </div>
+            )}
+            {errorMessage && (
+              <div className="alert alert-danger alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+                <i className="bi bi-x-circle-fill"></i>
+                <span>{errorMessage}</span>
+                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ errorMessage: "" })} />
+              </div>
+            )}
 
             <Card>
               <CardBody>

@@ -2,7 +2,7 @@
 import React, { Component } from "react";
 import api from "../lib/api";
 import Pagination from "../common/pagination";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 
 import {
   Table,
@@ -48,6 +48,8 @@ class Job extends Component {
       historyModalOpen: false,
       historyData: [],
       editingStatus: {},
+      successMessage: "",
+      errorMessage: "",
     };
     this.tableHeaders = [
       // { key: "id", label: "Id" },
@@ -111,7 +113,8 @@ class Job extends Component {
 
       .catch((err) => {
         console.error("Error fetching job data:", err);
-        toast.error("Failed to fetch job data");
+        this.setState({ errorMessage: "Failed to fetch job data" });
+        setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       });
   };
 
@@ -124,19 +127,19 @@ class Job extends Component {
       .then((res) => {
         // Check if the response indicates success
         if (res.status === 200 || res.data.success) {
-          toast.success("Job Posted status updated successfully!");
+          this.setState({ successMessage: "Job Posted status updated successfully!" });
+          setTimeout(() => this.setState({ successMessage: "" }), 3000);
           this.fetchJobData(); // Refetch updated data
         } else {
-          toast.error(res.data.message || "Failed to update jobpost status.");
+          this.setState({ errorMessage: res.data.message || "Failed to update jobpost status." });
+          setTimeout(() => this.setState({ errorMessage: "" }), 3000);
         }
       })
       .catch((err) => {
         console.error("Error updating posted job status:", err);
         // Show error to the user
-        toast.error(
-          err.response?.data?.error ||
-          "Something went wrong while updating status.",
-        );
+        this.setState({ errorMessage: err.response?.data?.error || "Something went wrong while updating status." });
+        setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       });
   };
 
@@ -155,7 +158,8 @@ class Job extends Component {
       })
       .catch((err) => {
         console.error("Error fetching history:", err);
-        toast.error("Failed to fetch history.");
+        this.setState({ errorMessage: "Failed to fetch history." });
+        setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       });
   };
 
@@ -228,6 +232,21 @@ class Job extends Component {
         <Head>
           <title>Posted Jobs</title>
         </Head>
+
+        {this.state.successMessage && (
+          <div className="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+            <i className="bi bi-check-circle-fill text-success"></i>
+            <span>{this.state.successMessage}</span>
+            <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ successMessage: "" })} />
+          </div>
+        )}
+        {this.state.errorMessage && (
+          <div className="alert alert-danger alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+            <i className="bi bi-x-circle-fill"></i>
+            <span>{this.state.errorMessage}</span>
+            <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ errorMessage: "" })} />
+          </div>
+        )}
         <Container fluid>
           {/* Status Filter */}
           <Row className="mb-4 align-items-center">

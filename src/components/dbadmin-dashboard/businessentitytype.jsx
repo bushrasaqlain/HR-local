@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import axios from "axios";
 import Pagination from "../common/pagination.jsx";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import MetaTags from "react-meta-tags";
 import { withRouter } from "next/router";
@@ -35,6 +35,8 @@ class BusinessEntityTypes extends Component {
       currentPage: 1,
       totalbusinesstype: 0,
       isActive: "all",
+      successMessage: "",
+      errorMessage: "",
 
     };
 
@@ -100,7 +102,8 @@ class BusinessEntityTypes extends Component {
     const { businesstype } = this.state;
 
     if (!businesstype.length) {
-      toast.info("No businesstype available to export");
+      this.setState({ errorMessage: "No business types available to export" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
@@ -122,7 +125,8 @@ class BusinessEntityTypes extends Component {
     // Write file
     XLSX.writeFile(workbook, "business type.xlsx");
 
-    toast.success("businesstype exported successfully");
+    this.setState({ successMessage: "Business types exported successfully" });
+    setTimeout(() => this.setState({ successMessage: "" }), 3000);
   };
 
   handleExcelImport = async (e) => {
@@ -132,7 +136,8 @@ class BusinessEntityTypes extends Component {
     const userId = sessionStorage.getItem("userId");
 
     if (!userId) {
-      toast.error("User not logged in");
+      this.setState({ errorMessage: "User not logged in" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
@@ -151,7 +156,8 @@ class BusinessEntityTypes extends Component {
           .filter(row => row.name);
 
         if (!formattedData.length) {
-          toast.error("No valid businesstype names found");
+          this.setState({ errorMessage: "No valid business type names found" });
+          setTimeout(() => this.setState({ errorMessage: "" }), 3000);
           return;
         }
 
@@ -161,7 +167,8 @@ class BusinessEntityTypes extends Component {
           userId,
         });
 
-        toast.success("businesstype imported successfully");
+        this.setState({ successMessage: "Business types imported successfully" });
+        setTimeout(() => this.setState({ successMessage: "" }), 3000);
         this.fetchbusinesstype(1);
       };
 
@@ -169,7 +176,8 @@ class BusinessEntityTypes extends Component {
       e.target.value = "";
     } catch (err) {
       console.error(err);
-      toast.error("Failed to import Excel");
+      this.setState({ errorMessage: "Failed to import Excel" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -213,9 +221,17 @@ class BusinessEntityTypes extends Component {
         await api.post(`${this.apiBaseUrl}addbusinesstype`, { name: inputValue });
         this.fetchbusinesstype(1);
       }
-      this.setState({ showModal: false, inputValue: "", editId: null });
+      this.setState({
+        showModal: false,
+        inputValue: "",
+        editId: null,
+        successMessage: editId ? "Business type updated successfully!" : "Business type added successfully!",
+      });
+      setTimeout(() => this.setState({ successMessage: "" }), 3000);
     } catch (error) {
       console.error("Error saving businesstype:", error);
+      this.setState({ errorMessage: "Something went wrong" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -230,14 +246,20 @@ class BusinessEntityTypes extends Component {
     const { deleteId, deleteStatus } = this.state;
     try {
       await api.delete(`${this.apiBaseUrl}deletebusinesstype/${deleteId}`);
-      toast.success(
-        deleteStatus === "Active"
-          ? "Inactivated successfully"
-          : "Activated successfully"
+      this.setState(
+        {
+          showDeleteConfirm: false,
+          successMessage: deleteStatus === "Active"
+            ? "Inactivated successfully"
+            : "Activated successfully",
+        },
+        this.fetchbusinesstype
       );
-      this.setState({ showDeleteConfirm: false }, this.fetchbusinesstype);
+      setTimeout(() => this.setState({ successMessage: "" }), 3000);
     } catch (error) {
       console.error("Error deleting businesstype:", error);
+      this.setState({ errorMessage: "Failed to update status" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -297,6 +319,8 @@ class BusinessEntityTypes extends Component {
       deleteStatus,
       isActive,
       editId,
+      successMessage,
+      errorMessage
     } = this.state;
     const totalPages = Math.ceil(totalbusinesstype / this.itemsPerPage);
 
@@ -368,6 +392,21 @@ class BusinessEntityTypes extends Component {
               </div>
 
             </div>
+
+            {successMessage && (
+              <div className="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+                <i className="bi bi-check-circle-fill text-success"></i>
+                <span>{successMessage}</span>
+                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ successMessage: "" })} />
+              </div>
+            )}
+            {errorMessage && (
+              <div className="alert alert-danger alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+                <i className="bi bi-x-circle-fill"></i>
+                <span>{errorMessage}</span>
+                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ errorMessage: "" })} />
+              </div>
+            )}
             <Card>
               <CardBody>
                 <div className="table-responsive">

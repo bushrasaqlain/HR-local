@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import axios from "axios";
 import Pagination from "../common/pagination.jsx";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import * as XLSX from "xlsx";
 import { withRouter } from "next/router";
@@ -35,6 +35,8 @@ class Institute extends Component {
             currentPage: 1,
             totalInstitute: 0,
             isActive: "all",
+            successMessage: "",
+            errorMessage: "",
 
         };
 
@@ -133,7 +135,9 @@ class Institute extends Component {
         const userId = sessionStorage.getItem("userId");
 
         if (!userId) {
-            toast.error("User not logged in");
+            this.setState({ errorMessage: "User not logged in" });
+            setTimeout(() => this.setState({ errorMessage: "" }), 3000);
+
             return;
         }
 
@@ -152,7 +156,8 @@ class Institute extends Component {
                     .filter(row => row.name);
 
                 if (!formattedData.length) {
-                    toast.error("No valid institute names found");
+                    this.setState({ errorMessage: "No valid institute names found" });
+                    setTimeout(() => this.setState({ errorMessage: "" }), 3000);
                     return;
                 }
 
@@ -162,7 +167,9 @@ class Institute extends Component {
                     userId,
                 });
 
-                toast.success("Institutes imported successfully");
+                this.setState({ successMessage: "Institutes imported successfully" });
+                setTimeout(() => this.setState({ successMessage: "" }), 3000);
+                this.fetchInstitutes(1);
                 this.fetchInstitutes(1);
             };
 
@@ -170,14 +177,16 @@ class Institute extends Component {
             e.target.value = "";
         } catch (err) {
             console.error(err);
-            toast.error("Failed to import Excel");
+            this.setState({ errorMessage: "Failed to import Excel" });
+            setTimeout(() => this.setState({ errorMessage: "" }), 3000);
         }
     };
 
     handleExcelExport = () => {
         const { institutes } = this.state;
         if (!institutes.length) {
-            toast.info("No data to export");
+            this.setState({ errorMessage: "No data to export" });
+            setTimeout(() => this.setState({ errorMessage: "" }), 3000);
             return;
         }
 
@@ -194,6 +203,8 @@ class Institute extends Component {
         XLSX.utils.book_append_sheet(workbook, worksheet, "Institutes");
 
         XLSX.writeFile(workbook, "Institutes.xlsx");
+        this.setState({ successMessage: "Institutes exported successfully" });
+        setTimeout(() => this.setState({ successMessage: "" }), 3000);
     };
 
 
@@ -259,9 +270,17 @@ class Institute extends Component {
                 this.fetchInstitutes(1);
             }
 
-            this.setState({ showModal: false, inputValue: "", editId: null });
+            this.setState({
+                showModal: false,
+                inputValue: "",
+                editId: null,
+                successMessage: editId ? "Institute updated successfully!" : "Institute added successfully!",
+            });
+            setTimeout(() => this.setState({ successMessage: "" }), 3000);
         } catch (error) {
             console.error("Error saving institute:", error);
+            this.setState({ errorMessage: "Something went wrong" });
+            setTimeout(() => this.setState({ errorMessage: "" }), 3000);
         }
     };
 
@@ -284,16 +303,18 @@ class Institute extends Component {
                 `${this.apiBaseUrl}institute/updateStatus/${updateId}/${newStatus}`
             );
 
-            toast.success(
-                newStatus === "Inactive"
+            this.setState({
+                showUpdateConfirm: false,
+                successMessage: newStatus === "Inactive"
                     ? "Inactivated successfully"
-                    : "Activated successfully"
-            );
-
-            this.setState({ showUpdateConfirm: false });
+                    : "Activated successfully",
+            });
+            setTimeout(() => this.setState({ successMessage: "" }), 3000);
             this.fetchInstitutes(1);
         } catch (error) {
             console.error("Error updating institute status:", error);
+            this.setState({ errorMessage: "Failed to update status" });
+            setTimeout(() => this.setState({ errorMessage: "" }), 3000);
         }
     };
 
@@ -313,6 +334,8 @@ class Institute extends Component {
             updateStatus,
             isActive,
             editId,
+            successMessage,
+            errorMessage
         } = this.state;
         const totalPages = Math.ceil(totalInstitute / this.itemsPerPage);
 
@@ -386,6 +409,21 @@ class Institute extends Component {
                             </div>
 
                         </div>
+
+                        {successMessage && (
+                            <div className="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+                                <i className="bi bi-check-circle-fill text-success"></i>
+                                <span>{successMessage}</span>
+                                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ successMessage: "" })} />
+                            </div>
+                        )}
+                        {errorMessage && (
+                            <div className="alert alert-danger alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+                                <i className="bi bi-x-circle-fill"></i>
+                                <span>{errorMessage}</span>
+                                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ errorMessage: "" })} />
+                            </div>
+                        )}
 
 
                         <Card>

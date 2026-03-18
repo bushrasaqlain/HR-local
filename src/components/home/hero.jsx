@@ -62,14 +62,14 @@ class Hero extends Component {
                 candidates? Superio connects you directly with high-quality,
                 motivated, job-ready talent prepared to contribute from day one.
               </p>
-             <Link href="/login">
-  <button
-    type="button"
-    className="btn-lg rounded-pill ms-2 custom-btn"
-  >
-    Register
-  </button>
-</Link>
+              <Link href="/?page=login">
+                <button
+                  type="button"
+                  className="btn-lg rounded-pill ms-2 custom-btn"
+                >
+                  Register
+                </button>
+              </Link>
               <style jsx>{`
                 .custom-btn {
                   border: 2px solid #000;

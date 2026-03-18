@@ -2,8 +2,8 @@ import Head from "next/head";
 import React, { Component } from "react";
 // import Select from "react-select";
 import AsyncSelect from "react-select/async";
-import { toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+// import { toast } from "react-toastify";
+// import "react-toastify/dist/ReactToastify.css";
 import { Modal } from "react-bootstrap";
 import ResearchStep from "./research";
 import EducationStep from "./EducationStep";
@@ -67,6 +67,8 @@ class EditProfile extends Component {
       districts: [],
       cities: [],
       licenseTypes: [],
+      successMessage: "",
+      errorMessage: "",
     };
   }
 
@@ -104,7 +106,8 @@ class EditProfile extends Component {
       this.setState({ licenseTypes: licenseArray });
     } catch (err) {
       console.error("Failed to load license types", err);
-      toast.error("Could not load license types");
+      this.setState({ errorMessage: "Could not load license types" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
   loadCountries = async () => {
@@ -122,7 +125,8 @@ class EditProfile extends Component {
       this.setState({ countries });
     } catch (err) {
       console.error("Failed to load countries", err);
-      toast.error("Could not load countries");
+      this.setState({ errorMessage: "Could not load countries" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -144,7 +148,8 @@ class EditProfile extends Component {
       this.setState({ districts, cities: [] }); // reset cities too
     } catch (err) {
       console.error("Failed to load districts", err);
-      toast.error("Could not load districts");
+      this.setState({ errorMessage: "Could not load districts" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -161,7 +166,8 @@ class EditProfile extends Component {
       this.setState({ cities });
     } catch (error) {
       console.error("Failed to load cities", error);
-      toast.error("Could not load cities");
+      this.setState({ errorMessage: "Could not load cities" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
   fetchCandidateInfo = async () => {
@@ -189,29 +195,29 @@ class EditProfile extends Component {
       // Map education
       const educationList = Array.isArray(eduRes.data)
         ? eduRes.data.map((item) => ({
-            id: item.id,
-            degree: item.degreetype_id || null,
-            degree_label: item.degreetype || "",
-            degreeTitle: item.degreefield_id || null,
-            degreeTitle_label: item.degreefield || "",
-            institutes: item.institute_id || null,
-            startDate: item.start_date ? item.start_date.split("T")[0] : "",
-            endDate: item.end_date ? item.end_date.split("T")[0] : "",
-            ongoing: Boolean(item.is_ongoing),
-          }))
+          id: item.id,
+          degree: item.degreetype_id || null,
+          degree_label: item.degreetype || "",
+          degreeTitle: item.degreefield_id || null,
+          degreeTitle_label: item.degreefield || "",
+          institutes: item.institute_id || null,
+          startDate: item.start_date ? item.start_date.split("T")[0] : "",
+          endDate: item.end_date ? item.end_date.split("T")[0] : "",
+          ongoing: Boolean(item.is_ongoing),
+        }))
         : [];
 
       // Map experience
       const experienceList = Array.isArray(expRes.data?.data)
         ? expRes.data.data.map((item) => ({
-            id: item.id,
-            companyName: item.company_name || "",
-            designation: item.designation || "",
-            speciality_id: item.speciality_id || "",
-            startDate: item.start_date || "",
-            endDate: item.end_date || "",
-            ongoing: Boolean(item.is_ongoing),
-          }))
+          id: item.id,
+          companyName: item.company_name || "",
+          designation: item.designation || "",
+          speciality_id: item.speciality_id || "",
+          startDate: item.start_date || "",
+          endDate: item.end_date || "",
+          ongoing: Boolean(item.is_ongoing),
+        }))
         : [];
 
       // Map availability
@@ -231,28 +237,28 @@ class EditProfile extends Component {
       // Map certificates
       const certificatesList = Array.isArray(certRes.data?.data)
         ? certRes.data.data.map((c) => ({
-            id: c.id,
-            title: c.title || "",
-            file: null,
-            hasExistingFile: !!c.document_path,
-            filePreviewUrl: c.document_path
-              ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}/uploads/certificate/${c.document_path.split("\\").pop()}`
-              : "",
-          }))
+          id: c.id,
+          title: c.title || "",
+          file: null,
+          hasExistingFile: !!c.document_path,
+          filePreviewUrl: c.document_path
+            ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}/uploads/certificate/${c.document_path.split("\\").pop()}`
+            : "",
+        }))
         : [];
 
       // Map research
       const researchList = Array.isArray(researchRes.data?.data)
         ? researchRes.data.data.map((r) => ({
-            id: r.id,
-            title: r.research_title,
-            link: r.research_link || "",
-            file: null,
-            hasExistingFile: !!r.document_path,
-            filePreviewUrl: r.document_path
-              ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}/uploads/research/${r.document_path.split("\\").pop()}`
-              : "",
-          }))
+          id: r.id,
+          title: r.research_title,
+          link: r.research_link || "",
+          file: null,
+          hasExistingFile: !!r.document_path,
+          filePreviewUrl: r.document_path
+            ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}/uploads/research/${r.document_path.split("\\").pop()}`
+            : "",
+        }))
         : [];
 
       // Combine everything into formData
@@ -286,7 +292,8 @@ class EditProfile extends Component {
     } catch (error) {
       console.error("Error fetching candidate info:", error);
       this.setState({ loading: false });
-      toast.error("Failed to load profile data");
+      this.setState({ errorMessage: "Failed to load profile data" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -477,12 +484,14 @@ class EditProfile extends Component {
           break;
       }
 
-      toast.success("Updated successfully");
+      this.setState({ successMessage: "Updated successfully" });
+      setTimeout(() => this.setState({ successMessage: "" }), 3000);
       this.fetchCandidateInfo();
       this.setState({ loading: false });
     } catch (err) {
       console.error("Update failed:", err);
-      toast.error("Update failed");
+      this.setState({ errorMessage: "Update failed" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       this.setState({ loading: false });
     }
   };
@@ -1048,7 +1057,7 @@ class EditProfile extends Component {
     const profileImage =
       formData?.passport_photoPreview || // new file preview
       (typeof formData?.passport_photo === "string" &&
-      formData.passport_photo.trim() !== ""
+        formData.passport_photo.trim() !== ""
         ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}/${formData.passport_photo.replace(/^\//, "")}`
         : "/images/default-avatar.png");
 
@@ -1062,6 +1071,21 @@ class EditProfile extends Component {
         <Head>
           <title>Edit Profile</title>
         </Head>
+
+        {this.state.successMessage && (
+          <div className="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+            <i className="bi bi-check-circle-fill text-success"></i>
+            <span>{this.state.successMessage}</span>
+            <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ successMessage: "" })} />
+          </div>
+        )}
+        {this.state.errorMessage && (
+          <div className="alert alert-danger alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+            <i className="bi bi-x-circle-fill"></i>
+            <span>{this.state.errorMessage}</span>
+            <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ errorMessage: "" })} />
+          </div>
+        )}
         {/* ---------- BACK BUTTON ABOVE EVERYTHING ---------- */}
         {this.props.onBack && (
           <div className="mb-3">

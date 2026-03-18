@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import AsyncSelect from "react-select/async";
-import { toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+// import { toast } from "react-toastify";
+// import "react-toastify/dist/ReactToastify.css";
 import { Button, Input } from "reactstrap";
 import api from "../../lib/api";
 
@@ -12,6 +12,8 @@ class ResearchStep extends Component {
     newResearch: { title: "", link: "", file: null, filePreviewUrl: "" },
     editIndex: null, // <-- add this
     errors: [],
+    successMessage: "",
+    errorMessage: "",
   };
 
   componentDidMount() {
@@ -61,7 +63,8 @@ class ResearchStep extends Component {
 
     const MAX_SIZE_MB = 10;
     if (file.size / 1024 / 1024 > MAX_SIZE_MB) {
-      toast.error(`File size exceeds ${MAX_SIZE_MB} MB`);
+      this.setState({ errorMessage: `File size exceeds ${MAX_SIZE_MB} MB` });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
@@ -83,7 +86,8 @@ class ResearchStep extends Component {
     const { newResearch, editIndex } = this.state;
 
     if (!newResearch.title) {
-      toast.error("Title is required");
+      this.setState({ errorMessage: "Title is required" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
@@ -100,13 +104,15 @@ class ResearchStep extends Component {
           formData,
           { headers: { "Content-Type": "multipart/form-data" } },
         );
-        toast.success("Research updated");
+        this.setState({ successMessage: "Research updated" });
+        setTimeout(() => this.setState({ successMessage: "" }), 3000);
       } else {
         // ADD mode
         await api.post("/candidateResearch/addresearch", formData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        toast.success("Research added");
+        this.setState({ successMessage: "Research added" });
+        setTimeout(() => this.setState({ successMessage: "" }), 3000);
       }
 
       this.setState({
@@ -117,7 +123,8 @@ class ResearchStep extends Component {
       this.loadResearches();
     } catch (err) {
       console.error("Failed to save research:", err);
-      toast.error("Failed to save research");
+      this.setState({ errorMessage: "Failed to save research" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -126,6 +133,21 @@ class ResearchStep extends Component {
 
     return (
       <div className="table-responsive">
+
+        {this.state.successMessage && (
+          <div className="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+            <i className="bi bi-check-circle-fill text-success"></i>
+            <span>{this.state.successMessage}</span>
+            <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ successMessage: "" })} />
+          </div>
+        )}
+        {this.state.errorMessage && (
+          <div className="alert alert-danger alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+            <i className="bi bi-x-circle-fill"></i>
+            <span>{this.state.errorMessage}</span>
+            <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ errorMessage: "" })} />
+          </div>
+        )}
         <h5 className="mb-3">Research</h5>
 
         <table className="table table-bordered align-middle">

@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import axios from "axios";
 import Pagination from "../common/pagination.jsx";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import MetaTags from "react-meta-tags";
 import AsyncSelect from "react-select/async";
@@ -39,6 +39,8 @@ class Districts extends Component {
       selectedCountry: null,
       isImportMode: false,
       importFile: null,
+      successMessage: "",
+      errorMessage: "",
     };
 
     this.itemsPerPage = 50;
@@ -185,7 +187,8 @@ class Districts extends Component {
     const { districts } = this.state;
 
     if (!districts || !districts.length) {
-      toast.info("No districts available to export");
+      this.setState({ errorMessage: "No districts available to export" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
@@ -208,7 +211,8 @@ class Districts extends Component {
     // Write file
     XLSX.writeFile(workbook, "Districts.xlsx");
 
-    toast.success("Districts exported successfully");
+    this.setState({ successMessage: "Districts exported successfully" });
+    setTimeout(() => this.setState({ successMessage: "" }), 3000);
   };
 
   toggleForm = (item = null) => {
@@ -239,14 +243,16 @@ class Districts extends Component {
     const userId = sessionStorage.getItem("userId");
 
     if (!selectedCountry) {
-      toast.error("Please select a country");
+      this.setState({ errorMessage: "Please select a country" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
     try {
       if (isImportMode) {
         if (!importFile) {
-          toast.error("Please select an Excel file");
+          this.setState({ errorMessage: "Please select an Excel file" });
+          setTimeout(() => this.setState({ errorMessage: "" }), 3000);
           return;
         }
 
@@ -264,7 +270,8 @@ class Districts extends Component {
             .filter(row => row.name);
 
           if (!districtsData.length) {
-            toast.error("No valid district names found in Excel");
+            this.setState({ errorMessage: "No valid district names found in Excel" });
+            setTimeout(() => this.setState({ errorMessage: "" }), 3000);
             return;
           }
 
@@ -275,9 +282,15 @@ class Districts extends Component {
             userId,
           });
 
-          toast.success("Districts imported successfully");
+          this.setState({
+            showModal: false,
+            importFile: null,
+            isImportMode: false,
+            selectedCountry: null,
+            successMessage: "Districts imported successfully",
+          });
+          setTimeout(() => this.setState({ successMessage: "" }), 3000);
           this.fetchDistricts(1);
-          this.setState({ showModal: false, importFile: null, isImportMode: false, selectedCountry: null });
         };
 
         reader.readAsArrayBuffer(importFile);
@@ -310,7 +323,14 @@ class Districts extends Component {
           this.fetchDistricts(1);
         }
 
-        this.setState({ showModal: false, inputValue: "", selectedCountry: null, editId: null });
+        this.setState({
+          showModal: false,
+          inputValue: "",
+          selectedCountry: null,
+          editId: null,
+          successMessage: editId ? "District updated successfully!" : "District added successfully!",
+        });
+        setTimeout(() => this.setState({ successMessage: "" }), 3000);
       }
     } catch (error) {
       console.error("Error saving district:", error.response?.data || error);
@@ -346,14 +366,17 @@ class Districts extends Component {
         updateStatus: null,
       });
 
-      toast.success(
-        updateStatus === "Active"
+      this.setState({
+        successMessage: updateStatus === "Active"
           ? "District inactivated successfully"
-          : "District activated successfully"
-      );
+          : "District activated successfully",
+      });
+      setTimeout(() => this.setState({ successMessage: "" }), 3000);
 
     } catch (error) {
       console.error("Error updating district status:", error);
+      this.setState({ errorMessage: "Failed to update status" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -373,7 +396,9 @@ class Districts extends Component {
       totalDistricts,
       isActive,
       editId,
-      updateStatus
+      updateStatus,
+      successMessage,
+      errorMessage
     } = this.state;
     const totalPages = Math.ceil(totalDistricts / this.itemsPerPage);
 
@@ -449,6 +474,21 @@ class Districts extends Component {
               </div>
 
             </div>
+
+            {successMessage && (
+              <div className="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+                <i className="bi bi-check-circle-fill text-success"></i>
+                <span>{successMessage}</span>
+                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ successMessage: "" })} />
+              </div>
+            )}
+            {errorMessage && (
+              <div className="alert alert-danger alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+                <i className="bi bi-x-circle-fill"></i>
+                <span>{errorMessage}</span>
+                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ errorMessage: "" })} />
+              </div>
+            )}
 
             <Card>
               <CardBody>
