@@ -7,7 +7,7 @@ router.post("/addspeciality", authMiddleware, specialityController.addSpeciality
 
 router.get("/getallspeciality", specialityController.getAllSpeciality)
 
-router.put("/updatestatus/:id", authMiddleware, specialityController.updateStatus)
+router.put("/updateSpecialityStatus/:id", authMiddleware, specialityController.updateStatus)
 
 router.put("/editspeciality/:id", authMiddleware, specialityController.editSpeciality)
 

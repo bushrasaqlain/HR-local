@@ -3,8 +3,9 @@ import axios from "axios";
 import Pagination from "../common/pagination.jsx";
 import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
-import MetaTags from "react-meta-tags";
+import Helmet from "react-helmet";
 import AsyncSelect from "react-select/async";
+import { withRouter } from "next/router";
 import * as XLSX from "xlsx";
 import {
   Card,
@@ -18,11 +19,13 @@ import {
   ModalBody,
   ModalHeader,
 } from "react-bootstrap";
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 class Districts extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      highlightId: null,
       districts: [],
       showModal: false,
       inputValue: "",
@@ -30,8 +33,6 @@ class Districts extends Component {
       updateStatus: null,
       updateId: null,
       showUpdateStatus: false,
-      showHistoryModal: false,
-      history: [],
       currentPage: 1,
       totalCountries: 0,
       isActive: "all",
@@ -63,10 +64,10 @@ class Districts extends Component {
       const res = await api.get(`${this.apiBaseUrl}getallCountries`, {
         params: {
           search: inputValue || "",
-          name:"name",
+          name: "name",
           page: 1,
           limit: 20,
-          status: "active",
+          status: "Active",
         },
       });
 
@@ -91,6 +92,19 @@ class Districts extends Component {
       this.setState({
         districts: response.data.districts || [],
         totalCountries: response.data.total || 0,
+      }, () => {
+        // ✅ highlight check
+        const lastHistoryType = sessionStorage.getItem("lastHistoryType");
+        const lastHistoryId = sessionStorage.getItem("lastHistoryId");
+
+        if (lastHistoryType === "district" && lastHistoryId) {
+          this.setState({ highlightId: parseInt(lastHistoryId) });
+          setTimeout(() => {
+            this.setState({ highlightId: null });
+            sessionStorage.removeItem("lastHistoryId");
+            sessionStorage.removeItem("lastHistoryType");
+          }, 3000);
+        }
       });
     } catch (error) {
       console.error("Error fetching districts:", error);
@@ -149,18 +163,19 @@ class Districts extends Component {
     this.setState({ currentPage: page });
   };
 
-  toggleHistory = (item = null) => {
-    if (item) this.fetchHistory(item.id);
-    this.setState({ showHistoryModal: true });
-  };
-
   fetchHistory = async (id) => {
     if (!id) return;
     try {
       const res = await axios.get(`${this.apiBaseUrl}dbadminhistory`, {
         params: { entity_type: "district", entity_id: id },
       });
-      this.setState({ history: res.data || [] });
+
+      const history = (res.data || []).map((item) => ({
+        ...item,
+        data: typeof item.data === "string" ? JSON.parse(item.data) : item.data,
+      }));
+
+      this.setState({ history });
     } catch (error) {
       console.error("Error fetching history:", error);
     }
@@ -177,10 +192,10 @@ class Districts extends Component {
     // Map data for Excel
     const dataToExport = districts.map((district) => ({
       "District Name": district.name,
-      "Country Name": district.country_name,
-      "Status": district.status,
-      "Created At": this.formatDate(district.created_at),
-      "Updated At": this.formatDate(district.updated_at),
+      // "Country Name": district.country_name,
+      // "Status": district.status,
+      // "Created At": this.formatDate(district.created_at),
+      // "Updated At": this.formatDate(district.updated_at),
     }));
 
     // Create worksheet
@@ -243,7 +258,9 @@ class Districts extends Component {
           const jsonData = XLSX.utils.sheet_to_json(sheet);
 
           const districtsData = jsonData
-            .map(row => ({ name: row.name?.toString().trim() }))
+            .map(row => ({
+              name: row["District Name"]?.toString().trim()
+            }))
             .filter(row => row.name);
 
           if (!districtsData.length) {
@@ -312,16 +329,16 @@ class Districts extends Component {
     const { updateId, updateStatus, districts } = this.state;
 
     try {
-      await api.put(`${this.apiBaseUrl}updateStatus/${updateId}`, {
-        // Pass the new status to backend
-        status: updateStatus === "active" ? "inactive" : "active",
-      });
 
-      // Update frontend state immediately
+      await api.put(`${this.apiBaseUrl}updateDistrictStatus/${updateId}`);
+
       this.setState({
         districts: districts.map((district) =>
           district.id === updateId
-            ? { ...district, status: updateStatus === "active" ? "inactive" : "active" }
+            ? {
+              ...district,
+              status: updateStatus === "Active" ? "Inactive" : "Active",
+            }
             : district
         ),
         showUpdateStatus: false,
@@ -330,10 +347,11 @@ class Districts extends Component {
       });
 
       toast.success(
-        updateStatus === "active"
+        updateStatus === "Active"
           ? "District inactivated successfully"
           : "District activated successfully"
       );
+
     } catch (error) {
       console.error("Error updating district status:", error);
     }
@@ -350,7 +368,6 @@ class Districts extends Component {
       showModal,
       inputValue,
       showUpdateStatus,
-      showHistoryModal,
       history,
       currentPage,
       totalDistricts,
@@ -360,11 +377,19 @@ class Districts extends Component {
     } = this.state;
     const totalPages = Math.ceil(totalDistricts / this.itemsPerPage);
 
+    const highlightStyle = `
+        .highlight-row td {
+            background-color: #fff3cd !important;
+            transition: background-color 0.5s ease;
+        }
+    `;
+
     return (
       <React.Fragment>
-        <MetaTags>
+        <style>{highlightStyle}</style>
+        <Helmet>
           <title>Districts | List</title>
-        </MetaTags>
+        </Helmet>
         <h6 className="fw-bold mb-3">Districts List</h6>
         <div className="poppins-font">
           <Container fluid>
@@ -380,8 +405,8 @@ class Districts extends Component {
                   onChange={(e) => this.setState({ isActive: e.target.value })}
                 >
                   <option value="all">All</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
                 </select>
               </div>
 
@@ -555,7 +580,10 @@ class Districts extends Component {
 
                     <tbody>
                       {districts.map((item) => (
-                        <tr key={item.id}>
+                        <tr
+                          key={item.id}
+                          className={this.state.highlightId === item.id ? "highlight-row" : ""}
+                        >
                           <td className="text-center">{item.name}</td>
                           <td className="text-center">{item.country_name}</td>
                           <td className="text-center">
@@ -564,29 +592,48 @@ class Districts extends Component {
                           <td className="text-center">
                             {this.formatDate(item.updated_at)}
                           </td>
-                          <td className="text-center">{item.status}</td>
+                          <td className="text-center">
+                            <span className={`badge ${item.status === "Active" ? "badge-active-custom" : "badge-inactive-custom"}`}>
+                              {item.status}
+                            </span>
+                          </td>
                           <td className="status text-center">
                             <div className="d-flex justify-content-center align-items-center gap-3">
-                              <button onClick={() => this.toggleForm(item)} className="icon-btn">
-                                <span className="la la-pencil"></span>
+
+                              {/* Edit */}
+                              <button
+                                onClick={() => this.toggleForm(item)}
+                                className="icon-btn"
+                                title="Update"
+                              >
+                                <i className="bi bi-pencil-square text-primary"></i>
                               </button>
 
+                              {/* Activate / Inactivate */}
                               <button
                                 onClick={() => this.confirmUpdate(item.id, item.status)}
                                 className="icon-btn"
+                                title={item.status === "Active" ? "Inactivate" : "Activate"}
                               >
-                                {item.status === "active" ? (
-                                  <span className="la la-times-circle text-danger"></span>
+                                {item.status === "Active" ? (
+                                  <i className="bi bi-x-circle text-danger"></i>
                                 ) : (
-                                  <span className="la la-check-circle text-success"></span>
+                                  <i className="bi bi-check-circle text-success"></i>
                                 )}
                               </button>
 
-                              <button onClick={() => this.toggleHistory(item)} className="icon-btn">
-                                <span className="la la-history"></span>
+                              {/* History */}
+                              <button
+                                className="icon-btn"
+                                title="View History"
+                                onClick={() => this.props.router.push(`/history/district/${item.id}`)}
+                              >
+                                <i className="bi bi-clock-history text-dark"></i>
                               </button>
+
                             </div>
                           </td>
+
                         </tr>
                       ))}
                     </tbody>
@@ -682,7 +729,7 @@ class Districts extends Component {
           <Modal show={showUpdateStatus} onHide={this.cancelUpdate} centered>
             <Modal.Header closeButton>
               <Modal.Title style={{ fontSize: "1rem", fontWeight: 600 }}>
-                Confirm {updateStatus === "active" ? "Inactivate" : "Activate"}
+                Confirm {updateStatus === "Active" ? "Inactivate" : "Activate"}
               </Modal.Title>
             </Modal.Header>
 
@@ -690,7 +737,7 @@ class Districts extends Component {
               <p style={{ marginBottom: 0 }}>
                 Are you sure you want to{" "}
                 <strong>
-                  {updateStatus === "active" ? "inactivate" : "activate"}
+                  {updateStatus === "Active" ? "inactivate" : "activate"}
                 </strong>{" "}
                 this District?
               </p>
@@ -702,63 +749,12 @@ class Districts extends Component {
               </Button>
 
               <Button
-                variant={updateStatus === "active" ? "danger" : "success"}
+                variant={updateStatus === "Active" ? "danger" : "success"}
                 onClick={this.handleStatus}
               >
-                {updateStatus === "active" ? "Inactivate" : "Activate"}
+                {updateStatus === "Active" ? "Inactivate" : "Activate"}
               </Button>
             </Modal.Footer>
-          </Modal>
-
-          {/* History Modal */}
-          <Modal
-            show={showHistoryModal}
-            onHide={() => this.setState({ showHistoryModal: false })}
-            centered
-            scrollable
-          >
-            <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
-              <Modal.Title style={{ fontSize: "1rem", marginBottom: 0 }}>
-                History
-              </Modal.Title>
-            </Modal.Header>
-
-            <Modal.Body style={{ paddingTop: "0.5rem" }}>
-              {history.map((item, idx) => (
-                <div
-                  key={item.id || idx}
-                  className="p-2 mb-2 rounded"
-                  style={{
-                    backgroundColor: idx % 2 === 0 ? "#f8f9fa" : "#e9ecef",
-                    border: "1px solid #dee2e6",
-                    fontSize: "14px",
-                  }}
-                >
-                  <strong> {item.data.name} </strong> was{" "}
-                  <span
-                    style={{
-                      color:
-                        item.action === "ADDED"
-                          ? "green"
-                          : item.action === "UPDATED"
-                            ? "purple"
-                            : item.action === "ACTIVE"
-                              ? "teal"
-                              : "red",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {item.action}
-                  </span>{" "}
-                  by{" "}
-                  <em>
-                    {" "}
-                    <strong>{item.changed_by_name}</strong>
-                  </em>{" "}
-                  on {this.formatDate(item.changed_at)}
-                </div>
-              ))}
-            </Modal.Body>
           </Modal>
         </div>
       </React.Fragment>
@@ -766,4 +762,4 @@ class Districts extends Component {
   }
 }
 
-export default Districts;
+export default withRouter(Districts);

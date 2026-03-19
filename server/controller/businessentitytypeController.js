@@ -10,7 +10,7 @@ const editbusinessentitytype = (req, res) => {
 };
 // Get all cities
 const getAllbusinessentitytype = (req, res) => {
-  const { page = 1, limit = 15, name = "name", search = "", status = "active" } = req.query;
+  const { page = 1, limit = 15, name = "name", search = "", status = "Active" } = req.query;
 
   businessentitytypeModel.getAllbusinessentitytype({ page, limit, name, search, status }, (err, data) => {
     if (err) return res.status(500).json({ error: "Database error", details: err.sqlMessage });

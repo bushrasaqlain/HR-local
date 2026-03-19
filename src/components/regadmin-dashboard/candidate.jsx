@@ -19,12 +19,16 @@ import {
   DropdownMenu,
   DropdownItem,
 } from "reactstrap";
+import "bootstrap-icons/font/bootstrap-icons.css";
 import DetailModal from "../common/DetailModal";
 import HistoryModal from "../common/HistoryModal";
 class CandidateData extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      showConfirmModal: false,
+      confirmId: null,
+      confirmStatus: null,
       candidateData: [],
       editingRow: null,
       currentPage: 1,
@@ -100,7 +104,9 @@ class CandidateData extends Component {
   };
 
   updateCandidateStatus = (id, status) => {
-    const apiUrl = `${this.apibasurl}candidateProfile/updatestatus/${id}/${status}`;
+    const userId = sessionStorage.getItem("userId");
+    console.log("userId from session:", userId);
+    const apiUrl = `${this.apibasurl}candidateProfile/updateStatus/${id}/${status}/${userId}`;
 
     api.put(apiUrl).then((res) => {
       if (res.status === 200) {
@@ -111,9 +117,9 @@ class CandidateData extends Component {
           editingRow: null,
           successMessage: "Candidate status updated successfully!",
         }));
-      setTimeout(() => {
-        this.setState({ successMessage: "" });
-      }, 3000);
+        setTimeout(() => {
+          this.setState({ successMessage: "" });
+        }, 3000);
       }
     });
   };
@@ -182,6 +188,17 @@ class CandidateData extends Component {
     }));
   };
 
+  confirmStatus = (id, status) => {
+    this.setState({ showConfirmModal: true, confirmId: id, confirmStatus: status });
+  };
+
+  handleConfirmStatus = () => {
+    const { confirmId, confirmStatus } = this.state;
+    const newStatus = confirmStatus === "Active" ? "Inactive" : "Active";
+    this.updateCandidateStatus(confirmId, newStatus);
+    this.setState({ showConfirmModal: false, confirmId: null, confirmStatus: null });
+  };
+
   render() {
     const {
       candidateData,
@@ -199,16 +216,16 @@ class CandidateData extends Component {
 
     return (
       <>
-           <Head>
-              <title>Candidate | List</title>
-            </Head>
-            {this.state.successMessage && (
-  <div className="text-center">
+        <Head>
+          <title>Candidate | List</title>
+        </Head>
+        {this.state.successMessage && (
+          <div className="text-center">
 
-    {/* Message text */}
-    <span className="align-center text-success bg-light h-30 p-2 border-success">{this.state.successMessage}</span>
-  </div>
-)}
+            {/* Message text */}
+            <span className="align-center text-success bg-light h-30 p-2 border-success">{this.state.successMessage}</span>
+          </div>
+        )}
         {/* Status Filter */}
         <Row className="mb-4 align-items-center">
           <Col>
@@ -228,7 +245,7 @@ class CandidateData extends Component {
               >
                 <option value="All">All</option>
                 <option value="Active">Active</option>
-                <option value="InActive">Inactive</option>
+                <option value="Inactive">Inactive</option>
               </Input>
             </FormGroup>
           </Col>
@@ -236,10 +253,7 @@ class CandidateData extends Component {
         <Card>
           <CardBody>
             <div className="table-responsive">
-              <Table
-                className="align-middle p-2 table table-striped"
-                style={{ tableLayout: "auto", width: "100%" }}
-              >
+              <Table className="table table-striped custom-table text-center align-middle">
                 <thead className="table-light text-center align-middle">
                   <tr>
                     {this.tableHeaders.map((header) => (
@@ -285,89 +299,64 @@ class CandidateData extends Component {
                         {this.tableHeaders.map((header) => {
                           if (header.key === "action") {
                             return (
-                              <td key={header.key} className="text-center">
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    alignItems: "center",
-                                    gap: "6px",
-                                  }}
-                                >
-                                  {/* Buttons row */}
-                                  <div style={{ display: "flex", gap: "6px" }}>
-                                    <td className="text-center">
-                                      <div className="mt-2 d-flex justify-content-center gap-2">
-                                        <Button
-                                          color="primary"
-                                          size="sm"
-                                          onClick={() =>
-                                            this.setState({
-                                              editingRow:
-                                                editingRow === item.id
-                                                  ? null
-                                                  : item.id,
-                                            })
-                                          }
-                                        >
-                                          <i className="la la-edit" />
-                                        </Button>
-                                        <Button
-                                          color="outline-danger"
-                                          size="sm"
-                                          onClick={() =>
-                                            this.toggleModal({
-                                              title: "Candidate Details",
-                                              details: item,
-                                              fields: [
-                                                "total_experience",
-                                                "license_type",
-                                                "license_number",
-                                                "phone",
-                                                "country_name",
-                                                "city_name",
-                                                "district_name",
-                                                "address",
-                                                "created_at",
-                                                "updated_at",
-                                              ],
-                                            })
-                                          }
-                                        >
-                                          <i className="la la-eye" />
-                                        </Button>
+                              <td key={header.key} className="status text-center">
+                                <div className="d-flex justify-content-center align-items-center gap-3">
 
-                                        <Button
-                                          color="outline-info"
-                                          size="sm"
-                                          onClick={() =>
-                                            this.getHistory(item.account_id)
-                                          }
-                                        >
-                                          <i className="la la-history" />
-                                        </Button>
-                                      </div>
-                                    </td>
-                                  </div>
+                                  {/* View Details */}
+                                  <button
+                                    onClick={() => this.toggleModal({
+                                      title: "Candidate Details",
+                                      details: item,
+                                      fields: [
+                                        "total_experience", "license_type", "license_number",
+                                        "phone", "country_name", "city_name", "district_name",
+                                        "address", "created_at", "updated_at",
+                                      ],
+                                    })}
+                                    className="icon-btn"
+                                    title="View Details"
+                                  >
+                                    <i className="bi bi-eye text-primary"></i>
+                                  </button>
 
-                                  {/* Dropdown appears BELOW edit button */}
-                                  {editingRow === item.id && (
-                                    <Input
-                                      type="select"
-                                      style={{ width: "120px" }}
-                                      value={item.isActive} // ✅ USE STRING DIRECTLY
-                                      onChange={(e) =>
-                                        this.updateCandidateStatus(
-                                          item.id,
-                                          e.target.value,
-                                        )
-                                      }
-                                    >
-                                      <option value="Active">Active</option>
-                                      <option value="InActive">InActive</option>
-                                    </Input>
-                                  )}
+                                  {/* Activate / Inactivate */}
+                                  <button
+                                    onClick={() => this.confirmStatus(item.id, item.isActive)}
+                                    className="icon-btn"
+                                    title={item.isActive === "Active" ? "Inactivate" : "Activate"}
+                                  >
+                                    {item.isActive === "Active" ? (
+                                      <i className="bi bi-x-circle text-danger"></i>
+                                    ) : (
+                                      <i className="bi bi-check-circle text-success"></i>
+                                    )}
+                                  </button>
+
+                                  {/* History */}
+                                  <button
+                                    onClick={() => this.getHistory(item.account_id)}
+                                    className="icon-btn"
+                                    title="View History"
+                                  >
+                                    <i className="bi bi-clock-history text-dark"></i>
+                                  </button>
+
                                 </div>
+                              </td>
+                            );
+                          }
+
+                          if (header.key === "isActive") {
+                            return (
+                              <td key={header.key} className="text-center">
+                                <span
+                                  className={`badge ${item.isActive === "Active"
+                                      ? "badge-active-custom"
+                                      : "badge-inactive-custom"
+                                    }`}
+                                >
+                                  {item.isActive}
+                                </span>
                               </td>
                             );
                           }
@@ -375,8 +364,8 @@ class CandidateData extends Component {
                           return (
                             <td key={header.key} className="text-center">
                               {item[header.key] !== null &&
-                              item[header.key] !== undefined &&
-                              item[header.key] !== ""
+                                item[header.key] !== undefined &&
+                                item[header.key] !== ""
                                 ? item[header.key]
                                 : "-"}
                             </td>
@@ -414,6 +403,46 @@ class CandidateData extends Component {
           toggle={() => this.setState({ historyModalOpen: false })}
           historyData={this.state.historyData}
         />
+
+        {/* Confirm Status Modal */}
+        {this.state.showConfirmModal && (
+          <div style={{
+            position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
+            backgroundColor: "rgba(0,0,0,0.5)", zIndex: 9999,
+            display: "flex", alignItems: "center", justifyContent: "center"
+          }}>
+            <div style={{
+              background: "#fff", borderRadius: "10px", padding: "24px",
+              minWidth: "300px", textAlign: "center",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.2)"
+            }}>
+              <h6 style={{ fontWeight: 600, marginBottom: "12px" }}>
+                Confirm {this.state.confirmStatus === "Active" ? "Inactivate" : "Activate"}
+              </h6>
+              <p style={{ marginBottom: "20px" }}>
+                Are you sure you want to{" "}
+                <strong>
+                  {this.state.confirmStatus === "Active" ? "inactivate" : "activate"}
+                </strong>{" "}
+                this Candidate?
+              </p>
+              <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => this.setState({ showConfirmModal: false })}
+                >
+                  Cancel
+                </button>
+                <button
+                  className={`btn btn-sm ${this.state.confirmStatus === "Active" ? "btn-danger" : "btn-success"}`}
+                  onClick={this.handleConfirmStatus}
+                >
+                  {this.state.confirmStatus === "Active" ? "Inactivate" : "Activate"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Pagination */}
         {totalPages >= 1 && (

@@ -11,9 +11,12 @@ class ApplicantCard extends React.Component {
       interviewTime: "",
     };
   }
+
+
   render() {
     const { candidate, onStatusChange } = this.props;
     const { showModal, interviewDay, interviewTime } = this.state;
+    // const { showModal, interviewDay, interviewTime } = this.state;
     let actionButton = null;
 
     if (candidate.candidateStatus === "Pending") {
@@ -22,6 +25,8 @@ class ApplicantCard extends React.Component {
           size="sm"
           className="custom-progress-bar"
           onClick={() => this.setState({ showModal: true })}
+          color="info"
+          // onClick={() => this.setState({ showModal: true })}
         >
           Shortlist
         </Button>

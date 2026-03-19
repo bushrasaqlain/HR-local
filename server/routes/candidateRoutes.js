@@ -10,7 +10,7 @@ const checkRole = require("../middleware/checkRole");
 const logAudit = require("../utils/auditLogger");
 const candidateController = require("../controller/candidateController.js");
 const upload = require("../middleware/upload"); // <--- Add this line
-const { uploadPassportPhoto, uploadResume } = require("../middleware/upload");
+const { uploadPassportPhoto, uploadResume, combinedUpload } = require("../middleware/upload");
 
 
 const storage = multer.memoryStorage(); // Use memory storage for handling base64
@@ -25,7 +25,10 @@ const logo = multer({
 router.post(
   "/candidate/passport-photo",
   authMiddleware,
-  uploadPassportPhoto.single("passport_photo"),
+ combinedUpload.fields([
+    { name: "passport_photo", maxCount: 1 },
+    { name: "resume", maxCount: 1 }
+  ]),
   candidateController.addCandidateInfo
 );
 
@@ -60,6 +63,6 @@ router.get("/logo/:accountId",candidateController.getCandidateLogobyId)
 
 router.get("/", candidateController.getCandidateInfobyAccountType)
 router.get("/getallcandidates", candidateController.getAllCandidates)
-router.put("/updatestatus/:id/:status",candidateController.updateStatus)
+router.put("/updatestatus/:id/:status/:userId",candidateController.updateStatus)
 
 module.exports = router;

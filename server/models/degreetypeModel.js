@@ -12,7 +12,7 @@ const createDegreeTypesTable = () => {
     name VARCHAR(255) NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    status ENUM('active', 'inactive') DEFAULT 'active'
+    status ENUM('Active', 'Inactive') DEFAULT 'Active'
   )
 `;
 
@@ -67,7 +67,7 @@ const addDegreeType = (req, res) => {
           entityType: "degree",
           entityId: degreeId,
           action: "ADDED",
-          data: { name: degreeName, status: "active" },
+          data: { name: degreeName, status: "Active" },
           changedBy: userId,
         });
       });
@@ -98,7 +98,7 @@ const addDegreeType = (req, res) => {
           entityType: "degree",
           entityId: degreeId,
           action: "ADDED",
-          data: { name, status: "active" },
+          data: { name, status: "Active" },
           changedBy: userId,
         });
 
@@ -142,7 +142,7 @@ const editDegreeType = (req, res) => {
 };
 
 const getAllDegreeTypes = (
-  { page = 1, limit = 0, name = "name", search = "", status = "active" },
+  { page = 1, limit = 0, name = "name", search = "", status = "Active" },
   callback
 ) => {
   // Page and limit are ignored when returning all results
@@ -206,7 +206,7 @@ const deleteDegreeType = (req, res) => {
       return res.status(404).json({ error: "Degree type not found" });
 
     const current = results[0];
-    const newStatus = current.status === "active" ? "inactive" : "active";
+    const newStatus = current.status === "Active" ? "Inactive" : "Active";
 
     const updateQuery = "UPDATE degreetypes SET status = ? WHERE id = ?";
     connection.query(updateQuery, [newStatus, id], (err2) => {

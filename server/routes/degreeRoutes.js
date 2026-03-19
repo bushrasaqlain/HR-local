@@ -13,7 +13,7 @@ const createDegreeTypesTable = () => {
     name VARCHAR(255) NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    status ENUM('active', 'inactive') DEFAULT 'active'
+    status ENUM('Active', 'Inactive') DEFAULT 'Active'
   )
 `;
 
@@ -67,7 +67,7 @@ router.post("/adddegree", authMiddleware, (req, res) => {
           entityType: "degree",
           entityId: degreeId,
           action: "ADDED",
-          data: { name: degreeName, status: "active" },
+          data: { name: degreeName, status: "Active" },
           changedBy: userId,
         });
       });
@@ -97,7 +97,7 @@ router.post("/adddegree", authMiddleware, (req, res) => {
           entityType: "degree",
           entityId: degreeId,
           action: "ADDED",
-          data: { name, status: "active" },
+          data: { name, status: "Active" },
           changedBy: userId,
         });
 
@@ -119,7 +119,7 @@ router.get("/getalldegrees", (req, res) => {
   const offset = (page - 1) * limit;
   const name = req.query.name || "name";
   const search = req.query.search || "";
-  const status = req.query.status || "active";
+  const status = req.query.status || "Active";
 
   const query = `
     SELECT * FROM degreetypes 
@@ -208,7 +208,7 @@ router.delete("/deletedegree/:id", authMiddleware, (req, res) => {
     if (results.length === 0) return res.status(404).json({ error: "Degree type not found" });
 
     const current = results[0];
-    const newStatus = current.status === "active" ? "inactive" : "active";
+    const newStatus = current.status === "Active" ? "Inactive" : "Active";
 
     const updateQuery = "UPDATE degreetypes SET status = ? WHERE id = ?";
     connection.query(updateQuery, [newStatus, id], (err2) => {

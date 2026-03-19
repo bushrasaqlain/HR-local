@@ -4,7 +4,8 @@ import Pagination from "../common/pagination.jsx";
 import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import * as XLSX from "xlsx";
-import MetaTags from "react-meta-tags";
+import Helmet from "react-helmet";
+import { withRouter } from "next/router";
 import {
   Card,
   Row,
@@ -17,11 +18,13 @@ import {
   ModalBody,
   ModalHeader,
 } from "react-bootstrap";
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 class LicenseType extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      highlightId: null,
       licenseTypes: [],
       showModal: false,
       inputValue: "",
@@ -29,8 +32,6 @@ class LicenseType extends Component {
       deleteId: null,
       deleteStatus: null,
       showDeleteConfirm: false,
-      showHistoryModal: false,
-      history: [],
       currentPage: 1,
       totallicenseTypes: 0,
       isActive: "all",
@@ -65,12 +66,24 @@ class LicenseType extends Component {
       this.setState({
         licenseTypes: response.data.licenseTypes || [],
         totallicenseTypes: response.data.total || 0,
+      }, () => {
+        // ✅ highlight check
+        const lastHistoryType = sessionStorage.getItem("lastHistoryType");
+        const lastHistoryId = sessionStorage.getItem("lastHistoryId");
+
+        if (lastHistoryType === "license_types" && lastHistoryId) {
+          this.setState({ highlightId: parseInt(lastHistoryId) });
+          setTimeout(() => {
+            this.setState({ highlightId: null });
+            sessionStorage.removeItem("lastHistoryId");
+            sessionStorage.removeItem("lastHistoryType");
+          }, 3000);
+        }
       });
     } catch (error) {
       console.error("Error fetching licenseTypes:", error);
     }
   };
-
   handleExcelExport = () => {
     const { licenseTypes } = this.state;
 
@@ -82,9 +95,9 @@ class LicenseType extends Component {
     // Map data for Excel
     const dataToExport = licenseTypes.map((licenseType) => ({
       "Name": licenseType.name,
-      "Status": licenseType.status,
-      "Created At": this.formatDate(licenseType.created_at),
-      "Updated At": this.formatDate(licenseType.updated_at),
+      // "Status": licenseType.status,
+      // "Created At": this.formatDate(licenseType.created_at),
+      // "Updated At": this.formatDate(licenseType.updated_at),
     }));
 
     // Create worksheet
@@ -122,7 +135,7 @@ class LicenseType extends Component {
         const jsonData = XLSX.utils.sheet_to_json(sheet);
 
         const formattedData = jsonData
-          .map(row => ({ name: row.name?.toString().trim() }))
+          .map(row => ({ name: row["Name"]?.toString().trim() }))
           .filter(row => row.name);
 
         if (!formattedData.length) {
@@ -183,11 +196,6 @@ class LicenseType extends Component {
     }
   };
 
-  toggleHistory = (item = null) => {
-    if (item) this.fetchHistory(item.id);
-    this.setState({ showHistoryModal: true });
-  };
-
   handleSave = async () => {
     const { editId, inputValue } = this.state;
 
@@ -239,11 +247,11 @@ class LicenseType extends Component {
     });
   };
   handleDelete = async () => {
-    const { deleteId, isActive } = this.state;
+    const { deleteId, deleteStatus } = this.state;
     try {
       await api.delete(`${this.apiBaseUrl}deleteLicenseType/${deleteId}`);
       toast.success(
-        isActive === "active"
+        deleteStatus === "Active"
           ? "Inactivated successfully"
           : "Activated successfully"
       );
@@ -258,40 +266,40 @@ class LicenseType extends Component {
   };
 
   handleSearch = async (e) => {
-  const { name, value } = e.target;
-  
-  // Clear other search inputs
-  ["name", "created_at", "updated_at", "status"].forEach((input) => {
-    if (input !== name) {
-      const ele = document.getElementById(input);
-      if (ele) ele.value = "";
-    }
-  });
+    const { name, value } = e.target;
 
-  this.setState({ currentPage: 1 });
+    // Clear other search inputs
+    ["name", "created_at", "updated_at", "status"].forEach((input) => {
+      if (input !== name) {
+        const ele = document.getElementById(input);
+        if (ele) ele.value = "";
+      }
+    });
 
-  try {
-    const res = await axios.get(`${this.apiBaseUrl}getAllLicenseTypes`, {
-      params: {
-        name,  // Column to search in
-        search: value,  // Search term
-        status: this.state.isActive,
-        page: 1,
-        limit: this.itemsPerPage,
-      },
-    });
-    
-    this.setState({
-      licenseTypes: res.data.licenseTypes || [],
-      totallicenseTypes: res.data.total || 0,
-    });
-  } catch (error) {
-    console.error("Error searching licenseTypes:", error);
-    if (error.response) {
-      console.error("Error details:", error.response.data);
+    this.setState({ currentPage: 1 });
+
+    try {
+      const res = await axios.get(`${this.apiBaseUrl}getAllLicenseTypes`, {
+        params: {
+          name,  // Column to search in
+          search: value,  // Search term
+          status: this.state.isActive,
+          page: 1,
+          limit: this.itemsPerPage,
+        },
+      });
+
+      this.setState({
+        licenseTypes: res.data.licenseTypes || [],
+        totallicenseTypes: res.data.total || 0,
+      });
+    } catch (error) {
+      console.error("Error searching licenseTypes:", error);
+      if (error.response) {
+        console.error("Error details:", error.response.data);
+      }
     }
-  }
-};
+  };
   resetSearch = () => {
     ["name", "created_at", "updated_at"].forEach((id) => {
       const ele = document.getElementById(id);
@@ -309,8 +317,6 @@ class LicenseType extends Component {
       showModal,
       inputValue,
       showDeleteConfirm,
-      showHistoryModal,
-      history,
       currentPage,
       totallicenseTypes,
       deleteStatus,
@@ -319,11 +325,19 @@ class LicenseType extends Component {
     } = this.state;
     const totalPages = Math.ceil(totallicenseTypes / this.itemsPerPage);
 
+    const highlightStyle = `
+        .highlight-row td {
+            background-color: #fff3cd !important;
+            transition: background-color 0.5s ease;
+        }
+    `;
+
     return (
       <React.Fragment>
-        <MetaTags>
+        <style>{highlightStyle}</style>
+        <Helmet>
           <title>LicenseType | List</title>
-        </MetaTags>
+        </Helmet>
         <h6 className="fw-bold mb-3">LicenseType List</h6>
         <div className="poppins-font">
           <Container fluid>
@@ -339,8 +353,8 @@ class LicenseType extends Component {
                   onChange={(e) => this.setState({ isActive: e.target.value })}
                 >
                   <option value="all">All</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
                 </select>
               </div>
 
@@ -487,7 +501,10 @@ class LicenseType extends Component {
 
                     <tbody>
                       {licenseTypes.map((item) => (
-                        <tr key={item.id}>
+                        <tr
+                          key={item.id}
+                          className={this.state.highlightId === item.id ? "highlight-row" : ""}
+                        >
                           <td className="text-center">{item.name}</td>
                           <td className="text-center">
                             {this.formatDate(item.created_at)}
@@ -495,36 +512,46 @@ class LicenseType extends Component {
                           <td className="text-center">
                             {this.formatDate(item.updated_at)}
                           </td>
-                          <td className="text-center">{item.status}</td>
+                          <td className="text-center">
+                            <span className={`badge ${item.status === "Active" ? "badge-active-custom" : "badge-inactive-custom"}`}>
+                              {item.status}
+                            </span>
+                          </td>
 
                           <td className="status text-center">
                             <div className="d-flex justify-content-center align-items-center gap-3">
+
+                              {/* Edit */}
                               <button
                                 onClick={() => this.toggleForm(item)}
                                 className="icon-btn"
+                                title="Update"
                               >
-                                <span className="la la-pencil"></span>
+                                <i className="bi bi-pencil-square text-primary"></i>
                               </button>
 
+                              {/* Activate / Inactivate */}
                               <button
-                                onClick={() =>
-                                  this.confirmDelete(item.id, item.status)
-                                }
+                                onClick={() => this.confirmDelete(item.id, item.status)}
                                 className="icon-btn"
+                                title={item.status === "Active" ? "Inactivate" : "Activate"}
                               >
-                                {item.status === "active" ? (
-                                  <span className="la la-times-circle text-danger"></span>
+                                {item.status === "Active" ? (
+                                  <i className="bi bi-x-circle text-danger"></i>
                                 ) : (
-                                  <span className="la la-check-circle text-success"></span>
+                                  <i className="bi bi-check-circle text-success"></i>
                                 )}
                               </button>
 
+                              {/* History */}
                               <button
-                                onClick={() => this.toggleHistory(item)}
                                 className="icon-btn"
+                                title="View History"
+                                onClick={() => this.props.router.push(`/history/license_types/${item.id}`)}
                               >
-                                <span className="la la-history"></span>
+                                <i className="bi bi-clock-history text-dark"></i>
                               </button>
+
                             </div>
                           </td>
                         </tr>
@@ -575,7 +602,7 @@ class LicenseType extends Component {
           <Modal show={showDeleteConfirm} onHide={this.cancelDelete} centered>
             <Modal.Header closeButton>
               <Modal.Title style={{ fontSize: "1rem", fontWeight: 600 }}>
-                Confirm {deleteStatus === "active" ? "Inactivate" : "Activate"}
+                Confirm {deleteStatus === "Active" ? "Inactivate" : "Activate"}
               </Modal.Title>
             </Modal.Header>
 
@@ -583,7 +610,7 @@ class LicenseType extends Component {
               <p style={{ marginBottom: 0 }}>
                 Are you sure you want to{" "}
                 <strong>
-                  {deleteStatus === "active" ? "inactivate" : "activate"}
+                  {deleteStatus === "Active" ? "inactivate" : "activate"}
                 </strong>{" "}
                 this LicenseType?
               </p>
@@ -595,59 +622,12 @@ class LicenseType extends Component {
               </Button>
 
               <Button
-                variant={deleteStatus === "active" ? "danger" : "success"}
+                variant={deleteStatus === "Active" ? "danger" : "success"}
                 onClick={this.handleDelete}
               >
-                {deleteStatus === "active" ? "Inactivate" : "Activate"}
+                {deleteStatus === "Active" ? "Inactivate" : "Activate"}
               </Button>
             </Modal.Footer>
-          </Modal>
-
-          {/* History Modal */}
-          <Modal
-            show={showHistoryModal}
-            onHide={() => this.setState({ showHistoryModal: false })}
-            centered
-            scrollable
-          >
-            <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
-              <Modal.Title style={{ fontSize: "1rem", marginBottom: 0 }}>
-                History
-              </Modal.Title>
-            </Modal.Header>
-
-            <Modal.Body style={{ paddingTop: "0.5rem" }}>
-              {history.map((item, idx) => (
-                <div
-                  key={item.id || idx}
-                  className="p-2 mb-2 rounded"
-                  style={{
-                    backgroundColor: idx % 2 === 0 ? "#f8f9fa" : "#e9ecef",
-                    border: "1px solid #dee2e6",
-                    fontSize: "14px",
-                  }}
-                >
-                  <strong> {item.data.name} </strong> was{" "}
-                  <span
-                    style={{
-                      color:
-                        item.action === "ADDED"
-                          ? "green"
-                          : item.action === "UPDATED"
-                            ? "purple"
-                            : item.action === "ACTIVE"
-                              ? "teal"
-                              : "red",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {item.action}
-                  </span>{" "}
-                  by <em>{item.changed_by_name}</em> on{" "}
-                  {this.formatDate(item.changed_at)}
-                </div>
-              ))}
-            </Modal.Body>
           </Modal>
         </div>
       </React.Fragment>
@@ -655,4 +635,4 @@ class LicenseType extends Component {
   }
 }
 
-export default LicenseType;
+export default withRouter(LicenseType);

@@ -3,7 +3,8 @@ import axios from "axios";
 import Pagination from "../common/pagination.jsx";
 import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
-import MetaTags from "react-meta-tags";
+import { withRouter } from "next/router";
+import Helmet from "react-helmet";
 import {
   Card,
   Row,
@@ -16,11 +17,13 @@ import {
   ModalBody,
   ModalHeader,
 } from "react-bootstrap";
+import "bootstrap-icons/font/bootstrap-icons.css";
 import * as XLSX from "xlsx";
 class Jobtype extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      highlightId: null,
       jobtype: [],
       showModal: false,
       inputValue: "",
@@ -28,8 +31,6 @@ class Jobtype extends Component {
       deleteId: null,
       deleteStatus: null,
       showDeleteConfirm: false,
-      showHistoryModal: false,
-      history: [],
       currentPage: 1,
       totalJobType: 0,
       isActive: "all",
@@ -64,9 +65,22 @@ class Jobtype extends Component {
       this.setState({
         jobtype: response.data.jobtypes || [],
         totalJobType: response.data.total || 0,
+      }, () => {
+        // ✅ highlight check
+        const lastHistoryType = sessionStorage.getItem("lastHistoryType");
+        const lastHistoryId = sessionStorage.getItem("lastHistoryId");
+
+        if (lastHistoryType === "jobtype" && lastHistoryId) {
+          this.setState({ highlightId: parseInt(lastHistoryId) });
+          setTimeout(() => {
+            this.setState({ highlightId: null });
+            sessionStorage.removeItem("lastHistoryId");
+            sessionStorage.removeItem("lastHistoryType");
+          }, 3000);
+        }
       });
     } catch (error) {
-      console.error("Error fetching profesion:", error);
+      console.error("Error fetching jobtype:", error);
     }
   };
 
@@ -92,9 +106,9 @@ class Jobtype extends Component {
     // Map data for Excel
     const dataToExport = jobtype.map((jobtypes) => ({
       "Name": jobtypes.name,
-      "Status": jobtypes.status,
-      "Created At": this.formatDate(jobtypes.created_at),
-      "Updated At": this.formatDate(jobtypes.updated_at),
+      // "Status": jobtypes.status,
+      // "Created At": this.formatDate(jobtypes.created_at),
+      // "Updated At": this.formatDate(jobtypes.updated_at),
     }));
 
     // Create worksheet
@@ -132,7 +146,7 @@ class Jobtype extends Component {
         const jsonData = XLSX.utils.sheet_to_json(sheet);
 
         const formattedData = jsonData
-          .map(row => ({ name: row.name?.toString().trim() }))
+          .map(row => ({ name: row["Name"]?.toString().trim() }))
           .filter(row => row.name);
 
         if (!formattedData.length) {
@@ -182,11 +196,6 @@ class Jobtype extends Component {
     }
   };
 
-  toggleHistory = (item = null) => {
-    if (item) this.fetchHistory(item.id);
-    this.setState({ showHistoryModal: true });
-  };
-
   handleSave = async () => {
     const { editId, inputValue } = this.state;
     try {
@@ -217,11 +226,11 @@ class Jobtype extends Component {
     });
   };
   handleDelete = async () => {
-    const { deleteId, isActive } = this.state;
+    const { deleteId, deleteStatus } = this.state;
     try {
       await api.delete(`${this.apiBaseUrl}deletejobtype/${deleteId}`);
       toast.success(
-        isActive === "active"
+        deleteStatus === "Active"
           ? "Inactivated successfully"
           : "Activated successfully"
       );
@@ -282,8 +291,6 @@ class Jobtype extends Component {
       showModal,
       inputValue,
       showDeleteConfirm,
-      showHistoryModal,
-      history,
       currentPage,
       totalJobType,
       deleteStatus,
@@ -292,11 +299,19 @@ class Jobtype extends Component {
     } = this.state;
     const totalPages = Math.ceil(totalJobType / this.itemsPerPage);
 
+    const highlightStyle = `
+        .highlight-row td {
+            background-color: #fff3cd !important;
+            transition: background-color 0.5s ease;
+        }
+    `;
+
     return (
       <React.Fragment>
-        <MetaTags>
+        <style>{highlightStyle}</style>
+        <Helmet>
           <title>Jobtype | List</title>
-        </MetaTags>
+        </Helmet>
         <h6 className="fw-bold mb-3">Jobtype List</h6>
         <div className="poppins-font">
           <Container fluid>
@@ -312,8 +327,8 @@ class Jobtype extends Component {
                   onChange={(e) => this.setState({ isActive: e.target.value })}
                 >
                   <option value="all">All</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
                 </select>
               </div>
 
@@ -459,7 +474,10 @@ class Jobtype extends Component {
 
                     <tbody>
                       {jobtype.map((item) => (
-                        <tr key={item.id}>
+                        <tr
+                          key={item.id}
+                          className={this.state.highlightId === item.id ? "highlight-row" : ""}
+                        >
                           <td className="text-center">{item.name}</td>
                           <td className="text-center">
                             {this.formatDate(item.created_at)}
@@ -467,38 +485,49 @@ class Jobtype extends Component {
                           <td className="text-center">
                             {this.formatDate(item.updated_at)}
                           </td>
-                          <td className="text-center">{item.status}</td>
+                          <td className="text-center">
+                            <span className={`badge ${item.status === "Active" ? "badge-active-custom" : "badge-inactive-custom"}`}>
+                              {item.status}
+                            </span>
+                          </td>
 
                           <td className="status text-center">
                             <div className="d-flex justify-content-center align-items-center gap-3">
+
+                              {/* Edit */}
                               <button
                                 onClick={() => this.toggleForm(item)}
                                 className="icon-btn"
+                                title="Update"
                               >
-                                <span className="la la-pencil"></span>
+                                <i className="bi bi-pencil-square text-primary"></i>
                               </button>
 
+                              {/* Activate / Inactivate */}
                               <button
-                                onClick={() =>
-                                  this.confirmDelete(item.id, item.status)
-                                }
+                                onClick={() => this.confirmDelete(item.id, item.status)}
                                 className="icon-btn"
+                                title={item.status === "Active" ? "Inactivate" : "Activate"}
                               >
-                                {item.status === "active" ? (
-                                  <span className="la la-times-circle text-danger"></span>
+                                {item.status === "Active" ? (
+                                  <i className="bi bi-x-circle text-danger"></i>
                                 ) : (
-                                  <span className="la la-check-circle text-success"></span>
+                                  <i className="bi bi-check-circle text-success"></i>
                                 )}
                               </button>
 
+                              {/* History */}
                               <button
-                                onClick={() => this.toggleHistory(item)}
                                 className="icon-btn"
+                                title="View History"
+                                onClick={() => this.props.router.push(`/history/jobtype/${item.id}`)}
                               >
-                                <span className="la la-history"></span>
+                                <i className="bi bi-clock-history text-dark"></i>
                               </button>
+
                             </div>
                           </td>
+
                         </tr>
                       ))}
                     </tbody>
@@ -547,7 +576,7 @@ class Jobtype extends Component {
           <Modal show={showDeleteConfirm} onHide={this.cancelDelete} centered>
             <Modal.Header closeButton>
               <Modal.Title style={{ fontSize: "1rem", fontWeight: 600 }}>
-                Confirm {deleteStatus === "active" ? "Inactivate" : "Activate"}
+                Confirm {deleteStatus === "Active" ? "Inactivate" : "Activate"}
               </Modal.Title>
             </Modal.Header>
 
@@ -555,7 +584,7 @@ class Jobtype extends Component {
               <p style={{ marginBottom: 0 }}>
                 Are you sure you want to{" "}
                 <strong>
-                  {deleteStatus === "active" ? "inactivate" : "activate"}
+                  {deleteStatus === "Active" ? "inactivate" : "activate"}
                 </strong>{" "}
                 this jobtype?
               </p>
@@ -567,59 +596,12 @@ class Jobtype extends Component {
               </Button>
 
               <Button
-                variant={deleteStatus === "active" ? "danger" : "success"}
+                variant={deleteStatus === "Active" ? "danger" : "success"}
                 onClick={this.handleDelete}
               >
-                {deleteStatus === "active" ? "Inactivate" : "Activate"}
+                {deleteStatus === "Active" ? "Inactivate" : "Activate"}
               </Button>
             </Modal.Footer>
-          </Modal>
-
-          {/* History Modal */}
-          <Modal
-            show={showHistoryModal}
-            onHide={() => this.setState({ showHistoryModal: false })}
-            centered
-            scrollable
-          >
-            <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
-              <Modal.Title style={{ fontSize: "1rem", marginBottom: 0 }}>
-                History
-              </Modal.Title>
-            </Modal.Header>
-
-            <Modal.Body style={{ paddingTop: "0.5rem" }}>
-              {history.map((item, idx) => (
-                <div
-                  key={item.id || idx}
-                  className="p-2 mb-2 rounded"
-                  style={{
-                    backgroundColor: idx % 2 === 0 ? "#f8f9fa" : "#e9ecef",
-                    border: "1px solid #dee2e6",
-                    fontSize: "14px",
-                  }}
-                >
-                  <strong> {item.data.name} </strong> was{" "}
-                  <span
-                    style={{
-                      color:
-                        item.action === "ADDED"
-                          ? "green"
-                          : item.action === "UPDATED"
-                            ? "purple"
-                            : item.action === "ACTIVE"
-                              ? "teal"
-                              : "red",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {item.action}
-                  </span>{" "}
-                  by <em>{item.changed_by_name}</em> on{" "}
-                  {this.formatDate(item.changed_at)}
-                </div>
-              ))}
-            </Modal.Body>
           </Modal>
         </div>
       </React.Fragment>
@@ -627,4 +609,4 @@ class Jobtype extends Component {
   }
 }
 
-export default Jobtype;
+export default withRouter(Jobtype);

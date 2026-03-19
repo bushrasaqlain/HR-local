@@ -71,10 +71,28 @@ const uploadCertificate = multer({
   storage: certificateStorage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
 });
+
+const combinedUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      if (file.fieldname === "passport_photo") {
+        cb(null, passportUploadDir);
+      } else if (file.fieldname === "resume") {
+        cb(null, resumeUploadDir);
+      }
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
+    },
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 // ---------------- Export both ----------------
 module.exports = {
   uploadPassportPhoto,
   uploadResume,
   uploadResearch,
-  uploadCertificate
+  uploadCertificate,
+  combinedUpload
 };

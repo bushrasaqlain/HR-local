@@ -3,7 +3,8 @@ import axios from "axios";
 import Pagination from "../common/pagination.jsx";
 import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
-import MetaTags from "react-meta-tags";
+import Helmet from "react-helmet";
+import { withRouter } from "next/router";
 import * as XLSX from "xlsx";
 import {
   Card,
@@ -17,11 +18,13 @@ import {
   ModalBody,
   ModalHeader,
 } from "react-bootstrap";
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 class Skills extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      highlightId: null,
       skills: [],
       showModal: false,
       inputValue: "",
@@ -29,8 +32,6 @@ class Skills extends Component {
       deleteId: null,
       deleteStatus: null,
       showDeleteConfirm: false,
-      showHistoryModal: false,
-      history: [],
       currentPage: 1,
       totalSkills: 0,
       isActive: "all",
@@ -66,6 +67,19 @@ class Skills extends Component {
       this.setState({
         skills: response.data.skills || [],
         totalSkills: response.data.total || 0,
+      }, () => {
+        // ✅ highlight check
+        const lastHistoryType = sessionStorage.getItem("lastHistoryType");
+        const lastHistoryId = sessionStorage.getItem("lastHistoryId");
+
+        if (lastHistoryType === "skill" && lastHistoryId) {
+          this.setState({ highlightId: parseInt(lastHistoryId) });
+          setTimeout(() => {
+            this.setState({ highlightId: null });
+            sessionStorage.removeItem("lastHistoryId");
+            sessionStorage.removeItem("lastHistoryType");
+          }, 3000);
+        }
       });
     } catch (error) {
       console.error("Error fetching Skills:", error);
@@ -92,9 +106,9 @@ class Skills extends Component {
     const worksheet = XLSX.utils.json_to_sheet(
       skills.map((inst) => ({
         Name: inst.name,
-        Status: inst.status,
-        Created: this.formatDate(inst.created_at),
-        Updated: this.formatDate(inst.updated_at),
+        // Status: inst.status,
+        // Created: this.formatDate(inst.created_at),
+        // Updated: this.formatDate(inst.updated_at),
       }))
     );
 
@@ -127,7 +141,7 @@ class Skills extends Component {
         const jsonData = XLSX.utils.sheet_to_json(sheet);
 
         const formattedData = jsonData
-          .map(row => ({ name: row.name?.toString().trim() }))
+          .map(row => ({ name: row["Name"]?.toString().trim() }))
           .filter(row => row.name);
 
         if (!formattedData.length) {
@@ -163,11 +177,6 @@ class Skills extends Component {
     } else {
       this.setState({ editId: null, inputValue: "", showModal: true });
     }
-  };
-
-  toggleHistory = (item = null) => {
-    if (item) this.fetchHistory(item.id);
-    this.setState({ showHistoryModal: true });
   };
 
   fetchHistory = async (id) => {
@@ -212,11 +221,11 @@ class Skills extends Component {
     });
   };
   handleDelete = async () => {
-    const { deleteId, isActive } = this.state;
+    const { deleteId, deleteStatus } = this.state;
     try {
       await api.delete(`${this.apiBaseUrl}deleteskill/${deleteId}`);
       toast.success(
-        isActive === "active"
+        deleteStatus === "Active"
           ? "Inactivated successfully"
           : "Activated successfully"
       );
@@ -277,8 +286,6 @@ class Skills extends Component {
       showModal,
       inputValue,
       showDeleteConfirm,
-      showHistoryModal,
-      history,
       currentPage,
       totalSkills,
       deleteStatus,
@@ -287,11 +294,19 @@ class Skills extends Component {
     } = this.state;
     const totalPages = Math.ceil(totalSkills / this.itemsPerPage);
 
+    const highlightStyle = `
+        .highlight-row td {
+            background-color: #fff3cd !important;
+            transition: background-color 0.5s ease;
+        }
+    `;
+
     return (
       <React.Fragment>
-        <MetaTags>
+        <style>{highlightStyle}</style>
+        <Helmet>
           <title>Skill | List</title>
-        </MetaTags>
+        </Helmet>
         <h6 className="fw-bold mb-3">Skills List</h6>
         <div className="poppins-font">
           <Container fluid>
@@ -309,8 +324,8 @@ class Skills extends Component {
                   onChange={(e) => this.setState({ isActive: e.target.value })}
                 >
                   <option value="all">All</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
                 </select>
               </div>
 
@@ -448,7 +463,10 @@ class Skills extends Component {
 
                     <tbody>
                       {skills.map((item) => (
-                        <tr key={item.id}>
+                        <tr
+                          key={item.id}
+                          className={this.state.highlightId === item.id ? "highlight-row" : ""}
+                        >
                           <td className="text-center">{item.name}</td>
                           <td className="text-center">
                             {this.formatDate(item.created_at)}
@@ -457,29 +475,45 @@ class Skills extends Component {
                             {this.formatDate(item.updated_at)}
                           </td>
                           <td className="text-center">
-                            {item.status}
+                            <span className={`badge ${item.status === "Active" ? "badge-active-custom" : "badge-inactive-custom"}`}>
+                              {item.status}
+                            </span>
                           </td>
 
                           <td className="status text-center">
                             <div className="d-flex justify-content-center align-items-center gap-3">
-                              <button onClick={() => this.toggleForm(item)} className="icon-btn">
-                                <span className="la la-pencil"></span>
+
+                              {/* Edit */}
+                              <button
+                                onClick={() => this.toggleForm(item)}
+                                className="icon-btn"
+                                title="Update"
+                              >
+                                <i className="bi bi-pencil-square text-primary"></i>
                               </button>
 
+                              {/* Activate / Inactivate */}
                               <button
                                 onClick={() => this.confirmDelete(item.id, item.status)}
                                 className="icon-btn"
+                                title={item.status === "Active" ? "Inactivate" : "Activate"}
                               >
-                                {item.status === "active" ? (
-                                  <span className="la la-times-circle text-danger"></span>
+                                {item.status === "Active" ? (
+                                  <i className="bi bi-x-circle text-danger"></i>
                                 ) : (
-                                  <span className="la la-check-circle text-success"></span>
+                                  <i className="bi bi-check-circle text-success"></i>
                                 )}
                               </button>
 
-                              <button onClick={() => this.toggleHistory(item)} className="icon-btn">
-                                <span className="la la-history"></span>
+                              {/* History */}
+                              <button
+                                className="icon-btn"
+                                title="View History"
+                                onClick={() => this.props.router.push(`/history/skill/${item.id}`)}
+                              >
+                                <i className="bi bi-clock-history text-dark"></i>
                               </button>
+
                             </div>
                           </td>
 
@@ -531,7 +565,7 @@ class Skills extends Component {
           <Modal show={showDeleteConfirm} onHide={this.cancelDelete} centered>
             <Modal.Header closeButton>
               <Modal.Title style={{ fontSize: "1rem", fontWeight: 600 }}>
-                Confirm {deleteStatus === "active" ? "Inactivate" : "Activate"}
+                Confirm {deleteStatus === "Active" ? "Inactivate" : "Activate"}
               </Modal.Title>
             </Modal.Header>
 
@@ -539,7 +573,7 @@ class Skills extends Component {
               <p style={{ marginBottom: 0 }}>
                 Are you sure you want to{" "}
                 <strong>
-                  {deleteStatus === "active" ? "inactivate" : "activate"}
+                  {deleteStatus === "Active" ? "inactivate" : "activate"}
                 </strong>{" "}
                 this Skill?
               </p>
@@ -551,60 +585,12 @@ class Skills extends Component {
               </Button>
 
               <Button
-                variant={deleteStatus === "active" ? "danger" : "success"}
+                variant={deleteStatus === "Active" ? "danger" : "success"}
                 onClick={this.handleDelete}
               >
-                {deleteStatus === "active" ? "Inactivate" : "Activate"}
+                {deleteStatus === "Active" ? "Inactivate" : "Activate"}
               </Button>
             </Modal.Footer>
-          </Modal>
-
-
-          {/* History Modal */}
-          <Modal
-            show={showHistoryModal}
-            onHide={() => this.setState({ showHistoryModal: false })}
-            centered
-            scrollable
-          >
-            <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
-              <Modal.Title style={{ fontSize: "1rem", marginBottom: 0 }}>
-                History
-              </Modal.Title>
-            </Modal.Header>
-
-            <Modal.Body style={{ paddingTop: "0.5rem" }}>
-              {history.map((item, idx) => (
-                <div
-                  key={item.id || idx}
-                  className="p-2 mb-2 rounded"
-                  style={{
-                    backgroundColor: idx % 2 === 0 ? "#f8f9fa" : "#e9ecef",
-                    border: "1px solid #dee2e6",
-                    fontSize: "14px",
-                  }}
-                >
-                  <strong> {item.data.name} </strong> was{" "}
-                  <span
-                    style={{
-                      color:
-                        item.action === "ADDED"
-                          ? "green"
-                          : item.action === "UPDATED"
-                            ? "purple"
-                            : item.action === "ACTIVE"
-                              ? "teal"
-                              : "red",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {item.action}
-                  </span>{" "}
-                  by <em>{item.changed_by_name}</em> on{" "}
-                  {this.formatDate(item.changed_at)}
-                </div>
-              ))}
-            </Modal.Body>
           </Modal>
         </div>
       </React.Fragment>
@@ -612,4 +598,4 @@ class Skills extends Component {
   }
 }
 
-export default Skills;
+export default withRouter(Skills);

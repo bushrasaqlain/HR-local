@@ -107,7 +107,7 @@ class FormContent extends Component {
     formData.append(key, value)
   );
   formData.append("accountType", accountType);
-  formData.append("isActive", "InActive");
+  formData.append("isActive", "Inactive");
 
   const res = await axios.post(this.apiBaseUrl, formData, {
     headers: { "Content-Type": "multipart/form-data" },

@@ -4,15 +4,12 @@ import React, { Component, createRef } from "react";
 import Select from "react-select";
 import AsyncSelect from "react-select/async";
 import { Button, Col, Container, Form } from "reactstrap";
-
+import { Helmet } from "react-helmet";
 import { Formik, Field, ErrorMessage, FieldArray } from "formik";
 import * as Yup from "yup";
-import { toast } from "react-toastify";
 import api from "../../lib/api";
 import "bootstrap-icons/font/bootstrap-icons.css";
-// import Header from "../layout/header.jsx";
-// import Footer from "../layout/footer.jsx";
-
+let faceapi = null;
 class CandidateRegisterForm extends Component {
   constructor(props) {
     super(props);
@@ -20,7 +17,7 @@ class CandidateRegisterForm extends Component {
     this.formikRef = React.createRef();
 
     this.state = {
-      step: 1, // current step
+      step: 1, 
 
       formData: {
         // Step 1 - Personal Details
@@ -40,6 +37,8 @@ class CandidateRegisterForm extends Component {
         speciality: "",
         degreeFieldData: [],
         address: "",
+        photoMessage: null,
+        formMessage: null,
         skills: [],
         education: [
           {
@@ -79,14 +78,14 @@ class CandidateRegisterForm extends Component {
         resume: null,
       },
       isNewImageUploaded: false,
-      countries: [], // <-- move here
-      districts: [], // <-- move here
-      cities: [], // <-- move here
-      skillsOptions: [], // <-- move here
+      countries: [], 
+      districts: [],
+      cities: [], 
+      skillsOptions: [], 
       allCities: [],
       degree: [],
-      degreeTitles: [], // { [degreeId]: [ {id, name} ] }
-      degreeFieldData: [], // must exist
+      degreeTitles: [], 
+      degreeFieldData: [], 
       editID: "",
       isEdit: false,
       editexpID: "",
@@ -156,7 +155,9 @@ class CandidateRegisterForm extends Component {
       this.setState({ countries });
     } catch (err) {
       console.error("Failed to load countries", err);
-      toast.error("Could not load countries");
+      this.setState({
+        formMessage: { type: "error", text: "Could not load countries" },
+      });
     }
   };
 
@@ -178,7 +179,9 @@ class CandidateRegisterForm extends Component {
       this.setState({ districts, cities: [] }); // reset cities too
     } catch (err) {
       console.error("Failed to load districts", err);
-      toast.error("Could not load districts");
+      this.setState({
+        formMessage: { type: "error", text: "Could not load districts" },
+      });
     }
   };
 
@@ -195,7 +198,9 @@ class CandidateRegisterForm extends Component {
       this.setState({ cities });
     } catch (error) {
       console.error("Failed to load cities", error);
-      toast.error("Could not load cities");
+      this.setState({
+        formMessage: { type: "error", text: "Could not load cities" },
+      });
     }
   };
 
@@ -206,7 +211,9 @@ class CandidateRegisterForm extends Component {
       this.setState({ allCities });
     } catch (error) {
       console.error("Failed to load all cities", error);
-      toast.error("Could not load cities");
+      this.setState({
+        formMessage: { type: "error", text: "Could not load cities" },
+      });
     }
   };
   // Load speciality from API
@@ -222,7 +229,9 @@ class CandidateRegisterForm extends Component {
       this.setState({ speciality: specialityArray });
     } catch (err) {
       console.error("Failed to load speciality", err);
-      toast.error("Could not load speciality");
+      this.setState({
+        formMessage: { type: "error", text: "Could not load speciality" },
+      });
     }
   };
 
@@ -237,7 +246,9 @@ class CandidateRegisterForm extends Component {
       this.setState({ licenseTypes: licenseArray });
     } catch (err) {
       console.error("Failed to load license types", err);
-      toast.error("Could not load license types");
+      this.setState({
+        formMessage: { type: "error", text: "Could not load license types" },
+      });
     }
   };
 
@@ -249,7 +260,9 @@ class CandidateRegisterForm extends Component {
       this.setState({ skillsOptions: skillsArray });
     } catch (err) {
       console.error("Failed to load skills", err);
-      toast.error("Could not load skills");
+      this.setState({
+        formMessage: { type: "error", text: "Could not load skills" },
+      });
     }
   };
 
@@ -362,7 +375,7 @@ class CandidateRegisterForm extends Component {
 
       this.setState({
         formData: mappedData,
-        entries: finalEntries,
+        // entries: finalEntries,
       });
 
       // load dependent dropdowns
@@ -370,6 +383,31 @@ class CandidateRegisterForm extends Component {
       if (mappedData.district) await this.loadCities(mappedData.district);
     } catch (err) {
       console.error("Fetch failed", err);
+    }
+  };
+
+  fetchAvailability = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await api.get(
+        `${this.apiBaseUrl}candidate_availability/getavailability`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      const raw = Array.isArray(res.data?.data) ? res.data.data : [];
+
+      const entries = raw.map((e) => ({
+        day: e.day,
+        shift: e.shift,
+        startTime: e.startTime,
+        endTime: e.endTime,
+      }));
+
+      this.setState({ entries });
+    } catch (err) {
+      console.error("Availability fetch failed:", err);
     }
   };
 
@@ -417,7 +455,9 @@ class CandidateRegisterForm extends Component {
       this.setState({ degreeFieldData: degreeArray });
     } catch (err) {
       console.error("Failed to load degreeFieldData", err);
-      toast.error("Could not load degreeFieldData");
+      this.setState({
+        formMessage: { type: "error", text: "Could not load degreeFieldData" },
+      });
       this.setState({ degreeFieldData: [] });
     }
   };
@@ -460,8 +500,19 @@ class CandidateRegisterForm extends Component {
       label: t.name,
     }));
   };
+  loadFaceModels = async () => {
+    try {
+      // Dynamically import only on client side
+      faceapi = await import("@vladmandic/face-api");
+      await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
+      console.log("✅ Face detection ready!");
+    } catch (err) {
+      console.error("Face model load failed:", err);
+    }
+  };
 
   componentDidMount() {
+    this.loadFaceModels();
     this.loadCountries();
     this.loadSkills();
     this.loadAllCities();
@@ -471,6 +522,7 @@ class CandidateRegisterForm extends Component {
     this.loadDegrees();
     this.loadDegreeTitles();
     this.fetchCandidateInfo();
+    this.fetchAvailability();
   }
   checkFileTypes(files) {
     const allowedTypes = [
@@ -584,18 +636,34 @@ class CandidateRegisterForm extends Component {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      toast.success(
-        step === 5
-          ? "Profile submitted successfully"
-          : "Profile saved successfully",
-      );
+      this.setState({
+        formMessage: {
+          type: "success",
+          text:
+            step === 5
+              ? "Profile submitted successfully"
+              : "Profile saved successfully",
+        },
+      });
       // ✅ Redirect candidate to login after final step
       if (step === 5) {
-        window.location.href = "/login"; // navigate to login page
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        localStorage.clear();
+        sessionStorage.clear();
+        setTimeout(() => {
+          window.location.replace("/login");
+        }, 1500);
+        return;
       }
     } catch (error) {
       console.error("Submit Error:", error);
-      toast.error("Something went wrong while saving profile");
+      this.setState({
+        formMessage: {
+          type: "error",
+          text: "Something went wrong while saving profile",
+        },
+      });
     } finally {
       setSubmitting(false);
     }
@@ -663,7 +731,9 @@ class CandidateRegisterForm extends Component {
           },
         );
 
-        toast.success("Step 1 saved successfully");
+        this.setState({
+          formMessage: { type: "success", text: "Step 1 saved successfully" },
+        });
       }
 
       // Step 2: Education
@@ -689,7 +759,9 @@ class CandidateRegisterForm extends Component {
           );
         }
 
-        toast.success("Step 2 saved successfully");
+        this.setState({
+          formMessage: { type: "success", text: "Step 2 saved successfully" },
+        });
       }
 
       // Step 3: Experience + Skills
@@ -762,7 +834,9 @@ class CandidateRegisterForm extends Component {
           this.setState({ experienceData: res.data, editexpID: null });
         }
 
-        toast.success("Step 3 saved successfully");
+        this.setState({
+          formMessage: { type: "success", text: "Step 3 saved successfully" },
+        });
       }
       // In handleSaveAndNext
       if (step === 4) {
@@ -778,16 +852,24 @@ class CandidateRegisterForm extends Component {
               "Content-Type": "multipart/form-data",
             },
           });
-          toast.success("Resume uploaded successfully");
+          this.setState({
+            formMessage: {
+              type: "success",
+              text: "Resume uploaded successfully",
+            },
+          });
         }
       }
 
       // Step 5: Availability
       if (this.state.step === 5) {
         if (!this.state.entries || this.state.entries.length === 0) {
-          toast.error(
-            "Please add at least one availability entry before proceeding",
-          );
+          this.setState({
+            formMessage: {
+              type: "error",
+              text: "Please add at least one availability entry before proceeding",
+            },
+          });
           return;
         }
 
@@ -810,7 +892,17 @@ class CandidateRegisterForm extends Component {
           },
         );
 
-        toast.success("Availability saved successfully");
+        this.setState({
+          formMessage: {
+            type: "success",
+            text: "Availability saved successfully",
+          },
+        });
+        localStorage.removeItem("token");
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 1500);
+        return;
       }
 
       // 3️⃣ Move to next step
@@ -818,11 +910,13 @@ class CandidateRegisterForm extends Component {
     } catch (err) {
       if (err.name === "ValidationError") {
         // Show all Yup validation errors
-        err.inner.forEach((e) => toast.error(e.message));
+        err.inner.forEach((e) =>
+          this.setState({ formMessage: { type: "error", text: e.message } }),
+        );
         return; // stop moving to next step
       }
       console.error(err);
-      toast.error("Save failed");
+      this.setState({ formMessage: { type: "error", text: "Save failed" } });
     }
   };
 
@@ -927,15 +1021,85 @@ class CandidateRegisterForm extends Component {
                   type="file"
                   name="passport_photo"
                   accept=".jpg,.jpeg,.png"
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     const file = e.target.files[0];
-                    if (file) {
-                      setFieldValue("passport_photo", file);
-                      const reader = new FileReader();
-                      reader.onload = () =>
-                        setFieldValue("passport_photoPreview", reader.result);
-                      reader.readAsDataURL(file);
+                    if (!file) return;
+
+                    // ✅ Type check
+                    const allowedTypes = [
+                      "image/jpeg",
+                      "image/jpg",
+                      "image/png",
+                    ];
+                    if (!allowedTypes.includes(file.type)) {
+                      this.setState({
+                        formMessage: {
+                          type: "error",
+                          text: "Only JPG or PNG image is allowed!",
+                        },
+                      });
+                      e.target.value = "";
+                      return;
                     }
+
+                    // ✅ Face detection
+                    // this.setState({ formMessage: { type: 'info', text: 'Checking photo...' } });
+
+                    const img = document.createElement("img");
+                    img.src = URL.createObjectURL(file);
+
+                    img.onload = async () => {
+                      try {
+                        if (!faceapi) {
+                          this.setState({
+                            photoMessage: {
+                              type: "error",
+                              text: "Face detection not ready yet, please try again.",
+                            },
+                          });
+                          e.target.value = "";
+                          return;
+                        }
+
+                        const detection = await faceapi.detectSingleFace(
+                          img,
+                          new faceapi.TinyFaceDetectorOptions(),
+                        );
+
+                        if (!detection) {
+                          this.setState({
+                            photoMessage: {
+                              type: "error",
+                              text: "No face detected! Please upload a clear photo showing your face.",
+                            },
+                          });
+                          e.target.value = "";
+                          return;
+                        }
+
+                        // ✅ Face detected!
+                        this.setState({
+                          photoMessage: {
+                            type: "success",
+                            text: "Photo accepted!",
+                          },
+                        });
+                        setFieldValue("passport_photo", file);
+                        const reader = new FileReader();
+                        reader.onload = () =>
+                          setFieldValue("passport_photoPreview", reader.result);
+                        reader.readAsDataURL(file);
+                      } catch (err) {
+                        console.error("Face detection error:", err);
+                        this.setState({
+                          photoMessage: {
+                            type: "error",
+                            text: "Could not verify photo, please try again.",
+                          },
+                        });
+                        e.target.value = "";
+                      }
+                    };
                   }}
                   className="form-control"
                   style={{ maxWidth: "280px" }}
@@ -1550,7 +1714,12 @@ class CandidateRegisterForm extends Component {
                         className="btn btn-primary"
                         onClick={() => {
                           if (!draft.degree || !draft.degreeTitle) {
-                            toast.error("Please fill required fields");
+                            this.setState({
+                              formMessage: {
+                                type: "error",
+                                text: "Please fill required fields",
+                              },
+                            });
                             return;
                           }
                           if (draft.id) {
@@ -1637,7 +1806,12 @@ class CandidateRegisterForm extends Component {
                                               `${this.apiBaseUrl}candidateeducation/deletecandidateeducation/${edu.id}`,
                                             )
                                             .then(() => {
-                                              toast.success("Deleted");
+                                              this.setState({
+                                                formMessage: {
+                                                  type: "success",
+                                                  text: "Deleted",
+                                                },
+                                              });
                                               remove(i + 1);
                                             });
                                         } else {
@@ -1786,7 +1960,12 @@ class CandidateRegisterForm extends Component {
                             !draft.designation ||
                             !draft.startDate
                           ) {
-                            toast.error("Please fill required fields");
+                            this.setState({
+                              formMessage: {
+                                type: "error",
+                                text: "Please fill required fields",
+                              },
+                            });
                             return;
                           }
 
@@ -1939,7 +2118,12 @@ class CandidateRegisterForm extends Component {
                                             `${this.apiBaseUrl}candidateexperience/deleteexperience/${exp.id}`,
                                           )
                                           .then(() => {
-                                            toast.success("Deleted");
+                                            this.setState({
+                                              formMessage: {
+                                                type: "success",
+                                                text: "Deleted",
+                                              },
+                                            });
                                             remove(i + 1);
                                           });
                                       } else {
@@ -2157,9 +2341,12 @@ class CandidateRegisterForm extends Component {
                   !currentEntry.startTime ||
                   !currentEntry.endTime
                 ) {
-                  toast.error(
-                    "Please fill all fields before adding availability",
-                  );
+                  this.setState({
+                    formMessage: {
+                      type: "error",
+                      text: "Please fill all fields before adding availability",
+                    },
+                  });
                   return;
                 }
 
@@ -2183,7 +2370,12 @@ class CandidateRegisterForm extends Component {
                     },
                   );
 
-                  toast.success("Availability added successfully");
+                  this.setState({
+                    formMessage: {
+                      type: "success",
+                      text: "Availability added successfully",
+                    },
+                  });
 
                   // 4️⃣ Update local state to reflect the added entries
                   this.setState((prev) => ({
@@ -2205,7 +2397,12 @@ class CandidateRegisterForm extends Component {
                   }));
                 } catch (err) {
                   console.error("Add availability error:", err);
-                  toast.error("Failed to add availability");
+                  this.setState({
+                    formMessage: {
+                      type: "error",
+                      text: "Failed to add availability",
+                    },
+                  });
                 }
               }}
             >
@@ -2314,7 +2511,7 @@ class CandidateRegisterForm extends Component {
         case 4:
           return Boolean(formData.resume || formData.resumePreviewUrl);
         case 5:
-          return formData.availability.some((av) => av.day || av.shift);
+          return this.state.entries.length > 0;
         default:
           return false;
       }
@@ -2372,11 +2569,47 @@ class CandidateRegisterForm extends Component {
   };
 
   render() {
-    const { step, formData } = this.state;
+    const { step, formData, photoMessage, formMessage } = this.state;
 
     return (
       <div className="p-5">
+        <Helmet>
+          <title>Candidate | Registration</title>
+        </Helmet>
         <h3>Candidate Registration Form</h3>
+        {/* Photo validation message */}
+        {photoMessage && (
+          <div
+            className={`alert ${photoMessage.type === "success" ? "alert-success" : "alert-danger"} d-flex justify-content-between align-items-center`}
+            role="alert"
+          >
+            <span>{photoMessage.text}</span>
+            <button
+              type="button"
+              className="btn-close"
+              onClick={() => this.setState({ photoMessage: null })}
+            />
+          </div>
+        )}
+        {formMessage && (
+          <div
+            className={`alert ${
+              formMessage.type === "success"
+                ? "alert-success"
+                : formMessage.type === "info"
+                  ? "alert-info"
+                  : "alert-danger"
+            } d-flex justify-content-between align-items-center`}
+            role="alert"
+          >
+            <span>{formMessage.text}</span>
+            <button
+              type="button"
+              className="btn-close"
+              onClick={() => this.setState({ formMessage: null })}
+            />
+          </div>
+        )}
         <Container
           className="mt-5 mb-5 p-5 bg-gray"
           style={{ backgroundColor: "#f0f5f7", borderRadius: "10px" }}
@@ -2449,7 +2682,7 @@ class CandidateRegisterForm extends Component {
                       type="button"
                       className={`btn btn-primary mt-3 ${this.state.entries.length === 0 ? "disabled" : ""}`}
                       onClick={() =>
-                        this.handleSubmit(this.state.formData, {
+                        this.handleSubmit(values, {
                           setSubmitting: () => {},
                         })
                       }

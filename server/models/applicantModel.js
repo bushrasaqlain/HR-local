@@ -7,7 +7,7 @@ const createApplicantsTable = () => {
 CREATE TABLE IF NOT EXISTS applications (
   id INT AUTO_INCREMENT PRIMARY KEY,
   job_id INT,
-  message TEXT DEFAULT '', 
+  message VARCHAR(500), 
   candidate_id INT,
   status VARCHAR(50) DEFAULT 'Pending', -- candidate's status
   interview_day DATE NULL,

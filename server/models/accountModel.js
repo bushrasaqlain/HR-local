@@ -10,7 +10,7 @@ const createAccountTable = () => {
     username VARCHAR(255) NOT NULL, 
     email VARCHAR(255) NOT NULL,
     password VARCHAR(255) NOT NULL,
-    isActive ENUM('Active', 'InActive') NOT NULL,
+    isActive ENUM('Active', 'Inactive') NOT NULL,
     accountType ENUM('candidate', 'employer', 'db_admin', 'reg_admin') NOT NULL CHECK(accountType IN ('candidate', 'employer', 'db_admin', 'reg_admin')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -56,7 +56,7 @@ const getAccountDetail = (req) => {
 const register = (req, res) => {
   try {
     const { accountType, email, password, isActive, username, company_name } = req.body;
-    const status = isActive === "Active" ? "Active" : "InActive";
+    const status = isActive === "Active" ? "Active" : "Inactive";
 
     const sql = `
       INSERT INTO account (username, email, password, isActive, accountType)
@@ -77,48 +77,40 @@ const register = (req, res) => {
 
       // ✅ Candidate logic
       if (accountType === "candidate") {
-        const candidateSql = `
-          INSERT INTO candidate_info (account_id, profile_completed)
-          VALUES (?, ?)
-        `;
+        const candidateSql = `INSERT INTO candidate_info (account_id, profile_completed) VALUES (?, ?)`;
         connection.query(candidateSql, [accountId, false], (err2) => {
-          if (err2) {
-            console.error("Error creating candidate:", err2);
-            return res.status(500).json({
-              error: "Failed to create candidate profile",
-              details: err2.message,
-            });
-          }
+          if (err2) return res.status(500).json({ error: "Failed to create candidate profile" });
 
-          return res.status(201).json({
-            success: true,
-            message: "Candidate account created successfully",
-            accountId,
+          logAudit({
+            tableName: "history",
+            entityType: "candidate",
+            entityId: accountId,
+            action: "ADDED",
+            data: { username, email, status },
+            changedBy: accountId,
           });
+
+          return res.status(201).json({ success: true, message: "Candidate account created successfully", accountId });
         });
 
-      // ✅ Employer logic
+        // ✅ Employer logic
       } else if (accountType === "employer") {
-  const companySql = `
-    INSERT INTO company_info (account_id)
-    VALUES (?)
-  `;
-  connection.query(companySql, [accountId], (err2) => {
-    if (err2) {
-      console.error("Error creating company info:", err2);
-      return res.status(500).json({
-        error: "Failed to create company info",
-        details: err2.message,
-      });
-    }
+        const companySql = `INSERT INTO company_info (account_id) VALUES (?)`;
+        connection.query(companySql, [accountId], (err2) => {
+          if (err2) return res.status(500).json({ error: "Failed to create company info" });
 
-    return res.status(201).json({
-      success: true,
-      message: "Employer account created successfully (minimal info)",
-      accountId,
-    });
-  });
-} else {
+          logAudit({
+            tableName: "history",
+            entityType: "employer",
+            entityId: accountId,
+            action: "ADDED",
+            data: { username, email, status },
+            changedBy: accountId,
+          });
+
+          return res.status(201).json({ success: true, message: "Employer account created successfully", accountId });
+        });
+      } else {
         return res.status(201).json({
           success: true,
           message: "Account created successfully",
@@ -204,7 +196,7 @@ const register = (req, res) => {
 //             profile_completed: !!user.profile_completed,
 //           });
 //         })
-      
+
 //         }else {
 //           return res.json({ success: false, error: 'Invalid user type' });
 //         }

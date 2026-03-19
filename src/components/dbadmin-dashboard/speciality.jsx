@@ -3,7 +3,8 @@ import axios from "axios";
 import Pagination from "../common/pagination.jsx";
 import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
-import MetaTags from "react-meta-tags";
+import Helmet from "react-helmet";
+import { withRouter } from "next/router";
 import * as XLSX from "xlsx";
 import {
   Card,
@@ -17,11 +18,13 @@ import {
   ModalBody,
   ModalHeader,
 } from "react-bootstrap";
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 class Speciality extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      highlightId: null,
       speciality: [],
       showModal: false,
       inputValue: "",
@@ -29,8 +32,6 @@ class Speciality extends Component {
       updateId: null,
       updateStatus: null,
       showUpdateStatus: false,
-      showHistoryModal: false,
-      history: [],
       currentPage: 1,
       totalSpeciality: 0,
       isActive: "all",
@@ -66,6 +67,19 @@ class Speciality extends Component {
       this.setState({
         speciality: response.data.speciality || [],
         totalSpeciality: response.data.total || 0,
+      }, () => {
+        // ✅ highlight check
+        const lastHistoryType = sessionStorage.getItem("lastHistoryType");
+        const lastHistoryId = sessionStorage.getItem("lastHistoryId");
+
+        if (lastHistoryType === "speciality" && lastHistoryId) {
+          this.setState({ highlightId: parseInt(lastHistoryId) });
+          setTimeout(() => {
+            this.setState({ highlightId: null });
+            sessionStorage.removeItem("lastHistoryId");
+            sessionStorage.removeItem("lastHistoryType");
+          }, 3000);
+        }
       });
     } catch (error) {
       console.error("Error fetching speciality:", error);
@@ -93,9 +107,9 @@ class Speciality extends Component {
     const worksheet = XLSX.utils.json_to_sheet(
       speciality.map((inst) => ({
         Name: inst.name,
-        Status: inst.status,
-        Created: this.formatDate(inst.created_at),
-        Updated: this.formatDate(inst.updated_at),
+        // Status: inst.status,
+        // Created: this.formatDate(inst.created_at),
+        // Updated: this.formatDate(inst.updated_at),
       }))
     );
 
@@ -127,7 +141,7 @@ class Speciality extends Component {
         const jsonData = XLSX.utils.sheet_to_json(sheet);
 
         const formattedData = jsonData
-          .map(row => ({ name: row.name?.toString().trim() }))
+          .map(row => ({ name: row["Name"]?.toString().trim() }))
           .filter(row => row.name);
 
         if (!formattedData.length) {
@@ -194,11 +208,6 @@ class Speciality extends Component {
     this.setState({ currentPage: page });
   };
 
-  toggleHistory = (item = null) => {
-    if (item) this.fetchHistory(item.id);
-    this.setState({ showHistoryModal: true });
-  };
-
   fetchHistory = async (id) => {
     if (!id) return;
     try {
@@ -263,13 +272,13 @@ class Speciality extends Component {
 
     try {
       // Call API to update status
-      await api.put(`${this.apiBaseUrl}updatestatus/${updateId}`);
+      await api.put(`${this.apiBaseUrl}updateSpecialityStatus/${updateId}`);
 
       // Update the state immediately
       this.setState((prevState) => ({
         speciality: prevState.speciality.map((item) =>
           item.id === updateId
-            ? { ...item, status: updateStatus === "active" ? "inactive" : "active" }
+            ? { ...item, status: updateStatus === "Active" ? "Inactive" : "Active" }
             : item
         ),
         showUpdateStatus: false,
@@ -279,7 +288,7 @@ class Speciality extends Component {
 
       // Show toast using actual row status
       toast.success(
-        updateStatus === "active"
+        updateStatus === "Active"
           ? "Inactivated successfully"
           : "Activated successfully"
       );
@@ -296,8 +305,6 @@ class Speciality extends Component {
       showModal,
       inputValue,
       showUpdateStatus,
-      showHistoryModal,
-      history,
       currentPage,
       totalSpeciality,
       updateStatus,
@@ -306,11 +313,19 @@ class Speciality extends Component {
     } = this.state;
     const totalPages = Math.ceil(totalSpeciality / this.itemsPerPage);
 
+    const highlightStyle = `
+        .highlight-row td {
+            background-color: #fff3cd !important;
+            transition: background-color 0.5s ease;
+        }
+    `;
+
     return (
       <React.Fragment>
-        <MetaTags>
+        <style>{highlightStyle}</style>
+        <Helmet>
           <title>Speciality | List</title>
-        </MetaTags>
+        </Helmet>
         <h6 className="fw-bold mb-3">Speciality List</h6>
         <div className="poppins-font">
           <Container fluid>
@@ -326,8 +341,8 @@ class Speciality extends Component {
                   onChange={(e) => this.setState({ isActive: e.target.value })}
                 >
                   <option value="all">All</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
                 </select>
               </div>
 
@@ -478,7 +493,10 @@ class Speciality extends Component {
 
                     <tbody>
                       {speciality.map((item) => (
-                        <tr key={item.id}>
+                        <tr
+                          key={item.id}
+                          className={this.state.highlightId === item.id ? "highlight-row" : ""}
+                        >
                           <td className="text-center">{item.name}</td>
                           <td className="text-center">
                             {this.formatDate(item.created_at)}
@@ -487,31 +505,48 @@ class Speciality extends Component {
                             {this.formatDate(item.updated_at)}
                           </td>
                           <td className="text-center">
-                            {item.status}
+                            <span className={`badge ${item.status === "Active" ? "badge-active-custom" : "badge-inactive-custom"}`}>
+                              {item.status}
+                            </span>
                           </td>
 
                           <td className="status text-center">
                             <div className="d-flex justify-content-center align-items-center gap-3">
-                              <button onClick={() => this.toggleForm(item)} className="icon-btn">
-                                <span className="la la-pencil"></span>
+
+                              {/* Edit */}
+                              <button
+                                onClick={() => this.toggleForm(item)}
+                                className="icon-btn"
+                                title="Update"
+                              >
+                                <i className="bi bi-pencil-square text-primary"></i>
                               </button>
 
+                              {/* Activate / Inactivate */}
                               <button
                                 onClick={() => this.confirmUpdate(item.id, item.status)}
                                 className="icon-btn"
+                                title={item.status === "Active" ? "Inactivate" : "Activate"}
                               >
-                                {item.status === "active" ? (
-                                  <span className="la la-times-circle text-danger"></span>
+                                {item.status === "Active" ? (
+                                  <i className="bi bi-x-circle text-danger"></i>
                                 ) : (
-                                  <span className="la la-check-circle text-success"></span>
+                                  <i className="bi bi-check-circle text-success"></i>
                                 )}
                               </button>
 
-                              <button onClick={() => this.toggleHistory(item)} className="icon-btn">
-                                <span className="la la-history"></span>
+                              {/* History */}
+                              <button
+                                className="icon-btn"
+                                title="View History"
+                                onClick={() => this.props.router.push(`/history/speciality/${item.id}`)}
+                              >
+                                <i className="bi bi-clock-history text-dark"></i>
                               </button>
+
                             </div>
                           </td>
+
 
                         </tr>
                       ))}
@@ -561,7 +596,7 @@ class Speciality extends Component {
           <Modal show={showUpdateStatus} onHide={this.cancelStatus} centered>
             <Modal.Header closeButton>
               <Modal.Title style={{ fontSize: "1rem", fontWeight: 600 }}>
-                Confirm {updateStatus === "active" ? "Inactivate" : "Activate"}
+                Confirm {updateStatus === "Active" ? "Inactivate" : "Activate"}
               </Modal.Title>
             </Modal.Header>
 
@@ -569,7 +604,7 @@ class Speciality extends Component {
               <p style={{ marginBottom: 0 }}>
                 Are you sure you want to{" "}
                 <strong>
-                  {updateStatus === "active" ? "inactivate" : "activate"}
+                  {updateStatus === "Active" ? "inactivate" : "activate"}
                 </strong>{" "}
                 this Speciality?
               </p>
@@ -581,60 +616,12 @@ class Speciality extends Component {
               </Button>
 
               <Button
-                variant={updateStatus === "active" ? "danger" : "success"}
+                variant={updateStatus === "Active" ? "danger" : "success"}
                 onClick={this.handleStatus}
               >
-                {updateStatus === "active" ? "Inactivate" : "Activate"}
+                {updateStatus === "Active" ? "Inactivate" : "Activate"}
               </Button>
             </Modal.Footer>
-          </Modal>
-
-
-          {/* History Modal */}
-          <Modal
-            show={showHistoryModal}
-            onHide={() => this.setState({ showHistoryModal: false })}
-            centered
-            scrollable
-          >
-            <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
-              <Modal.Title style={{ fontSize: "1rem", marginBottom: 0 }}>
-                History
-              </Modal.Title>
-            </Modal.Header>
-
-            <Modal.Body style={{ paddingTop: "0.5rem" }}>
-              {history.map((item, idx) => (
-                <div
-                  key={item.id || idx}
-                  className="p-2 mb-2 rounded"
-                  style={{
-                    backgroundColor: idx % 2 === 0 ? "#f8f9fa" : "#e9ecef",
-                    border: "1px solid #dee2e6",
-                    fontSize: "14px",
-                  }}
-                >
-                  <strong> {item.data.name} </strong> was{" "}
-                  <span
-                    style={{
-                      color:
-                        item.action === "ADDED"
-                          ? "green"
-                          : item.action === "UPDATED"
-                            ? "purple"
-                            : item.action === "ACTIVE"
-                              ? "teal"
-                              : "red",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {item.action}
-                  </span>{" "}
-                  by <em>{item.changed_by_name}</em> on{" "}
-                  {this.formatDate(item.changed_at)}
-                </div>
-              ))}
-            </Modal.Body>
           </Modal>
         </div>
       </React.Fragment>
@@ -642,4 +629,4 @@ class Speciality extends Component {
   }
 }
 
-export default Speciality;
+export default withRouter(Speciality);

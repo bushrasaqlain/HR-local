@@ -3,7 +3,8 @@ import axios from "axios";
 import Pagination from "../common/pagination.jsx";
 import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
-import MetaTags from "react-meta-tags";
+import Helmet from "react-helmet";
+import { withRouter } from "next/router";
 import * as XLSX from "xlsx";
 import {
   Card,
@@ -17,11 +18,13 @@ import {
   ModalBody,
   ModalHeader,
 } from "react-bootstrap";
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 class Currency extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      highlightId: null,
       currencies: [],
       showModal: false,
       inputValue: "",
@@ -63,12 +66,30 @@ class Currency extends Component {
       const response = await axios.get(`${this.apiBaseUrl}getallcurrencies`, {
         params: { page, limit: this.itemsPerPage, status },
       });
-      this.setState({
-        currencies: response.data.currencies || [],
-        totalCurrency: response.data.total || 0,
-      });
+
+      this.setState(
+        {
+          currencies: response.data.currencies || [],
+          totalCurrency: response.data.total || 0,
+        },
+        () => {
+          // ✅ Highlight logic
+          const lastHistoryType = sessionStorage.getItem("lastHistoryType");
+          const lastHistoryId = sessionStorage.getItem("lastHistoryId");
+
+          if (lastHistoryType === "currency" && lastHistoryId) {
+            this.setState({ highlightId: parseInt(lastHistoryId) });
+
+            setTimeout(() => {
+              this.setState({ highlightId: null });
+              sessionStorage.removeItem("lastHistoryId");
+              sessionStorage.removeItem("lastHistoryType");
+            }, 3000);
+          }
+        }
+      );
     } catch (error) {
-      console.error("Error fetching profesion:", error);
+      console.error("Error fetching Currency:", error);
     }
   };
 
@@ -94,9 +115,9 @@ class Currency extends Component {
     // Map data for Excel
     const dataToExport = currencies.map((currency) => ({
       "Currency": currency.code,
-      "Status": currency.status,
-      "Created At": this.formatDate(currency.created_at),
-      "Updated At": this.formatDate(currency.updated_at),
+      // "Status": currency.status,
+      // "Created At": this.formatDate(currency.created_at),
+      // "Updated At": this.formatDate(currency.updated_at),
     }));
 
     // Create worksheet
@@ -134,7 +155,7 @@ class Currency extends Component {
         const jsonData = XLSX.utils.sheet_to_json(sheet);
 
         const formattedData = jsonData
-          .map(row => ({ name: row.name?.toString().trim() }))
+          .map(row => ({ name: row["Currency"]?.toString().trim() }))
           .filter(row => row.name);
 
         if (!formattedData.length) {
@@ -219,11 +240,11 @@ class Currency extends Component {
     });
   };
   handleDelete = async () => {
-    const { deleteId, isActive } = this.state;
+    const { deleteId, deleteStatus } = this.state;
     try {
       await api.delete(`${this.apiBaseUrl}deletecurrency/${deleteId}`);
       toast.success(
-        isActive === "active"
+        deleteStatus === "Active"
           ? "Inactivated successfully"
           : "Activated successfully"
       );
@@ -294,11 +315,19 @@ class Currency extends Component {
     } = this.state;
     const totalPages = Math.ceil(totalCurrency / this.itemsPerPage);
 
+    const highlightStyle = `
+        .highlight-row td {
+            background-color: #fff3cd !important;
+            transition: background-color 0.5s ease;
+        }
+    `;
+
     return (
       <React.Fragment>
-        <MetaTags>
+        <style>{highlightStyle}</style>
+        <Helmet>
           <title>Currency | List</title>
-        </MetaTags>
+        </Helmet>
         <h6 className="fw-bold mb-3">Currency List</h6>
         <div className="poppins-font">
           <Container fluid>
@@ -314,8 +343,8 @@ class Currency extends Component {
                   onChange={(e) => this.setState({ isActive: e.target.value })}
                 >
                   <option value="all">All</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
                 </select>
               </div>
 
@@ -462,7 +491,10 @@ class Currency extends Component {
 
                     <tbody>
                       {currencies.map((item) => (
-                        <tr key={item.id}>
+                        <tr
+                          key={item.id}
+                          className={this.state.highlightId === item.id ? "highlight-row" : ""}
+                        >
                           <td className="text-center">{item.code}</td>
                           <td className="text-center">
                             {this.formatDate(item.created_at)}
@@ -471,31 +503,48 @@ class Currency extends Component {
                             {this.formatDate(item.updated_at)}
                           </td>
                           <td className="text-center">
-                            {item.status}
+                            <span className={`badge ${item.status === "Active" ? "badge-active-custom" : "badge-inactive-custom"}`}>
+                              {item.status}
+                            </span>
                           </td>
 
                           <td className="status text-center">
                             <div className="d-flex justify-content-center align-items-center gap-3">
-                              <button onClick={() => this.toggleForm(item)} className="icon-btn">
-                                <span className="la la-pencil"></span>
+
+                              {/* Edit */}
+                              <button
+                                onClick={() => this.toggleForm(item)}
+                                className="icon-btn"
+                                title="Update"
+                              >
+                                <i className="bi bi-pencil-square text-primary"></i>
                               </button>
 
+                              {/* Activate / Inactivate */}
                               <button
                                 onClick={() => this.confirmDelete(item.id, item.status)}
                                 className="icon-btn"
+                                title={item.status === "Active" ? "Inactivate" : "Activate"}
                               >
-                                {item.status === "active" ? (
-                                  <span className="la la-times-circle text-danger"></span>
+                                {item.status === "Active" ? (
+                                  <i className="bi bi-x-circle text-danger"></i>
                                 ) : (
-                                  <span className="la la-check-circle text-success"></span>
+                                  <i className="bi bi-check-circle text-success"></i>
                                 )}
                               </button>
 
-                              <button onClick={() => this.toggleHistory(item)} className="icon-btn">
-                                <span className="la la-history"></span>
+                              {/* History */}
+                              <button
+                                className="icon-btn"
+                                title="View History"
+                                onClick={() => this.props.router.push(`/history/currency/${item.id}`)}
+                              >
+                                <i className="bi bi-clock-history text-dark"></i>
                               </button>
+
                             </div>
                           </td>
+
 
                         </tr>
                       ))}
@@ -545,7 +594,7 @@ class Currency extends Component {
           <Modal show={showDeleteConfirm} onHide={this.cancelDelete} centered>
             <Modal.Header closeButton>
               <Modal.Title style={{ fontSize: "1rem", fontWeight: 600 }}>
-                Confirm {deleteStatus === "active" ? "Inactivate" : "Activate"}
+                Confirm {deleteStatus === "Active" ? "Inactivate" : "Activate"}
               </Modal.Title>
             </Modal.Header>
 
@@ -553,7 +602,7 @@ class Currency extends Component {
               <p style={{ marginBottom: 0 }}>
                 Are you sure you want to{" "}
                 <strong>
-                  {deleteStatus === "active" ? "inactivate" : "activate"}
+                  {deleteStatus === "Active" ? "inactivate" : "activate"}
                 </strong>{" "}
                 this Currency?
               </p>
@@ -565,10 +614,10 @@ class Currency extends Component {
               </Button>
 
               <Button
-                variant={deleteStatus === "active" ? "danger" : "success"}
+                variant={deleteStatus === "Active" ? "danger" : "success"}
                 onClick={this.handleDelete}
               >
-                {deleteStatus === "active" ? "Inactivate" : "Activate"}
+                {deleteStatus === "Active" ? "Inactivate" : "Activate"}
               </Button>
             </Modal.Footer>
           </Modal>
@@ -581,8 +630,8 @@ class Currency extends Component {
             centered
             scrollable
           >
-            <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
-              <Modal.Title style={{ fontSize: "1rem", marginBottom: 0 }}>
+            <Modal.Header closeButton style={{ paddingBottom: "0.25rem", backgroundColor: "#3f5f66" }}>
+              <Modal.Title style={{ fontSize: "1.25rem", marginBottom: 0, color: "#ffffff" }}>
                 History
               </Modal.Title>
             </Modal.Header>
@@ -598,7 +647,7 @@ class Currency extends Component {
                     fontSize: "14px",
                   }}
                 >
-                  <strong> {item.data.name} </strong> was{" "}
+                  <strong> {item.data.code || item.data.name} </strong> was{" "}
                   <span
                     style={{
                       color:
@@ -626,4 +675,4 @@ class Currency extends Component {
   }
 }
 
-export default Currency;
+export default withRouter(Currency);

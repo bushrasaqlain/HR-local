@@ -12,7 +12,7 @@ const createInstituteTable = () => {
     name VARCHAR(255) NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    status ENUM('Active', 'InActive') DEFAULT 'Active'
+    status ENUM('Active', 'Inactive') DEFAULT 'Active'
   )
 `;
 
@@ -119,7 +119,7 @@ const addInstitute = ({ name, type, data, userId }, callback) => {
                     entityType: "institute",
                     entityId: startId + idx,
                     action: "ADDED",
-                    data: { name: row[0], status: "active" },
+                    data: { name: row[0], status: "Active" },
                     changedBy: userId,
                 });
             });
@@ -152,7 +152,7 @@ const addInstitute = ({ name, type, data, userId }, callback) => {
                     entityType: "institute",
                     entityId: insertResults.insertId,
                     action: "ADDED",
-                    data: { name, status: "active" },
+                    data: { name, status: "Active" },
                     changedBy: userId,
                 });
 
@@ -202,7 +202,7 @@ const updateStatus = (req, res) => {
 
     const currentInstitute = results[0];
     const newStatus =
-      currentInstitute.status === "active" ? "inactive" : "active";
+      currentInstitute.status === "Active" ? "Inactive" : "Active";
 
     const updateQuery = "UPDATE institute SET status = ? WHERE id = ?";
     connection.query(updateQuery, [newStatus, id], (err2) => {

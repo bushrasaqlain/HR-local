@@ -8,7 +8,7 @@ const createSkillsTable = () => {
     name VARCHAR(255) NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    status ENUM('active', 'inactive') DEFAULT 'active'
+    status ENUM('Active', 'Inactive') DEFAULT 'Active'
   )
 `;
 
@@ -55,7 +55,7 @@ const addSkill = (req, res) => {
           entityType: "skill",
           entityId: startId + idx,
           action: "ADDED",
-          data: { name: row[0], status: "active" },
+          data: { name: row[0], status: "Active" },
           changedBy: userId,
         });
       });
@@ -84,7 +84,7 @@ const addSkill = (req, res) => {
           entityType: "skill",
           entityId: insertResults.insertId,
           action: "ADDED",
-          data: { name, status: "active" },
+          data: { name, status: "Active" },
           changedBy: userId,
         });
 
@@ -129,7 +129,7 @@ const editSkill = (req, res) => {
 };
 
 const getAllSkills = (
-  { page = 1, limit = 1000, search = "", name = "name", status = "active" },
+  { page = 1, limit = 1000, search = "", name = "name", status = "Active" },
   callback
 ) => {
   // Convert page and limit to integers
@@ -194,7 +194,7 @@ const deleteSkill = (req, res) => {
       return res.status(404).json({ error: "Skill not found" });
 
     const currentSkill = results[0];
-    const newStatus = currentSkill.status === "active" ? "inactive" : "active";
+    const newStatus = currentSkill.status === "Active" ? "Inactive" : "Active";
 
     const updateQuery = "UPDATE skills SET status = ? WHERE id = ?";
     connection.query(updateQuery, [newStatus, id], (err2) => {

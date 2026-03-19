@@ -11,7 +11,7 @@ const createSpecialityTable = () => {
     name VARCHAR(255) NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    status ENUM('active', 'inactive') DEFAULT 'active'
+    status ENUM('Active', 'Inactive') DEFAULT 'Active'
   )
 `;
 
@@ -62,7 +62,7 @@ const addSpeciality = (req, res) => {
           entityType: "speciality",
           entityId: startId + index,
           action: "ADDED",
-          data: { name: row[0], status: "active" },
+          data: { name: row[0], status: "Active" },
           changedBy: userId,
         });
       });
@@ -97,7 +97,7 @@ const addSpeciality = (req, res) => {
         entityType: "speciality",
         entityId: insertResult.insertId,
         action: "ADDED",
-        data: { name, status: "active" },
+        data: { name, status: "Active" },
         changedBy: userId,
       });
 
@@ -110,7 +110,7 @@ const addSpeciality = (req, res) => {
 };
 
 const getAllSpeciality = (
-  { page = 1, limit = 100, name = "name", search = "", status = "active" },
+  { page = 1, limit = 100, name = "name", search = "", status = "Active" },
   callback
 ) => {
   // Ensure numeric values
@@ -180,7 +180,7 @@ const updateStatus = (req, res) => {
     const currentSpeciality = results[0];
     // Toggle status
     const newStatus =
-      currentSpeciality.status === "active" ? "inactive" : "active";
+      currentSpeciality.status === "Active" ? "Inactive" : "Active";
 
     const updateQuery = "UPDATE speciality SET status = ? WHERE id = ?";
     connection.query(updateQuery, [newStatus, id], (err2) => {

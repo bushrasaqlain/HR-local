@@ -4,8 +4,8 @@ import Pagination from "../common/pagination.jsx";
 import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import * as XLSX from "xlsx";
-
-import MetaTags from "react-meta-tags";
+import { withRouter } from "next/router";
+import Helmet from "react-helmet";
 import {
     Card,
     Row,
@@ -18,11 +18,13 @@ import {
     ModalBody,
     ModalHeader,
 } from "react-bootstrap";
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 class Institute extends Component {
     constructor(props) {
         super(props);
         this.state = {
+            highlightId: null,
             institutes: [],
             showModal: false,
             inputValue: "",
@@ -30,8 +32,6 @@ class Institute extends Component {
             updateId: null,
             updateStatus: null,
             showUpdateConfirm: false,
-            showHistoryModal: false,
-            history: [],
             currentPage: 1,
             totalInstitute: 0,
             isActive: "all",
@@ -67,6 +67,19 @@ class Institute extends Component {
             this.setState({
                 institutes: response.data.institutes || [],
                 totalInstitute: response.data.total || 0,
+            }, () => {
+                // ✅ highlight check
+                const lastHistoryType = sessionStorage.getItem("lastHistoryType");
+                const lastHistoryId = sessionStorage.getItem("lastHistoryId");
+
+                if (lastHistoryType === "institute" && lastHistoryId) {
+                    this.setState({ highlightId: parseInt(lastHistoryId) });
+                    setTimeout(() => {
+                        this.setState({ highlightId: null });
+                        sessionStorage.removeItem("lastHistoryId");
+                        sessionStorage.removeItem("lastHistoryType");
+                    }, 3000);
+                }
             });
         } catch (error) {
             console.error("Error fetching institute:", error);
@@ -135,7 +148,7 @@ class Institute extends Component {
                 const jsonData = XLSX.utils.sheet_to_json(sheet);
 
                 const formattedData = jsonData
-                    .map(row => ({ name: row.name?.toString().trim() }))
+                    .map(row => ({ name: row["Name"]?.toString().trim() }))
                     .filter(row => row.name);
 
                 if (!formattedData.length) {
@@ -171,9 +184,9 @@ class Institute extends Component {
         const worksheet = XLSX.utils.json_to_sheet(
             institutes.map((inst) => ({
                 Name: inst.name,
-                Status: inst.status,
-                Created: this.formatDate(inst.created_at),
-                Updated: this.formatDate(inst.updated_at),
+                // Status: inst.status,
+                // Created: this.formatDate(inst.created_at),
+                // Updated: this.formatDate(inst.updated_at),
             }))
         );
 
@@ -217,11 +230,6 @@ class Institute extends Component {
         } else {
             this.setState({ editId: null, inputValue: "", showModal: true });
         }
-    };
-
-    toggleHistory = (item = null) => {
-        if (item) this.fetchHistory(item.id);
-        this.setState({ showHistoryModal: true });
     };
 
     handleSave = async () => {
@@ -300,8 +308,6 @@ class Institute extends Component {
             showModal,
             inputValue,
             showUpdateConfirm,
-            showHistoryModal,
-            history,
             currentPage,
             totalInstitute,
             updateStatus,
@@ -310,11 +316,19 @@ class Institute extends Component {
         } = this.state;
         const totalPages = Math.ceil(totalInstitute / this.itemsPerPage);
 
+        const highlightStyle = `
+        .highlight-row td {
+            background-color: #fff3cd !important;
+            transition: background-color 0.5s ease;
+        }
+    `;
+
         return (
             <React.Fragment>
-                <MetaTags>
+                <style>{highlightStyle}</style>
+                <Helmet>
                     <title>Institute | List</title>
-                </MetaTags>
+                </Helmet>
                 <h6 className="fw-bold mb-3">Institute List</h6>
                 <div className="poppins-font">
                     <Container fluid>
@@ -330,8 +344,8 @@ class Institute extends Component {
                                     onChange={(e) => this.setState({ isActive: e.target.value })}
                                 >
                                     <option value="all">All</option>
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
                                 </select>
                             </div>
 
@@ -482,7 +496,10 @@ class Institute extends Component {
 
                                         <tbody>
                                             {institutes.map((item) => (
-                                                <tr key={item.id}>
+                                                <tr
+                                                    key={item.id}
+                                                    className={this.state.highlightId === item.id ? "highlight-row" : ""}
+                                                >
                                                     <td className="text-center">{item.name}</td>
                                                     <td className="text-center">
                                                         {this.formatDate(item.created_at)}
@@ -491,30 +508,45 @@ class Institute extends Component {
                                                         {this.formatDate(item.updated_at)}
                                                     </td>
                                                     <td className="text-center">
-                                                        {item.status}
+                                                        <span className={`badge ${item.status === "Active" ? "badge-active-custom" : "badge-inactive-custom"}`}>
+                                                            {item.status}
+                                                        </span>
                                                     </td>
 
                                                     <td className="status text-center">
                                                         <div className="d-flex justify-content-center align-items-center gap-3">
-                                                            <button onClick={() => this.toggleForm(item)} className="icon-btn">
-                                                                <span className="la la-pencil"></span>
+
+                                                            {/* Edit */}
+                                                            <button
+                                                                onClick={() => this.toggleForm(item)}
+                                                                className="icon-btn"
+                                                                title="Update"
+                                                            >
+                                                                <i className="bi bi-pencil-square text-primary"></i>
                                                             </button>
 
+                                                            {/* Activate / Inactivate */}
                                                             <button
                                                                 onClick={() => this.confirmUpdate(item.id, item.status)}
                                                                 className="icon-btn"
+                                                                title={item.status === "Active" ? "Inactivate" : "Activate"}
                                                             >
                                                                 {item.status === "Active" ? (
-                                                                    <span className="la la-times-circle text-danger"></span>
+                                                                    <i className="bi bi-x-circle text-danger"></i>
                                                                 ) : (
-                                                                    <span className="la la-check-circle text-success"></span>
+                                                                    <i className="bi bi-check-circle text-success"></i>
                                                                 )}
                                                             </button>
 
-
-                                                            <button onClick={() => this.toggleHistory(item)} className="icon-btn">
-                                                                <span className="la la-history"></span>
+                                                            {/* History */}
+                                                            <button
+                                                                className="icon-btn"
+                                                                title="View History"
+                                                                onClick={() => this.props.router.push(`/history/institute/${item.id}`)}
+                                                            >
+                                                                <i className="bi bi-clock-history text-dark"></i>
                                                             </button>
+
                                                         </div>
                                                     </td>
 
@@ -586,60 +618,12 @@ class Institute extends Component {
                             </Button>
 
                             <Button
-                                variant={updateStatus === "active" ? "danger" : "success"}
+                                variant={updateStatus === "Active" ? "danger" : "success"}
                                 onClick={this.handleUpdate}
                             >
-                                {updateStatus === "active" ? "Inactivate" : "Activate"}
+                                {updateStatus === "Active" ? "Inactivate" : "Activate"}
                             </Button>
                         </Modal.Footer>
-                    </Modal>
-
-
-                    {/* History Modal */}
-                    <Modal
-                        show={showHistoryModal}
-                        onHide={() => this.setState({ showHistoryModal: false })}
-                        centered
-                        scrollable
-                    >
-                        <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
-                            <Modal.Title style={{ fontSize: "1rem", marginBottom: 0 }}>
-                                History
-                            </Modal.Title>
-                        </Modal.Header>
-
-                        <Modal.Body style={{ paddingTop: "0.5rem" }}>
-                            {history.map((item, idx) => (
-                                <div
-                                    key={item.id || idx}
-                                    className="p-2 mb-2 rounded"
-                                    style={{
-                                        backgroundColor: idx % 2 === 0 ? "#f8f9fa" : "#e9ecef",
-                                        border: "1px solid #dee2e6",
-                                        fontSize: "14px",
-                                    }}
-                                >
-                                    <strong> {item.data.name} </strong> was{" "}
-                                    <span
-                                        style={{
-                                            color:
-                                                item.action === "ADDED"
-                                                    ? "green"
-                                                    : item.action === "UPDATED"
-                                                        ? "purple"
-                                                        : item.action === "ACTIVE"
-                                                            ? "teal"
-                                                            : "red",
-                                            fontWeight: "bold",
-                                        }}
-                                    >
-                                        {item.action}
-                                    </span>{" "}
-                                    by <em>{item.changed_by_name}</em> on{" "}
-                                    {this.formatDate(item.changed_at)}
-                                </div>
-                            ))}
-                        </Modal.Body>
                     </Modal>
                 </div>
             </React.Fragment>
@@ -647,4 +631,4 @@ class Institute extends Component {
     }
 }
 
-export default Institute;
+export default withRouter(Institute);

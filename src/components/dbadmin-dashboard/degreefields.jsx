@@ -3,7 +3,8 @@ import axios from "axios";
 import Pagination from "../common/pagination.jsx";
 import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
-import MetaTags from "react-meta-tags";
+import Helmet from "react-helmet";
+import { withRouter } from "next/router";
 import * as XLSX from "xlsx";
 import {
   Card,
@@ -17,11 +18,13 @@ import {
   ModalBody,
   ModalHeader,
 } from "react-bootstrap";
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 class DegreeField extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      highlightId: null,
       degreeFieldData: [],
       showModal: false,
       inputValue: "",
@@ -29,7 +32,6 @@ class DegreeField extends Component {
       deleteId: null,
       deleteStatus: null,
       showDeleteConfirm: false,
-      showHistoryModal: false,
       degreeTypes: [],
       selectedDegreeType: "",
       history: [],
@@ -84,9 +86,9 @@ class DegreeField extends Component {
       let status = filters.status ?? this.state.isActive;
       if (status === "all") {
         // ✅ omit status completely for "All"
-      } else if (status.toLowerCase() === "active") {
+      } else if (status.toLowerCase() === "Active") {
         params.status = "Active"; // match your backend
-      } else if (status.toLowerCase() === "inactive") {
+      } else if (status.toLowerCase() === "Inactive") {
         params.status = "Inactive"; // match your backend
       }
 
@@ -104,6 +106,19 @@ class DegreeField extends Component {
         degreeFieldData: response.data.degreefields || [],
         totalDegreeFileds: response.data.total || 0,
         currentPage: page,
+      }, () => {
+        // ✅ highlight check
+        const lastHistoryType = sessionStorage.getItem("lastHistoryType");
+        const lastHistoryId = sessionStorage.getItem("lastHistoryId");
+
+        if (lastHistoryType === "degreefield" && lastHistoryId) {
+          this.setState({ highlightId: parseInt(lastHistoryId) });
+          setTimeout(() => {
+            this.setState({ highlightId: null });
+            sessionStorage.removeItem("lastHistoryId");
+            sessionStorage.removeItem("lastHistoryType");
+          }, 3000);
+        }
       });
     } catch (error) {
       console.error("Error fetching degreeFieldData:", error);
@@ -134,11 +149,11 @@ class DegreeField extends Component {
 
     // Map data for Excel
     const dataToExport = degreeFieldData.map((degreeField) => ({
-      "Degree": degreeField.degree_type_name,
+      // "Degree": degreeField.degree_type_name,
       "Degree Field": degreeField.name,
-      "Status": degreeField.status,
-      "Created At": this.formatDate(degreeField.created_at),
-      "Updated At": this.formatDate(degreeField.updated_at),
+      // "Status": degreeField.status,
+      // "Created At": this.formatDate(degreeField.created_at),
+      // "Updated At": this.formatDate(degreeField.updated_at),
     }));
 
     // Create worksheet
@@ -185,11 +200,6 @@ class DegreeField extends Component {
   };
 
 
-  toggleHistory = (item = null) => {
-    if (item) this.fetchHistory(item.id);
-    this.setState({ showHistoryModal: true });
-  };
-
   handleSave = async () => {
     const { editId, inputValue, selectedDegreeType, isImportMode, importFile } = this.state;
     const userId = sessionStorage.getItem("userId");
@@ -213,7 +223,7 @@ class DegreeField extends Component {
           const jsonData = XLSX.utils.sheet_to_json(sheet);
 
           const degreefieldData = jsonData
-            .map(row => ({ name: row.name?.toString().trim() }))
+            .map(row => ({ name: row["Degree Field"]?.toString().trim() }))
             .filter(row => row.name);
 
           if (!degreefieldData.length) {
@@ -255,8 +265,8 @@ class DegreeField extends Component {
         } else {
           await api.post(`${this.apiBaseUrl}adddegreefield`, {
             name: inputValue,
-            t_id: selectedDegreeType, 
-             userId,
+            t_id: selectedDegreeType,
+            userId,
           });
 
           this.fetchDegreeFields(1);
@@ -298,17 +308,24 @@ class DegreeField extends Component {
       );
 
       if (response.data?.success) {
+
+        const newStatus = deleteStatus === "Active" ? "Inactive" : "Active";
+
+        this.setState((prevState) => ({
+          degreeFieldData: prevState.degreeFieldData.map((item) =>
+            item.id === deleteId ? { ...item, status: newStatus } : item
+          ),
+          showDeleteConfirm: false,
+          deleteId: null,
+          deleteStatus: null,
+        }));
+
         toast.success(
-          deleteStatus === "active"
+          deleteStatus === "Active"
             ? "Inactivated successfully"
             : "Activated successfully"
         );
 
-        // Refresh table
-        this.setState(
-          { showDeleteConfirm: false, deleteId: null, deleteStatus: null },
-          this.fetchDegreeFields
-        );
       } else {
         toast.error(response.data?.message || "Operation failed");
       }
@@ -320,40 +337,39 @@ class DegreeField extends Component {
     }
   };
 
-
   cancelDelete = () => {
     this.setState({ showDeleteConfirm: false, deleteId: null });
   };
 
-handleSearch = async (e) => {
-  const { name, value } = e.target;
-  ["name", "created_at", "updated_at"].forEach((input) => {
-    if (input !== name) {
-      const ele = document.getElementById(input);
-      if (ele) ele.value = "";
+  handleSearch = async (e) => {
+    const { name, value } = e.target;
+    ["name", "created_at", "updated_at"].forEach((input) => {
+      if (input !== name) {
+        const ele = document.getElementById(input);
+        if (ele) ele.value = "";
+      }
+    });
+
+    this.setState({ currentPage: 1 });
+
+    try {
+      const res = await axios.get(`${this.apiBaseUrl}getallDegreeFields`, {
+        params: {
+          name: name,
+          search: value,
+          status: this.state.isActive,
+          page: 1,
+          limit: this.itemsPerPage,
+        },
+      });
+      this.setState({
+        degreeFieldData: res.data.degreefields || [],
+        totalDegreeFileds: res.data.total || 0,
+      });
+    } catch (error) {
+      console.error("Error searching degreefield:", error);
     }
-  });
-
-  this.setState({ currentPage: 1 });
-
-  try {
-    const res = await axios.get(`${this.apiBaseUrl}getallDegreeFields`, {
-      params: {
-        name: name,  
-        search: value,
-        status: this.state.isActive,
-        page: 1,
-        limit: this.itemsPerPage,
-      },
-    });
-    this.setState({
-      degreeFieldData: res.data.degreefields || [],
-      totalDegreeFileds: res.data.total || 0,
-    });
-  } catch (error) {
-    console.error("Error searching degreefield:", error);
-  }
-};
+  };
 
   resetSearch = () => {
     ["name", "created_at", "updated_at"].forEach((id) => {
@@ -378,8 +394,6 @@ handleSearch = async (e) => {
       showModal,
       inputValue,
       showDeleteConfirm,
-      showHistoryModal,
-      history,
       currentPage,
       totalDegreeFileds,
       deleteStatus,
@@ -388,11 +402,19 @@ handleSearch = async (e) => {
     } = this.state;
     const totalPages = Math.ceil(totalDegreeFileds / this.itemsPerPage);
 
+    const highlightStyle = `
+        .highlight-row td {
+            background-color: #fff3cd !important;
+            transition: background-color 0.5s ease;
+        }
+    `;
+
     return (
       <React.Fragment>
-        <MetaTags>
+        <style>{highlightStyle}</style>
+        <Helmet>
           <title>Degree Field | List</title>
-        </MetaTags>
+        </Helmet>
         <h6 className="fw-bold mb-3">Degree Field List</h6>
         <div className="poppins-font">
           <Container fluid>
@@ -408,8 +430,8 @@ handleSearch = async (e) => {
                   onChange={(e) => this.setState({ isActive: e.target.value })}
                 >
                   <option value="all">All</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
                 </select>
               </div>
 
@@ -561,7 +583,10 @@ handleSearch = async (e) => {
 
                     <tbody>
                       {degreeFieldData.map((item) => (
-                        <tr key={item.id}>
+                        <tr
+                          key={item.id}
+                          className={this.state.highlightId === item.id ? "highlight-row" : ""}
+                        >
                           <td className="text-center">{item.name}</td>
                           <td className="text-center">
                             {this.formatDate(item.created_at)}
@@ -570,29 +595,45 @@ handleSearch = async (e) => {
                             {this.formatDate(item.updated_at)}
                           </td>
                           <td className="text-center">
-                            {item.status}
+                            <span className={`badge ${item.status === "Active" ? "badge-active-custom" : "badge-inactive-custom"}`}>
+                              {item.status}
+                            </span>
                           </td>
 
                           <td className="status text-center">
                             <div className="d-flex justify-content-center align-items-center gap-3">
-                              <button onClick={() => this.toggleForm(item)} className="icon-btn">
-                                <span className="la la-pencil"></span>
+
+                              {/* Edit */}
+                              <button
+                                onClick={() => this.toggleForm(item)}
+                                className="icon-btn"
+                                title="Update"
+                              >
+                                <i className="bi bi-pencil-square text-primary"></i>
                               </button>
 
+                              {/* Activate / Inactivate */}
                               <button
                                 onClick={() => this.confirmDelete(item.id, item.status)}
                                 className="icon-btn"
+                                title={item.status === "Active" ? "Inactivate" : "Activate"}
                               >
                                 {item.status === "Active" ? (
-                                  <span className="la la-times-circle text-danger"></span>
+                                  <i className="bi bi-x-circle text-danger"></i>
                                 ) : (
-                                  <span className="la la-check-circle text-success"></span>
+                                  <i className="bi bi-check-circle text-success"></i>
                                 )}
                               </button>
 
-                              <button onClick={() => this.toggleHistory(item)} className="icon-btn">
-                                <span className="la la-history"></span>
+                              {/* History */}
+                              <button
+                                className="icon-btn"
+                                title="View History"
+                                onClick={() => this.props.router.push(`/history/degreefield/${item.id}`)}
+                              >
+                                <i className="bi bi-clock-history text-dark"></i>
                               </button>
+
                             </div>
                           </td>
 
@@ -714,58 +755,10 @@ handleSearch = async (e) => {
 
             </Modal.Footer>
           </Modal>
-
-
-          {/* History Modal */}
-          <Modal
-            show={showHistoryModal}
-            onHide={() => this.setState({ showHistoryModal: false })}
-            centered
-            scrollable
-          >
-            <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
-              <Modal.Title style={{ fontSize: "1rem", marginBottom: 0 }}>
-                History
-              </Modal.Title>
-            </Modal.Header>
-
-            <Modal.Body style={{ paddingTop: "0.5rem" }}>
-              {history.map((item, idx) => (
-                <div
-                  key={item.id || idx}
-                  className="p-2 mb-2 rounded"
-                  style={{
-                    backgroundColor: idx % 2 === 0 ? "#f8f9fa" : "#e9ecef",
-                    border: "1px solid #dee2e6",
-                    fontSize: "14px",
-                  }}
-                >
-                  <strong> {item.data.name} </strong> was{" "}
-                  <span
-                    style={{
-                      color:
-                        item.action === "ADDED"
-                          ? "green"
-                          : item.action === "UPDATED"
-                            ? "purple"
-                            : item.action === "ACTIVE"
-                              ? "teal"
-                              : "red",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {item.action}
-                  </span>{" "}
-                  by <em>{item.changed_by_name}</em> on{" "}
-                  {this.formatDate(item.changed_at)}
-                </div>
-              ))}
-            </Modal.Body>
-          </Modal>
         </div>
       </React.Fragment>
     );
   }
 }
 
-export default DegreeField;
+export default withRouter(DegreeField);

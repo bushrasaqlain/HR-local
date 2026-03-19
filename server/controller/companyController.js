@@ -13,8 +13,8 @@ const getcompanyviaids = (req, res) => {
   companyModel.getcompanyviaids(req, res);
 }
 const updateCompanySatus = (req, res) => {
-  const { id, status } = req.params; // must match router param names
-  companyModel.updateCompanySatus(id, status, res)
+  const { id, status, userId } = req.params; // must match router param names
+  companyModel.updateCompanySatus(id, status, userId, res)
 }
 const getCount = (req, res) => {
   companyModel.getCount(req, res)

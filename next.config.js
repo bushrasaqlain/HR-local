@@ -1,8 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
-   images: {
+  images: {
     domains: ["localhost"],
+  },
+  webpack: (config) => {
+    config.ignoreWarnings = [
+      { module: /@vladmandic\/face-api/ },
+    ];
+    return config;
   },
 };
 

@@ -10,7 +10,7 @@ const createLicenseTypesTable = () => {
     CREATE TABLE IF NOT EXISTS license_types (
       id INT AUTO_INCREMENT PRIMARY KEY,
       name VARCHAR(255) NOT NULL UNIQUE,
-      status ENUM('active','inactive') DEFAULT 'active',
+      status ENUM('Active','Inactive') DEFAULT 'Active',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
@@ -57,7 +57,7 @@ const addLicenseType = (req, res) => {
           entityType: "license_types",
           entityId: startId + idx,
           action: "ADDED",
-          data: { name: row[0], status: "active" },
+          data: { name: row[0], status: "Active" },
           changedBy: userId,
         });
       });
@@ -86,7 +86,7 @@ const addLicenseType = (req, res) => {
           entityType: "license_types",
           entityId: insertResults.insertId,
           action: "ADDED",
-          data: { name, status: "active" },
+          data: { name, status: "Active" },
           changedBy: userId,
         });
 
@@ -215,7 +215,7 @@ const deleteLicenseType = (req, res) => {
     if (err) return res.status(500).json({ error: "Database error" });
     if (results.length === 0) return res.status(404).json({ error: "License type not found" });
 
-    const newStatus = results[0].status === "active" ? "inactive" : "active";
+    const newStatus = results[0].status === "Active" ? "Inactive" : "Active";
     const updateQuery = "UPDATE license_types SET status = ? WHERE id = ?";
     connection.query(updateQuery, [newStatus, id], (err2) => {
       if (err2) return res.status(500).json({ error: "Database error" });

@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS job_posts (
   district_id INT,
   city_id INT,
   approval_status ENUM( 'Pending','Pending Payment','Approved','UnApproved') DEFAULT 'Pending',
-  status ENUM('Active', 'InActive') DEFAULT 'Active',
+  status ENUM('Active', 'Inactive') DEFAULT 'Active',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (account_id) REFERENCES account(id),
@@ -359,7 +359,7 @@ const updateJobPostStatus = (req, res) => {
   }
 
   const normalizedStatus = status.trim();
-  const isActiveStatus = normalizedStatus === "Active" || normalizedStatus === "InActive";
+  const isActiveStatus = normalizedStatus === "Active" || normalizedStatus === "Inactive";
   const columnToUpdate = isActiveStatus ? "status" : "approval_status";
 
   // Get previous value

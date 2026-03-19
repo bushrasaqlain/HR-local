@@ -12,7 +12,7 @@ const createTableQuery = `
     code VARCHAR(10) NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    status ENUM('active', 'inactive') DEFAULT 'active'
+    status ENUM('Active', 'Inactive') DEFAULT 'Active'
   )
 `;
 
@@ -68,7 +68,7 @@ const addCurrency =  (req, res) => {
           entityType: "currency",
           entityId: currencyId,
           action: "ADDED",
-          data: { code, status: "active" },
+          data: { code, status: "Active" },
           changedBy: userId,
         });
       });
@@ -109,7 +109,7 @@ const addCurrency =  (req, res) => {
           entityType: "currency",
           entityId: currencyId,
           action: "ADDED",
-          data: { code: name, status: "active" },
+          data: { code: name, status: "Active" },
           changedBy: userId,
         });
 
@@ -123,7 +123,7 @@ const addCurrency =  (req, res) => {
 }
 
 const getAllCurrency = (
-  { page = 1, limit = 15, name = "code", search = "", status = "active" },
+  { page = 1, limit = 15, name = "code", search = "", status = "Active" },
   callback
 ) => {
   // ✅ Ensure page and limit are numbers
@@ -210,7 +210,7 @@ const { id } = req.params;
     if (results.length === 0) return res.status(404).json({ error: "Currency not found" });
 
     const currentCurrency = results[0];
-    const newStatus = currentCurrency.status === "active" ? "inactive" : "active";
+    const newStatus = currentCurrency.status === "Active" ? "Inactive" : "Active";
 
     const updateQuery = "UPDATE currencies SET status = ? WHERE id = ?";
     connection.query(updateQuery, [newStatus, id], (err2) => {
@@ -272,7 +272,7 @@ const getAllCurrenciesinPayment = (req, res) => {
   const query = `
     SELECT id, code
     FROM currencies
-    WHERE status = 'active'
+    WHERE status = 'Active'
     ORDER BY code ASC
   `;
 

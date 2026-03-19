@@ -8,7 +8,7 @@ const createCountriesTable = () => {
     name VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    status ENUM('active', 'inactive') DEFAULT 'active'
+    status ENUM('Active', 'Inactive') DEFAULT 'Active'
   )
 `;
 
@@ -63,7 +63,7 @@ const addCountry = (req, res) => {
           entityType: "country",
           entityId: countryId,
           action: "ADDED",
-          data: { name: countryName, status: "active" },
+          data: { name: countryName, status: "Active" },
           changedBy: userId,
         });
       });
@@ -107,7 +107,7 @@ const addCountry = (req, res) => {
           entityType: "country",
           entityId: countryId,
           action: "ADDED",
-          data: { name, status: "active" },
+          data: { name, status: "Active" },
           changedBy: userId,
         });
 
@@ -240,7 +240,7 @@ const updateStatus = (req, res) => {
 
     const currentCountry = results[0];
     const newStatus =
-      currentCountry.status === "active" ? "inactive" : "active";
+      currentCountry.status === "Active" ? "Inactive" : "Active";
 
     const updateQuery = "UPDATE countries SET status = ? WHERE id = ?";
     connection.query(updateQuery, [newStatus, id], (err2) => {

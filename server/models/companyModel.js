@@ -222,9 +222,16 @@ const updateCompanyinfo = async (req, res) => {
       size_of_company,
       established_date
     } = req.body;
-    const country_id = await getIdFromName("countries", country);
-    const district_id = await getIdFromName("districts", district);
-    const city_id = await getIdFromName("cities", city);
+
+    console.log("country:", country);
+    console.log("district:", district);
+    console.log("city:", city);
+    const country_id = country;
+    const district_id = district;
+    const city_id = city;
+    console.log("country_id:", country_id);
+    console.log("district_id:", district_id);
+    console.log("city_id:", city_id);
 
     const logo = req.file ? req.file.buffer : null;
 
@@ -254,8 +261,8 @@ const updateCompanyinfo = async (req, res) => {
       business_type,
       phone,
       country_id,   // ✅ use the numeric ID
-  district_id,  // ✅ use the numeric ID
-  city_id, 
+      district_id,  // ✅ use the numeric ID
+      city_id,
       company_address,
       company_website,
       NTN,
@@ -381,7 +388,7 @@ const getcompanybyid = (req, res) => {
 
 
 
-const updateCompanySatus = (id, status, res) => {
+const updateCompanySatus = (id, status, userId, res) => {
   if (!id || !status) {
     return res.status(400).json({ success: false, message: "Missing id or status" });
   }
@@ -397,13 +404,13 @@ const updateCompanySatus = (id, status, res) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: "Company not found" });
     }
-    logAudit({
+     logAudit({
       tableName: "history",
       entityType: "employer",
       entityId: id,
-      action: "UPDATED",
+      action: status === "Active" ? "ACTIVE" : "INACTIVE",  // ✅ fix
       data: { status },
-      changedBy: id,
+      changedBy: userId,  
     });
 
     return res.status(200).json({ success: true, message: `Company status updated to ${status}` });

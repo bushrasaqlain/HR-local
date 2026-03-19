@@ -28,7 +28,6 @@ const createCandidateTable = () => {
   country INT,
   district INT,
   city INT,
-  address TEXT,
   otherPreferredCities JSON,
   skills JSON,
 
@@ -229,7 +228,7 @@ const getAllCandidates = (req, res) => {
     });
   });
 };
-const updateStatus = (id, status, res) => {
+const updateStatus = (id, status, userId, res) => {
   if (!id || !status) {
     return res
       .status(400)
@@ -253,9 +252,9 @@ const updateStatus = (id, status, res) => {
       tableName: "history",
       entityType: "candidate",
       entityId: id,
-      action: "UPDATED",
+      action: status === "Active" ? "ACTIVE" : "INACTIVE",  // ✅ fix
       data: { status },
-      changedBy: id,
+      changedBy: userId,  
     });
 
     return res
@@ -315,17 +314,13 @@ const addCandidateInfo = async (req, res) => {
 
     // 🔹 Passport photo
     // 🔹 Determine which file was uploaded
-    let passportPhotoPath;
-    let resumePath;
+    const passportPhotoPath = req.passportPhotoPath
+      ? req.passportPhotoPath.replace(/\\/g, "/").replace(/^.*uploads/, "/uploads")
+      : null;
 
-    if (req.file) {
-      if (req.file.fieldname === "passport_photo") {
-        passportPhotoPath = `/uploads/passportPhotos/${req.file.filename}`;
-      }
-      if (req.file.fieldname === "resume") {
-        resumePath = `/uploads/resume/${req.file.filename}`;
-      }
-    }
+    const resumePath = req.resumePath
+      ? req.resumePath.replace(/\\/g, "/").replace(/^.*uploads/, "/uploads")
+      : null;
     // 🔹 Profile completion check
     let profileCompleted = false;
     if (mode === "submit") {
@@ -774,10 +769,12 @@ const editCandidateInfo = (req, res) => {
   }
 
   // ✅ Correct file handling
-  const passportPhotoFile = req.file;
+  const passportPhotoPath = req.passportPhotoPath
+    ? req.passportPhotoPath.replace(/\\/g, "/").replace(/^.*uploads/, "/uploads")
+    : null;
 
-  const passportPhotoPath = passportPhotoFile
-    ? `/uploads/passportPhotos/${passportPhotoFile.filename}`
+  const resumePath = req.resumePath
+    ? req.resumePath.replace(/\\/g, "/").replace(/^.*uploads/, "/uploads")
     : null;
   // ✅ Map frontend fields → DB columns
   const fieldMap = {
@@ -963,36 +960,36 @@ const getCandidateFullProfilebyId = async (req, res) => {
       ...candidateInfoResults[0],
       experiences: Array.isArray(workResults)
         ? workResults.map((exp, index) => ({
-            ...exp,
-            start_date: formatDate(exp.start_date),
-            end_date: formatDate(exp.end_date),
-            first: index === 0,
-          }))
+          ...exp,
+          start_date: formatDate(exp.start_date),
+          end_date: formatDate(exp.end_date),
+          first: index === 0,
+        }))
         : [],
 
       education: Array.isArray(educationResults)
         ? educationResults.map((edu, index) => ({
-            ...edu,
-            start_date: formatDate(edu.start_date),
-            end_date: formatDate(edu.end_date),
-            first: index === 0,
-          }))
+          ...edu,
+          start_date: formatDate(edu.start_date),
+          end_date: formatDate(edu.end_date),
+          first: index === 0,
+        }))
         : [],
 
       projects: Array.isArray(projectsResults)
         ? projectsResults.map((proj, index) => ({
-            ...proj,
-            start_date: formatDate(proj.start_date),
-            end_date: formatDate(proj.end_date),
-            first: index === 0,
-          }))
+          ...proj,
+          start_date: formatDate(proj.start_date),
+          end_date: formatDate(proj.end_date),
+          first: index === 0,
+        }))
         : [],
 
       awards: Array.isArray(awardsResults)
         ? awardsResults.map((awd, index) => ({
-            ...awd,
-            first: index === 0,
-          }))
+          ...awd,
+          first: index === 0,
+        }))
         : [],
     };
 

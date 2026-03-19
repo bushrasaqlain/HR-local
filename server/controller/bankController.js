@@ -6,7 +6,7 @@ const getAllBank = (req, res) => {
     limit = 15,
     name = "name",
     search = "",
-    status = "active",
+    status = "Active",
   } = req.query;
 
   BankModel.getAllBank(

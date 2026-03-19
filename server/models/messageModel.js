@@ -11,14 +11,17 @@ CREATE TABLE IF NOT EXISTS messages (
   id INT AUTO_INCREMENT PRIMARY KEY,
   senderId INT,
   receiverId INT,
+  jobId INT,
   message TEXT,
   jobId INT,
   is_read BOOLEAN DEFAULT FALSE,
   timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   deleted_by_sender BOOLEAN DEFAULT FALSE,
   deleted_by_receiver BOOLEAN DEFAULT FALSE,
+  
   FOREIGN KEY (senderId) REFERENCES account(id),
-  FOREIGN KEY (receiverId) REFERENCES account(id)
+  FOREIGN KEY (receiverId) REFERENCES account(id),
+  FOREIGN KEY (jobId) REFERENCES job_posts(id)
 );
 `;
 

@@ -12,6 +12,7 @@ import {
   CardTitle,
   Button,
 } from "reactstrap";
+import { Helmet } from "react-helmet";
 
 class PricingForm extends Component {
   constructor(props) {
@@ -140,7 +141,12 @@ class PricingForm extends Component {
     const { packages, showPayment, selectedPackage, selectedPrice, selectedCurrency } = this.state;
 
     return (
+      <>
+      <Helmet>
+        <title>Pricing</title>
+      </Helmet>
       <Container className="pb-5">
+
         <h2 className="text-center py-5 fw-bold" style={{ fontSize: "2.5rem", color: "#333" }}>
           Pricing Plans
         </h2>
@@ -219,6 +225,8 @@ class PricingForm extends Component {
           onPaymentSuccess={this.handlePaymentSuccess}
         />
       </Container>
+      </>
+      
     );
   }
 }
