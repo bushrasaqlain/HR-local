@@ -4,7 +4,7 @@ import Pagination from "../common/pagination.jsx";
 // import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import { withRouter } from "next/router";
-import MetaTags from "react-meta-tags";
+import Helmet from "react-helmet";
 import {
   Card,
   Row,
@@ -333,9 +333,9 @@ class Jobtype extends Component {
     return (
       <React.Fragment>
         <style>{highlightStyle}</style>
-        <MetaTags>
+        <Helmet>
           <title>Jobtype | List</title>
-        </MetaTags>
+        </Helmet>
         <h6 className="fw-bold mb-3">Jobtype List</h6>
         <div className="poppins-font">
           <Container fluid>

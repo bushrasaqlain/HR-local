@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import { ListGroup, ListGroupItem } from "reactstrap";
+import { Card, CardHeader, ListGroup, ListGroupItem } from "reactstrap";
 
 class Notification extends Component {
   constructor(props) {
@@ -20,7 +20,9 @@ class Notification extends Component {
   fetchContacts = async () => {
     const { userId } = this.state;
     try {
-      const response = await fetch(`${this.apiBaseUrl}message/contacts/${userId}`);
+      const response = await fetch(
+        `${this.apiBaseUrl}message/contacts/${userId}`,
+      );
       if (response.ok) {
         const data = await response.json();
         this.setState({ contacts: data });
@@ -45,11 +47,17 @@ class Notification extends Component {
     const { contacts, searchValue } = this.state;
 
     const filteredContacts = contacts.filter((contact) =>
-      contact.full_name.toLowerCase().includes(searchValue)
+      contact.full_name.toLowerCase().includes(searchValue),
     );
 
     return (
-      <div className="search-box-one">
+      <Card className="tabs-box rounded-5 shadow-sm overflow-auto ">
+        <CardHeader
+          className="widget-title mb-2 hover shadow-sm text-white "
+          style={{ background: "#5f8190" }}
+        >
+          <h5 className="fw-semibold p-2 m-2 hover">Messages Notifications</h5>
+        </CardHeader>
         {/* Contact List */}
         <ListGroup className="contacts list-unstyled p-0 m-0">
           {filteredContacts.map((contact) => (
@@ -64,7 +72,9 @@ class Notification extends Component {
                 </div>
                 <div className="contact-info">
                   <span className="fw-bold">{contact.full_name}</span>
-                  <p className="mb-0 text-truncate last-message">{contact.last_message}</p>
+                  <p className="mb-0 text-truncate last-message">
+                    {contact.last_message}
+                  </p>
                 </div>
               </div>
               <div className="message-time text-muted small">
@@ -73,7 +83,7 @@ class Notification extends Component {
             </ListGroupItem>
           ))}
         </ListGroup>
-      </div>
+      </Card>
     );
   }
 }

@@ -94,7 +94,7 @@ class DefaulHeader2 extends Component {
               Login / Register
             </Button>
             <Button
-              href="/login"
+              href="/?page=login"
               className="btn-gradient btn-dark text-center p-2 text-decoration-none"
             >
               Post Job

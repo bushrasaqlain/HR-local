@@ -595,3 +595,8 @@ textarea::-ms-input-placeholder {
   background: #36565F linear-gradient(0deg, #36565F 0%, #36565F 100%) !important;
   color: white !important;
 }
+.custom-option:hover {
+  background-color: #ff6b6b; /* Your custom color */
+  color: white;
+  cursor: pointer;
+}

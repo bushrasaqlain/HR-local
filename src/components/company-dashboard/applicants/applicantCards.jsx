@@ -11,17 +11,22 @@ class ApplicantCard extends React.Component {
       interviewTime: "",
     };
   }
+
+
   render() {
     const { candidate, onStatusChange } = this.props;
     const { showModal, interviewDay, interviewTime } = this.state;
+    // const { showModal, interviewDay, interviewTime } = this.state;
     let actionButton = null;
 
     if (candidate.candidateStatus === "Pending") {
       actionButton = (
         <Button
           size="sm"
-          color="info"
+          className="custom-progress-bar"
           onClick={() => this.setState({ showModal: true })}
+          color="info"
+          // onClick={() => this.setState({ showModal: true })}
         >
           Shortlist
         </Button>
@@ -31,7 +36,7 @@ class ApplicantCard extends React.Component {
         <>
           <Button
             size="sm"
-            color="success"
+            style={{ background: "#5f8190"}}
             onClick={() => onStatusChange(candidate.candidate_id, "Approved")}
           >
             Approve
@@ -84,8 +89,8 @@ class ApplicantCard extends React.Component {
 
               <div className="d-flex gap-2">
                 <Button
-                  color="success"
-                  className="w-100"
+                  // color="success"
+                  className="w-100 custom-progress-bar"
                   onClick={() => {
                     if (!interviewDay || !interviewTime) {
                       alert("Please select both date and time");
@@ -121,3 +126,4 @@ class ApplicantCard extends React.Component {
 }
 
 export default ApplicantCard;
+

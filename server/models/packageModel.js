@@ -13,6 +13,8 @@ const createPackagesTable = () => {
   duration_unit VARCHAR(20) NOT NULL,
   duration_value VARCHAR(255) NOT NULL,
   currency VARCHAR(50) NOT NULL,
+  currency_id INT NOT NULL,
+  description TEXT NULL,
   status ENUM('Active','Inactive') DEFAULT 'Active',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -27,7 +29,7 @@ const createPackagesTable = () => {
 }
 
 const getAllPackages = (
-  { page = 1, limit = 10, name = "price", search = "", status = "active" },
+  { page = 1, limit = 10, name = "price", search = "", status = "Active" },
   callback
 ) => {
   page = parseInt(page, 10);
@@ -60,7 +62,7 @@ const getAllPackages = (
       c.id AS currency_id,
       c.code AS currency
     FROM packages p
-    LEFT JOIN currencies c ON c.id = p.currency
+    LEFT JOIN currencies c ON c.id = p.currency_id
     WHERE 1=1
   `;
 
@@ -101,7 +103,7 @@ const getAllPackages = (
     let countQuery = `
       SELECT COUNT(*) AS total
       FROM packages p
-      LEFT JOIN currencies c ON c.id = p.currency
+      LEFT JOIN currencies c ON c.id = p.currency_id
       WHERE 1=1
     `;
 
@@ -156,8 +158,10 @@ const getCurrencyMap = () =>
   });
 
 const addPackage = (req, res) => {
+  console.log("req.body", req.body);
+  console.log("description:", req.body.description);
   const userId = req.user.userId;
-  const { type, duration_unit, price, duration_value, currency_id, data } = req.body;
+  const { type, duration_unit, price, duration_value, currency_id, description, data } = req.body;
 
   if (type === "csv") {
     if (!data || !Array.isArray(data) || data.length === 0) {
@@ -177,7 +181,7 @@ const addPackage = (req, res) => {
 
             if (!unit || !value || !price || !currency_id) return null;
 
-            return [unit, value, price, currency_id];
+            return [unit, value, price, currencyText.toUpperCase(), currency_id, null];
           })
           .filter(Boolean);
 
@@ -188,13 +192,15 @@ const addPackage = (req, res) => {
         }
 
         const sql = `
-        INSERT INTO packages (duration_unit, duration_value, price, currency)
+        INSERT INTO packages (duration_unit, duration_value, price, currency, currency_id, description)
         VALUES ?
       `;
 
         connection.query(sql, [packages], (err, result) => {
-          if (err) return res.status(500).json({ error: "Database error" });
-
+          if (err) return res.status(500).json({
+            error: "Database error",
+            details: err.message
+          });
           const startId = result.insertId;
 
           packages.forEach((row, idx) => {
@@ -228,65 +234,68 @@ const addPackage = (req, res) => {
       return res.status(400).json({ error: "All fields are required" });
     }
 
-    const checkSql = `
-      SELECT id FROM packages 
-      WHERE duration_unit = ? 
-        AND duration_value = ? 
-        AND price = ? 
-        AND currency = ?
-    `;
+    const { description } = req.body;
 
-    connection.query(
-      checkSql,
-      [duration_unit, duration_value, price, currency_id],
-      (err, results) => {
+    // ✅ Step 1: Get currency code from currency_id
+    const getCurrencySql = `SELECT code FROM currencies WHERE id = ?`;
+
+    connection.query(getCurrencySql, [currency_id], (err, currencyResult) => {
+      if (err) return res.status(500).json({ error: "Database error" });
+      if (!currencyResult.length) return res.status(400).json({ error: "Invalid currency" });
+
+      const currencyCode = currencyResult[0].code; // e.g. "USD"
+
+      // ✅ Step 2: Check duplicate using currency code
+      const checkSql = `
+        SELECT id FROM packages 
+        WHERE duration_unit = ? 
+          AND duration_value = ? 
+          AND price = ? 
+          AND currency = ?
+      `;
+
+      connection.query(checkSql, [duration_unit, duration_value, price, currencyCode], (err, results) => {
         if (err) return res.status(500).json({ error: "Database error" });
 
         if (results.length > 0) {
           return res.status(409).json({ message: "Package already exists" });
         }
 
+        // ✅ Step 3: Insert using currency code
         const insertSql = `
-          INSERT INTO packages (duration_unit, duration_value, price, currency)
-          VALUES (?, ?, ?, ?)
+          INSERT INTO packages (duration_unit, duration_value, price, currency, currency_id, description)
+          VALUES (?, ?, ?, ?, ?, ?)
         `;
 
-        connection.query(
-          insertSql,
-          [duration_unit, duration_value, price, currency_id],
-          (err2, insertRes) => {
-            if (err2) return res.status(500).json({ error: "Database error" });
+        connection.query(insertSql, [duration_unit, duration_value, price, currencyCode, currency_id, description || null], (err2, insertRes) => {
+          if (err2) return res.status(500).json({
+            error: "Database error",
+            details: err2.message
+          });
 
-            logAudit({
-              tableName: "dbadminhistory",
-              entityType: "package",
-              entityId: insertRes.insertId,
-              action: "ADDED",
-              data: {
-                duration_unit,
-                duration_value,
-                price,
-                currency_id,
-                status: "Active",
-              },
-              changedBy: userId,
-            });
+          logAudit({
+            tableName: "dbadminhistory",
+            entityType: "package",
+            entityId: insertRes.insertId,
+            action: "ADDED",
+            data: { duration_unit, duration_value, price, currency_id, description, status: "Active" },
+            changedBy: userId,
+          });
 
-            res.status(201).json({
-              success: true,
-              message: "Package added successfully",
-              id: insertRes.insertId,
-            });
-          }
-        );
-      }
-    );
+          res.status(201).json({
+            success: true,
+            message: "Package added successfully",
+            id: insertRes.insertId,
+          });
+        });
+      });
+    });
   }
 };
 
 const editPackage = (req, res) => {
   const { id } = req.params;
-  const { duration_unit, price, duration_value, currency_id } = req.body;
+  const { duration_unit, price, duration_value, currency_id, description } = req.body; // ✅ add description
   const userId = req.user.userId;
 
   if (!duration_unit || !price || !duration_value || !currency_id) {
@@ -298,26 +307,38 @@ const editPackage = (req, res) => {
     if (err) return res.status(500).json({ error: "Database error" });
     if (results.length === 0) return res.status(404).json({ error: "Package not found" });
 
-    const updateSql = `UPDATE packages 
-                           SET duration_unit = ?, price = ?, duration_value = ?, currency = ? 
-                           WHERE id = ?`;
+    // ✅ Step 1: Get currency code from currency_id (same as addPackage)
+    const getCurrencySql = `SELECT code FROM currencies WHERE id = ?`;
+    connection.query(getCurrencySql, [currency_id], (err, currencyResult) => {
+      if (err) return res.status(500).json({ error: "Database error" });
+      if (!currencyResult.length) return res.status(400).json({ error: "Invalid currency" });
 
-    connection.query(updateSql, [duration_unit, price, duration_value, currency_id, id], (err2) => {
-      if (err2) return res.status(500).json({ error: "Database error" });
+      const currencyCode = currencyResult[0].code;
 
-      logAudit({
-        tableName: "dbadminhistory",
-        entityType: "package",
-        entityId: id,
-        action: "UPDATED",
-        data: { duration_unit, price, duration_value, currency_id, status: results[0].status },
-        changedBy: userId,
+      // ✅ Step 2: Update with currency code + currency_id + description
+      const updateSql = `
+        UPDATE packages 
+        SET duration_unit = ?, duration_value = ?, price = ?, currency = ?, currency_id = ?, description = ?
+        WHERE id = ?
+      `;
+
+      connection.query(updateSql, [duration_unit, duration_value, price, currencyCode, currency_id, description || null, id], (err2) => {
+        if (err2) return res.status(500).json({ error: "Database error" });
+
+        logAudit({
+          tableName: "dbadminhistory",
+          entityType: "package",
+          entityId: id,
+          action: "UPDATED",
+          data: { duration_unit, duration_value, price, currency_id, description, status: results[0].status },
+          changedBy: userId,
+        });
+
+        res.status(200).json({ message: "Package updated successfully" });
       });
-
-      res.status(200).json({ message: "Package updated successfully" });
     });
   });
-}
+};
 
 const deletePackage = (req, res) => {
   const { id } = req.params;

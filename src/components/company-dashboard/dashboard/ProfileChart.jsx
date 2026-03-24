@@ -1,5 +1,6 @@
 "use client";
 import React, { Component } from "react";
+import { Card, CardBody, CardHeader } from "reactstrap";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -12,6 +13,7 @@ import {
 } from "chart.js";
 import { Line } from "react-chartjs-2";
 import axios from "axios";
+import Select from "react-select"; // Add this import
 
 ChartJS.register(
   CategoryScale,
@@ -20,7 +22,7 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
 );
 
 export const options = {
@@ -42,6 +44,17 @@ class ProfileChart extends Component {
         value: 1,
       },
     };
+
+    // Define options for react-select
+    this.selectOptions = [
+      { value: "1", label: "Last 1 Month" },
+      { value: "2", label: "Last 2 Months" },
+      { value: "4", label: "Last 4 Months" },
+      { value: "6", label: "Last 6 Months" },
+      { value: "8", label: "Last 8 Months" },
+      { value: "10", label: "Last 10 Months" },
+      { value: "12", label: "Last 12 Months" },
+    ];
   }
 
   componentDidMount() {
@@ -65,7 +78,7 @@ class ProfileChart extends Component {
     try {
       const res = await axios.get(
         `${apiBaseUrl}job/gettotaljob/${userId}?type=${type}&value=${value}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       this.setState({
@@ -77,24 +90,97 @@ class ProfileChart extends Component {
     }
   };
 
-  // handleFilterChange = (e) => {
-  //   const val = e.target.value;
-  //   if (val === "6" || val === "12" || val === "24") {
-  //     this.setState({ filter: { type: "month", value: parseInt(val) } });
-  //   } else {
-  //     this.setState({ filter: { type: "year", value: parseInt(val) } });
-  //   }
-  // };
-handleFilterChange = (e) => {
-  const val = parseInt(e.target.value);
-  if (val <= 12) {
-    // All values up to 12 are months
-    this.setState({ filter: { type: "month", value: val } });
-  } else {
-    // Values above 12 are years
-    this.setState({ filter: { type: "year", value: val } });
-  }
-};
+  handleFilterChange = (selectedOption) => {
+    const val = parseInt(selectedOption.value);
+    if (val <= 12) {
+      this.setState({ filter: { type: "month", value: val } });
+    } else {
+      this.setState({ filter: { type: "year", value: val } });
+    }
+  };
+
+  // Custom styles for react-select
+  customSelectStyles = {
+    control: (provided, state) => ({
+      ...provided,
+      width: "100%",
+      minHeight: "45px",
+      padding: "0",
+      fontSize: "14px",
+      borderColor: state.isFocused ? "#36565f" : "#5f8190",
+      boxShadow: state.isFocused ? "0 0 0 3px rgba(0, 0, 0, 0.1)" : "none",
+      "&:hover": {
+        borderColor: "#36565f",
+      },
+      borderRadius: "8px",
+      cursor: "pointer",
+      backgroundColor: "#ffffff",
+    }),
+    option: (provided, state) => ({
+      ...provided,
+      backgroundColor: state.isSelected
+        ? "#5f8190"
+        : state.isFocused
+          ? "#5f8190" // This is your custom hover color - BLACK
+          : "#ffffff",
+      color: state.isSelected || state.isFocused ? "#ffffff" : "#1e293b",
+      padding: "12px 20px",
+      fontSize: "14px",
+      cursor: "pointer",
+      "&:active": {
+        backgroundColor: "#36565f",
+        color: "white",
+      },
+    }),
+    menu: (provided) => ({
+      ...provided,
+      borderRadius: "8px",
+      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+      zIndex: 1000,
+      marginTop: "4px",
+    }),
+    menuList: (provided) => ({
+      ...provided,
+      padding: "0",
+      borderRadius: "8px",
+      "&::-webkit-scrollbar": {
+        width: "8px",
+      },
+      "&::-webkit-scrollbar-track": {
+        background: "#f1f1f1",
+        borderRadius: "4px",
+      },
+      "&::-webkit-scrollbar-thumb": {
+        background: "#717272",
+        borderRadius: "4px",
+      },
+    }),
+    singleValue: (provided) => ({
+      ...provided,
+      color: "#1e293b",
+    }),
+    indicatorSeparator: () => ({
+      display: "none",
+    }),
+    dropdownIndicator: (provided, state) => ({
+      ...provided,
+      color: "#64748b",
+      transition: "all 0.2s ease",
+      transform: state.selectProps.menuIsOpen ? "rotate(180deg)" : "none",
+      "&:hover": {
+        color: "#36565f",
+      },
+    }),
+    placeholder: (provided) => ({
+      ...provided,
+      color: "#94a3b8",
+    }),
+    valueContainer: (provided) => ({
+      ...provided,
+      padding: "0 12px",
+    }),
+  };
+
   render() {
     const { labels, chartData, filter } = this.state;
 
@@ -112,32 +198,47 @@ handleFilterChange = (e) => {
       ],
     };
 
+    // Find the currently selected option
+    const selectedOption = this.selectOptions.find(
+      (opt) => opt.value === String(filter.value),
+    );
+
     return (
-      <div className="tabs-box">
-        <div className="widget-title">
-          <h4>Job Posts Analytics</h4>
+      <Card className="tabs-box rounded-5 overflow-auto">
+        <CardHeader
+          className="widget-title text-white mb-2 hover shadow-sm"
+          style={{ background: "#5f8190" }}
+        >
+          <h5 className="fw-semibold p-2 m-2 hover">Job Posts Analytics</h5>
+        </CardHeader>
 
-          <div className="chosen-outer">
-            <select
-              className="chosen-single form-select"
+        <CardBody>
+          <div className="chosen-outer mb-3 p-2 tabs-box">
+            <Select
+              options={this.selectOptions}
+              styles={this.customSelectStyles}
+              value={selectedOption}
               onChange={this.handleFilterChange}
-              value={filter.value}
-            >
-              <option value="1">Last 1 Months</option>
-              <option value="2">Last 2 Months</option>
-              <option value="4">Last 4 Months</option>
-              <option value="6">Last 6 Months</option>
-              <option value="8">Last 8 Months</option>
-              <option value="10">Last 10 Months</option>
-              <option value="12">Last 12 Months</option>
-            </select>
+              placeholder="Select time period..."
+              isSearchable={false}
+              theme={(theme) => ({
+                ...theme,
+                colors: {
+                  ...theme.colors,
+                  primary: "#36565f",
+                  primary25: "#36565f", // Hover color
+                  primary50: "#1a1a1a",
+                  primary75: "#36565f",
+                },
+              })}
+            />
           </div>
-        </div>
 
-        <div className="widget-content">
-          <Line options={options} data={data} />
-        </div>
-      </div>
+          <div className="widget-content mt-2">
+            <Line options={options} data={data} />
+          </div>
+        </CardBody>
+      </Card>
     );
   }
 }

@@ -4,6 +4,10 @@
 @import "../../public/scss/main.scss";
 
 
+body {
+  overflow-x: hidden;
+}
+
 .table-responsive {
   border: 1px solid #e5e7eb;
   border-radius: 12px;
@@ -169,4 +173,327 @@ span.badge.badge-inactive-custom {
   padding: 6px 10px;
   border-radius: 20px;
   font-size: 12px;
+}
+
+/* 🔷 HERO */
+.about-hero {
+  width: 100vw;
+  /* 🔥 full screen width */
+  margin-left: calc(-50vw + 50%);
+  height: 300px;
+
+  background: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)),
+    url('/images/background/2.png');
+
+  background-size: cover;
+  background-position: center;
+}
+
+/* ✅ tagline white */
+.hero-tagline {
+  color: #ffffff;
+  font-size: 18px;
+  opacity: 0.9;
+}
+
+/* 🔷 CARDS */
+.about-card {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  transition: all 0.4s ease;
+  cursor: pointer;
+}
+
+/* 🔥 HOVER EFFECT */
+.about-card:hover {
+  background: linear-gradient(135deg, #116dc2, #2b6fd4);
+  transform: translateY(-10px) scale(1.03);
+}
+
+/* TEXT COLOR CHANGE ON HOVER */
+.about-card:hover h4,
+.about-card:hover p {
+  color: #ffffff;
+}
+
+/* ICON STYLE */
+.about-card .icon {
+  font-size: 35px;
+  color: #116dc2;
+  transition: 0.3s;
+}
+
+/* ICON CHANGE ON HOVER */
+.about-card:hover .icon {
+  color: #ffffff;
+  transform: scale(1.2);
+}
+
+/* 🔷 STEP ICON */
+.step-icon {
+  font-size: 30px;
+  color: #116dc2;
+  margin-bottom: 10px;
+  transition: 0.3s;
+}
+
+.step-icon:hover {
+  transform: scale(1.2);
+}
+
+/* 🔷 HERO */
+.faq-hero {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  height: 350px;
+  background: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)),
+    url('/images/background/2.png');
+  background-size: cover;
+  background-position: center;
+}
+
+/* 🔷 SECTION */
+.faqs-section {
+  padding: 60px 0;
+}
+
+/* 🔷 HEADINGS */
+.faq-heading {
+  font-weight: 600;
+  margin-bottom: 50px;
+}
+
+.faq-tagline {
+  color: #ffffff;
+  font-size: 18px;
+  opacity: 0.9;
+}
+
+/* 🔷 ACCORDION */
+.custom-accordion .accordion-item {
+  border: none;
+  margin-bottom: 15px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  transition: 0.3s;
+}
+
+/* HOVER EFFECT */
+.custom-accordion .accordion-item:hover {
+  transform: translateY(-3px);
+}
+
+/* BUTTON */
+.custom-accordion .accordion-button {
+  background: #ffffff;
+  font-weight: 500;
+  padding: 16px;
+}
+
+/* ACTIVE */
+.custom-accordion .accordion-button:not(.collapsed) {
+  background: linear-gradient(135deg, #116dc2, #2b6fd4);
+  color: #fff;
+}
+
+/* ICON */
+.custom-accordion .icon {
+  color: #116dc2;
+}
+
+.custom-accordion .accordion-button:not(.collapsed) .icon {
+  color: #fff;
+}
+
+/* BODY */
+.custom-accordion .accordion-body {
+  background: #f9fafb;
+  padding: 15px;
+  color: #555;
+}
+
+/* 🔷 HERO */
+.terms-hero {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  height: 350px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)),
+    url('/images/background/2.png');
+
+  background-size: cover;
+  background-position: center;
+}
+
+/* 🔷 SECTION */
+.tnc-section {
+  padding: 60px 0;
+}
+
+.terms-tagline {
+  color: #ffffff;
+  font-size: 17px;
+  opacity: 0.9;
+}
+
+/* 🔷 CARD STYLE */
+.terms-card {
+  background: #ffffff;
+  padding: 25px;
+  margin-bottom: 20px;
+  border-radius: 14px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  transition: 0.3s;
+  cursor: pointer;
+}
+
+/* 🔥 HOVER EFFECT */
+.terms-card:hover {
+  transform: translateY(-5px);
+  background: linear-gradient(135deg, #116dc2, #2b6fd4);
+}
+
+/* TEXT COLOR CHANGE */
+.terms-card:hover h4,
+.terms-card:hover p {
+  color: #fff;
+}
+
+/* HEADINGS */
+.terms-card h4 {
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+/* TEXT */
+.terms-card p {
+  color: #555;
+  line-height: 1.6;
+}
+
+/* 🔷 MAIN */
+.main-footer {
+  background: #111;
+  color: #fff;
+}
+
+/* 🔷 TOP */
+.footer-top {
+  background: #1a1a1a;
+}
+
+/* 🔷 TEXT */
+.footer-desc {
+  color: #cbd5e1;
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+/* 🔷 LINKS */
+.footer-links {
+  list-style: none;
+  padding: 0;
+}
+
+.footer-links li {
+  margin-bottom: 10px;
+}
+
+.footer-links a {
+  color: #cbd5e1;
+  text-decoration: none;
+  transition: 0.3s;
+}
+
+.footer-links a:hover {
+  color: #2b6fd4;
+  padding-left: 6px;
+}
+
+/* 🔷 ICON TEXT */
+.footer-column p {
+  font-size: 14px;
+  color: #cbd5e1;
+}
+
+.footer-column p svg {
+  margin-right: 8px;
+  color: #2b6fd4;
+}
+
+/* 🔷 SOCIAL */
+.social-icons a {
+  display: inline-block;
+  margin: 0 8px;
+  background: #222;
+  width: 36px;
+  height: 36px;
+  line-height: 36px;
+  border-radius: 50%;
+  color: #fff;
+  transition: 0.3s;
+}
+
+.social-icons a:hover {
+  background: #2b6fd4;
+  transform: scale(1.1);
+}
+
+/* 🔷 BOTTOM */
+.footer-bottom {
+  background: #2e2e2e;
+  padding: 15px;
+  font-size: 14px;
+  color: #bbb;
+}
+
+/* 🔷 NEW HERO */
+.terms-hero-new {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  background: #f8fafc;
+  padding: 80px 0;
+}
+
+/* 🔷 TITLE */
+.terms-title {
+  font-size: 44px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.2;
+}
+
+/* 🔷 DESCRIPTION */
+.terms-desc {
+  margin: 20px 0;
+  color: #64748b;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* 🔷 BUTTON */
+.terms-btn {
+  background: linear-gradient(135deg, #2b6fd4, #2b6fd4);
+  border: none;
+  padding: 10px 22px;
+  color: #fff;
+  border-radius: 25px;
+  font-weight: 500;
+  transition: 0.3s;
+}
+
+.terms-btn:hover {
+  transform: scale(1.05);
+}
+
+/* 🔷 IMAGE */
+.terms-img {
+  max-width: 100%;
+  height: auto;
 }

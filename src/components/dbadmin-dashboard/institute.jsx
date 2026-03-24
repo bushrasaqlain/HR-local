@@ -5,7 +5,7 @@ import Pagination from "../common/pagination.jsx";
 import api from "../lib/api.jsx";
 import * as XLSX from "xlsx";
 import { withRouter } from "next/router";
-import MetaTags from "react-meta-tags";
+import Helmet from "react-helmet";
 import {
     Card,
     Row,
@@ -349,9 +349,9 @@ class Institute extends Component {
         return (
             <React.Fragment>
                 <style>{highlightStyle}</style>
-                <MetaTags>
+                <Helmet>
                     <title>Institute | List</title>
-                </MetaTags>
+                </Helmet>
                 <h6 className="fw-bold mb-3">Institute List</h6>
                 <div className="poppins-font">
                     <Container fluid>

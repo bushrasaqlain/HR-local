@@ -87,13 +87,14 @@ export const companymenuitem = [
       { key: "postJob", label: "Post Job" },
       { key: "jobList", label: "Job Post List" },
       { key: "packagesList", label: "Packages List" },
+      { key: "pricingform", label: "Pricing"},
     ],
   },
 
 
   { key: "allApplicants", label: "All Applicants", type: "single" },
   { key: "shortlistedcandidates", label: "Shortlisted", type: "single" },
-  // { key: "chatBox", label: "Messages", type: "single" },
+  { key: "approved", label: "Approved", type: "single" },
 ];
 
 

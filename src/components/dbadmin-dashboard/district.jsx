@@ -3,7 +3,7 @@ import axios from "axios";
 import Pagination from "../common/pagination.jsx";
 // import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
-import MetaTags from "react-meta-tags";
+import Helmet from "react-helmet";
 import AsyncSelect from "react-select/async";
 import { withRouter } from "next/router";
 import * as XLSX from "xlsx";
@@ -412,9 +412,9 @@ class Districts extends Component {
     return (
       <React.Fragment>
         <style>{highlightStyle}</style>
-        <MetaTags>
+        <Helmet>
           <title>Districts | List</title>
-        </MetaTags>
+        </Helmet>
         <h6 className="fw-bold mb-3">Districts List</h6>
         <div className="poppins-font">
           <Container fluid>
