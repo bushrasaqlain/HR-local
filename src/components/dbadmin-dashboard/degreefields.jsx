@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import axios from "axios";
 import Pagination from "../common/pagination.jsx";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import Helmet from "react-helmet";
 import { withRouter } from "next/router";
@@ -40,6 +40,8 @@ class DegreeField extends Component {
       isImportMode: false,
       importFile: null,
       isActive: "all",
+      successMessage: "",
+      errorMessage: "",
       filters: {
         name: "",
         created_at: "",
@@ -143,7 +145,8 @@ class DegreeField extends Component {
     const { degreeFieldData } = this.state;
 
     if (!degreeFieldData || !degreeFieldData.length) {
-      toast.info("No degreeFieldData available to export");
+      this.setState({ errorMessage: "No degree fields available to export" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
@@ -166,7 +169,8 @@ class DegreeField extends Component {
     // Write file
     XLSX.writeFile(workbook, "Degree Field.xlsx");
 
-    toast.success("Degree Field exported successfully");
+    this.setState({ successMessage: "Degree fields exported successfully" });
+    setTimeout(() => this.setState({ successMessage: "" }), 3000);
   };
 
   fetchHistory = async (id) => {
@@ -204,14 +208,19 @@ class DegreeField extends Component {
     const { editId, inputValue, selectedDegreeType, isImportMode, importFile } = this.state;
     const userId = sessionStorage.getItem("userId");
     if (!selectedDegreeType) {
-      toast.error("Please select a Degree Type");
+      if (!selectedDegreeType) {
+        this.setState({ errorMessage: "Please select a Degree Type" });
+        setTimeout(() => this.setState({ errorMessage: "" }), 3000);
+        return;
+      }
       return;
     }
 
     try {
       if (isImportMode) {
         if (!importFile) {
-          toast.error("Please select an Excel file");
+          this.setState({ errorMessage: "Please select an Excel file" });
+          setTimeout(() => this.setState({ errorMessage: "" }), 3000);
           return;
         }
 
@@ -227,7 +236,8 @@ class DegreeField extends Component {
             .filter(row => row.name);
 
           if (!degreefieldData.length) {
-            toast.error("No valid degreefield names found in Excel");
+            this.setState({ errorMessage: "No valid degree field names found in Excel" });
+            setTimeout(() => this.setState({ errorMessage: "" }), 3000);
             return;
           }
 
@@ -238,9 +248,15 @@ class DegreeField extends Component {
             userId,
           });
 
-          toast.success("degreefield imported successfully");
+          this.setState({
+            showModal: false,
+            importFile: null,
+            isImportMode: false,
+            selectedCountry: null,
+            successMessage: "Degree field imported successfully",
+          });
+          setTimeout(() => this.setState({ successMessage: "" }), 3000);
           this.fetchDegreeFields(1);
-          this.setState({ showModal: false, importFile: null, isImportMode: false, selectedCountry: null });
         };
 
         reader.readAsArrayBuffer(importFile);
@@ -278,10 +294,13 @@ class DegreeField extends Component {
         inputValue: "",
         selectedDegreeType: "",
         editId: null,
+        successMessage: editId ? "Degree field updated successfully!" : "Degree field added successfully!",
       });
+      setTimeout(() => this.setState({ successMessage: "" }), 3000);
     } catch (error) {
       console.error("Error saving Degree Field:", error);
-      toast.error(error.response?.data?.error || "Something went wrong");
+      this.setState({ errorMessage: error.response?.data?.error || "Something went wrong" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -298,7 +317,8 @@ class DegreeField extends Component {
     const { deleteId, deleteStatus } = this.state;
 
     if (!deleteId) {
-      toast.error("Invalid Degree Field ID");
+      this.setState({ errorMessage: "Invalid Degree Field ID" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
@@ -320,20 +340,21 @@ class DegreeField extends Component {
           deleteStatus: null,
         }));
 
-        toast.success(
-          deleteStatus === "Active"
+        this.setState({
+          successMessage: deleteStatus === "Active"
             ? "Inactivated successfully"
-            : "Activated successfully"
-        );
+            : "Activated successfully",
+        });
+        setTimeout(() => this.setState({ successMessage: "" }), 3000);
 
       } else {
-        toast.error(response.data?.message || "Operation failed");
+        this.setState({ errorMessage: response.data?.message || "Operation failed" });
+        setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       }
     } catch (error) {
       console.error("Error deleting Degree Field:", error);
-      toast.error(
-        error.response?.data?.error || "Something went wrong. Please try again."
-      );
+      this.setState({ errorMessage: error.response?.data?.error || "Something went wrong. Please try again." });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -399,6 +420,8 @@ class DegreeField extends Component {
       deleteStatus,
       isActive,
       editId,
+      successMessage,
+      errorMessage
     } = this.state;
     const totalPages = Math.ceil(totalDegreeFileds / this.itemsPerPage);
 
@@ -474,6 +497,21 @@ class DegreeField extends Component {
               </div>
 
             </div>
+
+            {successMessage && (
+              <div className="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+                <i className="bi bi-check-circle-fill text-success"></i>
+                <span>{successMessage}</span>
+                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ successMessage: "" })} />
+              </div>
+            )}
+            {errorMessage && (
+              <div className="alert alert-danger alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+                <i className="bi bi-x-circle-fill"></i>
+                <span>{errorMessage}</span>
+                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ errorMessage: "" })} />
+              </div>
+            )}
 
             <Card>
               <CardBody>

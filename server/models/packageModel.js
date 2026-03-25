@@ -13,8 +13,8 @@ const createPackagesTable = () => {
   duration_unit VARCHAR(20) NOT NULL,
   duration_value VARCHAR(255) NOT NULL,
   currency VARCHAR(50) NOT NULL,
-  currency_id VARCHAR(50) NOT NULL,
-  description TEXT NOT NULL,
+  currency_id INT NOT NULL,
+  description TEXT NULL,
   status ENUM('Active','Inactive') DEFAULT 'Active',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -29,7 +29,7 @@ const createPackagesTable = () => {
 }
 
 const getAllPackages = (
-  { page = 1, limit = 10, name = "price", search = "", status = "active" },
+  { page = 1, limit = 10, name = "price", search = "", status = "Active" },
   callback
 ) => {
   page = parseInt(page, 10);
@@ -158,10 +158,10 @@ const getCurrencyMap = () =>
   });
 
 const addPackage = (req, res) => {
-  console.log("req.body", req.body);  
+  console.log("req.body", req.body);
   console.log("description:", req.body.description);
   const userId = req.user.userId;
-  const { type, duration_unit, price, duration_value, currency_id, description,  data } = req.body;
+  const { type, duration_unit, price, duration_value, currency_id, description, data } = req.body;
 
   if (type === "csv") {
     if (!data || !Array.isArray(data) || data.length === 0) {
@@ -181,7 +181,7 @@ const addPackage = (req, res) => {
 
             if (!unit || !value || !price || !currency_id) return null;
 
-            return [unit, value, price, currency_id];
+            return [unit, value, price, currencyText.toUpperCase(), currency_id, null];
           })
           .filter(Boolean);
 
@@ -197,8 +197,10 @@ const addPackage = (req, res) => {
       `;
 
         connection.query(sql, [packages], (err, result) => {
-          if (err) return res.status(500).json({ error: "Database error" });
-
+          if (err) return res.status(500).json({
+            error: "Database error",
+            details: err.message
+          });
           const startId = result.insertId;
 
           packages.forEach((row, idx) => {
@@ -227,7 +229,7 @@ const addPackage = (req, res) => {
       })
       .catch(() => res.status(500).json({ error: "Currency lookup failed" }));
   }
-else {
+  else {
     if (!duration_unit || !price || !duration_value || !currency_id) {
       return res.status(400).json({ error: "All fields are required" });
     }
@@ -265,8 +267,11 @@ else {
           VALUES (?, ?, ?, ?, ?, ?)
         `;
 
-        connection.query(insertSql, [duration_unit, duration_value, price, currencyCode, currency_id,description || null], (err2, insertRes) => {
-          if (err2) return res.status(500).json({ error: "Database error" });
+        connection.query(insertSql, [duration_unit, duration_value, price, currencyCode, currency_id, description || null], (err2, insertRes) => {
+          if (err2) return res.status(500).json({
+            error: "Database error",
+            details: err2.message
+          });
 
           logAudit({
             tableName: "dbadminhistory",

@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import AsyncSelect from "react-select/async";
 import api from "../../lib/api";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 
 const emptyDraft = {
   degree: "",
@@ -25,6 +25,8 @@ class EducationStep extends Component {
     educationDraft: { ...emptyDraft },
     degreeFieldData: [],
     showEducationModal: false,
+    successMessage: "",
+    errorMessage: "",
   };
 
   componentDidMount() {
@@ -85,43 +87,44 @@ class EducationStep extends Component {
     }
   };
 
-    fetchCandidateEducation = async () => {
-      try {
-        const res = await api.get("/candidateeducation/getallcandidateeducation");
+  fetchCandidateEducation = async () => {
+    try {
+      const res = await api.get("/candidateeducation/getallcandidateeducation");
 
-        // Use res.data directly, NOT res.data.data
-        const educationList = res.data.map((item) => ({
-          id: item.id,
-          degree: item.degreetype_id || null,
-          degree_label: item.degreetype || "",
-          degreeTitle: item.degreefield_id || null,
-          degreeTitle_label: item.degreefield || "",
-          degreeTitleObj: item.degreefield_id
-            ? { value: item.degreefield_id, label: item.degreefield }
-            : null,
-          institutes: item.institute_id || null,
-          institutes_label: item.institute || "",
-          instituteObj: item.institute_id
-            ? { value: item.institute_id, label: item.institute }
-            : null,
-          startDate: item.start_date ? item.start_date.split("T")[0] : "",
-          endDate: item.end_date ? item.end_date.split("T")[0] : "",
-          ongoing: Boolean(item.is_ongoing),
-        }));
+      // Use res.data directly, NOT res.data.data
+      const educationList = res.data.map((item) => ({
+        id: item.id,
+        degree: item.degreetype_id || null,
+        degree_label: item.degreetype || "",
+        degreeTitle: item.degreefield_id || null,
+        degreeTitle_label: item.degreefield || "",
+        degreeTitleObj: item.degreefield_id
+          ? { value: item.degreefield_id, label: item.degreefield }
+          : null,
+        institutes: item.institute_id || null,
+        institutes_label: item.institute || "",
+        instituteObj: item.institute_id
+          ? { value: item.institute_id, label: item.institute }
+          : null,
+        startDate: item.start_date ? item.start_date.split("T")[0] : "",
+        endDate: item.end_date ? item.end_date.split("T")[0] : "",
+        ongoing: Boolean(item.is_ongoing),
+      }));
 
-        this.setState((prev) => ({
-          formData: {
-            ...prev.formData,
-            education: educationList,
-          },
-        }));
+      this.setState((prev) => ({
+        formData: {
+          ...prev.formData,
+          education: educationList,
+        },
+      }));
 
-        console.log("Fetched education:", educationList);
-      } catch (err) {
-        console.error("Failed to fetch candidate education", err);
-        toast.error("Failed to load qualifications");
-      }
-    };
+      console.log("Fetched education:", educationList);
+    } catch (err) {
+      console.error("Failed to fetch candidate education", err);
+      this.setState({ errorMessage: "Failed to load qualifications" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
+    }
+  };
 
   mapEducation = (eduData) => {
     return eduData.map((item) => ({
@@ -158,7 +161,8 @@ class EducationStep extends Component {
       !educationDraft.degreeTitleObj ||
       !educationDraft.instituteObj
     ) {
-      toast.error("Please fill all required fields");
+      this.setState({ errorMessage: "Please fill all required fields" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
@@ -181,25 +185,26 @@ class EducationStep extends Component {
         await api.put("/candidateeducation/editcandidateeducation", {
           education: payload,
         });
-        toast.success("Qualification updated");
+        this.setState({ successMessage: "Qualification updated" });
+        setTimeout(() => this.setState({ successMessage: "" }), 3000);
 
         // Update the frontend state immediately
         const updatedEducation = formData.education.map((edu) =>
           edu.id === educationDraft.id
             ? {
-                ...edu,
-                degree: educationDraft.degree,
-                degree_label: educationDraft.degree_label,
-                degreeTitle: educationDraft.degreeTitleObj.value,
-                degreeTitle_label: educationDraft.degreeTitleObj.label,
-                degreeTitleObj: educationDraft.degreeTitleObj,
-                institutes: educationDraft.instituteObj.value,
-                institutes_label: educationDraft.instituteObj.label,
-                instituteObj: educationDraft.instituteObj,
-                startDate: educationDraft.startDate,
-                endDate: educationDraft.endDate,
-                ongoing: educationDraft.ongoing,
-              }
+              ...edu,
+              degree: educationDraft.degree,
+              degree_label: educationDraft.degree_label,
+              degreeTitle: educationDraft.degreeTitleObj.value,
+              degreeTitle_label: educationDraft.degreeTitleObj.label,
+              degreeTitleObj: educationDraft.degreeTitleObj,
+              institutes: educationDraft.instituteObj.value,
+              institutes_label: educationDraft.instituteObj.label,
+              instituteObj: educationDraft.instituteObj,
+              startDate: educationDraft.startDate,
+              endDate: educationDraft.endDate,
+              ongoing: educationDraft.ongoing,
+            }
             : edu,
         );
 
@@ -217,7 +222,8 @@ class EducationStep extends Component {
           "/candidateeducation/addcandidateeducation",
           { education: payload },
         );
-        toast.success("Qualification added");
+        this.setState({ successMessage: "Qualification added" });
+        setTimeout(() => this.setState({ successMessage: "" }), 3000);
 
         // Add to frontend table immediately
         const newEdu = {
@@ -241,7 +247,8 @@ class EducationStep extends Component {
       }
     } catch (err) {
       console.error(err);
-      toast.error("Failed to save qualification");
+      this.setState({ errorMessage: "Failed to save qualification" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -253,17 +260,17 @@ class EducationStep extends Component {
     // Degree Title object for AsyncSelect
     const degreeTitleObj = eduRow.degreeTitle
       ? {
-          value: Number(eduRow.degreeTitle),
-          label: eduRow.degreeTitle_label || "Unknown",
-        }
+        value: Number(eduRow.degreeTitle),
+        label: eduRow.degreeTitle_label || "Unknown",
+      }
       : null;
 
     // Institute object for AsyncSelect
     const instituteObj = eduRow.institutes
       ? {
-          value: Number(eduRow.institutes),
-          label: eduRow.institutes_label || "Unknown",
-        }
+        value: Number(eduRow.institutes),
+        label: eduRow.institutes_label || "Unknown",
+      }
       : null;
 
     this.setState({
@@ -291,6 +298,21 @@ class EducationStep extends Component {
 
     return (
       <div className="table-responsive">
+
+        {this.state.successMessage && (
+          <div className="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+            <i className="bi bi-check-circle-fill text-success"></i>
+            <span>{this.state.successMessage}</span>
+            <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ successMessage: "" })} />
+          </div>
+        )}
+        {this.state.errorMessage && (
+          <div className="alert alert-danger alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+            <i className="bi bi-x-circle-fill"></i>
+            <span>{this.state.errorMessage}</span>
+            <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ errorMessage: "" })} />
+          </div>
+        )}
         <h5>Qualifications</h5>
 
         <table className="table table-bordered">
@@ -447,7 +469,8 @@ class EducationStep extends Component {
                           const selectedDate = e.target.value;
                           const today = new Date().toISOString().split("T")[0]; // current date in yyyy-mm-dd
                           if (selectedDate > today) {
-                            toast.error("End Date cannot be in the future");
+                            this.setState({ errorMessage: "End Date cannot be in the future" });
+                            setTimeout(() => this.setState({ errorMessage: "" }), 3000);
                             return;
                           }
                           this.setState({

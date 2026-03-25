@@ -19,6 +19,9 @@ import PublicLayout from "./publicfooter";
 import DefaulHeader2 from "../layout/header";
 import DashboardHeader from "../layout/dashboard-header";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import AOS from "aos";
+import "aos/dist/aos.css";
+
 
 if (typeof window !== "undefined") {
   require("bootstrap/dist/js/bootstrap");
@@ -32,6 +35,14 @@ function AppContent({ Component, pageProps }) {
   const [restored, setRestored] = useState(false);
   const dispatch = useDispatch();
   const router = useRouter();
+
+  useEffect(() => {
+    AOS.init({
+      duration: 1000,
+      once: true,
+      easing: "ease-in-out",
+    });
+  }, []);
 
   // Restore user from sessionStorage
   useEffect(() => {

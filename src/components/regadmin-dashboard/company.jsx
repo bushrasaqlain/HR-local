@@ -2,7 +2,7 @@
 import React, { Component } from "react";
 import api from "../lib/api";
 import Pagination from "../common/pagination";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import {
   Card,
   CardBody,
@@ -46,6 +46,7 @@ class CompanyData extends Component {
       historyModalOpen: false,
       historyData: [],
       successMessage: "",
+      errorMessage: "",
     };
     this.tableHeaders = [
       // { key: "id", label: "Id" },
@@ -145,7 +146,8 @@ class CompanyData extends Component {
       })
       .catch((err) => {
         console.error("Error fetching history:", err);
-        toast.error("Failed to fetch history.");
+        this.setState({ errorMessage: "Failed to fetch history." });
+        setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       });
   };
 
@@ -218,10 +220,17 @@ class CompanyData extends Component {
           <title>Company | List</title>
         </Head>
         {this.state.successMessage && (
-          <div className="text-center">
-
-            {/* Message text */}
-            <span className="align-center text-success bg-light h-30 p-2 border-success">{this.state.successMessage}</span>
+          <div className="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+            <i className="bi bi-check-circle-fill text-success"></i>
+            <span>{this.state.successMessage}</span>
+            <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ successMessage: "" })} />
+          </div>
+        )}
+        {this.state.errorMessage && (
+          <div className="alert alert-danger alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+            <i className="bi bi-x-circle-fill"></i>
+            <span>{this.state.errorMessage}</span>
+            <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ errorMessage: "" })} />
           </div>
         )}
         {/* Status Filter */}
@@ -358,8 +367,8 @@ class CompanyData extends Component {
                               <td key={header.key} className="text-center">
                                 <span
                                   className={`badge ${item.isActive === "Active"
-                                      ? "badge-active-custom"
-                                      : "badge-inactive-custom"
+                                    ? "badge-active-custom"
+                                    : "badge-inactive-custom"
                                     }`}
                                 >
                                   {item.isActive}

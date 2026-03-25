@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import { Button } from "reactstrap";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import api from "../../lib/api";
 
 class ResumeStep extends Component {
@@ -10,6 +10,8 @@ class ResumeStep extends Component {
     this.state = {
       resume: "", // backend path or File object
       loading: false,
+      successMessage: "",
+      errorMessage: "",
     };
   }
 
@@ -42,7 +44,8 @@ class ResumeStep extends Component {
     const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
     if (file.size > MAX_SIZE) {
-      toast.error("Resume must be less than 10 MB");
+      this.setState({ errorMessage: "Resume must be less than 10 MB" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       e.target.value = "";
       return;
     }
@@ -50,50 +53,53 @@ class ResumeStep extends Component {
     this.setState({ resume: file });
   };
 
-handleSaveResume = async () => {
-  const { resume } = this.state;
-  const token = localStorage.getItem("token");
+  handleSaveResume = async () => {
+    const { resume } = this.state;
+    const token = localStorage.getItem("token");
 
-  if (!resume) {
-    toast.error("Please select a resume to upload");
-    return;
-  }
+    if (!resume) {
+      this.setState({ errorMessage: "Please select a resume to upload" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
+      return;
+    }
 
-  const formData = new FormData();
-  if (resume instanceof File) {
-    formData.append("resume", resume);
-  } else {
-    toast.info("No changes to save");
-    return;
-  }
+    const formData = new FormData();
+    if (resume instanceof File) {
+      formData.append("resume", resume);
+    } else {
+      this.setState({ successMessage: "No changes to save" });
+      setTimeout(() => this.setState({ successMessage: "" }), 3000);
+      return;
+    }
 
-  this.setState({ loading: true });
+    this.setState({ loading: true });
 
-  try {
-    // Fetch account_id from candidateProfile
-    const accountRes = await api.get("/candidateProfile/candidate", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const accountId = accountRes.data?.account_id;
-    if (!accountId) throw new Error("Account ID missing");
+    try {
+      // Fetch account_id from candidateProfile
+      const accountRes = await api.get("/candidateProfile/candidate", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const accountId = accountRes.data?.account_id;
+      if (!accountId) throw new Error("Account ID missing");
 
-    // ✅ Use the correct route
-   await api.put(`/resume/updateresume/${accountId}`, formData, {
-  headers: { Authorization: `Bearer ${token}` },
-});
+      // ✅ Use the correct route
+      await api.put(`/resume/updateresume/${accountId}`, formData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
 
-    toast.success("Resume updated successfully");
-
-    // Reset file input
-    this.resumeInputRef.current.value = "";
-  } catch (err) {
-    console.error("Resume upload failed:", err);
-    toast.error("Resume upload failed");
-  } finally {
-    this.setState({ loading: false });
-  }
-};
+      this.setState({ successMessage: "Resume updated successfully" });
+      setTimeout(() => this.setState({ successMessage: "" }), 3000);
+      // Reset file input
+      this.resumeInputRef.current.value = "";
+    } catch (err) {
+      console.error("Resume upload failed:", err);
+      this.setState({ errorMessage: "Resume upload failed" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
+    } finally {
+      this.setState({ loading: false });
+    }
+  };
 
 
   render() {
@@ -103,11 +109,26 @@ handleSaveResume = async () => {
       resume instanceof File
         ? URL.createObjectURL(resume)
         : resume
-        ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}/${resume.replace(/^\//, "")}`
-        : null;
+          ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}/${resume.replace(/^\//, "")}`
+          : null;
 
     return (
       <>
+
+        {this.state.successMessage && (
+          <div className="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+            <i className="bi bi-check-circle-fill text-success"></i>
+            <span>{this.state.successMessage}</span>
+            <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ successMessage: "" })} />
+          </div>
+        )}
+        {this.state.errorMessage && (
+          <div className="alert alert-danger alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+            <i className="bi bi-x-circle-fill"></i>
+            <span>{this.state.errorMessage}</span>
+            <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ errorMessage: "" })} />
+          </div>
+        )}
         <h5>Resume</h5>
         <table className="table table-bordered align-middle">
           <thead>

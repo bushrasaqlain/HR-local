@@ -52,9 +52,8 @@ class DefaulHeader2 extends Component {
       <Navbar
         expand="lg"
         fixed="top"
-        className={`navbar-light shadow-sm py-2 ${
-          navbarScrolled ? "navbar-glass" : "navbar-solid"
-        }`}
+        className={`navbar-light shadow-sm py-2 ${navbarScrolled ? "navbar-glass" : "navbar-solid"
+          }`}
       >
         {/* Container is relative to allow absolute dropdown */}
         <div
@@ -87,15 +86,15 @@ class DefaulHeader2 extends Component {
           {/* Desktop nav */}
           <div className="d-none d-lg-flex flex-grow-1 justify-content-end align-items-center gap-3">
             <HeaderNavContent />
-           
+
             <Button
-              href="/login"
+              href="/?page=login"
               className="btn-outline-modern btn-dark text-center p-2 text-decoration-none"
             >
               Login / Register
             </Button>
             <Button
-              href="/login"
+              href="/?page=login"
               className="btn-gradient btn-dark text-center p-2 text-decoration-none"
             >
               Post Job
@@ -129,7 +128,7 @@ class DefaulHeader2 extends Component {
                 <div className="w-100">
                   <HeaderNavContent isMobile />
                 </div>
-                
+
                 <Link
                   href="/login"
                   className="btn-outline-modern text-left p-2 text-decoration-none text-black"

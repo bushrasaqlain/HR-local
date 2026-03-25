@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import axios from "axios";
 import Pagination from "../common/pagination.jsx";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import { withRouter } from "next/router";
 import Helmet from "react-helmet";
@@ -34,6 +34,8 @@ class Jobtype extends Component {
       currentPage: 1,
       totalJobType: 0,
       isActive: "all",
+      successMessage: "",
+      errorMessage: "",
     };
 
     this.itemsPerPage = 50;
@@ -99,7 +101,8 @@ class Jobtype extends Component {
     const { jobtype } = this.state;
 
     if (!jobtype.length) {
-      toast.info("No businesstype available to export");
+      this.setState({ errorMessage: "No job types available to export" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
@@ -121,7 +124,8 @@ class Jobtype extends Component {
     // Write file
     XLSX.writeFile(workbook, "Jobtype.xlsx");
 
-    toast.success("jobtype exported successfully");
+    this.setState({ successMessage: "Job types exported successfully" });
+    setTimeout(() => this.setState({ successMessage: "" }), 3000);
   };
 
   handleExcelImport = async (e) => {
@@ -131,7 +135,8 @@ class Jobtype extends Component {
     const userId = sessionStorage.getItem("userId");
 
     if (!userId) {
-      toast.error("User not logged in");
+      this.setState({ errorMessage: "User not logged in" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
@@ -150,7 +155,8 @@ class Jobtype extends Component {
           .filter(row => row.name);
 
         if (!formattedData.length) {
-          toast.error("No valid jobtype names found");
+          this.setState({ errorMessage: "No valid job type names found" });
+          setTimeout(() => this.setState({ errorMessage: "" }), 3000);
           return;
         }
 
@@ -160,7 +166,8 @@ class Jobtype extends Component {
           userId,
         });
 
-        toast.success("jobtype imported successfully");
+        this.setState({ successMessage: "Job types imported successfully" });
+        setTimeout(() => this.setState({ successMessage: "" }), 3000);
         this.fetchJobtype(1);
       };
 
@@ -168,7 +175,8 @@ class Jobtype extends Component {
       e.target.value = "";
     } catch (err) {
       console.error(err);
-      toast.error("Failed to import Excel");
+      this.setState({ errorMessage: "Failed to import Excel" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -212,9 +220,17 @@ class Jobtype extends Component {
         await api.post(`${this.apiBaseUrl}addjobtype`, { name: inputValue });
         this.fetchJobtype(1);
       }
-      this.setState({ showModal: false, inputValue: "", editId: null });
+      this.setState({
+        showModal: false,
+        inputValue: "",
+        editId: null,
+        successMessage: editId ? "Job type updated successfully!" : "Job type added successfully!",
+      });
+      setTimeout(() => this.setState({ successMessage: "" }), 3000);
     } catch (error) {
       console.error("Error saving jobtype:", error);
+      this.setState({ errorMessage: "Something went wrong" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -229,14 +245,20 @@ class Jobtype extends Component {
     const { deleteId, deleteStatus } = this.state;
     try {
       await api.delete(`${this.apiBaseUrl}deletejobtype/${deleteId}`);
-      toast.success(
-        deleteStatus === "Active"
-          ? "Inactivated successfully"
-          : "Activated successfully"
+      this.setState(
+        {
+          showDeleteConfirm: false,
+          successMessage: deleteStatus === "Active"
+            ? "Inactivated successfully"
+            : "Activated successfully",
+        },
+        this.fetchJobtype
       );
-      this.setState({ showDeleteConfirm: false }, this.fetchJobtype);
+      setTimeout(() => this.setState({ successMessage: "" }), 3000);
     } catch (error) {
       console.error("Error deleting jobtype:", error);
+      this.setState({ errorMessage: "Failed to update status" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -296,6 +318,8 @@ class Jobtype extends Component {
       deleteStatus,
       isActive,
       editId,
+      successMessage,
+      errorMessage
     } = this.state;
     const totalPages = Math.ceil(totalJobType / this.itemsPerPage);
 
@@ -367,6 +391,21 @@ class Jobtype extends Component {
               </div>
 
             </div>
+
+            {successMessage && (
+              <div className="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+                <i className="bi bi-check-circle-fill text-success"></i>
+                <span>{successMessage}</span>
+                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ successMessage: "" })} />
+              </div>
+            )}
+            {errorMessage && (
+              <div className="alert alert-danger alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+                <i className="bi bi-x-circle-fill"></i>
+                <span>{errorMessage}</span>
+                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ errorMessage: "" })} />
+              </div>
+            )}
             <Card>
               <CardBody>
                 <div className="table-responsive">

@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import axios from "axios";
 import Pagination from "../common/pagination.jsx";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import * as XLSX from "xlsx";
 import Helmet from "react-helmet";
@@ -35,6 +35,8 @@ class LicenseType extends Component {
       currentPage: 1,
       totallicenseTypes: 0,
       isActive: "all",
+      successMessage: "",
+      errorMessage: "",
     };
 
     this.itemsPerPage = 50;
@@ -88,7 +90,8 @@ class LicenseType extends Component {
     const { licenseTypes } = this.state;
 
     if (!licenseTypes.length) {
-      toast.info("No businesstype available to export");
+      this.setState({ errorMessage: "No license types available to export" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
@@ -110,7 +113,8 @@ class LicenseType extends Component {
     // Write file
     XLSX.writeFile(workbook, "license Types.xlsx");
 
-    toast.success("licenseTypes exported successfully");
+    this.setState({ successMessage: "License types exported successfully" });
+    setTimeout(() => this.setState({ successMessage: "" }), 3000);
   };
 
   handleExcelImport = async (e) => {
@@ -120,7 +124,8 @@ class LicenseType extends Component {
     const userId = sessionStorage.getItem("userId");
 
     if (!userId) {
-      toast.error("User not logged in");
+      this.setState({ errorMessage: "User not logged in" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
@@ -139,7 +144,8 @@ class LicenseType extends Component {
           .filter(row => row.name);
 
         if (!formattedData.length) {
-          toast.error("No valid licenseTypes names found");
+          this.setState({ errorMessage: "No valid license type names found" });
+          setTimeout(() => this.setState({ errorMessage: "" }), 3000);
           return;
         }
 
@@ -149,7 +155,8 @@ class LicenseType extends Component {
           userId,
         });
 
-        toast.success("licenseTypes imported successfully");
+        this.setState({ successMessage: "License types imported successfully" });
+        setTimeout(() => this.setState({ successMessage: "" }), 3000);
         this.fetchlicenseTypes(1);
       };
 
@@ -157,7 +164,8 @@ class LicenseType extends Component {
       e.target.value = "";
     } catch (err) {
       console.error(err);
-      toast.error("Failed to import Excel");
+      this.setState({ errorMessage: "Failed to import Excel" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -200,7 +208,8 @@ class LicenseType extends Component {
     const { editId, inputValue } = this.state;
 
     if (!inputValue.trim()) {
-      toast.error("License type name cannot be empty");
+      this.setState({ errorMessage: "License type name cannot be empty" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
@@ -211,15 +220,22 @@ class LicenseType extends Component {
         response = await api.put(`/editLicenseType/${editId}`, {
           name: inputValue,
         });
-        toast.success("License type updated successfully!");
-        this.setState({ showModal: false, inputValue: "", editId: null });
+        this.setState({
+          showModal: false,
+          inputValue: "",
+          editId: null,
+          successMessage: "License type updated successfully!",
+        });
+        setTimeout(() => this.setState({ successMessage: "" }), 3000);
         this.fetchlicenseTypes(this.state.currentPage);
       } else {
         response = await api.post("/addLicenseType", { name: inputValue });
-        toast.success(
-          response.data?.message || "License type added successfully!"
-        );
-        this.setState({ showModal: false, inputValue: "" });
+        this.setState({
+          showModal: false,
+          inputValue: "",
+          successMessage: response.data?.message || "License type added successfully!",
+        });
+        setTimeout(() => this.setState({ successMessage: "" }), 3000);
         this.fetchlicenseTypes(1); // refresh first page
       }
     } catch (error) {
@@ -227,14 +243,11 @@ class LicenseType extends Component {
 
       // Handle duplicate / conflict gracefully
       if (error.response?.status === 409) {
-        toast.error(
-          error.response.data?.message || "License type already exists"
-        );
+        this.setState({ errorMessage: error.response.data?.message || "License type already exists" });
+        setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       } else {
-        toast.error(
-          error.response?.data?.error ||
-          "An error occurred while saving license type"
-        );
+        this.setState({ errorMessage: error.response?.data?.error || "An error occurred while saving license type" });
+        setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       }
     }
   };
@@ -250,14 +263,20 @@ class LicenseType extends Component {
     const { deleteId, deleteStatus } = this.state;
     try {
       await api.delete(`${this.apiBaseUrl}deleteLicenseType/${deleteId}`);
-      toast.success(
-        deleteStatus === "Active"
-          ? "Inactivated successfully"
-          : "Activated successfully"
+      this.setState(
+        {
+          showDeleteConfirm: false,
+          successMessage: deleteStatus === "Active"
+            ? "Inactivated successfully"
+            : "Activated successfully",
+        },
+        this.fetchlicenseTypes
       );
-      this.setState({ showDeleteConfirm: false }, this.fetchlicenseTypes);
+      setTimeout(() => this.setState({ successMessage: "" }), 3000);
     } catch (error) {
       console.error("Error deleting licenseType:", error);
+      this.setState({ errorMessage: "Failed to update status" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -322,6 +341,8 @@ class LicenseType extends Component {
       deleteStatus,
       isActive,
       editId,
+      successMessage,
+      errorMessage
     } = this.state;
     const totalPages = Math.ceil(totallicenseTypes / this.itemsPerPage);
 
@@ -393,6 +414,21 @@ class LicenseType extends Component {
               </div>
 
             </div>
+
+            {successMessage && (
+              <div className="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+                <i className="bi bi-check-circle-fill text-success"></i>
+                <span>{successMessage}</span>
+                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ successMessage: "" })} />
+              </div>
+            )}
+            {errorMessage && (
+              <div className="alert alert-danger alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+                <i className="bi bi-x-circle-fill"></i>
+                <span>{errorMessage}</span>
+                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ errorMessage: "" })} />
+              </div>
+            )}
 
             <Card>
               <CardBody>

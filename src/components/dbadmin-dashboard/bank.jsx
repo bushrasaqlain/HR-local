@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import axios from "axios";
 import Pagination from "../common/pagination.jsx";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import { Helmet } from "react-helmet";
 import { withRouter } from "next/router";
@@ -35,6 +35,8 @@ class Bank extends Component {
             currentPage: 1,
             totalBanks: 0,
             isActive: "all",
+            successMessage: "",
+            errorMessage: "",
 
         };
 
@@ -141,7 +143,8 @@ class Bank extends Component {
     handleExcelExport = () => {
         const { banks } = this.state;
         if (!banks.length) {
-            toast.info("No data to export");
+            this.setState({ errorMessage: "No data to export" });
+            setTimeout(() => this.setState({ errorMessage: "" }), 3000);
             return;
         }
 
@@ -158,6 +161,8 @@ class Bank extends Component {
         XLSX.utils.book_append_sheet(workbook, worksheet, "Bank");
 
         XLSX.writeFile(workbook, "Bank.xlsx");
+        this.setState({ successMessage: "Banks exported successfully" });
+        setTimeout(() => this.setState({ successMessage: "" }), 3000);
     };
 
 
@@ -168,7 +173,8 @@ class Bank extends Component {
         const userId = sessionStorage.getItem("userId");
 
         if (!userId) {
-            toast.error("User not logged in");
+            this.setState({ errorMessage: "User not logged in" });
+            setTimeout(() => this.setState({ errorMessage: "" }), 3000);
             return;
         }
 
@@ -187,7 +193,8 @@ class Bank extends Component {
                     .filter(row => row.name);
 
                 if (!formattedData.length) {
-                    toast.error("No valid banks names found");
+                    this.setState({ errorMessage: "No valid bank names found" });
+                    setTimeout(() => this.setState({ errorMessage: "" }), 3000);
                     return;
                 }
 
@@ -197,7 +204,8 @@ class Bank extends Component {
                     userId,
                 });
 
-                toast.success("Bank imported successfully");
+                this.setState({ successMessage: "Bank imported successfully" });
+                setTimeout(() => this.setState({ successMessage: "" }), 3000);
                 this.fetchBanks(1);
             };
 
@@ -205,7 +213,8 @@ class Bank extends Component {
             e.target.value = "";
         } catch (err) {
             console.error(err);
-            toast.error("Failed to import Excel");
+            this.setState({ errorMessage: "Failed to import Excel" });
+            setTimeout(() => this.setState({ errorMessage: "" }), 3000);
         }
     };
 
@@ -239,9 +248,17 @@ class Bank extends Component {
                 await api.post(`${this.apiBaseUrl}addbankname`, { name: inputValue, userId, });
                 this.fetchBanks(1);
             }
-            this.setState({ showModal: false, inputValue: "", editId: null });
+            this.setState({
+                showModal: false,
+                inputValue: "",
+                editId: null,
+                successMessage: editId ? "Bank updated successfully!" : "Bank added successfully!",
+            });
+            setTimeout(() => this.setState({ successMessage: "" }), 3000);
         } catch (error) {
             console.error("Error saving banks:", error);
+            this.setState({ errorMessage: "Something went wrong" });
+            setTimeout(() => this.setState({ errorMessage: "" }), 3000);
         }
     };
 
@@ -272,18 +289,22 @@ class Bank extends Component {
         try {
             await api.put(`${this.apiBaseUrl}updateBankStatus/${updateId}`);
 
-            toast.success(
-                updateStatus === "Active"
-                    ? "Inactivated successfully"
-                    : "Activated successfully"
-            );
-
             this.setState(
-                { showUpdateStatus: false, updateId: null, updateStatus: null },
+                {
+                    showUpdateStatus: false,
+                    updateId: null,
+                    updateStatus: null,
+                    successMessage: updateStatus === "Active"
+                        ? "Inactivated successfully"
+                        : "Activated successfully",
+                },
                 () => this.fetchBanks()
             );
+            setTimeout(() => this.setState({ successMessage: "" }), 3000);
         } catch (error) {
             console.error("Error update status banks:", error);
+            this.setState({ errorMessage: "Failed to update status" });
+            setTimeout(() => this.setState({ errorMessage: "" }), 3000);
         }
     };
 
@@ -304,6 +325,8 @@ class Bank extends Component {
             updateStatus,
             isActive,
             editId,
+            successMessage,
+            errorMessage
         } = this.state;
         const totalPages = Math.ceil(totalBanks / this.itemsPerPage);
 
@@ -367,6 +390,21 @@ class Bank extends Component {
 
 
                         </div>
+
+                        {successMessage && (
+                            <div className="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+                                <i className="bi bi-check-circle-fill text-success"></i>
+                                <span>{successMessage}</span>
+                                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ successMessage: "" })} />
+                            </div>
+                        )}
+                        {errorMessage && (
+                            <div className="alert alert-danger alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+                                <i className="bi bi-x-circle-fill"></i>
+                                <span>{errorMessage}</span>
+                                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ errorMessage: "" })} />
+                            </div>
+                        )}
 
                         <Card>
                             <CardBody>

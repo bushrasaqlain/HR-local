@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import axios from "axios";
 import Pagination from "../common/pagination.jsx";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import Helmet from "react-helmet";
 import { withRouter } from "next/router";
@@ -17,6 +17,7 @@ import {
   Modal,
   ModalBody,
   ModalHeader,
+
 } from "react-bootstrap";
 import "bootstrap-icons/font/bootstrap-icons.css";
 
@@ -35,6 +36,8 @@ class Speciality extends Component {
       currentPage: 1,
       totalSpeciality: 0,
       isActive: "all",
+      successMessage: "",
+      errorMessage: "",
 
     };
 
@@ -100,7 +103,8 @@ class Speciality extends Component {
   handleExcelExport = () => {
     const { speciality } = this.state;
     if (!speciality.length) {
-      toast.info("No data to export");
+      this.setState({ errorMessage: "No data to export" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
@@ -117,6 +121,8 @@ class Speciality extends Component {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Speciality");
 
     XLSX.writeFile(workbook, "Speciality.xlsx");
+    this.setState({ successMessage: "Speciality exported successfully" });
+    setTimeout(() => this.setState({ successMessage: "" }), 3000);
   };
 
   handleExcelImport = async (e) => {
@@ -126,7 +132,8 @@ class Speciality extends Component {
     const userId = sessionStorage.getItem("userId");
 
     if (!userId) {
-      toast.error("User not logged in");
+      this.setState({ errorMessage: "User not logged in" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
@@ -145,7 +152,8 @@ class Speciality extends Component {
           .filter(row => row.name);
 
         if (!formattedData.length) {
-          toast.error("No valid speciality names found");
+          this.setState({ errorMessage: "No valid speciality names found" });
+          setTimeout(() => this.setState({ errorMessage: "" }), 3000);
           return;
         }
 
@@ -155,7 +163,8 @@ class Speciality extends Component {
           userId,
         });
 
-        toast.success("Speciality imported successfully");
+        this.setState({ successMessage: "Speciality imported successfully" });
+        setTimeout(() => this.setState({ successMessage: "" }), 3000);
         this.fetchSpeciality(1);
       };
 
@@ -163,7 +172,8 @@ class Speciality extends Component {
       e.target.value = "";
     } catch (err) {
       console.error(err);
-      toast.error("Failed to import Excel");
+      this.setState({ errorMessage: "Failed to import Excel" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -249,9 +259,17 @@ class Speciality extends Component {
         await api.post(`${this.apiBaseUrl}addspeciality`, { name: inputValue, userId });
         this.fetchSpeciality(1);
       }
-      this.setState({ showModal: false, inputValue: "", editId: null });
+      this.setState({
+        showModal: false,
+        inputValue: "",
+        editId: null,
+        successMessage: editId ? "Speciality updated successfully!" : "Speciality added successfully!",
+      });
+      setTimeout(() => this.setState({ successMessage: "" }), 3000);
     } catch (error) {
       console.error("Error saving speciality:", error);
+      this.setState({ errorMessage: "Something went wrong" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -287,14 +305,16 @@ class Speciality extends Component {
       }));
 
       // Show toast using actual row status
-      toast.success(
-        updateStatus === "Active"
+      this.setState({
+        successMessage: updateStatus === "Active"
           ? "Inactivated successfully"
-          : "Activated successfully"
-      );
+          : "Activated successfully",
+      });
+      setTimeout(() => this.setState({ successMessage: "" }), 3000);
     } catch (error) {
       console.error("Error updating status speciality:", error);
-      toast.error("Failed to update status");
+      this.setState({ errorMessage: "Failed to update status" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -310,6 +330,8 @@ class Speciality extends Component {
       updateStatus,
       isActive,
       editId,
+      successMessage,
+      errorMessage
     } = this.state;
     const totalPages = Math.ceil(totalSpeciality / this.itemsPerPage);
 
@@ -384,6 +406,21 @@ class Speciality extends Component {
               </div>
 
             </div>
+
+            {successMessage && (
+              <div className="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+                <i className="bi bi-check-circle-fill text-success"></i>
+                <span>{successMessage}</span>
+                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ successMessage: "" })} />
+              </div>
+            )}
+            {errorMessage && (
+              <div className="alert alert-danger alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+                <i className="bi bi-x-circle-fill"></i>
+                <span>{errorMessage}</span>
+                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ errorMessage: "" })} />
+              </div>
+            )}
 
             <Card>
               <CardBody>

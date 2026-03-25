@@ -54,7 +54,7 @@ class HeaderNavContent extends Component {
         <NavItem className="nav-item">
           <NavLink
             tag={Link}
-            href="/about"
+            href="/?page=about"
             className="nav-link"
             style={{
               color: "#36565F",
@@ -90,7 +90,7 @@ class HeaderNavContent extends Component {
         <NavItem className="nav-item">
           <NavLink
             tag={Link}
-            href="/faq"
+            href="/?page=faq"
             className="nav-link"
             style={{
               color: "#36565F",
@@ -104,10 +104,10 @@ class HeaderNavContent extends Component {
             FAQ's
           </NavLink>
         </NavItem>
-<NavItem className="nav-item">
+        <NavItem className="nav-item">
           <NavLink
             tag={Link}
-            href="/terms"
+            href="/?page=terms"
             className="nav-link"
             style={{
               color: "#36565F",
@@ -118,11 +118,11 @@ class HeaderNavContent extends Component {
               textDecoration: "none",
             }}
           >
-           Terms
+            Terms
           </NavLink>
         </NavItem>
 
-    
+
       </Nav>
     );
   }
