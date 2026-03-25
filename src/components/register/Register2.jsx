@@ -20,10 +20,13 @@ const Register2 = ({ setShowNext, setUserId, setAccountType }) => {
   }}
 >
 
-      <Col>
-         <Card className="register-card">
+      <Col  className="justify-content-center d-flex overflow-hidden rounded-5" 
+  lg="8" 
+  md="10" 
+  sm="12">
+         <Card className="register-card w-75 rounded-5">
         <CardBody>
-          <CardTitle tag="h3" className="m-4 text-center">
+          <CardTitle tag="h3" className="m-5 text-center">
             Create a Free Superio Account
           </CardTitle>
 
