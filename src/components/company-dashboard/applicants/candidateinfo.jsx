@@ -222,28 +222,31 @@
     {/* Action Buttons */}
     <div className="d-flex flex-wrap gap-2 w-100 w-md-auto mt-2 mt-md-0">
       <ApplicantCard
-        candidate={candidateData}
-        onStatusChange={(candidateId, status) => {
-          const { selectedJobId } = this.props;
-          api
-            .post(
-              `/updatestatus`,
-              { candidateId, jobId: selectedJobId, status },
-            )
-            .then(() => {
-              this.setState({
-                candidateData: {
-                  ...candidateData,
-                  candidateStatus: status,
-                },
-              });
-            })
-            .catch((err) => {
-              console.error(err);
-              alert("Failed to update status");
-            });
-        }}
-      />
+  candidate={candidateData}
+  onStatusChange={(candidateId, status, interviewDay, interviewTime) => {  // ✅ add params
+    const { selectedJobId } = this.props;
+    api
+      .post(`/updatestatus`, { 
+        candidateId, 
+        jobId: selectedJobId, 
+        status,
+        ...(interviewDay && {interview_day: interviewDay }),    // ✅
+        ...(interviewTime && {interview_time: interviewTime }),  // ✅
+      })
+      .then(() => {
+        this.setState({
+          candidateData: {
+            ...candidateData,
+            candidateStatus: status,
+          },
+        });
+      })
+      .catch((err) => {
+        console.error(err);
+        alert("Failed to update status");
+      });
+  }}
+/>
     </div>
   </div>
 </div>

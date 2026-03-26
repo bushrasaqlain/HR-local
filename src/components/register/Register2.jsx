@@ -38,7 +38,7 @@ const Register2 = ({ setShowNext, setUserId, setAccountType }) => {
 
           <div className="mt-5 text-center">
             Already have an account?{" "}
-            <Link href="/login">
+            <Link href="/?page=login">
               <span className="login-link">Log In</span>
             </Link>
           </div>

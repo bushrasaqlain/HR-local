@@ -652,7 +652,7 @@ class CandidateRegisterForm extends Component {
         localStorage.clear();
         sessionStorage.clear();
         setTimeout(() => {
-          window.location.replace("/login");
+          window.location.replace("/?page=login");
         }, 1500);
         return;
       }
