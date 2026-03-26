@@ -11,20 +11,24 @@ const logo = multer({
   storage: storage, limits: { fileSize: 100 * 1024 * 1024 },
 });
 
-const companyController=require('../controller/companyController')
+const companyController = require('../controller/companyController')
 
 router.get("/getcompanybyid/:userId", companyController.getcompanybyid);
 
 router.get("/getcompanyviaids/:userId", companyController.getcompanyviaids);
 
-router.get("/getallcompanies",companyController.getAllCompanies);
+router.get("/getallcompanies", companyController.getAllCompanies);
 
 
 router.put("/updateCompanyinfo", logo.single("logo"), companyController.updateCompanyinfo);
 
 router.put("/updateStatus/:id/:status/:userId", companyController.updateCompanySatus)
 
-router.get("/getCount/:userId",companyController.getCount)
+router.get("/getCount/:userId", companyController.getCount)
+
+router.get("/top-companies", companyController.getTopCompanies);
+
+router.get("/all-companies", companyController.getAllCompaniesList);
 
 
 module.exports = router;

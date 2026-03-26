@@ -20,6 +20,14 @@ const getCount = (req, res) => {
   companyModel.getCount(req, res)
 }
 
+const getTopCompanies = (req, res) => {
+  companyModel.getTopCompanies(req, res);
+};
+
+const getAllCompaniesList = (req, res) => {
+  companyModel.getAllCompaniesList(req, res);
+};
+
 
 
 module.exports = {
@@ -28,5 +36,7 @@ module.exports = {
   getcompanybyid,
   getcompanyviaids,
   updateCompanySatus,
-  getCount
+  getCount,
+  getTopCompanies,
+  getAllCompaniesList
 };

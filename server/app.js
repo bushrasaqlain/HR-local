@@ -54,6 +54,8 @@ const dbAdminHistory = require("./routes/dbHistoryRoutes");
 
 
 const candidatejobs = require("./routes/candidatejobsRoutes")
+const dashboardRoutes = require("./routes/dashboardRoutes");
+
 
 
 
@@ -95,6 +97,7 @@ app.use("/job", jobRoutes);
 app.use("/", applicantRoute)
 app.use('/message', messages)
 app.use("/payment", paymentRoutes)
+app.use("/", dashboardRoutes);
 
 
 
