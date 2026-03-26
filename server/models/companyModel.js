@@ -404,13 +404,13 @@ const updateCompanySatus = (id, status, userId, res) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: "Company not found" });
     }
-     logAudit({
+    logAudit({
       tableName: "history",
       entityType: "employer",
       entityId: id,
       action: status === "Active" ? "ACTIVE" : "INACTIVE",  // ✅ fix
       data: { status },
-      changedBy: userId,  
+      changedBy: userId,
     });
 
     return res.status(200).json({ success: true, message: `Company status updated to ${status}` });
@@ -493,6 +493,56 @@ const getCount = (req, res) => {
   });
 };
 
+const getTopCompanies = (req, res) => {
+  const query = `
+    SELECT 
+      c.id,
+      c.company_name,
+      c.logo
+    FROM company_info c
+    INNER JOIN account a ON a.id = c.account_id
+    WHERE a.isActive = 'Active'
+    ORDER BY c.id DESC
+    LIMIT 4
+  `;
+
+  connection.query(query, (err, results) => {
+    if (err) {
+      console.error("Error fetching companies:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    // convert logo blob → base64
+    const companies = results.map((row) => ({
+      id: row.id,
+      company_name: row.company_name,
+      logo: row.logo ? row.logo.toString("base64") : null,
+    }));
+
+    res.json(companies);
+  });
+};
+
+const getAllCompaniesList = (req, res) => {
+  const query = `
+    SELECT id, company_name, logo
+    FROM company_info
+    ORDER BY id DESC
+  `;
+
+  connection.query(query, (err, results) => {
+    if (err) return res.status(500).json({ error: "DB error" });
+
+    const companies = results.map((row) => ({
+      id: row.id,
+      company_name: row.company_name,
+      logo: row.logo ? row.logo.toString("base64") : null,
+    }));
+
+    res.json(companies);
+  });
+};
+
 
 
 module.exports = {
@@ -502,5 +552,7 @@ module.exports = {
   getcompanybyid,
   getcompanyviaids,
   updateCompanySatus,
-  getCount
+  getCount,
+  getTopCompanies,
+  getAllCompaniesList
 };

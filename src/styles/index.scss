@@ -497,3 +497,123 @@ span.badge.badge-inactive-custom {
   max-width: 100%;
   height: auto;
 }
+
+.custom-btn {
+  display: inline-block;
+  border: 2px solid #000;
+  background-color: #000;
+  color: #fff;
+  padding: 10px 30px;
+  font-size: 16px;
+  text-decoration: none;
+  /* 🔥 important */
+}
+
+.custom-btn:hover {
+  background-color: #222;
+  transform: translateY(-2px);
+}
+
+/* 🔷 Stats */
+.stats-section h2,
+.stats-section h5 {
+  color: #000000;
+}
+
+.stats-section p {
+  color: #cbd5e1;
+}
+
+/* 🔷 Top Employers */
+.top-employers {
+  background: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)),
+    url('/images/background/4.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  padding: 120px 0;
+}
+
+/* 🔷 Category Cards */
+.category-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 25px;
+  text-align: center;
+  transition: 0.3s;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+}
+
+.category-card:hover {
+  background: linear-gradient(135deg, #116dc2, #2b6fd4);
+  color: #fff;
+  transform: translateY(-10px);
+}
+
+.process-section {
+  padding: 100px 0;
+}
+
+.process-section .sec-title h2 {
+  font-size: 36px;
+  margin-bottom: 10px;
+}
+
+.process-section .sec-title div {
+  color: #6b7280;
+}
+
+.top-companies.style-two {
+  background: #f8fafc;
+  padding: 100px 0;
+}
+
+.process-section {
+  padding: 100px 0;
+}
+
+.stats-section {
+  padding: 100px 0;
+}
+
+.top-employers {
+  padding: 120px 0;
+}
+
+.hero-video {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.company-logo-clean {
+  height: 110px;
+  max-width: 100%;
+  object-fit: contain;
+  transition: 0.3s ease;
+}
+
+.company-logo-clean:hover {
+  transform: scale(1.15);
+}
+
+.company-name {
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.show-all-btn {
+  background: #790fcf;
+  color: #fff;
+  padding: 10px 25px;
+  border-radius: 25px;
+  border: none;
+  font-weight: 600;
+  transition: 0.3s;
+}
+
+.show-all-btn:hover {
+  background: #dae903;
+}

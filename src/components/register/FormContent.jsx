@@ -123,7 +123,7 @@ class FormContent extends Component {
 
   // Redirect to login after 1 second
   setTimeout(() => {
-    window.location.href = "/login";
+    window.location.href = "/?page=login";
   }, 1000);
 }
 else {

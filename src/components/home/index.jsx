@@ -3,6 +3,7 @@ import Block2 from "./Block2";
 import TopCompany from "./TopCompany";
 import Partner from "./Partner";
 import Hero4 from "./hero";
+import Link from "next/link";
 
 const index = () => {
   return (
@@ -12,7 +13,7 @@ const index = () => {
       {/* <!-- End Job Section --> */}
 
       {/* <section className="process-section pt-0"> */}
-      <section className="top-companies style-two">
+      <section className="process-section bg-light">
         <div className="auto-container">
           <div className="fw-bold sec-title text-center">
             <h2>How Does It Works?</h2>
@@ -22,13 +23,13 @@ const index = () => {
             </div>
           </div>
 
-          <div className="row" data-aos="fade-up">
+          <div className="row justify-content-center" data-aos="fade-up">
             <Block2 />
           </div>
         </div>
       </section>
       {/* <!-- End Process Section --> */}
-      <section className="job-section-alternate">
+      <section className="stats-section">
         <div className="auto-container">
           <div className="fw-bold sec-title text-center">
             <h2>Who are Our Candidates?</h2>
@@ -36,34 +37,36 @@ const index = () => {
           </div>
           {/* End sec-title */}
 
-          <div className="default-tabs tabs-box">
-            <JobFilterTab />
+          <div className="row text-center">
+            <div data-aos="fade-up">
+              <JobFilterTab />
+            </div>
           </div>
           {/* End .default-tabs */}
         </div>
       </section>
-      <section className="process-section p-24">
+      <section className="top-employers">
         <div className="auto-container">
           <div className="sec-title text-center">
-            <h2
-              className="fontweight-900"
-              style={{
-                fontSize: "40px",
-                fontFamily: "'Poppins', sans-serif",
-                color: "#111",
-              }}
-            >
+            <h2 className="fw-bold text-white">
               Your Gateway to Top Employers
             </h2>
-            <div className="text">
+            <div className="text text-white">
               Some of the employers we have helped recruit excellent applicants
               over the years.
             </div>
           </div>
 
           <div className="carousel-outer" data-aos="fade-up">
-            <div className="companies-carousel">
+            <div className="row justify-content-center align-items-center">
               <TopCompany />
+            </div>
+            <div className="text-center mt-4">
+              <Link href="/companies">
+                <button className="show-all-btn">
+                  Show All Companies
+                </button>
+              </Link>
             </div>
           </div>
         </div>
