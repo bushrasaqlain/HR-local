@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Container,
   Row,
@@ -19,8 +18,6 @@ import {
 import api from "../../lib/api";
 
 const ChangePasswordForm = () => {
-  const router = useRouter();
-
   const [formData, setFormData] = useState({
     oldPassword: "",
     newPassword: "",
@@ -51,25 +48,16 @@ const ChangePasswordForm = () => {
 
     if (!oldPassword || !newPassword || !confirmPassword) {
       setMessage("Please fill out all fields.");
-      setTimeout(() => setMessage(""), 1500);
       return;
     }
 
     if (newPassword.length < 8) {
       setMessage("Password must be at least 8 characters.");
-      setTimeout(() => setMessage(""), 1500);
       return;
     }
 
     if (newPassword !== confirmPassword) {
       setMessage("Passwords do not match.");
-      setTimeout(() => setMessage(""), 1500);
-      return;
-    }
-
-    if (oldPassword === newPassword) {
-      setMessage("New password must be different from old password.");
-      setTimeout(() => setMessage(""), 1500);
       return;
     }
 
@@ -77,111 +65,106 @@ const ChangePasswordForm = () => {
       const res = await api.post("/changepassword", formData);
       setMessage(res.data.message);
       setFormData({ oldPassword: "", newPassword: "", confirmPassword: "" });
-      setTimeout(() => setMessage(""), 3000);
     } catch (err) {
       setMessage(err?.response?.data?.error || "Something went wrong");
-      setTimeout(() => setMessage(""), 2000);
     }
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-       backgroundImage: "url(/images/background/bg-1.png)",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "2rem",
-      }}
-    >
-      <Container className="py-5">
-        <Row className="justify-content-center">
-          <Col lg={6} md={8}>
-            <Card className="shadow-sm border-0 rounded-4">
-              <CardBody className="p-4 p-md-5">
-                <h4 className="text-center fw-bold mb-2">Change Password</h4>
-                <p className="text-center text-muted mb-4">
-                  Keep your account secure by updating your password
-                </p>
+    <div className="change-password-wrapper">
+      <Container fluid>
+        <Row className="full-height">
 
-                {message && <Alert color="info" className="text-center py-2">{message}</Alert>}
-
-                <Form onSubmit={handleSubmit}>
-                  {/* Old Password */}
-                  <FormGroup>
-                    <Label for="oldPassword" className="fw-semibold">Old Password</Label>
-                    <InputGroup>
-                      <Input
-                        id="oldPassword"
-                        name="oldPassword"
-                        type={showPassword.old ? "text" : "password"}
-                        placeholder="Enter old password"
-                        value={formData.oldPassword}
-                        onChange={handleInputChange}
-                      />
-                      <InputGroupText
-                        style={{ cursor: "pointer" }}
-                        onClick={() => togglePasswordVisibility("old")}
-                      >
-                        <i className={`las ${showPassword.old ? "la-eye" : "la-eye-slash"}`} />
-                      </InputGroupText>
-                    </InputGroup>
-                  </FormGroup>
-
-                  {/* New Password */}
-                  <FormGroup>
-                    <Label for="newPassword" className="fw-semibold">New Password</Label>
-                    <InputGroup>
-                      <Input
-                        id="newPassword"
-                        name="newPassword"
-                        type={showPassword.new ? "text" : "password"}
-                        placeholder="Enter new password"
-                        value={formData.newPassword}
-                        onChange={handleInputChange}
-                      />
-                      <InputGroupText
-                        style={{ cursor: "pointer" }}
-                        onClick={() => togglePasswordVisibility("new")}
-                      >
-                        <i className={`las ${showPassword.new ? "la-eye" : "la-eye-slash"}`} />
-                      </InputGroupText>
-                    </InputGroup>
-                    <small className="text-muted">Must be at least 8 characters</small>
-                  </FormGroup>
-
-                  {/* Confirm Password */}
-                  <FormGroup>
-                    <Label for="confirmPassword" className="fw-semibold">Confirm Password</Label>
-                    <InputGroup>
-                      <Input
-                        id="confirmPassword"
-                        name="confirmPassword"
-                        type={showPassword.confirm ? "text" : "password"}
-                        placeholder="Re-enter new password"
-                        value={formData.confirmPassword}
-                        onChange={handleInputChange}
-                      />
-                      <InputGroupText
-                        style={{ cursor: "pointer" }}
-                        onClick={() => togglePasswordVisibility("confirm")}
-                      >
-                        <i className={`las ${showPassword.confirm ? "la-eye" : "la-eye-slash"}`} />
-                      </InputGroupText>
-                    </InputGroup>
-                  </FormGroup>
-
-                  {/* Submit */}
-                  <Button type="submit" color="primary" size="lg" className="w-100 rounded-3">
-                    Update Password
-                  </Button>
-                </Form>
-              </CardBody>
-            </Card>
+          {/* LEFT SIDE IMAGE */}
+          <Col md={6} className="left-side d-none d-md-flex">
+            <div className="image-box">
+              <img
+                src="/images/reset1.jpg" 
+                alt="change password"
+              />
+            </div>
           </Col>
+
+          {/* RIGHT SIDE FORM */}
+          <Col md={6} className="d-flex align-items-center justify-content-center">
+            <div className="form-container">
+              <Card className="glass-card shadow-lg border-0">
+                <CardBody className="p-4 p-md-5">
+
+                  <h3 className="text-center fw-bold mb-2">
+                    🔒 Change Password
+                  </h3>
+                  <p className="text-center text-muted mb-4">
+                    Update your password to keep your account secure
+                  </p>
+
+                  {message && (
+                    <Alert color="info" className="text-center py-2">
+                      {message}
+                    </Alert>
+                  )}
+
+                  <Form onSubmit={handleSubmit}>
+                    {/* SAME FORM (no changes) */}
+                    <FormGroup>
+                      <Label>Old Password</Label>
+                      <InputGroup>
+                        <Input
+                          name="oldPassword"
+                          type={showPassword.old ? "text" : "password"}
+                          placeholder="Enter old password"
+                          value={formData.oldPassword}
+                          onChange={handleInputChange}
+                        />
+                        <InputGroupText onClick={() => togglePasswordVisibility("old")}>
+                          👁
+                        </InputGroupText>
+                      </InputGroup>
+                    </FormGroup>
+
+                    <FormGroup>
+                      <Label>New Password</Label>
+                      <InputGroup>
+                        <Input
+                          name="newPassword"
+                          type={showPassword.new ? "text" : "password"}
+                          placeholder="Enter new password"
+                          value={formData.newPassword}
+                          onChange={handleInputChange}
+                        />
+                        <InputGroupText onClick={() => togglePasswordVisibility("new")}>
+                          👁
+                        </InputGroupText>
+                      </InputGroup>
+                      <small className="text-muted"> Must be at least 8 characters </small>
+                    </FormGroup>
+
+                    <FormGroup>
+                      <Label>Confirm Password</Label>
+                      <InputGroup>
+                        <Input
+                          name="confirmPassword"
+                          type={showPassword.confirm ? "text" : "password"}
+                          placeholder="Re-enter password"
+                          value={formData.confirmPassword}
+                          onChange={handleInputChange}
+                        />
+                        <InputGroupText onClick={() => togglePasswordVisibility("confirm")}>
+                          👁
+                        </InputGroupText>
+                      </InputGroup>
+                    </FormGroup>
+
+                    <Button type="submit" className="w-100 mt-3 update-btn">
+                      Update Password
+                    </Button>
+                  </Form>
+
+                </CardBody>
+              </Card>
+            </div>
+          </Col>
+
         </Row>
       </Container>
     </div>

@@ -617,3 +617,57 @@ span.badge.badge-inactive-custom {
 .show-all-btn:hover {
   background: #dae903;
 }
+
+.change-password-wrapper {
+  min-height: 100vh;
+  background: #f5f7fb;
+}
+
+.full-height {
+  min-height: 100vh;
+}
+
+/* LEFT SIDE */
+.left-side {
+  background: linear-gradient(135deg, #d2f1ff, #ffffff);
+  align-items: center;
+  justify-content: center;
+}
+
+.image-box img {
+  width: 80%;
+  max-width: 400px;
+}
+
+/* RIGHT SIDE */
+.form-container {
+  width: 100%;
+  max-width: 420px;
+}
+
+/* CARD */
+.glass-card {
+  background: #fff;
+  border-radius: 20px;
+}
+
+/* INPUTS */
+input {
+  border-radius: 10px !important;
+  padding: 10px !important;
+}
+
+/* BUTTON */
+.update-btn {
+  background: linear-gradient(90deg, #0e9fb3, #05707e);
+  border: none;
+  border-radius: 30px;
+  font-weight: 600;
+  padding: 12px;
+  transition: 0.3s;
+}
+
+.update-btn:hover {
+  transform: scale(1.03);
+  opacity: 0.9;
+}
