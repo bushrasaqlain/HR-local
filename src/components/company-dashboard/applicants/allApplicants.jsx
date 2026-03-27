@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import { Row, Col, Container } from "reactstrap";
 import axios from "axios";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import Pagination from "../../common/pagination";
 
 import ApplicantFilters from "./applicantFilters";
@@ -76,7 +76,7 @@ class AllApplicants extends Component {
     console.log("Selected Candidate object:", candidate);
 
     const isMobile = this.state.windowWidth <= 768;
-    
+
     this.setState({
       selectedCandidate: candidate,
       selectedCandidateId: candidate.id,
@@ -127,7 +127,7 @@ class AllApplicants extends Component {
       });
     } catch (err) {
       console.error(err);
-      toast.error("Failed to load posted jobs");
+      console.error("Failed to load posted jobs");
     }
   };
 
@@ -220,9 +220,9 @@ class AllApplicants extends Component {
 
         const availabilityList = c.availability_times
           ? c.availability_times.split("|").map((s) => {
-              const [day, time] = s.split(" ");
-              return { day, time };
-            })
+            const [day, time] = s.split(" ");
+            return { day, time };
+          })
           : [];
 
         return {
@@ -243,7 +243,7 @@ class AllApplicants extends Component {
       );
     } catch (error) {
       console.error(error);
-      toast.error("Failed to fetch candidates");
+      console.error("Failed to fetch candidates");
     }
   };
 
@@ -262,7 +262,7 @@ class AllApplicants extends Component {
       this.setState({ cities });
     } catch (error) {
       console.error("Failed to load cities", error);
-      toast.error("Could not load cities");
+      console.error("Could not load cities");
     }
   };
 
@@ -291,7 +291,7 @@ class AllApplicants extends Component {
     status = "Shortlisted",
   ) => {
     if (!jobId) {
-      toast.error("Job ID is required to update status");
+      console.error("Job ID is required to update status");
       return;
     }
 
@@ -301,11 +301,11 @@ class AllApplicants extends Component {
         jobId,
         status,
       });
-      toast.success(`Candidate ${status.toLowerCase()} successfully`);
+      console.log(`Candidate ${status.toLowerCase()} successfully`);
       this.fetchAllCandidates();
     } catch (error) {
       console.error(error.response?.data);
-      toast.error("Failed to update status");
+      console.error("Failed to update status");
     }
   };
 
@@ -326,14 +326,14 @@ class AllApplicants extends Component {
     return allApplicants.filter((candidate) => {
       const statusMatch = selectedStatus
         ? String(candidate.candidateStatus || "")
-            .trim()
-            .toLowerCase() === selectedStatus.toLowerCase()
+          .trim()
+          .toLowerCase() === selectedStatus.toLowerCase()
         : true;
       const cityMatch = this.state.selectedCityId
         ? Number(candidate.city) === Number(this.state.selectedCityId) ||
-          candidate.otherPreferredCities?.some(
-            (city) => Number(city.id) === Number(this.state.selectedCityId),
-          )
+        candidate.otherPreferredCities?.some(
+          (city) => Number(city.id) === Number(this.state.selectedCityId),
+        )
         : true;
 
       let searchMatch = true;
@@ -350,15 +350,15 @@ class AllApplicants extends Component {
   /* ================= RENDER ================= */
 
   render() {
-    const { 
-      currentPage, 
-      itemsPerPage, 
-      counts, 
-      splitViewActive, 
-      selectedCandidate, 
+    const {
+      currentPage,
+      itemsPerPage,
+      counts,
+      splitViewActive,
+      selectedCandidate,
       selectedCandidateId,
       mobileDetailView,
-      windowWidth 
+      windowWidth
     } = this.state;
 
     const filteredApplicants = this.filterApplicants();
@@ -1206,9 +1206,8 @@ class AllApplicants extends Component {
                           {currentCandidates.map((candidate) => (
                             <div
                               key={candidate.id}
-                              className={`compact-candidate-item ${
-                                candidate.id === selectedCandidateId ? 'selected' : ''
-                              }`}
+                              className={`compact-candidate-item ${candidate.id === selectedCandidateId ? 'selected' : ''
+                                }`}
                               onClick={() => this.openCandidatePage(candidate)}
                             >
                               <img
@@ -1230,15 +1229,15 @@ class AllApplicants extends Component {
                             </div>
                           ))}
                         </div>
-                        
+
                         {/* Pagination in split view */}
                         {filteredApplicants.length > itemsPerPage && (
                           <div className="pagination-wrapper mt-2 mt-md-3">
                             <ul className="custom-pagination">
                               <li className="page-item">
-                                <a 
-                                  className="page-link" 
-                                  href="#" 
+                                <a
+                                  className="page-link"
+                                  href="#"
                                   onClick={(e) => {
                                     e.preventDefault();
                                     if (currentPage > 1) this.handlePageChange(currentPage - 1);
@@ -1253,9 +1252,9 @@ class AllApplicants extends Component {
                                 </span>
                               </li>
                               <li className="page-item">
-                                <a 
-                                  className="page-link" 
-                                  href="#" 
+                                <a
+                                  className="page-link"
+                                  href="#"
                                   onClick={(e) => {
                                     e.preventDefault();
                                     if (currentPage < totalPages) this.handlePageChange(currentPage + 1);
@@ -1271,7 +1270,7 @@ class AllApplicants extends Component {
 
                       {/* Right Panel - Candidate Details */}
                       <div className="right-panel">
-                        <button 
+                        <button
                           className="close-split-view"
                           onClick={this.closeSplitView}
                           title="Close split view"
@@ -1312,23 +1311,22 @@ class AllApplicants extends Component {
                               <thead className="text-center rounded">
                                 <tr>
                                   <th className="text-white p-2 p-md-3 border-bottom border-1"
-                                      style={{ background: "#5f8190"}}>Candidate
+                                    style={{ background: "#5f8190" }}>Candidate
                                   </th>
                                   <th className="text-white p-2 p-md-3 border-bottom border-1"
-                                      style={{ background: "#5f8190"}}>Status
+                                    style={{ background: "#5f8190" }}>Status
                                   </th>
                                   <th className="text-white p-2 p-md-3 border-bottom border-1"
-                                      style={{ background: "#5f8190"}}>Location
+                                    style={{ background: "#5f8190" }}>Location
                                   </th>
                                 </tr>
                               </thead>
                               <tbody className="border-2">
                                 {currentCandidates.map((candidate, index) => (
-                                  <tr 
-                                    key={candidate.id} 
-                                    className={`candidate-row ${
-                                      candidate.id === selectedCandidateId ? 'selected' : ''
-                                    }`}
+                                  <tr
+                                    key={candidate.id}
+                                    className={`candidate-row ${candidate.id === selectedCandidateId ? 'selected' : ''
+                                      }`}
                                     style={{ animation: `fadeInUp 0.5s ease ${index * 0.1}s` }}
                                     onClick={() => this.openCandidatePage(candidate)}
                                   >
@@ -1357,11 +1355,10 @@ class AllApplicants extends Component {
                                       </div>
                                     </td>
                                     <td className="text-center">
-                                      <span className={`status-badge ${
-                                        candidate.candidateStatus === "Pending" ? "status-pending" :
-                                        candidate.candidateStatus === "Rejected" ? "status-rejected" :
-                                        "status-shortlisted"
-                                      }`}>
+                                      <span className={`status-badge ${candidate.candidateStatus === "Pending" ? "status-pending" :
+                                          candidate.candidateStatus === "Rejected" ? "status-rejected" :
+                                            "status-shortlisted"
+                                        }`}>
                                         {candidate.candidateStatus || "Pending"}
                                       </span>
                                     </td>
@@ -1382,9 +1379,9 @@ class AllApplicants extends Component {
                             <div className="pagination-wrapper">
                               <ul className="custom-pagination">
                                 <li className="page-item">
-                                  <a 
-                                    className="page-link" 
-                                    href="#" 
+                                  <a
+                                    className="page-link"
+                                    href="#"
                                     onClick={(e) => {
                                       e.preventDefault();
                                       if (currentPage > 1) this.handlePageChange(currentPage - 1);
@@ -1405,12 +1402,12 @@ class AllApplicants extends Component {
                                       pageNum = currentPage - 2 + i;
                                     }
                                   }
-                                  
+
                                   return (
                                     <li key={i} className={`page-item ${currentPage === pageNum ? 'active' : ''}`}>
-                                      <a 
-                                        className="page-link" 
-                                        href="#" 
+                                      <a
+                                        className="page-link"
+                                        href="#"
                                         onClick={(e) => {
                                           e.preventDefault();
                                           this.handlePageChange(pageNum);
@@ -1422,9 +1419,9 @@ class AllApplicants extends Component {
                                   );
                                 })}
                                 <li className="page-item">
-                                  <a 
-                                    className="page-link" 
-                                    href="#" 
+                                  <a
+                                    className="page-link"
+                                    href="#"
                                     onClick={(e) => {
                                       e.preventDefault();
                                       if (currentPage < totalPages) this.handlePageChange(currentPage + 1);

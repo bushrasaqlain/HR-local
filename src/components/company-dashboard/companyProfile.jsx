@@ -1,6 +1,5 @@
 import React, { Component, createRef } from "react";
 import axios from "axios";
-import { toast } from "react-toastify";
 import { Form, FormGroup, Label, Input, Button, Row, Col } from "reactstrap";
 import Select from "react-select";
 import Head from "next/head";

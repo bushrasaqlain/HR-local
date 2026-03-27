@@ -2,7 +2,7 @@
 import React, { Component } from "react";
 import { Modal, ModalHeader, ModalBody, ModalFooter, Form, FormGroup, Label, Input, Button } from "reactstrap";
 import axios from "axios";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 
 class Payment extends Component {
 
@@ -28,7 +28,7 @@ class Payment extends Component {
       );
       this.setState({ currencies: res.data.currencies });
     } catch (error) {
-      toast.error("Failed to load currencies");
+      console.error("Failed to load currencies");
     }
   };
 
@@ -152,7 +152,7 @@ class Payment extends Component {
         }
       );
 
-      toast.success("Payment successful");
+      console.log("Payment successful");
 
       // Close modal
       this.props.toggle();
@@ -163,7 +163,7 @@ class Payment extends Component {
       }
     } catch (err) {
       console.error("Payment error:", err.response?.data || err.message);
-      toast.error("Payment failed: " + (err.response?.data?.message || err.message));
+      console.error("Payment failed: " + (err.response?.data?.message || err.message));
     } finally {
       this.setState({ loading: false });
     }
