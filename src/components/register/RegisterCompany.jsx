@@ -3,7 +3,7 @@
 import React, { Component } from "react";
 import AsyncSelect from "react-select/async";
 import axios from "axios";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import { useRouter } from "next/navigation";
 
@@ -12,6 +12,8 @@ class RegisterCompanyform extends Component {
     super(props);
 
     this.state = {
+      successMessage: "",
+      errorMessage: "",
       formData: {
         company_name: "",
         phone: "",
@@ -113,7 +115,7 @@ class RegisterCompanyform extends Component {
             ...prev.formData,
             logoFile: file,
             logoName: file.name,
-            logo: reader.result, 
+            logo: reader.result,
           },
           logoImg: reader.result,
           isNewImageUploaded: true,
@@ -154,7 +156,7 @@ class RegisterCompanyform extends Component {
 
   loadDistricts = async (inputValue) => {
     const { selectedCountry } = this.state;
-    
+
 
     if (!selectedCountry?.value) return [];
 
@@ -279,7 +281,8 @@ class RegisterCompanyform extends Component {
       }) !== JSON.stringify(originalData);
 
     if (!hasChanges) {
-      toast.error("Make some changes to update the profile.");
+      this.setState({ errorMessage: "Make some changes to update the profile." });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
@@ -373,16 +376,21 @@ class RegisterCompanyform extends Component {
 
       if (response.status === 200) {
         if (this.props.isRegister) {
-          toast.success("Profile created successfully.");
-          toast.info("Please wait for admin approval to post jobs.");
+          this.setState({
+            successMessage:
+              "Profile created successfully. Please wait for admin approval to post jobs.",
+          });
+          setTimeout(() => this.setState({ successMessage: "" }), 3000);
           setTimeout(() => this.props.router.push("/login"), 1500);
         } else {
-          toast.success("Profile Updated Successfully!");
+          this.setState({ successMessage: "Profile Updated Successfully!" });
+          setTimeout(() => this.setState({ successMessage: "" }), 3000);
         }
       }
     } catch (error) {
       console.error(error);
-      toast.error("Profile Updation failed. Please try again.");
+      this.setState({ errorMessage: "Profile Updation failed. Please try again." });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -420,6 +428,20 @@ class RegisterCompanyform extends Component {
         className="default-form"
         onSubmit={this.handleSubmit} // <- use "this."
       >
+        {successMessage && (
+          <div className="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+            <i className="bi bi-check-circle-fill text-success"></i>
+            <span>{successMessage}</span>
+            <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ successMessage: "" })} />
+          </div>
+        )}
+        {errorMessage && (
+          <div className="alert alert-danger alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+            <i className="bi bi-x-circle-fill"></i>
+            <span>{errorMessage}</span>
+            <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ errorMessage: "" })} />
+          </div>
+        )}
         <div className="row p-4">
           <label>
             <b>Logo:</b>

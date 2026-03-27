@@ -30,6 +30,7 @@ const createCandidateTable = () => {
   city INT,
   otherPreferredCities JSON,
   skills JSON,
+  Links JSON,
 
 
   current_salary INT,
@@ -254,7 +255,7 @@ const updateStatus = (id, status, userId, res) => {
       entityId: id,
       action: status === "Active" ? "ACTIVE" : "INACTIVE",  // ✅ fix
       data: { status },
-      changedBy: userId,  
+      changedBy: userId,
     });
 
     return res

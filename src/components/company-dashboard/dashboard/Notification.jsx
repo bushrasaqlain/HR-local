@@ -35,6 +35,18 @@ class Notification extends Component {
     }
   };
 
+  handleOpenChat = (contact) => {
+    console.log("Clicked contact:", contact);
+
+    if (this.props.onSelectContact) {
+      this.props.onSelectContact({
+        id: contact.id,
+        full_name: contact.full_name,
+        jobId: contact.jobId,  
+      });
+    }
+  };
+
   formatTime = (timeString) => {
     return new Date(timeString).toLocaleTimeString("en-US", {
       hour: "2-digit",
@@ -64,6 +76,8 @@ class Notification extends Component {
             <ListGroupItem
               key={contact.id}
               className="d-flex justify-content-between align-items-center contact-item p-2 mb-1"
+              onClick={() => this.handleOpenChat(contact)}
+              style={{ cursor: "pointer" }}
             >
               <div className="d-flex align-items-center">
                 {/* Placeholder avatar */}

@@ -3,13 +3,15 @@
 import React, { Component, createRef } from "react";
 import Select from "react-select";
 import api from "../lib/api.jsx";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 
 class CandidateRegisterForm extends Component {
   constructor(props) {
     super(props);
 
     this.state = {
+      successMessage: "",
+      errorMessage: "",
       formData: {
         fullName: "",
         phone: "",
@@ -65,15 +67,17 @@ class CandidateRegisterForm extends Component {
     this.skillsOptions = [...this.catOptions];
   }
 
-componentDidMount() {
-  const token = sessionStorage.getItem("token");
-  if (!token) {
-    toast.error("Please login first");
-    this.props.router.push("/login");
-    return;
+  componentDidMount() {
+    const token = sessionStorage.getItem("token");
+    if (!token) {
+      this.setState({ errorMessage: "Please login first" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
+
+      this.props.router.push("/login");
+      return;
+    }
+    this.fetchUserData(token); // Fetch profile data
   }
-  this.fetchUserData(token); // Fetch profile data
-}
 
 
   fetchUserData = async () => {
@@ -111,7 +115,9 @@ componentDidMount() {
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
-      toast.error("Failed to fetch user data. Please login again.");
+
+      this.setState({ errorMessage: "Failed to fetch user data. Please login again." });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -217,11 +223,14 @@ componentDidMount() {
         });
 
         if (response.status === 200 || response.status === 201) {
-          toast.success("Profile updated successfully!");
+          this.setState({ successMessage: "Profile updated successfully!" });
+          setTimeout(() => this.setState({ successMessage: "" }), 3000);
         }
       } catch (error) {
         console.error(error);
-        toast.error("Profile update failed!");
+
+        this.setState({ errorMessage: "Profile update failed!" });
+        setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       }
     } else {
       const firstError = Object.keys(validationErrors)[0];
@@ -246,6 +255,21 @@ componentDidMount() {
 
     return (
       <form onSubmit={this.handleSubmit} className="default-form">
+        {this.state.successMessage && (
+          <div className="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+            <i className="bi bi-check-circle-fill text-success"></i>
+            <span>{this.state.successMessage}</span>
+            <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ successMessage: "" })} />
+          </div>
+        )}
+
+        {this.state.errorMessage && (
+          <div className="alert alert-danger alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+            <i className="bi bi-x-circle-fill"></i>
+            <span>{this.state.errorMessage}</span>
+            <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ errorMessage: "" })} />
+          </div>
+        )}
         <div className="row">
           {/* Logo Upload */}
           <div className="uploading-outer mb-4">

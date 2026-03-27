@@ -18,7 +18,7 @@ import {
 } from "reactstrap";
 import AsyncSelect from "react-select/async";
 import axios from "axios";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import PricingForm from "./pricingform";
 import api from "../lib/api";
 import { withRouter } from "next/router";
@@ -430,7 +430,7 @@ class PostBoxForm extends Component {
 
     this.setState({ errors: newErrors });
     if (Object.keys(newErrors).length > 0) {
-      toast.error("Please fix the highlighted errors before submitting.");
+      console.error("Please fix the highlighted errors before submitting.");
       return;
     }
 
@@ -461,7 +461,7 @@ class PostBoxForm extends Component {
           payload,
         );
 
-        toast.success("Job updated successfully!");
+        console.log("Job updated successfully!");
 
         // ✅ CLOSE MODAL
         if (this.props.onSuccess) {
@@ -474,7 +474,7 @@ class PostBoxForm extends Component {
           `${this.apiBaseUrl}job/postjob/${this.userId}`,
           payload,
         );
-        toast.success("Job post created successfully!");
+        console.log("Job post created successfully!");
 
         this.setState({ jobId: response.data.job_id, showPricing: true });
       }

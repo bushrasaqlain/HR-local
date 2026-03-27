@@ -1,7 +1,7 @@
 "use client";
 import React, { Component } from "react";
 import axios from "axios";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import Payment from "./payment.jsx";
 import {
   Container,
@@ -39,7 +39,7 @@ class PricingForm extends Component {
       const response = await axios.get(`${this.APIBASEURL}packages/getallpackages`);
       this.setState({ packages: response.data.packages });
     } catch (error) {
-      toast.error("Failed to load packages");
+      console.error("Failed to load packages");
     }
   };
 
@@ -48,7 +48,7 @@ class PricingForm extends Component {
     const { userId, packages } = this.state;
 
     if (!jobId) {
-      toast.error("Job ID not found. Please post job first.");
+      console.error("Job ID not found. Please post job first.");
       return;
     }
 
@@ -58,21 +58,21 @@ class PricingForm extends Component {
     try {
       const response = await axios.put(`${this.APIBASEURL}job/subcribepackage`, { jobId, packageId, userId });
       if (response.status === 200) {
-        this.setState({ 
-          showPayment: true, 
+        this.setState({
+          showPayment: true,
           selectedPackage: packageId,
           selectedPrice: selectedPkg?.price,
           selectedCurrency: selectedPkg?.currency
         });
       }
     } catch {
-      toast.error("Something went wrong");
+      console.error("Something went wrong");
     }
   };
 
   handlePaymentSuccess = () => {
-    this.setState({ 
-      showPayment: false, 
+    this.setState({
+      showPayment: false,
       selectedPackage: null,
       selectedPrice: null,
       selectedCurrency: null
@@ -142,91 +142,91 @@ class PricingForm extends Component {
 
     return (
       <>
-      <Helmet>
-        <title>Pricing</title>
-      </Helmet>
-      <Container className="pb-5">
+        <Helmet>
+          <title>Pricing</title>
+        </Helmet>
+        <Container className="pb-5">
 
-        <h2 className="text-center py-5 fw-bold" style={{ fontSize: "2.5rem", color: "#333" }}>
-          Pricing Plans
-        </h2>
+          <h2 className="text-center py-5 fw-bold" style={{ fontSize: "2.5rem", color: "#333" }}>
+            Pricing Plans
+          </h2>
 
-        <Row className="g-4 justify-content-center">
-          {packages?.map((pkg) => {
-            const { cardClass, features } = this.getPlanConfig(pkg.duration_unit);
+          <Row className="g-4 justify-content-center">
+            {packages?.map((pkg) => {
+              const { cardClass, features } = this.getPlanConfig(pkg.duration_unit);
 
-            return (
-              <Col key={pkg.id} xs={12} sm={6} md={6} lg={6}>
-                <Card
-                  className={`h-100 ${cardClass}`}
-                  style={{
-                    borderRadius: "16px",
-                    boxShadow: "0 8px 20px rgba(0,0,0,0.1)",
-                    transition: "transform 0.3s, box-shadow 0.3s",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-8px)";
-                    e.currentTarget.style.boxShadow = "0 16px 40px rgba(0,0,0,0.15)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.1)";
-                  }}
-                >
-                  <CardBody className="d-flex flex-column text-center p-4">
-                    <CardTitle tag="h5" className="fw-bold mb-3" style={{ fontSize: "1.25rem" }}>
-                      {pkg.duration_unit.charAt(0).toUpperCase() + pkg.duration_unit.slice(1)} Plan
-                    </CardTitle>
+              return (
+                <Col key={pkg.id} xs={12} sm={6} md={6} lg={6}>
+                  <Card
+                    className={`h-100 ${cardClass}`}
+                    style={{
+                      borderRadius: "16px",
+                      boxShadow: "0 8px 20px rgba(0,0,0,0.1)",
+                      transition: "transform 0.3s, box-shadow 0.3s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "translateY(-8px)";
+                      e.currentTarget.style.boxShadow = "0 16px 40px rgba(0,0,0,0.15)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.1)";
+                    }}
+                  >
+                    <CardBody className="d-flex flex-column text-center p-4">
+                      <CardTitle tag="h5" className="fw-bold mb-3" style={{ fontSize: "1.25rem" }}>
+                        {pkg.duration_unit.charAt(0).toUpperCase() + pkg.duration_unit.slice(1)} Plan
+                      </CardTitle>
 
-                    <div className="plan-price mb-3" style={{ fontSize: "1.5rem", fontWeight: 600 }}>
-                      {pkg.price} {pkg.currency} <span style={{ fontSize: "0.9rem", fontWeight: 400 }}>/ {pkg.duration_unit}</span>
-                    </div>
+                      <div className="plan-price mb-3" style={{ fontSize: "1.5rem", fontWeight: 600 }}>
+                        {pkg.price} {pkg.currency} <span style={{ fontSize: "0.9rem", fontWeight: 400 }}>/ {pkg.duration_unit}</span>
+                      </div>
 
-                    <p className="plan-desc mb-3" style={{ color: "#555" }}>
-                      Your job post will show for <strong>{pkg.duration_value} {pkg.duration_unit}</strong>
-                    </p>
+                      <p className="plan-desc mb-3" style={{ color: "#555" }}>
+                        Your job post will show for <strong>{pkg.duration_value} {pkg.duration_unit}</strong>
+                      </p>
 
-                    <ul className="plan-features text-start flex-grow-1 mb-3" style={{ paddingInlineStart: "1rem", color: "#555" }}>
-                      {features.map((feature, index) => (
-                        <li key={index} style={{ marginBottom: "0.5rem" }}>{feature}</li>
-                      ))}
-                    </ul>
+                      <ul className="plan-features text-start flex-grow-1 mb-3" style={{ paddingInlineStart: "1rem", color: "#555" }}>
+                        {features.map((feature, index) => (
+                          <li key={index} style={{ marginBottom: "0.5rem" }}>{feature}</li>
+                        ))}
+                      </ul>
 
-                    <Button
-                      type="button"
-                      color="primary"
-                      className="w-100 mt-auto"
-                      style={{
-                        borderRadius: "50px",
-                        padding: "0.75rem",
-                        fontWeight: "600",
-                        background: "linear-gradient(90deg, #4b6cb7, #182848)",
-                        border: "none",
-                      }}
-                      onClick={() => this.addPackage(pkg.id)}
-                    >
-                      Select Plan
-                    </Button>
-                  </CardBody>
-                </Card>
-              </Col>
-            );
-          })}
-        </Row>
+                      <Button
+                        type="button"
+                        color="primary"
+                        className="w-100 mt-auto"
+                        style={{
+                          borderRadius: "50px",
+                          padding: "0.75rem",
+                          fontWeight: "600",
+                          background: "linear-gradient(90deg, #4b6cb7, #182848)",
+                          border: "none",
+                        }}
+                        onClick={() => this.addPackage(pkg.id)}
+                      >
+                        Select Plan
+                      </Button>
+                    </CardBody>
+                  </Card>
+                </Col>
+              );
+            })}
+          </Row>
 
-        {/* Payment Modal */}
-        <Payment
-          isOpen={showPayment}
-          toggle={() => this.setState({ showPayment: false })}
-          packageId={selectedPackage}
-          jobId={this.props.jobId}
-          amount={selectedPrice}
-          currency={selectedCurrency}
-          onPaymentSuccess={this.handlePaymentSuccess}
-        />
-      </Container>
+          {/* Payment Modal */}
+          <Payment
+            isOpen={showPayment}
+            toggle={() => this.setState({ showPayment: false })}
+            packageId={selectedPackage}
+            jobId={this.props.jobId}
+            amount={selectedPrice}
+            currency={selectedCurrency}
+            onPaymentSuccess={this.handlePaymentSuccess}
+          />
+        </Container>
       </>
-      
+
     );
   }
 }

@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import { Row, Col, Container } from "reactstrap";
 import axios from "axios";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import { FaCheckCircle, FaCalendarAlt, FaEnvelope } from "react-icons/fa";
 // import Pagination from "../../common/pagination";
 import CandidateInfo from "./applicants/candidateinfo";
@@ -12,6 +12,8 @@ class ApprovedCandidates extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      successMessage: "",
+      errorMessage: "",
       selectedJobId: "",
       postedJobs: [],
       showFilters: false,
@@ -66,7 +68,7 @@ class ApprovedCandidates extends Component {
     this.setState({ windowWidth: window.innerWidth });
     // Handle transitions between layouts
     const { mobileDetailView, splitViewActive, selectedCandidate, windowWidth } = this.state;
-    
+
     if (mobileDetailView && windowWidth > 768 && selectedCandidate) {
       // Switch from mobile detail to split view
       this.setState({ mobileDetailView: false, splitViewActive: true });
@@ -79,7 +81,7 @@ class ApprovedCandidates extends Component {
 
   openCandidatePage(candidate) {
     console.log("Selected Candidate object:", candidate);
-    
+
     const isMobile = this.state.windowWidth <= 768;
 
     this.setState({
@@ -141,7 +143,8 @@ class ApprovedCandidates extends Component {
       });
     } catch (err) {
       console.error(err);
-      toast.error("Failed to load posted jobs");
+      this.setState({ errorMessage: "Failed to load posted jobs" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -244,9 +247,9 @@ class ApprovedCandidates extends Component {
 
         const availabilityList = c.availability_times
           ? c.availability_times.split("|").map((s) => {
-              const [day, time] = s.split(" ");
-              return { day, time };
-            })
+            const [day, time] = s.split(" ");
+            return { day, time };
+          })
           : [];
 
         return {
@@ -279,7 +282,8 @@ class ApprovedCandidates extends Component {
       );
     } catch (error) {
       console.error(error);
-      toast.error("Failed to fetch candidates");
+      this.setState({ errorMessage: "Failed to fetch candidates" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -298,7 +302,8 @@ class ApprovedCandidates extends Component {
       this.setState({ cities });
     } catch (error) {
       console.error("Failed to load cities", error);
-      toast.error("Could not load cities");
+      this.setState({ errorMessage: "Could not load cities" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -327,7 +332,9 @@ class ApprovedCandidates extends Component {
     status = "Approved",
   ) => {
     if (!jobId) {
-      toast.error("Job ID is required to update status");
+      this.setState({ errorMessage: "Job ID is required to update status" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
+      return;
       return;
     }
 
@@ -337,11 +344,13 @@ class ApprovedCandidates extends Component {
         jobId,
         status,
       });
-      toast.success(`Candidate ${status.toLowerCase()} successfully`);
+      this.setState({ successMessage: `Candidate ${status.toLowerCase()} successfully` });
+      setTimeout(() => this.setState({ successMessage: "" }), 3000);
       this.fetchAllCandidates();
     } catch (error) {
       console.error(error.response?.data);
-      toast.error("Failed to update status");
+      this.setState({ errorMessage: "Failed to update status" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -361,7 +370,9 @@ class ApprovedCandidates extends Component {
     const token = sessionStorage.getItem("token");
 
     if (!jobId) {
-      toast.error("Job ID is missing. Please select a job first.");
+      this.setState({ errorMessage: "Job ID is missing. Please select a job first." });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
+      return;
       return;
     }
 
@@ -381,11 +392,13 @@ class ApprovedCandidates extends Component {
         },
       );
 
-      toast.success("Reschedule request confirmed successfully!");
+      this.setState({ successMessage: "Reschedule request confirmed successfully!" });
+      setTimeout(() => this.setState({ successMessage: "" }), 3000);
       this.fetchAllCandidates();
     } catch (error) {
       console.error("Error confirming reschedule:", error);
-      toast.error("Failed to confirm reschedule");
+      this.setState({ errorMessage: "Failed to confirm reschedule" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     } finally {
       this.setState({ loading: false });
     }
@@ -404,9 +417,9 @@ class ApprovedCandidates extends Component {
 
       const cityMatch = selectedCityId
         ? Number(candidate.city) === Number(selectedCityId) ||
-          candidate.otherPreferredCities?.some(
-            (city) => Number(city.id) === Number(selectedCityId),
-          )
+        candidate.otherPreferredCities?.some(
+          (city) => Number(city.id) === Number(selectedCityId),
+        )
         : true;
 
       let searchMatch = true;
@@ -421,11 +434,11 @@ class ApprovedCandidates extends Component {
   };
 
   render() {
-    const { 
-      currentPage, 
-      itemsPerPage, 
-      counts, 
-      splitViewActive, 
+    const {
+      currentPage,
+      itemsPerPage,
+      counts,
+      splitViewActive,
       selectedCandidate,
       showCandidateMessage,
       selectedCandidateId,
@@ -1046,6 +1059,27 @@ class ApprovedCandidates extends Component {
               }
             }
           `}</style>
+          {this.state.successMessage && (
+            <div className="alert alert-success d-flex justify-content-between align-items-center">
+              <span>{this.state.successMessage}</span>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => this.setState({ successMessage: "" })}
+              />
+            </div>
+          )}
+
+          {this.state.errorMessage && (
+            <div className="alert alert-danger d-flex justify-content-between align-items-center">
+              <span>{this.state.errorMessage}</span>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => this.setState({ errorMessage: "" })}
+              />
+            </div>
+          )}
 
           <Row className="justify-content-center">
             <Col lg={splitViewActive ? "12" : "10"} xs="12">
@@ -1092,9 +1126,8 @@ class ApprovedCandidates extends Component {
                           {currentCandidates.map((candidate) => (
                             <div
                               key={candidate.id}
-                              className={`compact-candidate-item ${
-                                candidate.id === selectedCandidateId ? 'selected' : ''
-                              }`}
+                              className={`compact-candidate-item ${candidate.id === selectedCandidateId ? 'selected' : ''
+                                }`}
                               onClick={() => this.openCandidatePage(candidate)}
                             >
                               <img
@@ -1113,13 +1146,12 @@ class ApprovedCandidates extends Component {
                                 <div className="compact-name">{candidate.full_name}</div>
                                 <div className="d-flex align-items-center gap-1 mt-1">
                                   {candidate.candidate_response && (
-                                    <span className={`compact-response ${
-                                      candidate.candidate_response === "Confirmed" ? "response-confirmed" :
+                                    <span className={`compact-response ${candidate.candidate_response === "Confirmed" ? "response-confirmed" :
                                       candidate.candidate_response === "Accepted" ? "response-accepted" :
-                                      "response-reschedule"
-                                    }`}>
+                                        "response-reschedule"
+                                      }`}>
                                       {candidate.candidate_response === "Confirmed" ? "✓" :
-                                       candidate.candidate_response === "Accepted" ? "A" : "R"}
+                                        candidate.candidate_response === "Accepted" ? "A" : "R"}
                                     </span>
                                   )}
                                 </div>
@@ -1127,15 +1159,15 @@ class ApprovedCandidates extends Component {
                             </div>
                           ))}
                         </div>
-                        
+
                         {/* Pagination in split view */}
                         {filteredApplicants.length > itemsPerPage && (
                           <div className="pagination-wrapper mt-2 mt-md-3">
                             <ul className="custom-pagination">
                               <li className="page-item">
-                                <a 
-                                  className="page-link" 
-                                  href="#" 
+                                <a
+                                  className="page-link"
+                                  href="#"
                                   onClick={(e) => {
                                     e.preventDefault();
                                     if (currentPage > 1) this.handlePageChange(currentPage - 1);
@@ -1150,9 +1182,9 @@ class ApprovedCandidates extends Component {
                                 </span>
                               </li>
                               <li className="page-item">
-                                <a 
-                                  className="page-link" 
-                                  href="#" 
+                                <a
+                                  className="page-link"
+                                  href="#"
                                   onClick={(e) => {
                                     e.preventDefault();
                                     if (currentPage < totalPages) this.handlePageChange(currentPage + 1);
@@ -1168,7 +1200,7 @@ class ApprovedCandidates extends Component {
 
                       {/* Right Panel - Candidate Details */}
                       <div className="right-panel">
-                        <button 
+                        <button
                           className="close-split-view"
                           onClick={this.closeSplitView}
                           title="Close split view"
@@ -1220,11 +1252,10 @@ class ApprovedCandidates extends Component {
                               </thead>
                               <tbody>
                                 {currentCandidates.map((candidate, index) => (
-                                  <tr 
-                                    key={candidate.id} 
-                                    className={`candidate-row ${
-                                      candidate.id === selectedCandidateId ? 'selected' : ''
-                                    }`}
+                                  <tr
+                                    key={candidate.id}
+                                    className={`candidate-row ${candidate.id === selectedCandidateId ? 'selected' : ''
+                                      }`}
                                     style={{ animation: `fadeInUp 0.5s ease ${index * 0.1}s` }}
                                     onClick={() => this.openCandidatePage(candidate)}
                                   >
@@ -1253,12 +1284,11 @@ class ApprovedCandidates extends Component {
                                       </div>
                                     </td>
                                     <td className="text-center">
-                                      <span className={`status-badge ${
-                                        candidate.candidateStatus === "Pending" ? "status-pending" :
+                                      <span className={`status-badge ${candidate.candidateStatus === "Pending" ? "status-pending" :
                                         candidate.candidateStatus === "Rejected" ? "status-rejected" :
-                                        candidate.candidateStatus === "Approved" ? "status-approved" :
-                                        "status-Approved"
-                                      }`}>
+                                          candidate.candidateStatus === "Approved" ? "status-approved" :
+                                            "status-Approved"
+                                        }`}>
                                         {candidate.candidateStatus || "Approved"}
                                       </span>
                                     </td>
@@ -1325,21 +1355,21 @@ class ApprovedCandidates extends Component {
                                                 {isMobile && "✓"}
                                               </button>
                                             )}
-                                            
-                                            {(candidate.candidate_response === "Accepted" || 
+
+                                            {(candidate.candidate_response === "Accepted" ||
                                               candidate.candidate_response === "Confirmed" ||
                                               candidate.company_status === "confirmed") && (
-                                              <button
-                                                className="message-button"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  this.openCandidateMessage(candidate);
-                                                }}
-                                                title="Message Candidate"
-                                              >
-                                                <FaEnvelope size={isMobile ? 14 : 16} />
-                                              </button>
-                                            )}
+                                                <button
+                                                  className="message-button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    this.openCandidateMessage(candidate);
+                                                  }}
+                                                  title="Message Candidate"
+                                                >
+                                                  <FaEnvelope size={isMobile ? 14 : 16} />
+                                                </button>
+                                              )}
                                           </div>
                                         </td>
                                       </>
@@ -1355,9 +1385,9 @@ class ApprovedCandidates extends Component {
                             <div className="pagination-wrapper">
                               <ul className="custom-pagination">
                                 <li className="page-item">
-                                  <a 
-                                    className="page-link" 
-                                    href="#" 
+                                  <a
+                                    className="page-link"
+                                    href="#"
                                     onClick={(e) => {
                                       e.preventDefault();
                                       if (currentPage > 1) this.handlePageChange(currentPage - 1);
@@ -1377,12 +1407,12 @@ class ApprovedCandidates extends Component {
                                       pageNum = currentPage - 2 + i;
                                     }
                                   }
-                                  
+
                                   return (
                                     <li key={i} className={`page-item ${currentPage === pageNum ? 'active' : ''}`}>
-                                      <a 
-                                        className="page-link" 
-                                        href="#" 
+                                      <a
+                                        className="page-link"
+                                        href="#"
                                         onClick={(e) => {
                                           e.preventDefault();
                                           this.handlePageChange(pageNum);
@@ -1394,9 +1424,9 @@ class ApprovedCandidates extends Component {
                                   );
                                 })}
                                 <li className="page-item">
-                                  <a 
-                                    className="page-link" 
-                                    href="#" 
+                                  <a
+                                    className="page-link"
+                                    href="#"
                                     onClick={(e) => {
                                       e.preventDefault();
                                       if (currentPage < totalPages) this.handlePageChange(currentPage + 1);
@@ -1449,7 +1479,7 @@ class ApprovedCandidates extends Component {
           >
             <div
               className="modal-dialog modal-dialog-centered"
-              style={{ 
+              style={{
                 maxWidth: isMobile ? "90%" : "450px",
                 margin: isMobile ? "1rem auto" : "1.75rem auto"
               }}
@@ -1484,9 +1514,9 @@ class ApprovedCandidates extends Component {
                       {this.state.selectedConfirmRescheduleCandidate
                         ?.requested_interview_day
                         ? new Date(
-                            this.state.selectedConfirmRescheduleCandidate
-                              .requested_interview_day,
-                          ).toLocaleDateString()
+                          this.state.selectedConfirmRescheduleCandidate
+                            .requested_interview_day,
+                        ).toLocaleDateString()
                         : "N/A"}
                     </p>
                     <p className={`mb-0 ${isMobile ? "small" : ""}`}>

@@ -1,8 +1,10 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 
 const initialState = {
     cart: [],
+    successMessage: "",
+    errorMessage: "",
 };
 
 export const shopSlice = createSlice({
@@ -18,16 +20,17 @@ export const shopSlice = createSlice({
                     ...payload.product,
                     qty: payload?.qty ? payload.qty : 1,
                 });
-                toast.success("This item added to cart.");
+                state.successMessage = "This item added to cart.";
             } else {
-                toast.error("This item is already in the cart.");
+                state.errorMessage = "This item is already in the cart.";
             }
             localStorage.setItem("local-cart", JSON.stringify(state.cart));
         },
         deleteCart: (state, { payload }) => {
             state.cart = state.cart.filter((item) => item.id !== payload);
             localStorage.setItem("local-cart", JSON.stringify(state.cart));
-            toast.error(`Item ${payload} has been deleted.`);
+
+            state.errorMessage = `Item ${payload} has been deleted.`;
         },
         addQty: (state, { payload }) => {
             state.cart = state.cart.filter((item) => {
@@ -44,8 +47,12 @@ export const shopSlice = createSlice({
                 state.cart = cart;
             }
         },
+        clearMessages: (state) => {
+            state.successMessage = "";
+            state.errorMessage = "";
+        },
     },
 });
 
-export const { addCart, deleteCart, addQty, reloadCart } = shopSlice.actions;
+export const { addCart, deleteCart, addQty, reloadCart, clearMessages } = shopSlice.actions;
 export default shopSlice.reducer;

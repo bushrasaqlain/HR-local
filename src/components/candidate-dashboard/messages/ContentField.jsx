@@ -1,5 +1,5 @@
 import React, { Component, createRef } from "react";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import axios from "axios";
 import {
   Card,
@@ -18,6 +18,8 @@ class CandidateMessages extends Component {
     this.state = {
       messages: [],
       newMessage: "",
+      successMessage: "",
+      errorMessage: "",
     };
 
     this.apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -105,17 +107,20 @@ class CandidateMessages extends Component {
     });
 
     if (!receiverId) {
-      toast.error("No receiver selected");
+      this.setState({ errorMessage: "No receiver selected" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
     if (!senderId) {
-      toast.error("Sender ID not found");
+      this.setState({ errorMessage: "Sender ID not found" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
     if (!newMessage.trim()) {
-      toast.error("Message cannot be empty");
+      this.setState({ errorMessage: "Message cannot be empty" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
@@ -176,7 +181,8 @@ class CandidateMessages extends Component {
         "Error sending message:",
         error.response?.data || error.message,
       );
-      toast.error("Failed to send message");
+      this.setState({ errorMessage: "Failed to send message" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -229,7 +235,7 @@ class CandidateMessages extends Component {
 
     messages.forEach((message) => {
       const messageDate = this.formatMessageDate(message.timestamp);
-      
+
       if (messageDate !== currentDate) {
         // Start a new group
         groups.push({
@@ -256,6 +262,27 @@ class CandidateMessages extends Component {
 
     return (
       <Container fluid className="p-0">
+        {this.state.successMessage && (
+          <div className="alert alert-success d-flex justify-content-between align-items-center">
+            <span>{this.state.successMessage}</span>
+            <button
+              type="button"
+              className="btn-close"
+              onClick={() => this.setState({ successMessage: "" })}
+            />
+          </div>
+        )}
+
+        {this.state.errorMessage && (
+          <div className="alert alert-danger d-flex justify-content-between align-items-center">
+            <span>{this.state.errorMessage}</span>
+            <button
+              type="button"
+              className="btn-close"
+              onClick={() => this.setState({ errorMessage: "" })}
+            />
+          </div>
+        )}
         <Card className="message-card" style={{ height: "500px", display: "flex", flexDirection: "column" }}>
           <CardHeader className="" style={{ background: "#5F8190", flexShrink: 0 }}>
             <div className="user_info justify-content-center">
@@ -267,13 +294,13 @@ class CandidateMessages extends Component {
               )}
             </div>
           </CardHeader>
-          
+
           <CardBody
             className="msg_card_body"
             ref={this.messagesContainerRef}
-            style={{ 
+            style={{
               flex: "1 1 auto",
-              overflowY: "auto", 
+              overflowY: "auto",
               padding: "10px",
               minHeight: 0
             }}
@@ -292,23 +319,21 @@ class CandidateMessages extends Component {
                         {group.date}
                       </span>
                     </div>
-                    
+
                     {/* Messages in this group */}
                     {group.messages.map((msg) => {
                       const isSender = parseInt(msg.senderId) === parseInt(senderId);
                       return (
                         <div
                           key={msg.id}
-                          className={`d-flex ${
-                            isSender ? "justify-content-end" : "justify-content-start"
-                          } mb-1`}
+                          className={`d-flex ${isSender ? "justify-content-end" : "justify-content-start"
+                            } mb-1`}
                         >
                           <div
-                            className={`px-2 py-1 ${
-                              isSender
-                                ? "bg-secondary text-white"
-                                : "bg-secondary-subtle"
-                            } rounded-3`}
+                            className={`px-2 py-1 ${isSender
+                              ? "bg-secondary text-white"
+                              : "bg-secondary-subtle"
+                              } rounded-3`}
                             style={{
                               maxWidth: "70%",
                               wordBreak: "break-word",
@@ -317,9 +342,8 @@ class CandidateMessages extends Component {
                           >
                             <div>{msg.message}</div>
                             <small
-                              className={`d-block text-end ${
-                                isSender ? "text-white-50" : "text-muted"
-                              }`}
+                              className={`d-block text-end ${isSender ? "text-white-50" : "text-muted"
+                                }`}
                               style={{ fontSize: "0.65rem", lineHeight: 1 }}
                             >
                               {this.formatTime(msg.timestamp)}
