@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import { Row, Col, Container } from "reactstrap";
 import axios from "axios";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import { FaCheckCircle, FaCalendarAlt, FaEnvelope } from "react-icons/fa";
 // import Pagination from "../../common/pagination";
 import CandidateInfo from "./applicants/candidateinfo";
@@ -66,7 +66,7 @@ class ShortlistedCandidates extends Component {
     this.setState({ windowWidth: window.innerWidth });
     // Handle transitions between layouts
     const { mobileDetailView, splitViewActive, selectedCandidate, windowWidth } = this.state;
-    
+
     if (mobileDetailView && windowWidth > 768 && selectedCandidate) {
       // Switch from mobile detail to split view
       this.setState({ mobileDetailView: false, splitViewActive: true });
@@ -79,7 +79,7 @@ class ShortlistedCandidates extends Component {
 
   openCandidatePage(candidate) {
     console.log("Selected Candidate object:", candidate);
-    
+
     const isMobile = this.state.windowWidth <= 768;
 
     this.setState({
@@ -141,7 +141,7 @@ class ShortlistedCandidates extends Component {
       });
     } catch (err) {
       console.error(err);
-      toast.error("Failed to load posted jobs");
+      console.error("Failed to load posted jobs");
     }
   };
 
@@ -244,9 +244,9 @@ class ShortlistedCandidates extends Component {
 
         const availabilityList = c.availability_times
           ? c.availability_times.split("|").map((s) => {
-              const [day, time] = s.split(" ");
-              return { day, time };
-            })
+            const [day, time] = s.split(" ");
+            return { day, time };
+          })
           : [];
 
         return {
@@ -279,7 +279,7 @@ class ShortlistedCandidates extends Component {
       );
     } catch (error) {
       console.error(error);
-      toast.error("Failed to fetch candidates");
+      console.error("Failed to fetch candidates");
     }
   };
 
@@ -298,7 +298,7 @@ class ShortlistedCandidates extends Component {
       this.setState({ cities });
     } catch (error) {
       console.error("Failed to load cities", error);
-      toast.error("Could not load cities");
+      console.error("Could not load cities");
     }
   };
 
@@ -327,7 +327,7 @@ class ShortlistedCandidates extends Component {
     status = "Shortlisted",
   ) => {
     if (!jobId) {
-      toast.error("Job ID is required to update status");
+      console.error("Job ID is required to update status");
       return;
     }
 
@@ -337,11 +337,11 @@ class ShortlistedCandidates extends Component {
         jobId,
         status,
       });
-      toast.success(`Candidate ${status.toLowerCase()} successfully`);
+      console.log(`Candidate ${status.toLowerCase()} successfully`);
       this.fetchAllCandidates();
     } catch (error) {
       console.error(error.response?.data);
-      toast.error("Failed to update status");
+      console.error("Failed to update status");
     }
   };
 
@@ -361,7 +361,7 @@ class ShortlistedCandidates extends Component {
     const token = sessionStorage.getItem("token");
 
     if (!jobId) {
-      toast.error("Job ID is missing. Please select a job first.");
+      console.error("Job ID is missing. Please select a job first.");
       return;
     }
 
@@ -381,11 +381,11 @@ class ShortlistedCandidates extends Component {
         },
       );
 
-      toast.success("Reschedule request confirmed successfully!");
+      console.log("Reschedule request confirmed successfully!");
       this.fetchAllCandidates();
     } catch (error) {
       console.error("Error confirming reschedule:", error);
-      toast.error("Failed to confirm reschedule");
+      console.error("Failed to confirm reschedule");
     } finally {
       this.setState({ loading: false });
     }
@@ -404,9 +404,9 @@ class ShortlistedCandidates extends Component {
 
       const cityMatch = selectedCityId
         ? Number(candidate.city) === Number(selectedCityId) ||
-          candidate.otherPreferredCities?.some(
-            (city) => Number(city.id) === Number(selectedCityId),
-          )
+        candidate.otherPreferredCities?.some(
+          (city) => Number(city.id) === Number(selectedCityId),
+        )
         : true;
 
       let searchMatch = true;
@@ -421,11 +421,11 @@ class ShortlistedCandidates extends Component {
   };
 
   render() {
-    const { 
-      currentPage, 
-      itemsPerPage, 
-      counts, 
-      splitViewActive, 
+    const {
+      currentPage,
+      itemsPerPage,
+      counts,
+      splitViewActive,
       selectedCandidate,
       showCandidateMessage,
       selectedCandidateId,
@@ -1092,9 +1092,8 @@ class ShortlistedCandidates extends Component {
                           {currentCandidates.map((candidate) => (
                             <div
                               key={candidate.id}
-                              className={`compact-candidate-item ${
-                                candidate.id === selectedCandidateId ? 'selected' : ''
-                              }`}
+                              className={`compact-candidate-item ${candidate.id === selectedCandidateId ? 'selected' : ''
+                                }`}
                               onClick={() => this.openCandidatePage(candidate)}
                             >
                               <img
@@ -1113,13 +1112,12 @@ class ShortlistedCandidates extends Component {
                                 <div className="compact-name">{candidate.full_name}</div>
                                 <div className="d-flex align-items-center gap-1 mt-1">
                                   {candidate.candidate_response && (
-                                    <span className={`compact-response ${
-                                      candidate.candidate_response === "Confirmed" ? "response-confirmed" :
-                                      candidate.candidate_response === "Accepted" ? "response-accepted" :
-                                      "response-reschedule"
-                                    }`}>
+                                    <span className={`compact-response ${candidate.candidate_response === "Confirmed" ? "response-confirmed" :
+                                        candidate.candidate_response === "Accepted" ? "response-accepted" :
+                                          "response-reschedule"
+                                      }`}>
                                       {candidate.candidate_response === "Confirmed" ? "✓" :
-                                       candidate.candidate_response === "Accepted" ? "A" : "R"}
+                                        candidate.candidate_response === "Accepted" ? "A" : "R"}
                                     </span>
                                   )}
                                 </div>
@@ -1127,15 +1125,15 @@ class ShortlistedCandidates extends Component {
                             </div>
                           ))}
                         </div>
-                        
+
                         {/* Pagination in split view */}
                         {filteredApplicants.length > itemsPerPage && (
                           <div className="pagination-wrapper mt-2 mt-md-3">
                             <ul className="custom-pagination">
                               <li className="page-item">
-                                <a 
-                                  className="page-link" 
-                                  href="#" 
+                                <a
+                                  className="page-link"
+                                  href="#"
                                   onClick={(e) => {
                                     e.preventDefault();
                                     if (currentPage > 1) this.handlePageChange(currentPage - 1);
@@ -1150,9 +1148,9 @@ class ShortlistedCandidates extends Component {
                                 </span>
                               </li>
                               <li className="page-item">
-                                <a 
-                                  className="page-link" 
-                                  href="#" 
+                                <a
+                                  className="page-link"
+                                  href="#"
                                   onClick={(e) => {
                                     e.preventDefault();
                                     if (currentPage < totalPages) this.handlePageChange(currentPage + 1);
@@ -1168,7 +1166,7 @@ class ShortlistedCandidates extends Component {
 
                       {/* Right Panel - Candidate Details */}
                       <div className="right-panel">
-                        <button 
+                        <button
                           className="close-split-view"
                           onClick={this.closeSplitView}
                           title="Close split view"
@@ -1220,11 +1218,10 @@ class ShortlistedCandidates extends Component {
                               </thead>
                               <tbody>
                                 {currentCandidates.map((candidate, index) => (
-                                  <tr 
-                                    key={candidate.id} 
-                                    className={`candidate-row ${
-                                      candidate.id === selectedCandidateId ? 'selected' : ''
-                                    }`}
+                                  <tr
+                                    key={candidate.id}
+                                    className={`candidate-row ${candidate.id === selectedCandidateId ? 'selected' : ''
+                                      }`}
                                     style={{ animation: `fadeInUp 0.5s ease ${index * 0.1}s` }}
                                     onClick={() => this.openCandidatePage(candidate)}
                                   >
@@ -1253,12 +1250,11 @@ class ShortlistedCandidates extends Component {
                                       </div>
                                     </td>
                                     <td className="text-center">
-                                      <span className={`status-badge ${
-                                        candidate.candidateStatus === "Pending" ? "status-pending" :
-                                        candidate.candidateStatus === "Rejected" ? "status-rejected" :
-                                        candidate.candidateStatus === "Approved" ? "status-approved" :
-                                        "status-shortlisted"
-                                      }`}>
+                                      <span className={`status-badge ${candidate.candidateStatus === "Pending" ? "status-pending" :
+                                          candidate.candidateStatus === "Rejected" ? "status-rejected" :
+                                            candidate.candidateStatus === "Approved" ? "status-approved" :
+                                              "status-shortlisted"
+                                        }`}>
                                         {candidate.candidateStatus || "Shortlisted"}
                                       </span>
                                     </td>
@@ -1325,21 +1321,21 @@ class ShortlistedCandidates extends Component {
                                                 {isMobile && "✓"}
                                               </button>
                                             )}
-                                            
-                                            {(candidate.candidate_response === "Accepted" || 
+
+                                            {(candidate.candidate_response === "Accepted" ||
                                               candidate.candidate_response === "Confirmed" ||
                                               candidate.company_status === "confirmed") && (
-                                              <button
-                                                className="message-button"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  this.openCandidateMessage(candidate);
-                                                }}
-                                                title="Message Candidate"
-                                              >
-                                                <FaEnvelope size={isMobile ? 14 : 16} />
-                                              </button>
-                                            )}
+                                                <button
+                                                  className="message-button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    this.openCandidateMessage(candidate);
+                                                  }}
+                                                  title="Message Candidate"
+                                                >
+                                                  <FaEnvelope size={isMobile ? 14 : 16} />
+                                                </button>
+                                              )}
                                           </div>
                                         </td>
                                       </>
@@ -1355,9 +1351,9 @@ class ShortlistedCandidates extends Component {
                             <div className="pagination-wrapper">
                               <ul className="custom-pagination">
                                 <li className="page-item">
-                                  <a 
-                                    className="page-link" 
-                                    href="#" 
+                                  <a
+                                    className="page-link"
+                                    href="#"
                                     onClick={(e) => {
                                       e.preventDefault();
                                       if (currentPage > 1) this.handlePageChange(currentPage - 1);
@@ -1377,12 +1373,12 @@ class ShortlistedCandidates extends Component {
                                       pageNum = currentPage - 2 + i;
                                     }
                                   }
-                                  
+
                                   return (
                                     <li key={i} className={`page-item ${currentPage === pageNum ? 'active' : ''}`}>
-                                      <a 
-                                        className="page-link" 
-                                        href="#" 
+                                      <a
+                                        className="page-link"
+                                        href="#"
                                         onClick={(e) => {
                                           e.preventDefault();
                                           this.handlePageChange(pageNum);
@@ -1394,9 +1390,9 @@ class ShortlistedCandidates extends Component {
                                   );
                                 })}
                                 <li className="page-item">
-                                  <a 
-                                    className="page-link" 
-                                    href="#" 
+                                  <a
+                                    className="page-link"
+                                    href="#"
                                     onClick={(e) => {
                                       e.preventDefault();
                                       if (currentPage < totalPages) this.handlePageChange(currentPage + 1);
@@ -1449,7 +1445,7 @@ class ShortlistedCandidates extends Component {
           >
             <div
               className="modal-dialog modal-dialog-centered"
-              style={{ 
+              style={{
                 maxWidth: isMobile ? "90%" : "450px",
                 margin: isMobile ? "1rem auto" : "1.75rem auto"
               }}
@@ -1484,9 +1480,9 @@ class ShortlistedCandidates extends Component {
                       {this.state.selectedConfirmRescheduleCandidate
                         ?.requested_interview_day
                         ? new Date(
-                            this.state.selectedConfirmRescheduleCandidate
-                              .requested_interview_day,
-                          ).toLocaleDateString()
+                          this.state.selectedConfirmRescheduleCandidate
+                            .requested_interview_day,
+                        ).toLocaleDateString()
                         : "N/A"}
                     </p>
                     <p className={`mb-0 ${isMobile ? "small" : ""}`}>

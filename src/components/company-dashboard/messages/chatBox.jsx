@@ -13,7 +13,7 @@ class ChatBox extends Component {
     this.state = {
       selectedContactId: props.selectedContactId || null,
       selectedContactName: props.selectedContactName || "",
-      candidateId: props.candidateId || sessionStorage.getItem("candidateId"), // From applications table
+      candidateId: props.selectedContactId, // From applications table
       selectedjobId: props.selectedJobId || sessionStorage.getItem("jobId"),
       senderId: sessionStorage.getItem("userId"), // Current logged-in user (company)
     };

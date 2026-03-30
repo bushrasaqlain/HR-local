@@ -1,5 +1,5 @@
 import React, { Component, createRef } from "react";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import axios from "axios";
 import {
   Card,
@@ -18,6 +18,8 @@ class SenderMessages extends Component {
     this.state = {
       messages: [],
       newMessage: "",
+      successMessage: "",
+      errorMessage: "",
       // senderId comes from props, not from sessionStorage
     };
 
@@ -106,17 +108,20 @@ class SenderMessages extends Component {
     });
 
     if (!receiverId) {
-      toast.error("No receiver selected");
+      this.setState({ errorMessage: "No receiver selected" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
     if (!senderId) {
-      toast.error("Sender ID not found");
+      this.setState({ errorMessage: "Sender ID not found" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
     if (!newMessage.trim()) {
-      toast.error("Message cannot be empty");
+      this.setState({ errorMessage: "Message cannot be empty" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
       return;
     }
 
@@ -168,16 +173,14 @@ class SenderMessages extends Component {
         this.props.refreshContacts();
       }
     } catch (error) {
-      // Remove temp message on error
       this.setState((prev) => ({
         messages: prev.messages.filter((msg) => msg.id !== tempMessage.id),
       }));
 
-      console.error(
-        "Error sending message:",
-        error.response?.data || error.message,
-      );
-      toast.error("Failed to send message");
+      console.error("Error sending message:", error.response?.data || error.message);
+
+      this.setState({ errorMessage: "Failed to send message" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -230,7 +233,7 @@ class SenderMessages extends Component {
 
     messages.forEach((message) => {
       const messageDate = this.formatMessageDate(message.timestamp);
-      
+
       if (messageDate !== currentDate) {
         // Start a new group
         groups.push({
@@ -251,12 +254,33 @@ class SenderMessages extends Component {
     const { receiverName, jobId } = this.props;
     const { messages, newMessage } = this.state;
     const senderId = this.props.senderId;
-    
+
     // Group messages by date
     const messageGroups = this.groupMessagesByDate(messages);
 
     return (
       <Container fluid className="p-0">
+        {this.state.successMessage && (
+          <div className="alert alert-success d-flex justify-content-between align-items-center">
+            <span>{this.state.successMessage}</span>
+            <button
+              type="button"
+              className="btn-close"
+              onClick={() => this.setState({ successMessage: "" })}
+            />
+          </div>
+        )}
+
+        {this.state.errorMessage && (
+          <div className="alert alert-danger d-flex justify-content-between align-items-center">
+            <span>{this.state.errorMessage}</span>
+            <button
+              type="button"
+              className="btn-close"
+              onClick={() => this.setState({ errorMessage: "" })}
+            />
+          </div>
+        )}
         <Card className="message-card" style={{ height: "500px", display: "flex", flexDirection: "column" }}>
           <CardHeader className="" style={{ background: "#5F8190", flexShrink: 0 }}>
             <div className="user_info justify-content-center">
@@ -264,13 +288,13 @@ class SenderMessages extends Component {
               {jobId && <small className="d-block text-white">Job ID: {jobId}</small>}
             </div>
           </CardHeader>
-          
+
           <CardBody
             className="msg_card_body"
             ref={this.messagesContainerRef}
-            style={{ 
+            style={{
               flex: "1 1 auto",
-              overflowY: "auto", 
+              overflowY: "auto",
               padding: "10px",
               minHeight: 0 // Important for flex child
             }}
@@ -289,7 +313,7 @@ class SenderMessages extends Component {
                         {group.date}
                       </span>
                     </div>
-                    
+
                     {/* Messages in this group */}
                     {group.messages.map((msg) => {
                       const isSender = parseInt(msg.senderId) === parseInt(senderId);
@@ -299,21 +323,20 @@ class SenderMessages extends Component {
                           className={`d-flex ${isSender ? "justify-content-end" : "justify-content-start"} mb-2`}
                         >
                           <div
-                      className={`px-2 py-1 ${
-                        // Reduced padding
-                        isSender ? "bg-secondary text-white" : "bg-secondary-subtle"
-                      } rounded-3`}
-                      style={{
-                        maxWidth: "70%",
-                        wordBreak: "break-word",
-                        fontSize: "0.9rem", // Slightly smaller font
-                      }}
-                    >
+                            className={`px-2 py-1 ${
+                              // Reduced padding
+                              isSender ? "bg-secondary text-white" : "bg-secondary-subtle"
+                              } rounded-3`}
+                            style={{
+                              maxWidth: "70%",
+                              wordBreak: "break-word",
+                              fontSize: "0.9rem", // Slightly smaller font
+                            }}
+                          >
                             <div>{msg.message}</div>
                             <small
-                              className={`d-block text-end ${
-                                isSender ? "text-white-50" : "text-muted"
-                              }`}
+                              className={`d-block text-end ${isSender ? "text-white-50" : "text-muted"
+                                }`}
                               style={{ fontSize: "0.7rem", marginTop: "2px" }}
                             >
                               {this.formatTime(msg.timestamp)}
@@ -350,7 +373,7 @@ class SenderMessages extends Component {
                   rows="1" // Start with 1 row
                 />
                 <Button type="submit"
-                style={{ background: "#0f2f31da"}}>
+                  style={{ background: "#0f2f31da" }}>
                   Send
                 </Button>
               </div>

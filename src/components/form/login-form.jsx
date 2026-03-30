@@ -4,7 +4,7 @@ import Link from "next/link";
 import React, { Component } from "react";
 import { connect } from "react-redux";
 import { withRouter } from "next/router";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 
 import {
   Form,
@@ -25,6 +25,7 @@ class FormContent extends Component {
     super(props);
 
     this.state = {
+      successMessage: "",
       showPassword: false,
       loginError: "",
       values: {
@@ -108,7 +109,8 @@ class FormContent extends Component {
       sessionStorage.setItem("displayName", res.data.displayName);
       sessionStorage.setItem("profile_completed", res.data.profile_completed);
       dispatch(setUser(res.data));
-      toast.success("Login successfully!");
+      this.setState({ successMessage: "Login successfully!" });
+      setTimeout(() => this.setState({ successMessage: "" }), 3000);
 
 
       // ✅ Role-based routing
@@ -138,6 +140,27 @@ class FormContent extends Component {
         <h3 className="text-center mb-4">Login to Superio</h3>
 
         <Form onSubmit={this.handleSubmit}>
+          {this.state.successMessage && (
+            <Alert color="success" className="d-flex justify-content-between align-items-center">
+              <span>{this.state.successMessage}</span>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => this.setState({ successMessage: "" })}
+              />
+            </Alert>
+          )}
+
+          {loginError && (
+            <Alert color="danger" className="d-flex justify-content-between align-items-center">
+              <span>{loginError}</span>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => this.setState({ loginError: "" })}
+              />
+            </Alert>
+          )}
           {loginError && <Alert color="danger">{loginError}</Alert>}
 
           {/* Email */}
