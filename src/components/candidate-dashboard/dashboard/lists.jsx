@@ -1,6 +1,13 @@
 "use client";
 import React, { Component } from "react";
-import { Card, CardBody, CardHeader, Container, Input, Table } from "reactstrap";
+import {
+  Card,
+  CardBody,
+  CardHeader,
+  Container,
+  Input,
+  Table,
+} from "reactstrap";
 import axios from "axios";
 import { FaCheckCircle, FaCalendarAlt, FaEnvelope } from "react-icons/fa";
 import CompanyInfo from "./companyinfo";
@@ -198,83 +205,85 @@ class JobList extends Component {
   renderTable = (list) => {
     if (!list.length)
       return <p className="text-muted p-5 mt-3 mb-0">No companies found</p>;
-    const hasConfirmedStatus = list.some(company => company.company_status === "confirmed");
+    const hasConfirmedStatus = list.some(
+      (company) => company.company_status === "confirmed",
+    );
 
     return (
       <>
-       <Table
-        striped
-        responsive
-        className="mt-3 text-center border border-2"
-        bordered
-      >
-        <thead className="text-center">
-          <tr>
-            <th>#</th>
-            <th>Company Name</th>
-            <th>Job Title</th>
-            {/* Add conditional Company Status column */}
-            {/* {hasConfirmedStatus && <th>Company Status</th>} */}
-            {this.state.selected === "shortlisted" && (
-              <>
-                <th>Interview Date</th>
-                <th>Interview Time</th>
-                <th>Actions</th>
-              </>
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {list.map((company, index) => {
-            const formattedDate = company.interview_day
-              ? (() => {
-                  const d = new Date(company.interview_day);
-                  const day = String(d.getDate()).padStart(2, "0");
-                  const month = d.toLocaleString("en-US", { month: "short" });
-                  const year = String(d.getFullYear()).slice(-2);
-                  return `${day}-${month}-${year}`;
-                })()
-              : "-";
+        <Table
+          striped
+          responsive
+          className="mt-3 text-center border border-2"
+          bordered
+        >
+          <thead className="text-center">
+            <tr>
+              <th>#</th>
+              <th>Company Name</th>
+              <th>Job Title</th>
+              {/* Add conditional Company Status column */}
+              {/* {hasConfirmedStatus && <th>Company Status</th>} */}
+              {this.state.selected === "shortlisted" && (
+                <>
+                  <th>Interview Date</th>
+                  <th>Interview Time</th>
+                  <th>Actions</th>
+                </>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {list.map((company, index) => {
+              const formattedDate = company.interview_day
+                ? (() => {
+                    const d = new Date(company.interview_day);
+                    const day = String(d.getDate()).padStart(2, "0");
+                    const month = d.toLocaleString("en-US", { month: "short" });
+                    const year = String(d.getFullYear()).slice(-2);
+                    return `${day}-${month}-${year}`;
+                  })()
+                : "-";
 
-            const formattedDay = company.interview_day
-              ? new Date(company.interview_day).toLocaleDateString("en-US", {
-                  weekday: "long",
-                })
-              : "";
+              const formattedDay = company.interview_day
+                ? new Date(company.interview_day).toLocaleDateString("en-US", {
+                    weekday: "long",
+                  })
+                : "";
 
-            const formattedTime = company.interview_time
-              ? new Date(
-                  `1970-01-01T${company.interview_time}`,
-                ).toLocaleTimeString("en-US", {
-                  hour: "numeric",
-                  minute: "2-digit",
-                  hour12: true,
-                })
-              : "-";
+              const formattedTime = company.interview_time
+                ? new Date(
+                    `1970-01-01T${company.interview_time}`,
+                  ).toLocaleTimeString("en-US", {
+                    hour: "numeric",
+                    minute: "2-digit",
+                    hour12: true,
+                  })
+                : "-";
 
-            // Check if already accepted by candidate
-            const isAccepted = company.candidate_response === "Accepted";
-            // Check if company confirmed
-            const isCompanyConfirmed = company.company_status === "confirmed";
-            // Determine if actions should be shown
-            const showActions = !isAccepted && !isCompanyConfirmed;
+              // Check if already accepted by candidate
+              const isAccepted = company.candidate_response === "Accepted";
+              // Check if company confirmed
+              const isCompanyConfirmed = company.company_status === "confirmed";
+              // Determine if actions should be shown
+              const showActions = !isAccepted && !isCompanyConfirmed;
 
-            return (
-              <tr key={index}>
-                <td>{index + 1}</td>
+              return (
+                <tr key={index}>
+                  <td>{index + 1}</td>
 
-                <td
-                  className="text-primary fw-semibold"
-                  style={{ cursor: "pointer" }}
-                  onClick={() => this.handleCompanyClick(company)}
-                >
-                  {company.company_name || company.name}
-                </td>
+                  <td
+                    className="text-primary fw-semibold"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => this.handleCompanyClick(company)}
+                  >
+                    {company.company_name || company.name}
+                  </td>
 
-                <td>{company.job_title || "-"}</td>
+                  <td>{company.job_title || "-"}</td>
 
-                {/* Conditional Company Status cell */}
-                {/* {hasConfirmedStatus && (
+                  {/* Conditional Company Status cell */}
+                  {/* {hasConfirmedStatus && (
                   <td>
                     {isCompanyConfirmed ? (
                       <span className="badge bg-success px-3 py-2">
@@ -288,92 +297,92 @@ class JobList extends Component {
                   </td>
                 )} */}
 
-                {this.state.selected === "shortlisted" && (
-                  <>
-                    <td>
-                      {formattedDate !== "-" ? (
-                        <>
-                          {formattedDate}(
-                          <small className="text-muted">{formattedDay}</small>)
-                        </>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-
-                    <td>{formattedTime}</td>
-
-                    <td className="text-center">
-                      <div className="d-flex justify-content-center gap-2">
-                        {showActions ? (
-                          /* Show both buttons when actions are available */
+                  {this.state.selected === "shortlisted" && (
+                    <>
+                      <td>
+                        {formattedDate !== "-" ? (
                           <>
-                            {/* Confirm button */}
-                            <FaCheckCircle
-                              size={22}
-                              className="text-success action-icon"
-                              style={{ cursor: "pointer" }}
-                              title="Confirm Interview"
-                              onClick={() =>
-                                this.setState({
-                                  showConfirmModal: true,
-                                  selectedConfirmCompany: company,
-                                })
-                              }
-                            />
-
-                            {/* Calendar/Reschedule button */}
-                            <FaCalendarAlt
-                              size={22}
-                              className="text-warning action-icon"
-                              style={{ cursor: "pointer" }}
-                              title="Request Reschedule"
-                              onClick={() =>
-                                this.setState({
-                                  showRescheduleModal: true,
-                                  selectedRescheduleCompany: company,
-                                  rescheduleCompanyId: company.company_id,
-                                })
-                              }
-                            />
+                            {formattedDate}(
+                            <small className="text-muted">{formattedDay}</small>
+                            )
                           </>
                         ) : (
-                          /* Show appropriate badge when no actions */
+                          "-"
+                        )}
+                      </td>
+
+                      <td>{formattedTime}</td>
+
+                      <td className="text-center">
+                        <div className="d-flex justify-content-center gap-2">
+                          {showActions ? (
+                            /* Show both buttons when actions are available */
+                            <>
+                              {/* Confirm button */}
+                              <FaCheckCircle
+                                size={22}
+                                className=" action-icon"
+                                style={{ cursor: "pointer", color: "#407186" }}
+                                title="Confirm Interview"
+                                onClick={() =>
+                                  this.setState({
+                                    showConfirmModal: true,
+                                    selectedConfirmCompany: company,
+                                  })
+                                }
+                              />
+
+                              {/* Calendar/Reschedule button */}
+                              <FaCalendarAlt
+                                size={22}
+                                className=" action-icon"
+                                style={{ color: "#36565f", cursor: "pointer" }}
+                                title="Request Reschedule"
+                                onClick={() =>
+                                  this.setState({
+                                    showRescheduleModal: true,
+                                    selectedRescheduleCompany: company,
+                                    rescheduleCompanyId: company.company_id,
+                                  })
+                                }
+                              />
+                            </>
+                          ) : /* Show appropriate badge when no actions */
                           isCompanyConfirmed ? (
                             <span className="badge bg-success bg-opacity-10 text-success px-3 py-2">
-                              <FaCheckCircle className="me-1" /> Company Confirmed
+                              <FaCheckCircle className="me-1" /> Company
+                              Confirmed
                             </span>
                           ) : isAccepted ? (
                             <span className="badge bg-success bg-opacity-10 text-success px-3 py-2">
                               <FaCheckCircle className="me-1" /> You Confirmed
                             </span>
-                          ) : null
-                        )}
+                          ) : null}
 
-                        {/* Chat button - Always visible even after confirmation */}
-                        <FaEnvelope
-                          size={22}
-                          className="text-info action-icon"
-                          style={{ cursor: "pointer" }}
-                          title="Chat with Company"
-                          onClick={() =>
-                            this.openChatWithCompany(
-                              company.company_id,
-                              company.company_name || company.name,
-                              company.job_id,
-                              company.accountId,
-                            )
-                          }
-                        />
-                      </div>
-                    </td>
-                  </>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-      </Table>
+                          {/* Chat button - Always visible even after confirmation */}
+                          <FaEnvelope
+                            size={22}
+                            className="text-info action-icon"
+                            style={{ cursor: "pointer" }}
+                            title="Chat with Company"
+                            onClick={() =>
+                              this.openChatWithCompany(
+                                company.company_id,
+                                company.company_name || company.name,
+                                company.job_id,
+                                company.accountId,
+                              )
+                            }
+                          />
+                        </div>
+                      </td>
+                    </>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </Table>
 
         {/* Reschedule Modal - This is OUTSIDE the table but INSIDE the fragment */}
         {this.state.showRescheduleModal && (
@@ -399,7 +408,7 @@ class JobList extends Component {
               <div className="modal-content">
                 <div
                   className="modal-header"
-                  style={{ background: "#219ca5", color: "white" }}
+                  style={{ background: "#36565f", color: "white" }}
                 >
                   <h5 className="modal-title">Request Reschedule</h5>
                   <button
@@ -458,7 +467,8 @@ class JobList extends Component {
                     Cancel
                   </button>
                   <button
-                    className="btn btn-warning"
+                    className="btn"
+                    style={{ background: "#36565f", color: "white" }}
                     onClick={() => this.handleRescheduleFromModal()}
                     disabled={!this.state.newDate || !this.state.newTime}
                   >
@@ -471,170 +481,197 @@ class JobList extends Component {
         )}
         {/* Confirm Interview Modal */}
         {/* Confirm Interview Modal */}
-{this.state.showConfirmModal && (
-  <div
-    className="modal fade show"
-    style={{
-      display: "block",
-      backgroundColor: "rgba(0,0,0,0.5)",
-      position: "fixed",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      zIndex: 1050,
-    }}
-    onClick={() => {
-      // Only close if not in success state
-      if (!this.state.showConfirmSuccess) {
-        this.setState({ showConfirmModal: false, selectedConfirmCompany: null });
-      }
-    }}
-  >
-    <div
-      className="modal-dialog modal-dialog-centered"
-      style={{ maxWidth: "450px" }}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className="modal-content">
-        <div
-          className="modal-header"
-          style={{ background: "#28a745", color: "white" }}
-        >
-          <h5 className="modal-title">
-            <FaCheckCircle className="me-2" /> 
-            {this.state.showConfirmSuccess ? "Confirmed!" : "Confirm Interview"}
-          </h5>
-          <button
-            type="button"
-            className="btn-close btn-close-white"
-            onClick={() =>
-              this.setState({ 
-                showConfirmModal: false,
-                showConfirmSuccess: false,
-                selectedConfirmCompany: null 
-              })
-            }
-          ></button>
-        </div>
-        <div className="modal-body">
-          {this.state.showConfirmSuccess ? (
-            /* Success Message - Only shows after confirmation */
-            <div className="text-center py-5">
-              <FaCheckCircle size={64} className="text-success mb-4" />
-              <h4 className="text-success fw-bold mb-3">Interview Confirmed!</h4>
-              <p className="text-muted mb-4">
-                Your interview with <strong>{this.state.selectedConfirmCompany?.company_name}</strong> has been successfully confirmed.
-              </p>
-              <div className="bg-light p-3 rounded text-start mb-4">
-                <p className="mb-2">
-                  <strong>Job Title:</strong> {this.state.selectedConfirmCompany?.job_title}
-                </p>
-                <p className="mb-2">
-                  <strong>Date:</strong>{" "}
-                  {this.state.selectedConfirmCompany?.interview_day
-                    ? new Date(this.state.selectedConfirmCompany.interview_day).toLocaleDateString(
-                        "en-US",
-                        { weekday: "long", year: "numeric", month: "long", day: "numeric" }
-                      )
-                    : "Not scheduled"}
-                </p>
-                <p className="mb-0">
-                  <strong>Time:</strong>{" "}
-                  {this.state.selectedConfirmCompany?.interview_time
-                    ? new Date(
-                        `1970-01-01T${this.state.selectedConfirmCompany.interview_time}`
-                      ).toLocaleTimeString("en-US", {
-                        hour: "numeric",
-                        minute: "2-digit",
-                        hour12: true,
-                      })
-                    : "Not scheduled"}
-                </p>
-              </div>
-              <button
-                className="btn btn-primary px-4 py-2"
-                onClick={() => this.setState({ 
+        {this.state.showConfirmModal && (
+          <div
+            className="modal fade show"
+            style={{
+              display: "block",
+              backgroundColor: "rgba(0,0,0,0.5)",
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 1050,
+            }}
+            onClick={() => {
+              // Only close if not in success state
+              if (!this.state.showConfirmSuccess) {
+                this.setState({
                   showConfirmModal: false,
-                  showConfirmSuccess: false,
-                  selectedConfirmCompany: null 
-                })}
-              >
-                Close
-              </button>
-            </div>
-          ) : (
-            /* Confirmation Screen - Shows confirm/cancel buttons */
-            <>
-              <p className="mb-3 fs-5">
-                Are you sure you want to confirm the interview with{" "}
-                <strong className="text-primary">
-                  {this.state.selectedConfirmCompany?.company_name}
-                </strong>
-                ?
-              </p>
-              
-              <div className="bg-light p-3 rounded mb-4">
-                <p className="mb-2">
-                  <strong>Job Title:</strong> {this.state.selectedConfirmCompany?.job_title}
-                </p>
-                <p className="mb-2">
-                  <strong>Interview Date:</strong>{" "}
-                  {this.state.selectedConfirmCompany?.interview_day
-                    ? new Date(this.state.selectedConfirmCompany.interview_day).toLocaleDateString(
-                        "en-US",
-                        { weekday: "long", year: "numeric", month: "long", day: "numeric" }
-                      )
-                    : "Not scheduled"}
-                </p>
-                <p className="mb-0">
-                  <strong>Interview Time:</strong>{" "}
-                  {this.state.selectedConfirmCompany?.interview_time
-                    ? new Date(
-                        `1970-01-01T${this.state.selectedConfirmCompany.interview_time}`
-                      ).toLocaleTimeString("en-US", {
-                        hour: "numeric",
-                        minute: "2-digit",
-                        hour12: true,
+                  selectedConfirmCompany: null,
+                });
+              }
+            }}
+          >
+            <div
+              className="modal-dialog modal-dialog-centered"
+              style={{ maxWidth: "450px" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-content">
+                <div
+                  className="modal-header"
+                  style={{ background: "#36565f", color: "white" }}
+                >
+                  <h5 className="modal-title">
+                    <FaCheckCircle className="me-2" />
+                    {this.state.showConfirmSuccess
+                      ? "Confirmed!"
+                      : "Confirm Interview"}
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close btn-close-white"
+                    onClick={() =>
+                      this.setState({
+                        showConfirmModal: false,
+                        showConfirmSuccess: false,
+                        selectedConfirmCompany: null,
                       })
-                    : "Not scheduled"}
-                </p>
-              </div>
-              
-              <p className="mb-4 text-warning bg-warning bg-opacity-10 p-2 rounded">
-                <small>
-                  <FaCheckCircle className="me-1" size={12} />
-                  This action cannot be undone.
-                </small>
-              </p>
+                    }
+                  ></button>
+                </div>
+                <div className="modal-body">
+                  {this.state.showConfirmSuccess ? (
+                    /* Success Message - Only shows after confirmation */
+                    <div className="text-center py-5">
+                      <FaCheckCircle size={64} className="text-success mb-4" />
+                      <h4 className="text-success fw-bold mb-3">
+                        Interview Confirmed!
+                      </h4>
+                      <p className="text-muted mb-4">
+                        Your interview with{" "}
+                        <strong>
+                          {this.state.selectedConfirmCompany?.company_name}
+                        </strong>{" "}
+                        has been successfully confirmed.
+                      </p>
+                      <div className="bg-light p-3 rounded text-start mb-4">
+                        <p className="mb-2">
+                          <strong>Job Title:</strong>{" "}
+                          {this.state.selectedConfirmCompany?.job_title}
+                        </p>
+                        <p className="mb-2">
+                          <strong>Date:</strong>{" "}
+                          {this.state.selectedConfirmCompany?.interview_day
+                            ? new Date(
+                                this.state.selectedConfirmCompany.interview_day,
+                              ).toLocaleDateString("en-US", {
+                                weekday: "long",
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              })
+                            : "Not scheduled"}
+                        </p>
+                        <p className="mb-0">
+                          <strong>Time:</strong>{" "}
+                          {this.state.selectedConfirmCompany?.interview_time
+                            ? new Date(
+                                `1970-01-01T${this.state.selectedConfirmCompany.interview_time}`,
+                              ).toLocaleTimeString("en-US", {
+                                hour: "numeric",
+                                minute: "2-digit",
+                                hour12: true,
+                              })
+                            : "Not scheduled"}
+                        </p>
+                      </div>
+                      <button
+                        className="btn btn-primary px-4 py-2"
+                        onClick={() =>
+                          this.setState({
+                            showConfirmModal: false,
+                            showConfirmSuccess: false,
+                            selectedConfirmCompany: null,
+                          })
+                        }
+                      >
+                        Close
+                      </button>
+                    </div>
+                  ) : (
+                    /* Confirmation Screen - Shows confirm/cancel buttons */
+                    <>
+                      <p className="mb-3 fs-7">
+                        Are you sure you want to confirm the interview with{" "}
+                        <strong className="m-1" style={{ color: "#36565f" }}>
+                          {this.state.selectedConfirmCompany?.company_name}
+                        </strong>
+                        ?
+                      </p>
 
-              {/* Confirm/Cancel Buttons */}
-              <div className="d-flex justify-content-end gap-2">
-                <button
-                  className="btn btn-outline-secondary px-4"
-                  onClick={() =>
-                    this.setState({
-                      showConfirmModal: false,
-                      selectedConfirmCompany: null,
-                    })
-                  }
-                >
-                  Cancel
-                </button>
-                <button
-                  className="btn btn-success px-4"
-                  onClick={() => this.handleConfirmFromModal()}
-                >
-                  <FaCheckCircle className="me-2" /> Confirm Interview
-                </button>
+                      <div className="bg-light p-3 rounded mb-4">
+                        <p className="mb-2">
+                          <strong>Job Title:</strong>{" "}
+                          {this.state.selectedConfirmCompany?.job_title}
+                        </p>
+                        <p className="mb-2">
+                          <strong>Interview Date:</strong>{" "}
+                          {this.state.selectedConfirmCompany?.interview_day
+                            ? new Date(
+                                this.state.selectedConfirmCompany.interview_day,
+                              ).toLocaleDateString("en-US", {
+                                weekday: "long",
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              })
+                            : "Not scheduled"}
+                        </p>
+                        <p className="mb-0">
+                          <strong>Interview Time:</strong>{" "}
+                          {this.state.selectedConfirmCompany?.interview_time
+                            ? new Date(
+                                `1970-01-01T${this.state.selectedConfirmCompany.interview_time}`,
+                              ).toLocaleTimeString("en-US", {
+                                hour: "numeric",
+                                minute: "2-digit",
+                                hour12: true,
+                              })
+                            : "Not scheduled"}
+                        </p>
+                      </div>
+
+                      <p
+                        className="mb-4 bg-opacity-10 p-2 rounded"
+                        style={{ color: "#36565f" }}
+                      >
+                        <small>
+                          <FaCheckCircle className="me-1" size={12} />
+                          This action cannot be undone.
+                        </small>
+                      </p>
+
+                      {/* Confirm/Cancel Buttons */}
+                      <div className="d-flex justify-content-end gap-2">
+                        <button
+                          className="btn btn-outline-secondary px-4"
+                          onClick={() =>
+                            this.setState({
+                              showConfirmModal: false,
+                              selectedConfirmCompany: null,
+                            })
+                          }
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          className="btn px-4"
+                          style={{ background: "#36565f", color: "white" }}
+                          onClick={() => this.handleConfirmFromModal()}
+                        >
+                          <FaCheckCircle className="me-2" /> Confirm Interview
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+            </div>
+          </div>
+        )}
       </>
     );
   };
@@ -705,7 +742,7 @@ class JobList extends Component {
         <Head>
           <title>Job List</title>
         </Head>
-              {this.state.showSuccessMessage && (
+        {this.state.showSuccessMessage && (
           <div
             style={{
               backgroundColor: "#d4edda",
@@ -739,7 +776,6 @@ class JobList extends Component {
             )}
           </CardBody>
         </Card>
-  
       </Container>
     );
   }
