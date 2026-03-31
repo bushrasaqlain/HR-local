@@ -149,18 +149,24 @@ class ExperienceStep extends Component {
 
   // Open Edit Modal
   openEditModal = (expRow) => {
+    const formatDate = (date) => {
+      if (!date) return "";
+      const d = new Date(date);
+      const offset = d.getTimezoneOffset();
+      const adjusted = new Date(d.getTime() - offset * 60000);
+      return adjusted.toISOString().split("T")[0];
+    };
     const draft = {
       id: expRow.id,
       companyName: expRow.companyName,
       designation: expRow.designation,
-      speciality: expRow.speciality || "", // saved id
-      speciality_label: expRow.speciality_label || "", // saved name
-      specialityObj:
-        expRow.speciality_label
-          ? { value: expRow.speciality || "", label: expRow.speciality_label }
-          : null, // ✅ pre-fill object
-      startDate: expRow.startDate ? expRow.startDate.split("T")[0] : "",
-      endDate: expRow.endDate ? expRow.endDate.split("T")[0] : "",
+      speciality: expRow.speciality_id || "",
+      speciality_label: expRow.speciality_label || "",
+      specialityObj: expRow.speciality_id
+        ? { value: expRow.speciality_id, label: expRow.speciality_label }
+        : null,
+      startDate: formatDate(expRow.startDate),
+      endDate: formatDate(expRow.endDate),
       ongoing: expRow.ongoing || false,
     };
 
@@ -174,6 +180,7 @@ class ExperienceStep extends Component {
 
   saveExperience = async () => {
     const { experienceDraft } = this.state;
+    console.log("EDIT ID:", experienceDraft.id);
 
     if (!experienceDraft.companyName || !experienceDraft.designation) {
       this.setState({ errorMessage: "Please fill required fields" });
@@ -187,7 +194,9 @@ class ExperienceStep extends Component {
           {
             companyName: experienceDraft.companyName,
             designation: experienceDraft.designation,
-            speciality: Number(experienceDraft.speciality),
+            speciality_id: experienceDraft.specialityObj
+              ? Number(experienceDraft.specialityObj.value)
+              : null,
             startDate: experienceDraft.startDate,
             endDate: experienceDraft.ongoing ? null : experienceDraft.endDate,
             ongoing: experienceDraft.ongoing,
@@ -196,27 +205,50 @@ class ExperienceStep extends Component {
         mode: "save",
       };
 
-      await api.post("/candidateexperience/addcandidateexperience", payload);
+      if (experienceDraft.id) {
+        await api.put(
+          `/candidateexperience/updateexperience/${experienceDraft.id}`,
+          {
+            companyName: experienceDraft.companyName,
+            designation: experienceDraft.designation,
+            speciality_id: experienceDraft.specialityObj
+              ? Number(experienceDraft.specialityObj.value)
+              : null,
+            startDate: experienceDraft.startDate,
+            endDate: experienceDraft.ongoing ? null : experienceDraft.endDate,
+            ongoing: experienceDraft.ongoing,
+          }
+        );
+      } else {
+        await api.post("/candidateexperience/addexperience", payload);
+      }
+
+      // ✅ Always refresh from backend
+      await this.fetchCandidateExperience();
 
       this.setState({
-        successMessage: experienceDraft.id ? "Experience updated" : "Experience added",
+        showExperienceModal: false,
+        experienceDraft: { ...emptyExperienceDraft },
+        successMessage: experienceDraft.id
+          ? "Experience updated"
+          : "Experience added",
       });
       setTimeout(() => this.setState({ successMessage: "" }), 3000);
 
-      this.setState((prev) => ({
-        formData: {
-          ...prev.formData,
-          experience: experienceDraft.id
-            ? prev.formData.experience.map((e) =>
-              e.id === experienceDraft.id
-                ? { ...e, ...payload.experience[0] }
-                : e
-            )
-            : [...(prev.formData.experience || []), payload.experience[0]],
-        },
-        showExperienceModal: false,
-        experienceDraft: { ...emptyExperienceDraft },
-      }));
+      // this.setState((prev) => ({
+      //   formData: {
+      //     ...prev.formData,
+      //     experience: experienceDraft.id
+      //       ? prev.formData.experience.map((e) =>
+      //         e.id === experienceDraft.id
+      //           ? { ...e, ...payload.experience[0] }
+      //           : e
+      //       )
+      //       : [...(prev.formData.experience || []), payload.experience[0]],
+      //   },
+      //   showExperienceModal: false,
+      //   experienceDraft: { ...emptyExperienceDraft },
+      // }));
     } catch (err) {
       console.error(err);
       this.setState({ errorMessage: "Failed to save experience" });
