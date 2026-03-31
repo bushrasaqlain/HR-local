@@ -26,15 +26,17 @@ const getCandidateInfo = (req, res) => {
     candidateModel.getCandidateInfo(req, res);
 }
 const editCandidateInfo = (req, res) => {
-    if (req.files?.passport_photo?.[0]) {
-        req.passportPhotoPath = req.files.passport_photo[0].path;
-    }
+  if (req.file) {
+    req.passportPhotoPath = req.file.path;
+  } else if (req.files?.passport_photo?.[0]) {
+    req.passportPhotoPath = req.files.passport_photo[0].path;
+  }
 
-    if (req.files?.resume?.[0]) {
-        req.resumePath = req.files.resume[0].path;
-    }
+  if (req.files?.resume?.[0]) {
+    req.resumePath = req.files.resume[0].path;
+  }
 
-    candidateModel.editCandidateInfo(req, res);
+  candidateModel.editCandidateInfo(req, res);
 };
 
 const getCandidateInfobyId = (req, res) => {
