@@ -285,7 +285,11 @@ class SenderMessages extends Component {
           <CardHeader className="" style={{ background: "#5F8190", flexShrink: 0 }}>
             <div className="user_info justify-content-center">
               <span className="text-white">Chat with: {receiverName || "Select a contact"}</span>
-              {jobId && <small className="d-block text-white">Job ID: {jobId}</small>}
+              {messages.length > 0 && messages[0].job_title && (
+                <small className="d-block text-white">
+                  Job Title: {messages[0].job_title}
+                </small>
+              )}
             </div>
           </CardHeader>
 
