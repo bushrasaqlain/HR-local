@@ -112,17 +112,17 @@ const getAllJobs = (req, res) => {
     // Fetch skills for each job post
     const transformedResults = await Promise.all(results.map(async (job) => {
       let skillNames = [];
-      
+
       if (job.skill_ids) {
         // Convert skill_ids to array if it's a string
-        const skillIdsArray = typeof job.skill_ids === 'string' 
+        const skillIdsArray = typeof job.skill_ids === 'string'
           ? job.skill_ids.split(',').map(id => parseInt(id.trim()))
           : job.skill_ids;
 
         if (skillIdsArray.length > 0) {
           // Query to get skill names
           const skillQuery = `SELECT name FROM skills WHERE id IN (?)`;
-          
+
           try {
             const skillResults = await new Promise((resolve, reject) => {
               connection.query(skillQuery, [skillIdsArray], (err, rows) => {
@@ -130,7 +130,7 @@ const getAllJobs = (req, res) => {
                 else resolve(rows);
               });
             });
-            
+
             skillNames = skillResults.map(row => row.name);
           } catch (error) {
             console.error('Error fetching skills for job', job.id, error);
@@ -140,7 +140,7 @@ const getAllJobs = (req, res) => {
 
       return {
         ...job,
-        skill_ids: typeof job.skill_ids === 'string' 
+        skill_ids: typeof job.skill_ids === 'string'
           ? job.skill_ids.split(',').map(id => parseInt(id.trim()))
           : job.skill_ids || [],
         skills: skillNames
@@ -193,36 +193,36 @@ const getJobbyRegAdmin = (req, res) => {
     }
 
     // numeric check
-   if (name === "packageprice") {
-  const num = Number(search);
-  
-  if (!isNaN(num) && search.trim() !== '') {
-    // Numeric search: search in both currency and price
-    whereClause += ` AND (pkg_ccy.code LIKE ? OR pkg.price LIKE ?)`;
-    params.push(`%${search}%`, `%${search}%`);
-  } else {
-    // Text search: prefix match on currency code (starts with)
-    whereClause += ` AND pkg_ccy.code LIKE ?`;
-    params.push(`${search}%`); // Only trailing wildcard
-  }
-}
-else if (name === "duration_unit") {
-     whereClause += ` AND pkg.duration_unit LIKE ?`;
-     params.push(`${search}%`); // Prefix match
-   }
-   else if (name === "duration_value") {
-     const num = Number(search);
-     
-     if (!isNaN(num) && search.trim() !== '') {
-       // Search both duration value and unit
-       whereClause += ` AND (pkg.duration_value LIKE ? OR pkg.duration_unit LIKE ?)`;
-       params.push(`%${search}%`, `${search}%`);
-     } else {
-       // Search only duration unit with prefix match
-       whereClause += ` AND pkg.duration_unit LIKE ?`;
-       params.push(`${search}%`);
-     }
-   } else if (["jp.status", "jp.approval_status"].includes(column)) {
+    if (name === "packageprice") {
+      const num = Number(search);
+
+      if (!isNaN(num) && search.trim() !== '') {
+        // Numeric search: search in both currency and price
+        whereClause += ` AND (pkg_ccy.code LIKE ? OR pkg.price LIKE ?)`;
+        params.push(`%${search}%`, `%${search}%`);
+      } else {
+        // Text search: prefix match on currency code (starts with)
+        whereClause += ` AND pkg_ccy.code LIKE ?`;
+        params.push(`${search}%`); // Only trailing wildcard
+      }
+    }
+    else if (name === "duration_unit") {
+      whereClause += ` AND pkg.duration_unit LIKE ?`;
+      params.push(`${search}%`); // Prefix match
+    }
+    else if (name === "duration_value") {
+      const num = Number(search);
+
+      if (!isNaN(num) && search.trim() !== '') {
+        // Search both duration value and unit
+        whereClause += ` AND (pkg.duration_value LIKE ? OR pkg.duration_unit LIKE ?)`;
+        params.push(`%${search}%`, `${search}%`);
+      } else {
+        // Search only duration unit with prefix match
+        whereClause += ` AND pkg.duration_unit LIKE ?`;
+        params.push(`${search}%`);
+      }
+    } else if (["jp.status", "jp.approval_status"].includes(column)) {
       // Prefix match for status fields (starts with, case-insensitive)
       whereClause += ` AND LOWER(${column}) LIKE LOWER(?)`;
       params.push(`${search}%`); // Only trailing wildcard
@@ -271,7 +271,7 @@ else if (name === "duration_unit") {
     LEFT JOIN jobtypes jt ON jp.job_type_id = jt.id
     LEFT JOIN currencies ccy ON jp.currency_id = ccy.id
     LEFT JOIN packages pkg ON jp.package_id = pkg.id
-    LEFT JOIN currencies pkg_ccy ON pkg.currency = pkg_ccy.id 
+    LEFT JOIN currencies pkg_ccy ON pkg.currency_id = pkg_ccy.id 
     LEFT JOIN speciality spec ON jp.speciality_id = spec.id
     LEFT JOIN degreetypes deg ON jp.degree_id = deg.id
     LEFT JOIN countries co ON jp.country_id = co.id
@@ -321,14 +321,14 @@ else if (name === "duration_unit") {
       console.error("Error fetching job posts:", err);
       return res.status(500).json({ error: "Internal Server Error" });
     }
- 
+
     // Count total records
     const countQuery = `
       SELECT COUNT(DISTINCT jp.id) AS total
       FROM job_posts jp
       LEFT JOIN account a ON jp.account_id = a.id
       LEFT JOIN packages pkg ON jp.package_id = pkg.id
-       LEFT JOIN currencies pkg_ccy ON pkg.currency = pkg_ccy.id
+      LEFT JOIN currencies pkg_ccy ON pkg.currency_id = pkg_ccy.id
       ${whereClause}
     `;
 
@@ -523,7 +523,7 @@ const postJob = (req, res) => {
     city_id,
     district_id,
     package_id,
-   
+
   } = req.body;
   const sql = `
       INSERT INTO job_posts (
@@ -595,7 +595,7 @@ const postJob = (req, res) => {
           district_id,
           city_id,
           status: "Active",
-          approval_status:'Pending Payment',
+          approval_status: 'Pending Payment',
 
         },
         changedBy: userId,
@@ -803,14 +803,14 @@ const getTopCompanies = (req, res) => {
   });
 }
 
-const popularCategory=(req,res)=>{
-   const limit = parseInt(req.params.limit) || 10;
-  
-    if (isNaN(limit)) {
-      return res.status(400).json({ error: "Invalid limit" });
-    }
-  
-    const sql = `
+const popularCategory = (req, res) => {
+  const limit = parseInt(req.params.limit) || 10;
+
+  if (isNaN(limit)) {
+    return res.status(400).json({ error: "Invalid limit" });
+  }
+
+  const sql = `
       SELECT
         industry,
         COUNT(*) as totalPosts
@@ -819,16 +819,16 @@ const popularCategory=(req,res)=>{
       ORDER BY totalPosts DESC
       LIMIT ?
     `;
-  
-    connection.query(sql, [limit], (err, results) => {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({ error: "Internal Server Error" });
-      }
-  
-      // returns an array:  [ { industry: 'Pathologists', totalPosts: 24 }, ... ]
-      return res.json(results);
-    });
+
+  connection.query(sql, [limit], (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Internal Server Error" });
+    }
+
+    // returns an array:  [ { industry: 'Pathologists', totalPosts: 24 }, ... ]
+    return res.json(results);
+  });
 }
 
 const getTotalJobPosts = (accountId, type, value) => {
@@ -865,7 +865,7 @@ const getTotalJobPosts = (accountId, type, value) => {
     }
 
     connection.query(query, params, (err, results) => {
-      if (err){
+      if (err) {
         console.log(err)
         return reject(err);
       }

@@ -1,5 +1,6 @@
 import Head from "next/head";
 import React, { Component } from "react";
+import * as faceapi from "face-api.js";
 // import Select from "react-select";
 import AsyncSelect from "react-select/async";
 // import { toast } from "react-toastify";
@@ -90,10 +91,29 @@ class EditProfile extends Component {
   ];
 
   componentDidMount() {
-    this.fetchCandidateInfo();
-    this.loadCountries();
-    this.loadLicenseTypes();
+    this.loadFaceModels().then(() => {
+      this.fetchCandidateInfo();
+      this.loadCountries();
+      this.loadLicenseTypes();
+    });
   }
+
+  loadFaceModels = async () => {
+    const MODEL_URL = "/models"; 
+
+    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+  };
+
+  detectFace = async (file) => {
+    const img = await faceapi.bufferToImage(file);
+
+    const detections = await faceapi.detectAllFaces(
+      img,
+      new faceapi.TinyFaceDetectorOptions()
+    );
+
+    return detections.length > 0;
+  };
 
   loadLicenseTypes = async () => {
     try {
@@ -496,70 +516,90 @@ class EditProfile extends Component {
     }
   };
 
-handleProfilePhotoChange = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+  handleProfilePhotoChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  const MAX_SIZE = 5 * 1024 * 1024;
+    const MAX_SIZE = 5 * 1024 * 1024;
 
-  if (file.size > MAX_SIZE) {
-    this.setState({ passportPhotoError: "Passport photo must be less than 5 MB" });
-    e.target.value = "";
-    return;
-  }
-
-  this.setState({ passportPhotoError: "", loading: true });
-
-  const reader = new FileReader();
-  reader.onloadend = async () => {
-    // Update preview
-    this.setState((prevState) => ({
-      formData: {
-        ...prevState.formData,
-        passport_photo: file,
-        passport_photoPreview: reader.result,
-      },
-    }));
-
-    // ✅ API call AFTER file is ready
-    try {
-      const token = localStorage.getItem("token");
-      const accountId = this.state.formData.account_id;
-
-      console.log("account_id:", accountId); // ← debug
-      console.log("file:", file);            // ← debug
-
-      if (!accountId) throw new Error("Account ID missing");
-
-      const formData = new FormData();
-      formData.append("passport_photo", file);
-
-      // ✅ Log what's being sent
-      for (let [key, value] of formData.entries()) {
-        console.log("FormData entry:", key, value);
-      }
-
-      const res = await api.put(`/candidateProfile/${accountId}`, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      console.log("API response:", res.data); // ← debug
-
-      this.setState({ successMessage: "Photo updated successfully", loading: false });
-      setTimeout(() => this.setState({ successMessage: "" }), 3000);
-
-    } catch (err) {
-      console.error("Photo upload failed:", err);
-      this.setState({ errorMessage: "Failed to upload photo", loading: false });
-      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
+    if (file.size > MAX_SIZE) {
+      this.setState({ passportPhotoError: "Passport photo must be less than 5 MB" });
+      e.target.value = "";
+      return;
     }
-  };
 
-  reader.readAsDataURL(file);
-};
+    // ✅ FACE VALIDATION
+    this.setState({ loading: true });
+
+    const hasFace = await this.detectFace(file);
+
+    if (!hasFace) {
+      this.setState({
+        passportPhotoError: "Only face images are allowed",
+        loading: false,
+      });
+      e.target.value = "";
+      return;
+    }
+
+    // ✅ OPTIONAL: multiple faces check (strict validation)
+    const img = await faceapi.bufferToImage(file);
+    const detections = await faceapi.detectAllFaces(
+      img,
+      new faceapi.TinyFaceDetectorOptions()
+    );
+
+    if (detections.length > 1) {
+      this.setState({
+        passportPhotoError: "Only single face image is allowed",
+        loading: false,
+      });
+      e.target.value = "";
+      return;
+    }
+
+    // ✅ Continue your existing code (preview + API call)
+    this.setState({ passportPhotoError: "" });
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      this.setState((prevState) => ({
+        formData: {
+          ...prevState.formData,
+          passport_photo: file,
+          passport_photoPreview: reader.result,
+        },
+      }));
+
+      try {
+        const token = localStorage.getItem("token");
+        const accountId = this.state.formData.account_id;
+
+        const formData = new FormData();
+        formData.append("passport_photo", file);
+
+        await api.put(`/candidateProfile/${accountId}`, formData, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        });
+
+        this.setState({
+          successMessage: "Photo updated successfully",
+          loading: false,
+        });
+
+      } catch (err) {
+        this.setState({
+          errorMessage: "Failed to upload photo",
+          loading: false,
+        });
+      }
+    };
+
+    reader.readAsDataURL(file);
+  };
 
   handleAddLink = () => {
     this.setState({

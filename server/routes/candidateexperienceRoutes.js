@@ -3,18 +3,18 @@ const router = express.Router();
 const multer = require("multer");
 const authMiddleware = require("../middleware/auth");
 const connection = require("../connection");
-const experienceController=require("../controller/candidateexperienceController")
+const experienceController = require("../controller/candidateexperienceController")
 // Configure multer to handle file uploads
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-router.post('/addexperience',authMiddleware,experienceController.addcandidateExperience );
+router.post('/addexperience', authMiddleware, experienceController.addcandidateExperience);
 
 
-router.put('/updateexperience/:id', experienceController.editcandidateExperience);
+router.put('/updateexperience/:id', authMiddleware, experienceController.editcandidateExperience);
 
 
-router.get("/getexperience",authMiddleware,experienceController.getcandidateExperience);
+router.get("/getexperience", authMiddleware, experienceController.getcandidateExperience);
 
-router.delete('/deleteexperience/:id',experienceController.deletecandidateExperience );
+router.delete('/deleteexperience/:id', experienceController.deletecandidateExperience);
 module.exports = router;

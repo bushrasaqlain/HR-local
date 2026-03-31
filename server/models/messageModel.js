@@ -38,28 +38,32 @@ const getAllMessages = (req, res) => {
   const userId = req.params.userId;
   const otherUserId = req.params.otherUserId;
   const jobId = req.query.jobId; // Optional jobId filter
-  
+
   try {
     let query = `
-      SELECT * FROM messages 
+      SELECT 
+        m.*, 
+        jp.job_title 
+      FROM messages m
+      LEFT JOIN job_posts jp ON m.jobId = jp.id
       WHERE (
-        (senderId = ? AND receiverId = ? AND deleted_by_sender = 0)
+        (m.senderId = ? AND m.receiverId = ? AND m.deleted_by_sender = 0)
         OR 
-        (senderId = ? AND receiverId = ? AND deleted_by_receiver = 0)
+        (m.senderId = ? AND m.receiverId = ? AND m.deleted_by_receiver = 0)
       )
     `;
-    
+
     let params = [
       userId, otherUserId, // messages sent by userId, not deleted by sender
       otherUserId, userId  // messages received by userId, not deleted by receiver
     ];
-    
+
     // Add jobId filter if provided
     if (jobId) {
-      query += ` AND (jobId = ? OR jobId IS NULL)`;
+      query += ` AND (m.jobId = ? OR m.jobId IS NULL)`;
       params.push(jobId);
     }
-    
+
     query += ` ORDER BY timestamp ASC`;
 
     connection.query(query, params, (error, results) => {
@@ -104,7 +108,7 @@ const getContact = (req, res) => {
           (receiverId = ? AND deleted_by_receiver = 0)
         )
   `;
-  
+
   let params = [
     userId,
     userId,
@@ -112,13 +116,13 @@ const getContact = (req, res) => {
     userId,
     userId
   ];
-  
+
   // Add job filter to subquery if provided
   if (jobId) {
     query += ` AND jobId = ?`;
     params.push(jobId);
   }
-  
+
   query += `
       GROUP BY contact_id
     ) lm
@@ -130,7 +134,7 @@ const getContact = (req, res) => {
     JOIN account a ON a.id = lm.contact_id
     ORDER BY m.timestamp DESC
   `;
-  
+
   params.push(userId, userId);
 
   connection.query(query, params, (err, results) => {
@@ -176,7 +180,7 @@ const deleteMessage = (req, res) => {
 
 const sendMessage = (req, res) => {
   const { senderId, receiverId, message, jobId } = req.body; // Added jobId
-  
+
   if (!senderId || !receiverId || !message) {
     return res.status(400).json({ error: 'Sender ID, receiver ID, and message are required.' });
   }
@@ -263,11 +267,11 @@ const unreadMessage = (req, res) => {
 const getJobMessages = (req, res) => {
   const { candidateId, jobId } = req.params;
   const userId = req.query.userId; // The logged-in user (company/recruiter)
-  
+
   if (!candidateId || !jobId || !userId) {
     return res.status(400).json({ error: "Missing required parameters" });
   }
-  
+
   const query = `
     SELECT * FROM messages 
     WHERE (
@@ -278,10 +282,10 @@ const getJobMessages = (req, res) => {
     AND jobId = ?
     ORDER BY timestamp ASC
   `;
-  
+
   connection.query(
-    query, 
-    [userId, candidateId, candidateId, userId, jobId], 
+    query,
+    [userId, candidateId, candidateId, userId, jobId],
     (error, results) => {
       if (error) {
         console.error('Error fetching job messages:', error);

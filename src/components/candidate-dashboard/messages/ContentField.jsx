@@ -289,8 +289,10 @@ class CandidateMessages extends Component {
               <span className="text-white">
                 Chat with: {companyName || "Company"}
               </span>
-              {jobId && (
-                <small className="d-block text-white">Job ID: {jobId}</small>
+              {messages.length > 0 && messages[0].job_title && (
+                <small className="d-block text-white">
+                  Job Tilte: {messages[0].job_title}
+                </small>
               )}
             </div>
           </CardHeader>
