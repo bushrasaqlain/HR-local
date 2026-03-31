@@ -496,40 +496,70 @@ class EditProfile extends Component {
     }
   };
 
-  handleProfilePhotoChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+handleProfilePhotoChange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+  const MAX_SIZE = 5 * 1024 * 1024;
 
-    // ❌ Size validation
-    if (file.size > MAX_SIZE) {
-      this.setState({
-        passportPhotoError: "Passport photo must be less than 5 MB",
+  if (file.size > MAX_SIZE) {
+    this.setState({ passportPhotoError: "Passport photo must be less than 5 MB" });
+    e.target.value = "";
+    return;
+  }
+
+  this.setState({ passportPhotoError: "", loading: true });
+
+  const reader = new FileReader();
+  reader.onloadend = async () => {
+    // Update preview
+    this.setState((prevState) => ({
+      formData: {
+        ...prevState.formData,
+        passport_photo: file,
+        passport_photoPreview: reader.result,
+      },
+    }));
+
+    // ✅ API call AFTER file is ready
+    try {
+      const token = localStorage.getItem("token");
+      const accountId = this.state.formData.account_id;
+
+      console.log("account_id:", accountId); // ← debug
+      console.log("file:", file);            // ← debug
+
+      if (!accountId) throw new Error("Account ID missing");
+
+      const formData = new FormData();
+      formData.append("passport_photo", file);
+
+      // ✅ Log what's being sent
+      for (let [key, value] of formData.entries()) {
+        console.log("FormData entry:", key, value);
+      }
+
+      const res = await api.put(`/candidateProfile/${accountId}`, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
       });
 
-      // reset input so same file can be reselected
-      e.target.value = "";
-      return;
+      console.log("API response:", res.data); // ← debug
+
+      this.setState({ successMessage: "Photo updated successfully", loading: false });
+      setTimeout(() => this.setState({ successMessage: "" }), 3000);
+
+    } catch (err) {
+      console.error("Photo upload failed:", err);
+      this.setState({ errorMessage: "Failed to upload photo", loading: false });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
-
-    // ✅ Clear error
-    this.setState({ passportPhotoError: "" });
-
-    // Preview
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      this.setState((prevState) => ({
-        formData: {
-          ...prevState.formData,
-          passport_photo: file,
-          passport_photoPreview: reader.result,
-        },
-      }));
-    };
-
-    reader.readAsDataURL(file);
   };
+
+  reader.readAsDataURL(file);
+};
 
   handleAddLink = () => {
     this.setState({

@@ -230,8 +230,8 @@
         candidateId, 
         jobId: selectedJobId, 
         status,
-        ...(interviewDay && {interview_day: interviewDay }),    // ✅
-        ...(interviewTime && {interview_time: interviewTime }),  // ✅
+        ...(interviewDay && { interviewDay }),    // ✅
+        ...(interviewTime && { interviewTime }),  // ✅
       })
       .then(() => {
         this.setState({

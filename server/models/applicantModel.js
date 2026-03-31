@@ -74,7 +74,8 @@ const getAllApplicants = async (req, res) => {
       connection.query(
         `SELECT speciality_id, skill_ids, min_salary, max_salary,
                 min_experience, max_experience,
-                country_id, district_id, city_id
+                country_id, district_id, city_id,
+                account_id
          FROM job_posts WHERE id = ?`,
         [jobId],
         (err, result) => (err ? reject(err) : resolve(result[0])),
@@ -82,6 +83,8 @@ const getAllApplicants = async (req, res) => {
     });
 
     if (!job) return res.status(404).json({ error: "Job not found" });
+
+    const companyId = job.account_id;
 
     // --- Build WHERE conditions dynamically ---
     const whereConditions = [
@@ -127,12 +130,6 @@ const getAllApplicants = async (req, res) => {
       whereConditions.push(`c.district = ?`);
       values.push(job.district_id);
     }
-    // if (job.city_id) {
-    //   whereConditions.push(
-    //     `(c.city = ? OR JSON_CONTAINS(COALESCE(c.otherPreferredCities,'[]'), CAST(? AS JSON)))`,
-    //   );
-    //   values.push(job.city_id, JSON.stringify(job.city_id));
-    // }
 
     const whereClause = `WHERE ${whereConditions.join(" AND ")}`;
 
@@ -157,7 +154,7 @@ const getAllApplicants = async (req, res) => {
         c.passport_photo,
         c.resume,
         c.skills,
-         c.city,
+        c.city,
         c.otherPreferredCities,
         li.name AS license_type,
         c.license_number,
@@ -177,53 +174,30 @@ const getAllApplicants = async (req, res) => {
           (SELECT a1.message FROM applications a1 WHERE a1.candidate_id = c.id AND a1.job_id = ? ORDER BY a1.created_at DESC LIMIT 1),
           NULL
         ) AS message,
-         COALESCE(
- (SELECT a1.candidate_response 
-  FROM applications a1 
-  WHERE a1.candidate_id = c.id AND a1.job_id = ? 
-  ORDER BY a1.id DESC LIMIT 1),
- NULL
-) AS candidate_response,
-
-COALESCE(
- (SELECT a1.requested_interview_day 
-  FROM applications a1 
-  WHERE a1.candidate_id = c.id AND a1.job_id = ? 
-  ORDER BY a1.id DESC LIMIT 1),
- NULL
-) AS requested_interview_day,
-
-COALESCE(
- (SELECT a1.requested_interview_time 
-  FROM applications a1 
-  WHERE a1.candidate_id = c.id AND a1.job_id = ? 
-  ORDER BY a1.id DESC LIMIT 1),
- NULL
-) AS requested_interview_time,
-
-COALESCE(
- (SELECT a1.company_status 
-  FROM applications a1 
-  WHERE a1.candidate_id = c.id AND a1.job_id = ? 
-  ORDER BY a1.id DESC LIMIT 1),
- 'pending'
-) AS company_status,
-
-COALESCE(
- (SELECT a1.company_offered_day 
-  FROM applications a1 
-  WHERE a1.candidate_id = c.id AND a1.job_id = ? 
-  ORDER BY a1.id DESC LIMIT 1),
- NULL
-) AS company_offered_day,
-
-COALESCE(
- (SELECT a1.company_offered_time 
-  FROM applications a1 
-  WHERE a1.candidate_id = c.id AND a1.job_id = ? 
-  ORDER BY a1.id DESC LIMIT 1),
- NULL
-) AS company_offered_time
+        COALESCE(
+          (SELECT a1.candidate_response FROM applications a1 WHERE a1.candidate_id = c.id AND a1.job_id = ? ORDER BY a1.id DESC LIMIT 1),
+          NULL
+        ) AS candidate_response,
+        COALESCE(
+          (SELECT a1.requested_interview_day FROM applications a1 WHERE a1.candidate_id = c.id AND a1.job_id = ? ORDER BY a1.id DESC LIMIT 1),
+          NULL
+        ) AS requested_interview_day,
+        COALESCE(
+          (SELECT a1.requested_interview_time FROM applications a1 WHERE a1.candidate_id = c.id AND a1.job_id = ? ORDER BY a1.id DESC LIMIT 1),
+          NULL
+        ) AS requested_interview_time,
+        COALESCE(
+          (SELECT a1.company_status FROM applications a1 WHERE a1.candidate_id = c.id AND a1.job_id = ? ORDER BY a1.id DESC LIMIT 1),
+          'pending'
+        ) AS company_status,
+        COALESCE(
+          (SELECT a1.company_offered_day FROM applications a1 WHERE a1.candidate_id = c.id AND a1.job_id = ? ORDER BY a1.id DESC LIMIT 1),
+          NULL
+        ) AS company_offered_day,
+        COALESCE(
+          (SELECT a1.company_offered_time FROM applications a1 WHERE a1.candidate_id = c.id AND a1.job_id = ? ORDER BY a1.id DESC LIMIT 1),
+          NULL
+        ) AS company_offered_time
       FROM account a
       INNER JOIN candidate_info c ON a.id = c.account_id
       LEFT JOIN license_types li ON c.license_type = li.id
@@ -231,29 +205,53 @@ COALESCE(
       ORDER BY a.id DESC
       LIMIT ? OFFSET ?;
     `;
+
     const candidatesRaw = await new Promise((resolve, reject) => {
       connection.query(
         candidateQuery,
         [
- jobId, 
- jobId,
- jobId, 
- jobId, 
- jobId, 
- jobId, 
- jobId, 
- jobId, 
- jobId, 
- jobId, 
- ...values,
- limit,
- offset
-],
+          jobId,
+          jobId,
+          jobId,
+          jobId,
+          jobId,
+          jobId,
+          jobId,
+          jobId,
+          jobId,
+          jobId,
+          ...values,
+          limit,
+          offset,
+        ],
         (err, res) => (err ? reject(err) : resolve(res)),
       );
     });
 
     const candidateIds = candidatesRaw.map((c) => c.candidate_id);
+
+    // --- Log search impressions ---
+    if (candidateIds.length > 0 && companyId) {
+      const impressionValues = candidateIds.map((candidateId) => [
+        companyId,
+        candidateId,
+        jobId,
+      ]);
+
+      connection.query(
+        `INSERT IGNORE INTO candidate_search_impressions 
+         (company_id, candidate_id, job_id) 
+         VALUES ?`,
+        [impressionValues],
+        (err) => {
+          if (err) console.error("Failed to log search impressions:", err);
+          else
+            console.log(
+              `Logged ${impressionValues.length} impressions for company ${companyId}`,
+            );
+        },
+      );
+    }
 
     // --- Fetch related tables in batch ---
     const [
@@ -320,7 +318,6 @@ COALESCE(
     const allCityIds = [];
 
     candidatesRaw.forEach((c) => {
-      // ---------- SKILLS ----------
       if (c.skills) {
         try {
           c.skills = Array.isArray(c.skills) ? c.skills : JSON.parse(c.skills);
@@ -338,7 +335,6 @@ COALESCE(
         c.skills = [];
       }
 
-      // ---------- OTHER PREFERRED CITIES NORMALIZATION ----------
       if (c.otherPreferredCities) {
         try {
           c.otherPreferredCities = Array.isArray(c.otherPreferredCities)
@@ -351,10 +347,7 @@ COALESCE(
         c.otherPreferredCities = [];
       }
 
-      // ---------- COLLECT CITY IDS ----------
-      if (c.city) {
-        allCityIds.push(c.city);
-      }
+      if (c.city) allCityIds.push(c.city);
 
       c.otherPreferredCities.forEach((city) => {
         const cityId = typeof city === "object" ? city.id : city;
@@ -367,14 +360,11 @@ COALESCE(
       const skillRows = await new Promise((resolve, reject) => {
         connection.query(
           `SELECT id, name FROM skills WHERE id IN (?)`,
-          [[...new Set(allSkillIds)]], // unique IDs
+          [[...new Set(allSkillIds)]],
           (err, res) => (err ? reject(err) : resolve(res)),
         );
       });
-
-      skillRows.forEach((s) => {
-        skillsMap[s.id] = s.name;
-      });
+      skillRows.forEach((s) => (skillsMap[s.id] = s.name));
     }
 
     const cityMapObj = {};
@@ -390,9 +380,7 @@ COALESCE(
     }
 
     // --- Construct final objects ---
-    // --- Construct final objects ---
     const candidates = candidatesRaw.map((c) => {
-      // Normalize candidate cities: main city + other preferred cities
       const candidateCityIds = [];
 
       if (c.city) candidateCityIds.push(Number(c.city));
@@ -403,10 +391,10 @@ COALESCE(
         candidateCityIds.push(cityId);
       });
 
-      // Determine city_name based on job city match
       const city_name = candidateCityIds.includes(Number(job.city_id))
         ? cityMapObj[job.city_id] || "-"
         : "-";
+
       return {
         ...c,
         skills: c.skills.map((id) => ({ id, name: skillsMap[id] || "" })),
@@ -428,7 +416,6 @@ COALESCE(
               ? { id: e.speciality_id, name: e.speciality_name }
               : null,
           })),
-
         education: educationRows
           .filter((ed) => ed.candidate_id === c.candidate_id)
           .map((ed) => ({
@@ -470,9 +457,9 @@ const updateApplcantStatus = (req, res) => {
     requested_interview_day,
     requested_interview_time,
     candidate_response_message,
-      company_status,               // optional: confirmed/reschedule_offered
+    company_status, // optional: confirmed/reschedule_offered
     company_offered_day,
-    company_offered_time
+    company_offered_time,
   } = req.body;
 
   if (!candidateId || !jobId) {
@@ -540,10 +527,11 @@ const updateApplcantStatus = (req, res) => {
         fields.push("company_offered_time = ?");
         values.push(company_offered_time);
       }
-            if (
+      if (
         candidate_response === "confirmed" &&
         (company_status === "confirmed" || company_status === undefined) &&
-        interview_day && interview_time
+        interview_day &&
+        interview_time
       ) {
         fields.push("final_interview_day = ?");
         fields.push("final_interview_time = ?");
