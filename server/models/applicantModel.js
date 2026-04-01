@@ -156,6 +156,8 @@ const getAllApplicants = async (req, res) => {
         c.skills,
         c.city,
         c.otherPreferredCities,
+        c.is_boosted,            
+        c.boost_expires_at,
         li.name AS license_type,
         c.license_number,
         COALESCE(
@@ -202,7 +204,9 @@ const getAllApplicants = async (req, res) => {
       INNER JOIN candidate_info c ON a.id = c.account_id
       LEFT JOIN license_types li ON c.license_type = li.id
       ${whereClause}
-      ORDER BY a.id DESC
+     ORDER BY 
+        CASE WHEN c.is_boosted = 1 AND c.boost_expires_at > NOW() THEN 0 ELSE 1 END ASC,
+        a.id DESC
       LIMIT ? OFFSET ?;
     `;
 
@@ -263,53 +267,53 @@ const getAllApplicants = async (req, res) => {
     ] = await Promise.all([
       candidateIds.length
         ? new Promise((resolve, reject) =>
-            connection.query(
-              `SELECT e.*, s.name AS speciality_name FROM candidate_experience e LEFT JOIN speciality s ON e.speciality_id = s.id WHERE e.candidate_id IN (?)`,
-              [candidateIds],
-              (err, res) => (err ? reject(err) : resolve(res)),
-            ),
-          )
+          connection.query(
+            `SELECT e.*, s.name AS speciality_name FROM candidate_experience e LEFT JOIN speciality s ON e.speciality_id = s.id WHERE e.candidate_id IN (?)`,
+            [candidateIds],
+            (err, res) => (err ? reject(err) : resolve(res)),
+          ),
+        )
         : [],
       candidateIds.length
         ? new Promise((resolve, reject) =>
-            connection.query(
-              `SELECT ed.*, df.name AS degreefield_name, dt.name AS degreetype_name, ins.name AS institute_name
+          connection.query(
+            `SELECT ed.*, df.name AS degreefield_name, dt.name AS degreetype_name, ins.name AS institute_name
                FROM candidate_education ed
                LEFT JOIN degreefields df ON ed.degree_id = df.id
                LEFT JOIN degreetypes dt ON df.degree_type_id = dt.id
                LEFT JOIN institute ins ON ed.institute_id = ins.id
                WHERE ed.candidate_id IN (?)`,
-              [candidateIds],
-              (err, res) => (err ? reject(err) : resolve(res)),
-            ),
-          )
+            [candidateIds],
+            (err, res) => (err ? reject(err) : resolve(res)),
+          ),
+        )
         : [],
       candidateIds.length
         ? new Promise((resolve, reject) =>
-            connection.query(
-              `SELECT * FROM candidate_availability WHERE candidate_id IN (?)`,
-              [candidateIds],
-              (err, res) => (err ? reject(err) : resolve(res)),
-            ),
-          )
+          connection.query(
+            `SELECT * FROM candidate_availability WHERE candidate_id IN (?)`,
+            [candidateIds],
+            (err, res) => (err ? reject(err) : resolve(res)),
+          ),
+        )
         : [],
       candidateIds.length
         ? new Promise((resolve, reject) =>
-            connection.query(
-              `SELECT * FROM candidate_certificates WHERE candidate_id IN (?) ORDER BY created_at DESC`,
-              [candidateIds],
-              (err, res) => (err ? reject(err) : resolve(res)),
-            ),
-          )
+          connection.query(
+            `SELECT * FROM candidate_certificates WHERE candidate_id IN (?) ORDER BY created_at DESC`,
+            [candidateIds],
+            (err, res) => (err ? reject(err) : resolve(res)),
+          ),
+        )
         : [],
       candidateIds.length
         ? new Promise((resolve, reject) =>
-            connection.query(
-              `SELECT * FROM candidate_research WHERE candidate_id IN (?) ORDER BY created_at DESC`,
-              [candidateIds],
-              (err, res) => (err ? reject(err) : resolve(res)),
-            ),
-          )
+          connection.query(
+            `SELECT * FROM candidate_research WHERE candidate_id IN (?) ORDER BY created_at DESC`,
+            [candidateIds],
+            (err, res) => (err ? reject(err) : resolve(res)),
+          ),
+        )
         : [],
     ]);
 
@@ -399,6 +403,8 @@ const getAllApplicants = async (req, res) => {
         ...c,
         skills: c.skills.map((id) => ({ id, name: skillsMap[id] || "" })),
         city_name,
+        is_boosted: !!c.is_boosted,                                  
+        boost_expires_at: c.boost_expires_at || null,  
         otherPreferredCities: (c.otherPreferredCities || []).map((city) => {
           const cityId = typeof city === "object" ? city.id : city;
           return { id: cityId, name: cityMapObj[cityId] || "" };

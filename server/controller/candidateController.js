@@ -26,17 +26,17 @@ const getCandidateInfo = (req, res) => {
     candidateModel.getCandidateInfo(req, res);
 }
 const editCandidateInfo = (req, res) => {
-  if (req.file) {
-    req.passportPhotoPath = req.file.path;
-  } else if (req.files?.passport_photo?.[0]) {
-    req.passportPhotoPath = req.files.passport_photo[0].path;
-  }
+    if (req.file) {
+        req.passportPhotoPath = req.file.path;
+    } else if (req.files?.passport_photo?.[0]) {
+        req.passportPhotoPath = req.files.passport_photo[0].path;
+    }
 
-  if (req.files?.resume?.[0]) {
-    req.resumePath = req.files.resume[0].path;
-  }
+    if (req.files?.resume?.[0]) {
+        req.resumePath = req.files.resume[0].path;
+    }
 
-  candidateModel.editCandidateInfo(req, res);
+    candidateModel.editCandidateInfo(req, res);
 };
 
 const getCandidateInfobyId = (req, res) => {
@@ -62,6 +62,31 @@ const addResume = (req, res) => {
     const userId = req.user.userId;
     candidateModel.addResume(userId, req.resumePath, res);
 };
+
+// ============ BOOST CONTROLLERS ============
+
+const getBoostPackages = (req, res) => {
+    candidateModel.getBoostPackages(req, res);
+};
+const placeBoostOrder = (req, res) => {
+    candidateModel.placeBoostOrder(req, res);
+};
+const getMyBoostStatus = (req, res) => {
+    candidateModel.getMyBoostStatus(req, res);
+};
+const getBoostOrders = (req, res) => {
+    candidateModel.getBoostOrders(req, res);
+};
+const activateBoost = (req, res) => {
+    candidateModel.activateBoost(req, res);
+};
+const rejectBoost = (req, res) => {
+    candidateModel.rejectBoost(req, res);
+};
+const getCandidatesForJob = (req, res) => {
+    candidateModel.getCandidatesForJob(req, res);
+};
+
 module.exports = {
     getAllCandidates,
     updateStatus,
@@ -73,5 +98,13 @@ module.exports = {
     getCandidateLogobyId,
     getCandidateFullProfilebyId,
     getCandidateInfobyAccountType,
-    addResume
+    addResume,
+
+    getBoostPackages,
+    placeBoostOrder,
+    getMyBoostStatus,
+    getBoostOrders,
+    activateBoost,
+    rejectBoost,
+    getCandidatesForJob,
 }
