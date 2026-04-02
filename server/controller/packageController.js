@@ -12,9 +12,9 @@ const deletePackage = (req, res) => {
 }
 // Get all cities
 const getallPackages = (req, res) => {
-  const { page = 1, limit = 15, name = "", search = "", status = "Active" } = req.query;
+  const { page = 1, limit = 15, name = "", search = "", status = "Active", package_type = ""  } = req.query;
 
-  packageModel.getAllPackages({ page, limit, name, search, status }, (err, data) => {
+  packageModel.getAllPackages({ page, limit, name, search, status, package_type }, (err, data) => {
     if (err) return res.status(500).json({ error: "Database error", details: err.sqlMessage });
     res.status(200).json(data);
   });

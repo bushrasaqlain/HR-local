@@ -1,22 +1,12 @@
 import React, { Component } from "react";
 import axios from "axios";
 import Pagination from "../common/pagination.jsx";
-// import { toast } from "react-toastify";
 import api from "../lib/api.jsx";
 import Helmet from "react-helmet";
 import { withRouter } from "next/router";
 import * as XLSX from "xlsx";
 import {
-  Card,
-  Row,
-  Col,
-  Container,
-  CardBody,
-  Table,
-  Button,
-  Modal,
-  ModalBody,
-  ModalHeader,
+  Card, Row, Col, Container, CardBody, Table, Button, Modal,
 } from "react-bootstrap";
 import AsyncSelect from "react-select/async";
 import "bootstrap-icons/font/bootstrap-icons.css";
@@ -29,19 +19,22 @@ class Packages extends Component {
       packages: [],
       showModal: false,
       editId: null,
-
-      // 🔽 REQUIRED FOR FORM
       FormData: {
-        duration: "",
-        package: "",
-        amount: "",
+        name: "",
+        duration_value: "",
+        duration_unit: "",
+        price: "",
+        description: "",
+        candidate_limit: "",
+        interview_slots: "",
+        location_scope: "",
+        package_type: "",
+        is_featured: false,
       },
-
       selectedCurrency: null,
       errors: {},
       successMessage: "",
       errorMessage: "",
-
       deleteId: null,
       deleteStatus: null,
       showDeleteConfirm: false,
@@ -54,9 +47,7 @@ class Packages extends Component {
     this.apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   }
 
-  componentDidMount() {
-    this.fetchPackages();
-  }
+  componentDidMount() { this.fetchPackages(); }
 
   componentDidUpdate(prevProps, prevState) {
     if (
@@ -73,26 +64,14 @@ class Packages extends Component {
     status = this.state.isActive,
   ) => {
     try {
-      const response = await axios.get(
-        `${this.apiBaseUrl}packages/getallpackages`,
-        {
-          params: { page, limit: this.itemsPerPage, status },
-        },
-      );
-
-      console.log("API response:", response.data);
-      console.log("Packages:", response.data.packages);
-      console.log("First package:", response.data.packages?.[0]);
+      const response = await axios.get(`${this.apiBaseUrl}packages/getallpackages`, {
+        params: { page, limit: this.itemsPerPage, status },
+      });
       this.setState(
-        {
-          packages: response.data.packages || [],
-          totalPackages: response.data.total || 0,
-        },
+        { packages: response.data.packages || [], totalPackages: response.data.total || 0 },
         () => {
-          // ✅ highlight check
           const lastHistoryType = sessionStorage.getItem("lastHistoryType");
           const lastHistoryId = sessionStorage.getItem("lastHistoryId");
-
           if (lastHistoryType === "package" && lastHistoryId) {
             this.setState({ highlightId: parseInt(lastHistoryId) });
             setTimeout(() => {
@@ -111,12 +90,7 @@ class Packages extends Component {
   loadCurrencies = async (inputValue) => {
     try {
       const res = await axios.get(`${this.apiBaseUrl}getallcurrencies`, {
-        params: {
-          search: inputValue || "",
-          page: 1,
-          limit: 15,
-          status: "Active",
-        },
+        params: { search: inputValue || "", page: 1, limit: 15, status: "Active" },
       });
       return res.data.currencies.map((c) => ({ label: c.code, value: c.id }));
     } catch (err) {
@@ -126,27 +100,26 @@ class Packages extends Component {
   };
 
   handleCurrencyChange = (selectedCurrency) => {
-    console.log(selectedCurrency);
-    this.setState({
-      selectedCurrency,
-      errors: { ...this.state.errors, currency: "" },
-    });
+    this.setState({ selectedCurrency, errors: { ...this.state.errors, currency: "" } });
   };
 
   formatDate = (dateStr) => {
     if (!dateStr) return "";
-
     const date = new Date(dateStr);
     const day = String(date.getDate()).padStart(2, "0");
-    const month = date.toLocaleString("en-US", { month: "short" }); // Sep
-    const year = String(date.getFullYear()).slice(-2); // 25
-
+    const month = date.toLocaleString("en-US", { month: "short" });
+    const year = String(date.getFullYear()).slice(-2);
     return `${day}-${month}-${year}`;
+  };
+
+  // Format limit for display: null/empty = "Unlimited"
+  formatLimit = (value) => {
+    if (value === null || value === undefined || value === "") return "Unlimited";
+    return value;
   };
 
   handleExcelExport = () => {
     const { packages } = this.state;
-
     if (!packages || !packages.length) {
       this.setState({ errorMessage: "No packages available to export" });
       setTimeout(() => this.setState({ errorMessage: "" }), 3000);
@@ -154,23 +127,22 @@ class Packages extends Component {
     }
 
     const dataToExport = packages.map((pkg) => ({
-      "Duration unit": pkg.duration_unit,
-      "Duration value": pkg.duration_value,
-      Price: pkg.price,
-      Currency: pkg.currency,
-      // "Status": pkg.status,
-      // "Created At": this.formatDate(pkg.created_at),
-      // "Updated At": this.formatDate(pkg.updated_at),
+      "Name":             pkg.name,
+      "Package Type":     pkg.package_type,
+      "Duration unit":    pkg.duration_unit,
+      "Duration value":   pkg.duration_value,
+      "Price":            pkg.price,
+      "Currency":         pkg.currency,
+      "Candidate limit":  pkg.candidate_limit ?? "Unlimited",
+      "Interview slots":  pkg.interview_slots ?? "Unlimited",
+      "Location Slots":   pkg.location_scope,
+      "Is featured":      pkg.is_featured ? "Yes" : "No",
+      "Description":      pkg.description || "",
     }));
 
-    // Create worksheet
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-
-    // Create workbook and append worksheet
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Packages");
-
-    // Write file
     XLSX.writeFile(workbook, "Packages.xlsx");
 
     this.setState({ successMessage: "Packages exported successfully" });
@@ -180,9 +152,7 @@ class Packages extends Component {
   handleExcelImport = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     const userId = sessionStorage.getItem("userId");
-
     if (!userId) {
       this.setState({ errorMessage: "User not logged in" });
       setTimeout(() => this.setState({ errorMessage: "" }), 3000);
@@ -190,31 +160,31 @@ class Packages extends Component {
     }
     try {
       const reader = new FileReader();
-
       reader.onload = async (evt) => {
         const data = new Uint8Array(evt.target.result);
         const workbook = XLSX.read(data, { type: "array" });
-
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(sheet);
 
         const formatted = jsonData.map((row) => ({
-          duration_unit: row["Duration unit"],
-          duration_value: row["Duration value"],
-          price: row["Price"],
-          currency: row["Currency"],
+          name:            row["Name"],
+          package_type:    row["Package Type"],
+          duration_unit:   row["Duration unit"],
+          duration_value:  row["Duration value"],
+          price:           row["Price"],
+          currency:        row["Currency"],
+          candidate_limit: row["Candidate limit"] === "Unlimited" ? null : row["Candidate limit"] || null,
+          interview_slots: row["Interview slots"] === "Unlimited" ? null : row["Interview slots"] || null,
+          location_scope:  row[ "Location Slots"],
+          is_featured:     row["Is featured"] === "Yes" ? 1 : 0,
+          description:     row["Description"] || null,
         }));
 
-        await api.post(`${this.apiBaseUrl}packages/`, {
-          type: "csv",
-          data: formatted,
-        });
-
+        await api.post(`${this.apiBaseUrl}packages/`, { type: "csv", data: formatted });
         this.setState({ successMessage: "Packages imported successfully" });
         setTimeout(() => this.setState({ successMessage: "" }), 3000);
         this.fetchPackages(1);
       };
-
       reader.readAsArrayBuffer(file);
       e.target.value = "";
     } catch (err) {
@@ -225,122 +195,73 @@ class Packages extends Component {
   };
 
   handleInputChange = (e) => {
-    const { name, value } = e.target;
-
+    const { name, value, type, checked } = e.target;
     this.setState((prevState) => ({
       FormData: {
         ...prevState.FormData,
-        [name]: value,
+        [name]: type === "checkbox" ? checked : value,
       },
-      errors: {
-        ...prevState.errors,
-        [name]: "",
-      },
+      errors: { ...prevState.errors, [name]: "" },
     }));
   };
 
   handleSearch = async (e) => {
     const { name, value } = e.target;
-    [
-      "price",
-      "duration_unit",
-      "duration_value",
-      "currency",
-      "status",
-      "created_at",
-      "updated_at",
-    ].forEach((input) => {
+    ["price", "duration_unit", "duration_value", "currency", "status", "created_at", "updated_at"].forEach((input) => {
       if (input !== name) {
         const ele = document.getElementById(input);
         if (ele) ele.value = "";
       }
     });
-
     this.setState({ currentPage: 1 });
-
     try {
       const res = await axios.get(`${this.apiBaseUrl}packages/getallpackages`, {
-        params: {
-          name,
-          search: value,
-          status: this.state.isActive,
-          page: 1,
-          limit: this.itemsPerPage,
-        },
+        params: { name, search: value, status: this.state.isActive, page: 1, limit: this.itemsPerPage },
       });
-      this.setState({
-        packages: res.data.packages || [],
-        totalPackages: res.data.total || 0,
-      });
+      this.setState({ packages: res.data.packages || [], totalPackages: res.data.total || 0 });
     } catch (error) {
       console.error("Error searching packages:", error);
     }
   };
 
   resetSearch = () => {
-    [
-      "price",
-      "duration_unit",
-      "duration_value",
-      "currency",
-      "status",
-      "created_at",
-      "updated_at",
-    ].forEach((id) => {
+    ["price", "duration_unit", "duration_value", "currency", "status", "created_at", "updated_at"].forEach((id) => {
       const ele = document.getElementById(id);
       if (ele) ele.value = "";
     });
   };
 
-  handlePageChange = (page) => {
-    this.setState({ currentPage: page });
-  };
-
-  fetchHistory = async (id) => {
-    if (!id) return;
-    try {
-      const res = await axios.get(`${this.apiBaseUrl}dbadminhistory`, {
-        params: { entity_type: "package", entity_id: id },
-      });
-      console.log("console", res.data);
-      this.setState({ history: res.data || [] });
-    } catch (error) {
-      console.error("Error fetching history:", error);
-    }
-  };
+  handlePageChange = (page) => { this.setState({ currentPage: page }); };
 
   validateForm = () => {
     const { FormData, selectedCurrency } = this.state;
     let errors = {};
-
-    if (!FormData.duration_value)
-      errors.duration_value = "Duration value is required";
-    if (!FormData.duration_unit)
-      errors.duration_unit = "Duration unit is required";
-    if (!FormData.price) errors.price = "Price is required";
-    if (!selectedCurrency) errors.currency = "Currency is required";
-
+    if (!FormData.duration_value) errors.duration_value = "Duration value is required";
+    if (!FormData.duration_unit)  errors.duration_unit  = "Duration unit is required";
+    if (!FormData.price)          errors.price          = "Price is required";
+    if (!selectedCurrency)        errors.currency       = "Currency is required";
     this.setState({ errors });
     return Object.keys(errors).length === 0;
   };
 
   toggleForm = (item = null) => {
-    console.log(item);
-    // ✅ Fix — keys must match form input name attributes
     if (item) {
       this.setState({
         showModal: true,
         editId: item.id,
         FormData: {
-          duration_value: item.duration_value,
-          duration_unit: item.duration_unit,
-          price: item.price,
-          description: item.description || "",
+          name:            item.name,
+          duration_value:  item.duration_value,
+          duration_unit:   item.duration_unit,
+          price:           item.price,
+          description:     item.description || "",
+          candidate_limit: item.candidate_limit ?? "",
+          interview_slots: item.interview_slots ?? "",
+          location_scope:  item.location_scope,
+          package_type:    item.package_type || "",
+          is_featured:     item.is_featured === 1,
         },
-        selectedCurrency: {
-          label: item.currency,
-          value: item.currency_id,
-        },
+        selectedCurrency: { label: item.currency, value: item.currency_id },
         errors: {},
       });
     } else {
@@ -348,10 +269,8 @@ class Packages extends Component {
         showModal: true,
         editId: null,
         FormData: {
-          duration_value: "",
-          duration_unit: "",
-          price: "",
-          description: "",
+          name: "", duration_value: "", duration_unit: "", price: "",
+          description: "", candidate_limit: "", interview_slots: "", location_scope: "", package_type: "", is_featured: false,
         },
         selectedCurrency: null,
         errors: {},
@@ -361,15 +280,21 @@ class Packages extends Component {
 
   handleSubmit = async () => {
     if (!this.validateForm()) return;
-
     const { editId, FormData, selectedCurrency } = this.state;
 
     const payload = {
-      duration_value: FormData.duration_value,
-      duration_unit: FormData.duration_unit,
-      price: FormData.price,
-      currency_id: selectedCurrency.value,
-      description: FormData.description,
+      name:            FormData.name,
+      duration_value:  FormData.duration_value,
+      duration_unit:   FormData.duration_unit,
+      price:           FormData.price,
+      currency_id:     selectedCurrency.value,
+      description:     FormData.description || null,
+      // Send null for unlimited (empty string → null)
+      candidate_limit: FormData.candidate_limit !== "" ? Number(FormData.candidate_limit) : null,
+      interview_slots: FormData.interview_slots !== "" ? Number(FormData.interview_slots) : null,
+      location_scope:  FormData.location_scope,
+      package_type:    FormData.package_type,
+      is_featured:     FormData.is_featured ? 1 : 0,
     };
 
     try {
@@ -380,25 +305,12 @@ class Packages extends Component {
       }
 
       this.fetchPackages();
-
       this.setState({
-        showModal: false,
-        editId: null,
-        FormData: {
-          duration_value: "",
-          duration_unit: "",
-          price: "",
-          description: "",
-        },
-        selectedCurrency: null,
-        errors: {},
-        // ✅ set success message
-        successMessage: editId
-          ? "Package updated successfully!"
-          : "Package added successfully!",
+        showModal: false, editId: null,
+        FormData: { name: "", duration_value: "", duration_unit: "", price: "", description: "", candidate_limit: "", interview_slots: "", location_scope: "", package_type: "", is_featured: false },
+        selectedCurrency: null, errors: {},
+        successMessage: editId ? "Package updated successfully!" : "Package added successfully!",
       });
-
-      // ✅ auto-clear after 3 seconds
       setTimeout(() => this.setState({ successMessage: "" }), 3000);
     } catch (error) {
       this.setState({ errorMessage: "Something went wrong" });
@@ -407,84 +319,47 @@ class Packages extends Component {
   };
 
   confirmDelete = (id, status) => {
-    this.setState({
-      deleteId: id,
-      deleteStatus: status,
-      showDeleteConfirm: true,
-    });
+    this.setState({ deleteId: id, deleteStatus: status, showDeleteConfirm: true });
   };
+
   handleDelete = async () => {
     const { deleteId, deleteStatus } = this.state;
     try {
       await api.delete(`${this.apiBaseUrl}packages/deletepackage/${deleteId}`);
-
       this.setState(
-        {
-          showDeleteConfirm: false,
-          successMessage:
-            deleteStatus === "Active"
-              ? "Inactivated successfully"
-              : "Activated successfully",
-        },
+        { showDeleteConfirm: false, successMessage: deleteStatus === "Active" ? "Inactivated successfully" : "Activated successfully" },
         this.fetchPackages,
       );
-
       setTimeout(() => this.setState({ successMessage: "" }), 3000);
     } catch (error) {
       console.error("Error deleting packages:", error);
-      this.setState({
-        showDeleteConfirm: false,
-        errorMessage: "Failed to update status",
-      });
+      this.setState({ showDeleteConfirm: false, errorMessage: "Failed to update status" });
       setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
-  cancelDelete = () => {
-    this.setState({ showDeleteConfirm: false, deleteId: null });
-  };
+  cancelDelete = () => { this.setState({ showDeleteConfirm: false, deleteId: null }); };
 
   render() {
     const {
-      packages,
-      showModal,
-      inputValue,
-      showDeleteConfirm,
-      currentPage,
-      totalPackages,
-      deleteStatus,
-      isActive,
-      editId,
-      successMessage,
-      errorMessage,
-      errors,
-      selectedCurrency,
-      FormData,
+      packages, showModal, showDeleteConfirm, currentPage, totalPackages,
+      deleteStatus, isActive, editId, successMessage, errorMessage,
+      errors, selectedCurrency, FormData,
     } = this.state;
     const totalPages = Math.ceil(totalPackages / this.itemsPerPage);
 
-    const highlightStyle = `
-        .highlight-row td {
-            background-color: #fff3cd !important;
-            transition: background-color 0.5s ease;
-        }
-    `;
-
     return (
       <React.Fragment>
-        <style>{highlightStyle}</style>
-        <Helmet>
-          <title>Packages | List</title>
-        </Helmet>
+        <style>{`.highlight-row td { background-color: #fff3cd !important; transition: background-color 0.5s ease; }`}</style>
+        <Helmet><title>Packages | List</title></Helmet>
         <h6 className="fw-bold mb-3">Packages List</h6>
+
         <div className="poppins-font">
           <Container fluid>
+            {/* Top bar */}
             <div className="institute-header-section d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
-              {/* Left side: Status filter */}
               <div className="d-flex align-items-center gap-2">
-                <span className="filter-label text-dark">
-                  Filter by Status:
-                </span>
+                <span className="filter-label text-dark">Filter by Status:</span>
                 <select
                   className="rounded-square form-select p-2"
                   style={{ maxWidth: "200px" }}
@@ -497,80 +372,27 @@ class Packages extends Component {
                 </select>
               </div>
 
-              {/* Right side: Buttons */}
               <div className="d-flex align-items-end gap-2 flex-wrap">
-                {/* Add Institute */}
-                <Button
-                  variant="dark"
-                  onClick={() => this.toggleForm()}
-                  className="add-institute-btn"
-                >
-                  Add Package
-                </Button>
-
-                {/* Import Excel */}
-                <Button
-                  variant="secondary"
-                  onClick={() => this.fileInputRef.click()}
-                >
-                  Import Excel
-                </Button>
-
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  ref={(ref) => (this.fileInputRef = ref)}
-                  style={{ display: "none" }}
-                  onChange={this.handleExcelImport}
-                />
-
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  ref={(ref) => (this.fileInputRef = ref)}
-                  style={{ display: "none" }}
-                  onChange={this.handleExcelImport}
-                />
-
-                {/* Export Button */}
-                <Button
-                  variant="success"
-                  onClick={this.handleExcelExport} // create this function
-                >
-                  Export
-                </Button>
+                <Button variant="dark" onClick={() => this.toggleForm()}>Add Package</Button>
+                <Button variant="secondary" onClick={() => this.fileInputRef.click()}>Import Excel</Button>
+                <input type="file" accept=".xlsx,.xls" ref={(ref) => (this.fileInputRef = ref)} style={{ display: "none" }} onChange={this.handleExcelImport} />
+                <Button variant="success" onClick={this.handleExcelExport}>Export</Button>
               </div>
             </div>
 
-            {/* Success Message */}
+            {/* Alerts */}
             {successMessage && (
-              <div
-                className="alert alert-success alert-dismissible d-flex align-items-center gap-2"
-                role="alert"
-                style={{ borderRadius: "8px" }}
-              >
+              <div className="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
                 <i className="bi bi-check-circle-fill text-success"></i>
                 <span>{successMessage}</span>
-                <button
-                  type="button"
-                  className="btn-close ms-auto"
-                  onClick={() => this.setState({ successMessage: "" })}
-                />
+                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ successMessage: "" })} />
               </div>
             )}
             {errorMessage && (
-              <div
-                className="alert alert-danger alert-dismissible d-flex align-items-center gap-2"
-                role="alert"
-                style={{ borderRadius: "8px" }}
-              >
+              <div className="alert alert-danger alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
                 <i className="bi bi-x-circle-fill"></i>
                 <span>{errorMessage}</span>
-                <button
-                  type="button"
-                  className="btn-close ms-auto"
-                  onClick={() => this.setState({ errorMessage: "" })}
-                />
+                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ errorMessage: "" })} />
               </div>
             )}
 
@@ -580,239 +402,117 @@ class Packages extends Component {
                   <Table className="table-responsive align-middle default-table manage-job-table p-2 w-100 table table-striped custom-table">
                     <thead className="align-middle">
                       <tr>
-                        <th
-                          className="text-center"
-                          style={{ borderBottom: "1px solid #ccc" }}
-                        >
-                          <div className="d-flex flex-column align-items-center gap-1">
-                            <small
-                              className="text-dark fw-bold"
-                              style={{ fontSize: "1rem" }}
-                            >
-                              Price
-                            </small>
-                            <input
-                              type="number"
-                              name="price"
-                              id="price"
-                              className="form-control rounded-4 text-center"
-                              placeholder="Search by Price"
-                              onChange={this.handleSearch}
-                              style={{ maxWidth: "180px", borderColor: "#ccc" }}
-                            />
-                          </div>
+                        {/* Existing columns */}
+                        {[
+                          { label: "Name",           id: "name",           type: "text"},
+                          { label: "Package Type",   id: "package_type",   type: "text"},
+                          { label: "Price",          id: "price",          type: "number" },
+                          { label: "Duration Unit",  id: "duration_unit",  type: "text"   },
+                          { label: "Duration Value", id: "duration_value", type: "text"   },
+                          { label: "Currency",       id: "currency",       type: "text"   },
+                        ].map(({ label, id, type }) => (
+                          <th key={id} className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
+                            <div className="d-flex flex-column align-items-center gap-1">
+                              <small className="text-dark fw-bold" style={{ fontSize: "1rem" }}>{label}</small>
+                              <input type={type} name={id} id={id} className="form-control rounded-4 text-center"
+                                placeholder={`Search`} onChange={this.handleSearch} style={{ maxWidth: "150px", borderColor: "#ccc" }} />
+                            </div>
+                          </th>
+                        ))}
+
+                        {/* New columns — no search needed, just labels */}
+                        <th className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
+                          <small className="text-dark fw-bold" style={{ fontSize: "1rem" }}>Candidates</small>
                         </th>
-                        <th
-                          className="text-center"
-                          style={{ borderBottom: "1px solid #ccc" }}
-                        >
-                          <div className="d-flex flex-column align-items-center gap-1">
-                            <small
-                              className="text-dark fw-bold"
-                              style={{ fontSize: "1rem" }}
-                            >
-                              Duration Unit
-                            </small>
-                            <input
-                              type="text"
-                              name="duration_unit"
-                              id="duration_unit"
-                              className="form-control rounded-4 text-center"
-                              placeholder="Search by duration_unit"
-                              onChange={this.handleSearch}
-                              style={{ maxWidth: "180px", borderColor: "#ccc" }}
-                            />
-                          </div>
+                        <th className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
+                          <small className="text-dark fw-bold" style={{ fontSize: "1rem" }}>Interviews</small>
                         </th>
-                        <th
-                          className="text-center"
-                          style={{ borderBottom: "1px solid #ccc" }}
-                        >
-                          <div className="d-flex flex-column align-items-center gap-1">
-                            <small
-                              className="text-dark fw-bold"
-                              style={{ fontSize: "1rem" }}
-                            >
-                              Duration Value
-                            </small>
-                            <input
-                              type="text"
-                              name="duration_value"
-                              id="duration_value"
-                              className="form-control rounded-4 text-center"
-                              placeholder="Search by duration_value"
-                              onChange={this.handleSearch}
-                              style={{ maxWidth: "180px", borderColor: "#ccc" }}
-                            />
-                          </div>
+                        <th className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
+                          <small className="text-dark fw-bold" style={{ fontSize: "1rem" }}>Location Slot</small>
                         </th>
-                        <th
-                          className="text-center"
-                          style={{ borderBottom: "1px solid #ccc" }}
-                        >
-                          <div className="d-flex flex-column align-items-center gap-1">
-                            <small
-                              className="text-dark fw-bold"
-                              style={{ fontSize: "1rem" }}
-                            >
-                              Currency
-                            </small>
-                            <input
-                              type="text"
-                              name="currency"
-                              id="currency"
-                              className="form-control rounded-4 text-center"
-                              placeholder="Search by Currency"
-                              onChange={this.handleSearch}
-                              style={{ maxWidth: "180px", borderColor: "#ccc" }}
-                            />
-                          </div>
+                        <th className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
+                          <small className="text-dark fw-bold" style={{ fontSize: "1rem" }}>Featured</small>
                         </th>
 
-                        <th
-                          className="text-center"
-                          style={{ borderBottom: "1px solid #ccc" }}
-                        >
-                          <div className="d-flex flex-column align-items-center gap-1">
-                            <small
-                              className="text-dark fw-bold"
-                              style={{ fontSize: "1rem" }}
-                            >
-                              Created
-                            </small>
-                            <input
-                              type="date"
-                              name="created_at"
-                              id="created_at"
-                              className="form-control rounded-4 text-center"
-                              onChange={this.handleSearch}
-                              style={{ borderColor: "#ccc" }}
-                            />
-                          </div>
-                        </th>
+                        {/* Date columns */}
+                        {[
+                          { label: "Created", id: "created_at" },
+                          { label: "Updated", id: "updated_at" },
+                        ].map(({ label, id }) => (
+                          <th key={id} className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
+                            <div className="d-flex flex-column align-items-center gap-1">
+                              <small className="text-dark fw-bold" style={{ fontSize: "1rem" }}>{label}</small>
+                              <input type="date" name={id} id={id} className="form-control rounded-4 text-center"
+                                onChange={this.handleSearch} style={{ borderColor: "#ccc" }} />
+                            </div>
+                          </th>
+                        ))}
 
-                        <th
-                          className="text-center"
-                          style={{ borderBottom: "1px solid #ccc" }}
-                        >
+                        <th className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
                           <div className="d-flex flex-column align-items-center gap-1">
-                            <small
-                              className="text-dark fw-bold"
-                              style={{ fontSize: "1rem" }}
-                            >
-                              Updated
-                            </small>
-                            <input
-                              type="date"
-                              name="updated_at"
-                              id="updated_at"
-                              className="form-control rounded-4 text-center"
-                              onChange={this.handleSearch}
-                              style={{ borderColor: "#ccc" }}
-                            />
+                            <small className="text-dark fw-bold" style={{ fontSize: "1rem" }}>Status</small>
+                            <input type="text" name="status" id="status" className="form-control rounded-4 text-center"
+                              onChange={this.handleSearch} style={{ borderColor: "#ccc" }} />
                           </div>
                         </th>
-                        <th
-                          className="text-center"
-                          style={{ borderBottom: "1px solid #ccc" }}
-                        >
-                          <div className="d-flex flex-column align-items-center gap-1">
-                            <small
-                              className="text-dark fw-bold"
-                              style={{ fontSize: "1rem" }}
-                            >
-                              Status
-                            </small>
-                            <input
-                              type="text"
-                              name="status"
-                              id="status"
-                              className="form-control rounded-4 text-center"
-                              onChange={this.handleSearch}
-                              style={{ borderColor: "#ccc" }}
-                            />
-                          </div>
-                        </th>
-                        <th
-                          className="text-center text-dark fw-bold"
-                          style={{
-                            fontSize: "1rem",
-                            borderBottom: "1px solid #ccc",
-                          }}
-                        >
-                          Action
-                        </th>
+                        <th className="text-center text-dark fw-bold" style={{ fontSize: "1rem", borderBottom: "1px solid #ccc" }}>Action</th>
                       </tr>
                     </thead>
 
                     <tbody>
                       {packages.map((item) => (
-                        <tr
-                          key={item.id}
-                          className={
-                            this.state.highlightId === item.id
-                              ? "highlight-row"
-                              : ""
-                          }
-                        >
+                        <tr key={item.id} className={this.state.highlightId === item.id ? "highlight-row" : ""}>
+                          <td className="text-center">{item.name}</td>
+                          <td className="text-center">{item.package_type}</td>
                           <td className="text-center">{item.price}</td>
                           <td className="text-center">{item.duration_unit}</td>
                           <td className="text-center">{item.duration_value}</td>
                           <td className="text-center">{item.currency}</td>
+
+                          {/* New columns */}
                           <td className="text-center">
-                            {this.formatDate(item.created_at)}
+                            <span className="badge bg-light text-dark border">
+                              {this.formatLimit(item.candidate_limit)}
+                            </span>
                           </td>
                           <td className="text-center">
-                            {this.formatDate(item.updated_at)}
+                            <span className="badge bg-light text-dark border">
+                              {this.formatLimit(item.interview_slots)}
+                            </span>
                           </td>
                           <td className="text-center">
-                            <span
-                              className={`badge ${item.status === "Active" ? "badge-active-custom" : "badge-inactive-custom"}`}
-                            >
+                            <span className="badge bg-light text-dark border">
+                              {this.formatLimit(item.location_scope)}
+                            </span>
+                          </td>
+                          <td className="text-center">
+                            {item.is_featured ? (
+                              <span className="badge" style={{ background: "#378ADD", color: "#fff" }}>Yes</span>
+                            ) : (
+                              <span className="badge bg-light text-muted border">No</span>
+                            )}
+                          </td>
+
+                          <td className="text-center">{this.formatDate(item.created_at)}</td>
+                          <td className="text-center">{this.formatDate(item.updated_at)}</td>
+                          <td className="text-center">
+                            <span className={`badge ${item.status === "Active" ? "badge-active-custom" : "badge-inactive-custom"}`}>
                               {item.status}
                             </span>
                           </td>
-
                           <td className="status text-center">
                             <div className="d-flex justify-content-center align-items-center gap-3">
-                              {/* Edit */}
-                              <button
-                                onClick={() => this.toggleForm(item)}
-                                className="icon-btn"
-                                title="Update"
-                              >
+                              <button onClick={() => this.toggleForm(item)} className="icon-btn" title="Update">
                                 <i className="bi bi-pencil-square text-primary"></i>
                               </button>
-
-                              {/* Activate / Inactivate */}
-                              <button
-                                onClick={() =>
-                                  this.confirmDelete(item.id, item.status)
-                                }
-                                className="icon-btn"
-                                title={
-                                  item.status === "Active"
-                                    ? "Inactivate"
-                                    : "Activate"
-                                }
-                              >
-                                {item.status === "Active" ? (
-                                  <i className="bi bi-x-circle text-danger"></i>
-                                ) : (
-                                  <i className="bi bi-check-circle text-success"></i>
-                                )}
+                              <button onClick={() => this.confirmDelete(item.id, item.status)} className="icon-btn"
+                                title={item.status === "Active" ? "Inactivate" : "Activate"}>
+                                {item.status === "Active"
+                                  ? <i className="bi bi-x-circle text-danger"></i>
+                                  : <i className="bi bi-check-circle text-success"></i>}
                               </button>
-
-                              {/* History */}
-                              <button
-                                className="icon-btn"
-                                title="View History"
-                                onClick={() =>
-                                  this.props.router.push(
-                                    `/history/package/${item.id}`,
-                                  )
-                                }
-                              >
+                              <button className="icon-btn" title="View History"
+                                onClick={() => this.props.router.push(`/history/package/${item.id}`)}>
                                 <i className="bi bi-clock-history text-dark"></i>
                               </button>
                             </div>
@@ -826,150 +526,174 @@ class Packages extends Component {
             </Card>
           </Container>
 
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={this.handlePageChange}
-          />
+          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={this.handlePageChange} />
 
-          {/* Add/Edit Modal */}
-          {/* Add/Edit Modal */}
-          <Modal
-            show={showModal}
-            onHide={() => this.setState({ showModal: false })}
-            centered
-            size="lg"
+          {/* Add / Edit Modal */}
+       <Modal show={showModal} onHide={() => this.setState({ showModal: false })} centered size="lg">
+  <Modal.Header closeButton style={{ background: "#f8fafc" }}>
+    <Modal.Title style={{ fontSize: "1.2rem", fontWeight: 600 }}>
+      {editId ? "Edit Package" : "Add New Package"}
+    </Modal.Title>
+  </Modal.Header>
+
+  <Modal.Body style={{ padding: "2rem" }}>
+    <Row>
+
+      {/* ── Step 1: Pick type first ── */}
+      <Col md={12}>
+        <div className="mb-3">
+          <label className="form-label fw-semibold">Package Type <span className="text-danger">*</span></label>
+          <select
+            name="package_type"
+            value={FormData.package_type}
+            onChange={this.handleInputChange}
+            className="form-select"
           >
-            <Modal.Header closeButton style={{ background: "#f8fafc" }}>
-              <Modal.Title style={{ fontSize: "1.2rem", fontWeight: 600 }}>
-                {editId ? "Edit Package" : "Add New Package"}
-              </Modal.Title>
-            </Modal.Header>
+            <option value="">Select type first</option>
+            <option value="company">Company — for posting jobs</option>
+            <option value="candidate">Candidate — for boosting profile</option>
+          </select>
+          <small className="text-muted">
+            {FormData.package_type === "candidate"
+              ? "Candidate buys this to boost their profile visibility"
+              : FormData.package_type === "company"
+              ? "Company buys this to post a job and view matched candidates"
+              : "Select a type to continue"}
+          </small>
+        </div>
+      </Col>
 
-            <Modal.Body style={{ padding: "2rem" }}>
-              <form onSubmit={this.handleSubmit}>
-                <Row>
-                  <Col md={6}>
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">
-                        Duration Value <span className="text-danger">*</span>
-                      </label>
-                      <input
-                        type="number"
-                        name="duration_value"
-                        value={FormData.duration_value}
-                        className={`form-control ${errors.duration_value ? "is-invalid" : ""}`}
-                        onChange={this.handleInputChange}
-                        placeholder="e.g., 7, 15, 30"
-                      />
-                      {errors.duration_value && (
-                        <div className="text-danger small mt-1">
-                          {errors.duration_value}
-                        </div>
-                      )}
-                    </div>
-                  </Col>
+      {/* ── Rest of fields only show after type is selected ── */}
+      {FormData.package_type && (
+        <>
+          <Col md={6}>
+            <div className="mb-3">
+              <label className="form-label fw-semibold">Name <span className="text-danger">*</span></label>
+              <input type="text" name="name" value={FormData.name}
+                className={`form-control ${errors.name ? "is-invalid" : ""}`}
+                onChange={this.handleInputChange} placeholder="e.g., Basic, Standard, Premium" />
+              {errors.name && <div className="text-danger small mt-1">{errors.name}</div>}
+            </div>
+          </Col>
 
-                  <Col md={6}>
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">
-                        Duration Unit <span className="text-danger">*</span>
-                      </label>
-                      <select
-                        name="duration_unit"
-                        value={FormData.duration_unit}
-                        onChange={this.handleInputChange}
-                        className={`form-select ${errors.duration_unit ? "is-invalid" : ""}`}
-                      >
-                        <option value="">Select Unit</option>
-                        <option value="Hours">Hours</option>
-                        <option value="Days">Days</option>
-                        <option value="Weeks">Weeks</option>
-                        <option value="Months">Months</option>
-                        <option value="Years">Years</option>
-                      </select>
-                      {errors.duration_unit && (
-                        <div className="text-danger small mt-1">
-                          {errors.duration_unit}
-                        </div>
-                      )}
-                    </div>
-                  </Col>
+          <Col md={6}>
+            <div className="mb-3">
+              <label className="form-label fw-semibold">Duration Value <span className="text-danger">*</span></label>
+              <input type="number" name="duration_value" value={FormData.duration_value}
+                className={`form-control ${errors.duration_value ? "is-invalid" : ""}`}
+                onChange={this.handleInputChange} placeholder="e.g., 7, 15, 30" />
+              {errors.duration_value && <div className="text-danger small mt-1">{errors.duration_value}</div>}
+            </div>
+          </Col>
 
-                  <Col md={6}>
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">
-                        Price <span className="text-danger">*</span>
-                      </label>
-                      <input
-                        type="number"
-                        name="price"
-                        value={FormData.price}
-                        className={`form-control ${errors.price ? "is-invalid" : ""}`}
-                        onChange={this.handleInputChange}
-                        placeholder="e.g., 399, 699, 1499"
-                      />
-                      {errors.price && (
-                        <div className="text-danger small mt-1">
-                          {errors.price}
-                        </div>
-                      )}
-                    </div>
-                  </Col>
+          <Col md={6}>
+            <div className="mb-3">
+              <label className="form-label fw-semibold">Duration Unit <span className="text-danger">*</span></label>
+              <select name="duration_unit" value={FormData.duration_unit} onChange={this.handleInputChange}
+                className={`form-select ${errors.duration_unit ? "is-invalid" : ""}`}>
+                <option value="">Select Unit</option>
+                <option value="Hours">Hours</option>
+                <option value="Days">Days</option>
+                <option value="Weeks">Weeks</option>
+                <option value="Months">Months</option>
+                <option value="Years">Years</option>
+              </select>
+              {errors.duration_unit && <div className="text-danger small mt-1">{errors.duration_unit}</div>}
+            </div>
+          </Col>
 
-                  <Col md={6}>
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">
-                        Currency <span className="text-danger">*</span>
-                      </label>
-                      <AsyncSelect
-                        cacheOptions
-                        defaultOptions
-                        loadOptions={this.loadCurrencies}
-                        value={selectedCurrency}
-                        onChange={this.handleCurrencyChange}
-                        placeholder="Select Currency"
-                        classNamePrefix="react-select"
-                      />
-                      {errors.currency && (
-                        <div className="text-danger small mt-1">
-                          {errors.currency}
-                        </div>
-                      )}
-                    </div>
-                  </Col>
+          <Col md={6}>
+            <div className="mb-3">
+              <label className="form-label fw-semibold">Price <span className="text-danger">*</span></label>
+              <input type="number" name="price" value={FormData.price}
+                className={`form-control ${errors.price ? "is-invalid" : ""}`}
+                onChange={this.handleInputChange} placeholder="e.g., 2000, 6000" />
+              {errors.price && <div className="text-danger small mt-1">{errors.price}</div>}
+            </div>
+          </Col>
 
-                  <Col md={12}>
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">
-                        Description (Optional)
-                      </label>
-                      <textarea
-                        name="description"
-                        value={FormData.description}
-                        onChange={this.handleInputChange}
-                        className="form-control"
-                        rows="3"
-                        placeholder="Enter package description..."
-                      />
-                    </div>
-                  </Col>
-                </Row>
+          <Col md={6}>
+            <div className="mb-3">
+              <label className="form-label fw-semibold">Currency <span className="text-danger">*</span></label>
+              <AsyncSelect cacheOptions defaultOptions loadOptions={this.loadCurrencies}
+                value={selectedCurrency} onChange={this.handleCurrencyChange}
+                placeholder="Select Currency" classNamePrefix="react-select" />
+              {errors.currency && <div className="text-danger small mt-1">{errors.currency}</div>}
+            </div>
+          </Col>
 
-                <div className="d-flex justify-content-end gap-2 mt-4">
-                  <Button
-                    variant="secondary"
-                    onClick={() => this.setState({ showModal: false })}
-                  >
-                    Cancel
-                  </Button>
-                  <Button variant="success" onClick={this.handleSubmit}>
-                    {editId ? "Update Package" : "Save Package"}
-                  </Button>
+          {/* ── Company-only fields ── */}
+          {FormData.package_type === "company" && (
+            <>
+              <Col md={6}>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Candidate Limit</label>
+                  <input type="number" name="candidate_limit" value={FormData.candidate_limit}
+                    className="form-control" onChange={this.handleInputChange}
+                    placeholder="Leave empty for unlimited" min="1" />
+                  <small className="text-muted">How many matched candidates the company can view</small>
                 </div>
-              </form>
-            </Modal.Body>
-          </Modal>
+              </Col>
+
+              <Col md={6}>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Shortlist Limit</label>
+                  <input type="number" name="interview_slots" value={FormData.interview_slots}
+                    className="form-control" onChange={this.handleInputChange}
+                    placeholder="Leave empty for unlimited" min="1" />
+                  <small className="text-muted">How many candidates the company can shortlist</small>
+                </div>
+              </Col>
+
+              <Col md={6}>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Location Scope</label>
+                  <select name="location_scope" value={FormData.location_scope}
+                    onChange={this.handleInputChange} className="form-select">
+                    <option value="city">Job city only</option>
+                    <option value="all">All cities</option>
+                  </select>
+                  <small className="text-muted">Match candidates from the job's city only, or nationwide</small>
+                </div>
+              </Col>
+            </>
+          )}
+
+          <Col md={12}>
+            <div className="mb-3">
+              <label className="form-label fw-semibold">Description <span className="text-muted">(Optional)</span></label>
+              <textarea name="description" value={FormData.description} onChange={this.handleInputChange}
+                className="form-control" rows="3"
+                placeholder={"Enter one feature per line:\nHighlighted in search results\nEmail alerts to candidates"} />
+              <small className="text-muted">Each line becomes a bullet point on the pricing card</small>
+            </div>
+          </Col>
+
+          <Col md={12}>
+            <div className="mb-3 d-flex align-items-center gap-3 p-3 rounded" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+              <input type="checkbox" name="is_featured" id="is_featured" checked={FormData.is_featured}
+                onChange={this.handleInputChange} className="form-check-input" style={{ width: 20, height: 20 }} />
+              <div>
+                <label htmlFor="is_featured" className="form-label fw-semibold mb-0" style={{ cursor: "pointer" }}>
+                  Mark as "Most Popular"
+                </label>
+                <p className="text-muted small mb-0">This plan will be highlighted with a blue border and "Most popular" badge on the pricing page</p>
+              </div>
+            </div>
+          </Col>
+        </>
+      )}
+
+    </Row>
+
+    <div className="d-flex justify-content-end gap-2 mt-2">
+      <Button variant="secondary" onClick={() => this.setState({ showModal: false })}>Cancel</Button>
+      <Button variant="success" onClick={this.handleSubmit} disabled={!FormData.package_type}>
+        {editId ? "Update Package" : "Save Package"}
+      </Button>
+    </div>
+  </Modal.Body>
+</Modal>
 
           {/* Delete Confirmation */}
           <Modal show={showDeleteConfirm} onHide={this.cancelDelete} centered>
@@ -978,26 +702,14 @@ class Packages extends Component {
                 Confirm {deleteStatus === "Active" ? "Inactivate" : "Activate"}
               </Modal.Title>
             </Modal.Header>
-
             <Modal.Body className="text-center py-3">
               <p style={{ marginBottom: 0 }}>
-                Are you sure you want to{" "}
-                <strong>
-                  {deleteStatus === "Active" ? "inactivate" : "activate"}
-                </strong>{" "}
-                this Country?
+                Are you sure you want to <strong>{deleteStatus === "Active" ? "inactivate" : "activate"}</strong> this package?
               </p>
             </Modal.Body>
-
             <Modal.Footer className="d-flex justify-content-end gap-2">
-              <Button variant="secondary" onClick={this.cancelDelete}>
-                Cancel
-              </Button>
-
-              <Button
-                variant={deleteStatus === "Active" ? "danger" : "success"}
-                onClick={this.handleDelete}
-              >
+              <Button variant="secondary" onClick={this.cancelDelete}>Cancel</Button>
+              <Button variant={deleteStatus === "Active" ? "danger" : "success"} onClick={this.handleDelete}>
                 {deleteStatus === "Active" ? "Inactivate" : "Activate"}
               </Button>
             </Modal.Footer>

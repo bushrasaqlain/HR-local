@@ -1,27 +1,39 @@
 "use client";
 import React, { Component } from "react";
 import axios from "axios";
-// import { toast } from "react-toastify";
 import Payment from "./payment.jsx";
-import {
-  Container,
-  Row,
-  Col,
-  Card,
-  CardBody,
-  CardTitle,
-  Button,
-} from "reactstrap";
+import { Container } from "reactstrap";
 import { Helmet } from "react-helmet";
+
+const CHECK_COLORS = {
+  Hours: { bg: "#E6F1FB", stroke: "#185FA5", badge: "#E6F1FB", badgeText: "#0C447C" },
+  Days:  { bg: "#EEEDFE", stroke: "#534AB7", badge: "#EEEDFE", badgeText: "#3C3489" },
+  Months:{ bg: "#E1F5EE", stroke: "#0F6E56", badge: "#E1F5EE", badgeText: "#085041" },
+  Years: { bg: "#FAEEDA", stroke: "#854F0B", badge: "#FAEEDA", badgeText: "#633806" },
+};
+
+const DEFAULT_COLOR = { bg: "#F1EFE8", stroke: "#5F5E5A", badge: "#F1EFE8", badgeText: "#2C2C2A" };
+
+const CheckIcon = ({ color }) => (
+  <span style={{
+    width: 18, height: 18, borderRadius: "50%",
+    background: color.bg, display: "inline-flex",
+    alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1,
+  }}>
+    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"
+      stroke={color.stroke} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="2,5 4,7 8,3" />
+    </svg>
+  </span>
+);
 
 class PricingForm extends Component {
   constructor(props) {
     super(props);
-
     this.APIBASEURL = process.env.NEXT_PUBLIC_API_BASE_URL;
-
     this.state = {
       packages: null,
+      loading: true,
       userId: typeof window !== "undefined" ? sessionStorage.getItem("userId") : null,
       showPayment: false,
       selectedPackage: null,
@@ -30,31 +42,24 @@ class PricingForm extends Component {
     };
   }
 
-  componentDidMount() {
-    this.loadPackages();
+  componentDidMount() { this.loadPackages(); }
+
+loadPackages = async () => {
+  try {
+    const response = await axios.get(`${this.APIBASEURL}packages/getallpackages`, {
+      params: { status: "Active", package_type: "company" }  // ← add this
+    });
+    this.setState({ packages: response.data.packages, loading: false });
+  } catch {
+    this.setState({ loading: false });
+    console.error("Failed to load packages");
   }
-
-  loadPackages = async () => {
-    try {
-      const response = await axios.get(`${this.APIBASEURL}packages/getallpackages`);
-      this.setState({ packages: response.data.packages });
-    } catch (error) {
-      console.error("Failed to load packages");
-    }
-  };
-
+};
   addPackage = async (packageId) => {
     const { jobId } = this.props;
     const { userId, packages } = this.state;
-
-    if (!jobId) {
-      console.error("Job ID not found. Please post job first.");
-      return;
-    }
-
-    // Find the selected package BEFORE making the API call
+    if (!jobId) { console.error("Job ID not found. Please post job first."); return; }
     const selectedPkg = packages.find(pkg => pkg.id === packageId);
-
     try {
       const response = await axios.put(`${this.APIBASEURL}job/subcribepackage`, { jobId, packageId, userId });
       if (response.status === 200) {
@@ -62,7 +67,7 @@ class PricingForm extends Component {
           showPayment: true,
           selectedPackage: packageId,
           selectedPrice: selectedPkg?.price,
-          selectedCurrency: selectedPkg?.currency
+          selectedCurrency: selectedPkg?.currency,
         });
       }
     } catch {
@@ -71,150 +76,136 @@ class PricingForm extends Component {
   };
 
   handlePaymentSuccess = () => {
-    this.setState({
-      showPayment: false,
-      selectedPackage: null,
-      selectedPrice: null,
-      selectedCurrency: null
-    });
+    this.setState({ showPayment: false, selectedPackage: null, selectedPrice: null, selectedCurrency: null });
     if (this.props.onPaymentSuccess) this.props.onPaymentSuccess();
   };
 
-  getPlanConfig = (durationUnit) => {
-    switch (durationUnit) {
-      case "Hours":
-        return {
-          cardClass: "plan-hours",
-          features: [
-            "Quick job posting for urgent needs",
-            "Job visible immediately after approval",
-            "Basic applicant tracking included",
-            "Affordable short-term exposure",
-          ],
-        };
-      case "Days":
-        return {
-          cardClass: "plan-days",
-          features: [
-            "Job listed for multiple days",
-            "Highlighted in search results",
-            "Email notifications to candidates",
-            "Access to applicant details & resumes",
-            "Standard support included",
-          ],
-        };
-      case "Months":
-        return {
-          cardClass: "plan-months",
-          features: [
-            "Extended job visibility",
-            "Boosted placement in candidate dashboards",
-            "Priority listing above short-term plans",
-            "Analytics on views and applications",
-            "Dedicated employer support",
-          ],
-        };
-      case "Years":
-        return {
-          cardClass: "plan-years",
-          features: [
-            "Premium long-term visibility",
-            "Maximum exposure across platform",
-            "Unlimited applicant management",
-            "Featured employer branding",
-            "Priority customer support",
-          ],
-        };
-      default:
-        return {
-          cardClass: "plan-default",
-          features: [
-            "Standard job posting",
-            "Candidate application tracking",
-            "Basic support included",
-          ],
-        };
-    }
+  // Parse newline-separated description into feature list.
+  // In admin panel: enter one feature per line.
+  parseFeatures = (description) => {
+    if (!description) return [];
+    return description.split("\n").map(l => l.trim()).filter(Boolean);
   };
 
+  // "Days" plan is featured (most popular badge + blue border).
+  // To make this DB-driven, add an `is_featured` TINYINT column to packages table.
+  isFeatured = (pkg) => pkg.is_featured === 1;
+
   render() {
-    const { packages, showPayment, selectedPackage, selectedPrice, selectedCurrency } = this.state;
+    const { packages, loading, showPayment, selectedPackage, selectedPrice, selectedCurrency } = this.state;
 
     return (
       <>
-        <Helmet>
-          <title>Pricing</title>
-        </Helmet>
+        <Helmet><title>Pricing</title></Helmet>
         <Container className="pb-5">
 
-          <h2 className="text-center py-5 fw-bold" style={{ fontSize: "2.5rem", color: "#333" }}>
-            Pricing Plans
-          </h2>
+          <div style={{ textAlign: "center", padding: "3rem 0 2.5rem" }}>
+            <h2 style={{ fontSize: 28, fontWeight: 500, marginBottom: 8 }}>
+              Choose a plan for your job post
+            </h2>
+            <p style={{ fontSize: 15, color: "#888", margin: 0 }}>
+              Pay once — get visibility that fits your hiring timeline
+            </p>
+          </div>
 
-          <Row className="g-4 justify-content-center">
-            {packages?.map((pkg) => {
-              const { cardClass, features } = this.getPlanConfig(pkg.duration_unit);
+          {loading && (
+            <p style={{ textAlign: "center", color: "#888" }}>Loading plans...</p>
+          )}
 
-              return (
-                <Col key={pkg.id} xs={12} sm={6} md={6} lg={6}>
-                  <Card
-                    className={`h-100 ${cardClass}`}
+          {!loading && packages && (
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gap: 16,
+            }}>
+              {packages.map((pkg) => {
+                const features = this.parseFeatures(pkg.description);
+                const color = CHECK_COLORS[pkg.duration_unit] || DEFAULT_COLOR;
+                const featured = this.isFeatured(pkg);
+
+                return (
+                  <div key={pkg.id}
                     style={{
-                      borderRadius: "16px",
-                      boxShadow: "0 8px 20px rgba(0,0,0,0.1)",
-                      transition: "transform 0.3s, box-shadow 0.3s",
+                      background: "#fff",
+                      border: featured ? "2px solid #378ADD" : "1px solid rgba(0,0,0,0.1)",
+                      borderRadius: 12,
+                      padding: "1.5rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      transition: "box-shadow 0.2s",
                     }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = "translateY(-8px)";
-                      e.currentTarget.style.boxShadow = "0 16px 40px rgba(0,0,0,0.15)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = "translateY(0)";
-                      e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.1)";
-                    }}
+                    onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,0,0,0.08)"}
+                    onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
                   >
-                    <CardBody className="d-flex flex-column text-center p-4">
-                      <CardTitle tag="h5" className="fw-bold mb-3" style={{ fontSize: "1.25rem" }}>
-                        {pkg.duration_unit.charAt(0).toUpperCase() + pkg.duration_unit.slice(1)} Plan
-                      </CardTitle>
+                    <span style={{
+                      display: "inline-block", fontSize: 11, fontWeight: 500,
+                      padding: "3px 10px", borderRadius: 20, marginBottom: 12,
+                      background: featured ? "#378ADD" : color.badge,
+                      color: featured ? "#E6F1FB" : color.badgeText,
+                      width: "fit-content",
+                    }}>
+                      {featured ? "Most popular" : `${pkg.duration_unit} plan`}
+                    </span>
 
-                      <div className="plan-price mb-3" style={{ fontSize: "1.5rem", fontWeight: 600 }}>
-                        {pkg.price} {pkg.currency} <span style={{ fontSize: "0.9rem", fontWeight: 400 }}>/ {pkg.duration_unit}</span>
-                      </div>
+                    <p style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>
+                      {pkg.duration_value} {pkg.duration_unit}
+                    </p>
+                    <p style={{ fontSize: 12, color: "#888", marginBottom: "1.25rem" }}>
+                      Job post stays visible for this duration
+                    </p>
 
-                      <p className="plan-desc mb-3" style={{ color: "#555" }}>
-                        Your job post will show for <strong>{pkg.duration_value} {pkg.duration_unit}</strong>
-                      </p>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 4 }}>
+                      <span style={{ fontSize: 14, color: "#888" }}>{pkg.currency}</span>
+                      <span style={{ fontSize: 32, fontWeight: 500, lineHeight: 1, color: "#111" }}>
+                        {Number(pkg.price).toLocaleString()}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 13, color: "#888", marginBottom: "1.25rem" }}>one-time payment</p>
 
-                      <ul className="plan-features text-start flex-grow-1 mb-3" style={{ paddingInlineStart: "1rem", color: "#555" }}>
-                        {features.map((feature, index) => (
-                          <li key={index} style={{ marginBottom: "0.5rem" }}>{feature}</li>
+                    <hr style={{ border: "none", borderTop: "1px solid rgba(0,0,0,0.08)", margin: "0 0 1.25rem" }} />
+
+                    {features.length > 0 ? (
+                      <ul style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: 10, flex: 1, marginBottom: "1.5rem" }}>
+                        {features.map((f, i) => (
+                          <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, color: "#555", lineHeight: 1.4 }}>
+                            <CheckIcon color={color} />
+                            {f}
+                          </li>
                         ))}
                       </ul>
+                    ) : (
+                      <div style={{ flex: 1 }} />
+                    )}
 
-                      <Button
-                        type="button"
-                        color="primary"
-                        className="w-100 mt-auto"
-                        style={{
-                          borderRadius: "50px",
-                          padding: "0.75rem",
-                          fontWeight: "600",
-                          background: "linear-gradient(90deg, #4b6cb7, #182848)",
-                          border: "none",
-                        }}
-                        onClick={() => this.addPackage(pkg.id)}
-                      >
-                        Select Plan
-                      </Button>
-                    </CardBody>
-                  </Card>
-                </Col>
-              );
-            })}
-          </Row>
+                    <button
+                      onClick={() => this.addPackage(pkg.id)}
+                      style={{
+                        width: "100%",
+                        padding: "0.65rem 1rem",
+                        borderRadius: 8,
+                        fontSize: 14,
+                        fontWeight: 500,
+                        cursor: "pointer",
+                        border: featured ? "none" : "1px solid rgba(0,0,0,0.15)",
+                        background: featured ? "#378ADD" : "transparent",
+                        color: featured ? "#fff" : "#111",
+                        transition: "opacity 0.15s",
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
+                      onMouseLeave={e => e.currentTarget.style.opacity = "1"}
+                    >
+                      Select plan
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
-          {/* Payment Modal */}
+          {!loading && (!packages || packages.length === 0) && (
+            <p style={{ textAlign: "center", color: "#888" }}>No plans available at the moment.</p>
+          )}
+
           <Payment
             isOpen={showPayment}
             toggle={() => this.setState({ showPayment: false })}
@@ -226,7 +217,6 @@ class PricingForm extends Component {
           />
         </Container>
       </>
-
     );
   }
 }

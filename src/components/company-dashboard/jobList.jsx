@@ -510,7 +510,7 @@ handleSort = (key) => {
                       }}
                       onChange={(e) => this.handleFilterChange('title', e.target.value)}
                     />
-                    <span style={{ position: 'absolute', left: '12px', top: '8px', color: '#94a3b8' }}>🔍</span>
+                    {/* <span style={{ position: 'absolute', left: '12px', top: '8px', color: '#94a3b8' }}>🔍</span> */}
                   </div>
                 </div>
                

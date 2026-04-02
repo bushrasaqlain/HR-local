@@ -1,6 +1,6 @@
 import Head from "next/head";
 import React, { Component } from "react";
-import * as faceapi from "face-api.js";
+// import * as faceapi from "face-api.js";
 // import Select from "react-select";
 import AsyncSelect from "react-select/async";
 // import { toast } from "react-toastify";
@@ -31,6 +31,7 @@ import {
   Progress,
 } from "reactstrap";
 import api from "../../lib/api";
+let faceapi = null;
 const CustomOption = (props) => (
   <components.Option {...props}>
     <span style={{ marginRight: 8 }}>{props.data.icon}</span>
