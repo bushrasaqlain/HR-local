@@ -43,7 +43,7 @@ const BoostRequests = () => {
                             <td>{o.candidate_name}</td>
                             <td>{o.candidate_email}</td>
                             <td>{o.package_name}</td>
-                            <td>Rs. {o.price}</td>
+                            <td>{o.currency} {o.price}</td>
                             <td>
                                 <button onClick={() => handleApprove(o.id)} className="btn btn-success btn-sm me-2">
                                     Approve

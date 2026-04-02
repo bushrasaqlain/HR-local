@@ -163,7 +163,7 @@ const createBoostOrdersTable = () => {
       end_date     DATE NULL,
       created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (candidate_id) REFERENCES candidate_info(id) ON DELETE CASCADE,
-      FOREIGN KEY (package_id)   REFERENCES boost_packages(id)
+      FOREIGN KEY (package_id)   REFERENCES packages(id)   
     )
   `;
   connection.query(sql, (err) => {
@@ -1123,12 +1123,15 @@ const addResume = (userId, resumePath, res) => {
 
 const getBoostPackages = (req, res) => {
   connection.query(
-    "SELECT * FROM boost_packages WHERE is_active = 1",
+    `SELECT p.id, p.name, p.price, p.duration_value, p.duration_unit, 
+            p.description,
+            COALESCE(p.currency, c.code) AS currency
+     FROM packages p
+     LEFT JOIN currencies c ON c.id = p.currency_id
+     WHERE p.package_type = 'candidate' AND p.status = 'Active'
+     ORDER BY p.price ASC`,
     (err, results) => {
-      if (err) {
-        console.error("Error fetching boost packages:", err.message);
-        return res.status(500).json({ error: "Database error" });
-      }
+      if (err) return res.status(500).json({ error: "Database error" });
       res.json({ success: true, data: results });
     }
   );
@@ -1137,6 +1140,8 @@ const getBoostPackages = (req, res) => {
 const placeBoostOrder = (req, res) => {
   const accountId = req.user.userId;
   const { package_id } = req.body;
+
+  console.log("placeBoostOrder called:", { accountId, package_id }); // ✅ add
 
   if (!package_id) {
     return res.status(400).json({ success: false, message: "Please select a package" });
@@ -1149,8 +1154,8 @@ const placeBoostOrder = (req, res) => {
     [accountId],
     (err, existing) => {
       if (err) {
-        console.error("Error checking existing boost order:", err.message);
-        return res.status(500).json({ error: "Database error" });
+        console.error("Error checking existing boost order:", err.message); // ✅ already hai
+        return res.status(500).json({ error: "Database error", details: err.message }); // ✅ details add karo
       }
       if (existing.length > 0) {
         return res.status(400).json({
@@ -1164,14 +1169,15 @@ const placeBoostOrder = (req, res) => {
         [accountId],
         (err2, rows) => {
           if (err2) {
-            console.error("Error fetching candidate info id:", err2.message);
-            return res.status(500).json({ error: "Database error" });
+            console.error("Error fetching candidate:", err2.message);
+            return res.status(500).json({ error: "Database error", details: err2.message }); // ✅
           }
           if (!rows.length) {
             return res.status(404).json({ success: false, message: "Candidate not found" });
           }
 
           const candidateInfoId = rows[0].id;
+          console.log("Inserting boost order:", { candidateInfoId, package_id }); // ✅ add
 
           connection.query(
             "INSERT INTO boost_orders (candidate_id, package_id) VALUES (?, ?)",
@@ -1179,9 +1185,8 @@ const placeBoostOrder = (req, res) => {
             (err3) => {
               if (err3) {
                 console.error("Error placing boost order:", err3.message);
-                return res.status(500).json({ error: "Database error" });
+                return res.status(500).json({ error: "Database error", details: err3.message }); // ✅
               }
-              console.log("Boost order placed for candidate:", candidateInfoId);
               res.json({
                 success: true,
                 message: "Boost order placed successfully. Waiting for admin approval.",
@@ -1199,14 +1204,14 @@ const getMyBoostStatus = (req, res) => {
 
   connection.query(
     `SELECT bo.status, bo.start_date, bo.end_date,
-            bp.name AS package_name, bp.duration_days,
+            p.name AS package_name, p.duration_value, p.duration_unit,
             ci.id as candidate_id,
             ci.is_boosted, ci.boost_expires_at
      FROM candidate_info ci
      LEFT JOIN boost_orders bo
        ON bo.candidate_id = ci.id
        AND bo.status IN ('pending', 'active')
-     LEFT JOIN boost_packages bp ON bp.id = bo.package_id
+     LEFT JOIN packages p ON p.id = bo.package_id
      WHERE ci.account_id = ?
      LIMIT 1`,
     [accountId],
@@ -1243,12 +1248,12 @@ const getBoostOrders = (req, res) => {
             ci.id AS candidate_info_id,
             a.email AS candidate_email,
             ci.full_name AS candidate_name,
-            bp.name AS package_name,
-            bp.duration_days, bp.price
+            p.name AS package_name,
+            p.duration_value, p.duration_unit, p.price,  p.currency  
      FROM boost_orders bo
      JOIN candidate_info ci ON ci.id = bo.candidate_id
      JOIN account a ON a.id = ci.account_id
-     JOIN boost_packages bp ON bp.id = bo.package_id
+     JOIN packages p ON p.id = bo.package_id
      WHERE bo.status = 'pending'
      ORDER BY bo.created_at DESC`,
     (err, results) => {
@@ -1265,10 +1270,10 @@ const activateBoost = (req, res) => {
   const { orderId } = req.params;
 
   connection.query(
-    `SELECT bo.*, bp.duration_days, bo.candidate_id
-     FROM boost_orders bo
-     JOIN boost_packages bp ON bp.id = bo.package_id
-     WHERE bo.id = ?`,
+    `SELECT bo.*, p.duration_value, p.duration_unit, bo.candidate_id
+      FROM boost_orders bo
+      JOIN packages p ON p.id = bo.package_id
+      WHERE bo.id = ?`,
     [orderId],
     (err, rows) => {
       if (err) {
@@ -1282,26 +1287,26 @@ const activateBoost = (req, res) => {
       const order = rows[0];
       const start = new Date();
       const end = new Date();
-      end.setDate(end.getDate() + order.duration_days);
+      const val = parseInt(order.duration_value);
+      const unit = (order.duration_unit || "Days").toLowerCase();
+
+      if (unit === "days") end.setDate(end.getDate() + val);
+      else if (unit === "weeks") end.setDate(end.getDate() + val * 7);
+      else if (unit === "months") end.setMonth(end.getMonth() + val);
+      else if (unit === "hours") end.setHours(end.getHours() + val);
+      else end.setDate(end.getDate() + val); // fallback
 
       connection.query(
         "UPDATE boost_orders SET status='active', start_date=?, end_date=? WHERE id=?",
         [start, end, orderId],
         (err2) => {
-          if (err2) {
-            console.error("Error updating boost order status:", err2.message);
-            return res.status(500).json({ error: "Database error" });
-          }
+          if (err2) return res.status(500).json({ error: "Database error" });
 
           connection.query(
             "UPDATE candidate_info SET is_boosted=1, boost_expires_at=? WHERE id=?",
             [end, order.candidate_id],
             (err3) => {
-              if (err3) {
-                console.error("Error updating candidate boost status:", err3.message);
-                return res.status(500).json({ error: "Database error" });
-              }
-              console.log("Boost activated for candidate:", order.candidate_id);
+              if (err3) return res.status(500).json({ error: "Database error" });
               res.json({ success: true, message: "Boost activated successfully" });
             }
           );
@@ -1366,13 +1371,13 @@ const getCandidatesForJob = (req, res) => {
 
 const getBoostAnalytics = (req, res) => {
   const sql = `
-    SELECT 
+   SELECT 
       COUNT(*) as total_orders,
       SUM(CASE WHEN bo.status = 'active' THEN 1 ELSE 0 END) as active_boosts,
       SUM(CASE WHEN bo.status = 'pending' THEN 1 ELSE 0 END) as pending_boosts,
-      SUM(bp.price) as total_revenue
+      SUM(p.price) as total_revenue
     FROM boost_orders bo
-    JOIN boost_packages bp ON bp.id = bo.package_id
+    JOIN packages p ON p.id = bo.package_id
     WHERE bo.status = 'active'
   `;
 
