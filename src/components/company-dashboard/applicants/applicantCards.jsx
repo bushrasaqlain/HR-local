@@ -17,39 +17,79 @@ class ApplicantCard extends React.Component {
     const { candidate, onStatusChange } = this.props;
     const { showModal, interviewDay, interviewTime } = this.state;
     // const { showModal, interviewDay, interviewTime } = this.state;
+    const isHired = candidate.is_hired_elsewhere;
     let actionButton = null;
 
     if (candidate.candidateStatus === "Pending") {
       actionButton = (
-        <Button
-          size="sm"
-          className="custom-progress-bar"
-          onClick={() => this.setState({ showModal: true })}
-          color="info"
-          // onClick={() => this.setState({ showModal: true })}
-        >
-          Shortlist
-        </Button>
+        <div className="d-flex flex-row align-items-center gap-2">
+          <Button
+            size="sm"
+            className="custom-progress-bar"
+            onClick={() => {
+              if (isHired) {
+                const confirmed = window.confirm(
+                  `⚠️ ${candidate.full_name} has already been hired by another company. Do you still want to shortlist?`
+                );
+                if (!confirmed) return;
+              }
+              this.setState({ showModal: true });
+            }}
+            color="info"
+          >
+            Shortlist
+          </Button>
+
+          {isHired && (
+            <span style={{
+              background: "#fee2e2",
+              color: "#991b1b",
+              border: "1px solid #fca5a5",
+              borderRadius: "20px",
+              padding: "3px 10px",
+              fontSize: "11px",
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+            }}>
+              Already Hired
+            </span>
+          )}
+        </div>
       );
     } else if (candidate.candidateStatus === "Shortlisted") {
       actionButton = (
-        <>
-          <Button
-            size="sm"
-            style={{ background: "#5f8190"}}
-            onClick={() => onStatusChange(candidate.candidate_id, "Approved")}
-          >
-            Approve
-          </Button>
-
-          <Button
-            size="sm"
-            color="danger"
-            onClick={() => onStatusChange(candidate.candidate_id, "Rejected")}
-          >
-            Reject
-          </Button>
-        </>
+        <div className="d-flex flex-column gap-1 align-items-start">
+          {isHired && (
+            <span style={{
+              background: "#fee2e2",
+              color: "#991b1b",
+              border: "1px solid #fca5a5",
+              borderRadius: "20px",
+              padding: "3px 10px",
+              fontSize: "11px",
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+            }}>
+              Already Hired
+            </span>
+          )}
+          <div className="d-flex gap-2">
+            <Button
+              size="sm"
+              style={{ background: "#5f8190" }}
+              onClick={() => onStatusChange(candidate.candidate_id, "Approved")}
+            >
+              Approve
+            </Button>
+            <Button
+              size="sm"
+              color="danger"
+              onClick={() => onStatusChange(candidate.candidate_id, "Rejected")}
+            >
+              Reject
+            </Button>
+          </div>
+        </div>
       );
     } else if (candidate.candidateStatus === "Approved") {
       actionButton = <span className="badge bg-success">Approved</span>;

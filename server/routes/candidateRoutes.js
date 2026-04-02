@@ -14,8 +14,8 @@ const { uploadPassportPhoto, uploadResume, combinedUpload } = require("../middle
 
 
 const storage = multer.memoryStorage(); // Use memory storage for handling base64
-const logo = multer({ 
-  storage: storage,  limits: { fileSize: 100 * 1024 * 1024 },
+const logo = multer({
+  storage: storage, limits: { fileSize: 100 * 1024 * 1024 },
 });
 
 // const authMiddleware = require("../middleware/auth.js");
@@ -25,7 +25,7 @@ const logo = multer({
 router.post(
   "/candidate/passport-photo",
   authMiddleware,
- combinedUpload.fields([
+  combinedUpload.fields([
     { name: "passport_photo", maxCount: 1 },
     { name: "resume", maxCount: 1 }
   ]),
@@ -42,13 +42,13 @@ router.post(
 
 // Edit candidate info with passport photo and resume
 router.put(
-"/:accountId",
-authMiddleware,
-uploadPassportPhoto.single("passport_photo"),
-candidateController.editCandidateInfo
+  "/:accountId",
+  authMiddleware,
+  uploadPassportPhoto.single("passport_photo"),
+  candidateController.editCandidateInfo
 );
 
-router.get("/candidate/", authMiddleware , candidateController.getCandidateInfo)
+router.get("/candidate/", authMiddleware, candidateController.getCandidateInfo)
 
 
 // update canidate data
@@ -56,13 +56,41 @@ router.get("/candidate/", authMiddleware , candidateController.getCandidateInfo)
 
 // router.get("/:accountId",candidateController.getCandidateFullProfilebyId )
 
-router.get("/logo/:accountId",candidateController.getCandidateLogobyId)
+router.get("/logo/:accountId", candidateController.getCandidateLogobyId)
 
 // router.get("/candidate/full_profile/:accountId",candidateController.getCandidateFullProfilebyId )
 
 
 router.get("/", candidateController.getCandidateInfobyAccountType)
 router.get("/getallcandidates", candidateController.getAllCandidates)
-router.put("/updatestatus/:id/:status/:userId",candidateController.updateStatus)
+router.put("/updatestatus/:id/:status/:userId", candidateController.updateStatus)
+
+// ============ BOOST ROUTES ============
+
+router.get("/boost/packages", authMiddleware, candidateController.getBoostPackages);
+router.post("/boost/order", authMiddleware, candidateController.placeBoostOrder);
+router.get("/boost/my-status", authMiddleware, candidateController.getMyBoostStatus);
+
+router.get(
+  "/boost/orders",
+  authMiddleware,
+  checkRole("reg_admin"),
+  candidateController.getBoostOrders
+);
+
+router.put(
+  "/boost/activate/:orderId",
+  authMiddleware,
+  checkRole("reg_admin"),
+  candidateController.activateBoost
+);
+
+router.put(
+  "/boost/reject/:orderId",
+  authMiddleware,
+  checkRole("reg_admin"),
+  candidateController.rejectBoost
+);
+router.get("/candidates-by-job/:jobId", candidateController.getCandidatesForJob);
 
 module.exports = router;

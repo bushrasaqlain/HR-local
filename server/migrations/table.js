@@ -92,6 +92,9 @@ currency.createCurrenciesTable();
   candidateModel.createCandidateTable();
   candidateModel.createCandidateSpecialityTable();
   candidateModel.createCandidatePreferredCitiesTable();
+  candidateModel.createBoostPackagesTable();
+  candidateModel.createBoostOrdersTable();
+  candidateModel.addBoostColumnsToCandidateInfo();
   // candidateModel.createsaveJobsTableQuery();
   jobModel.createJobPostTable()
   paymentModel.createPaymentTable()

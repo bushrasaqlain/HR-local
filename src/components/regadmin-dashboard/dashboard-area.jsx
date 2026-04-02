@@ -2,24 +2,25 @@
 
 import CompanyData from "./company";
 import Candidate from "./candidate";
-import { useEffect,useState } from "react";
+import BoostRequests from "./boosts_requests.jsx";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useSelector } from "react-redux";
 import ChangePasswordForm from "../form/changepassword/changepasswordform.jsx"
 import Job from "./job.jsx";
 const RegAdminDashboardArea = ({ activeTab }) => {
-   const router = useRouter();
-const [userInfo, setUserInfo] = useState({ userId: null, token:null });
+  const router = useRouter();
+  const [userInfo, setUserInfo] = useState({ userId: null, token: null });
 
-useEffect(() => {
+  useEffect(() => {
     const userId = sessionStorage.getItem("userId");
     const token = sessionStorage.getItem("token");
     setUserInfo({ userId, token });
 
     if (!token) {
-        router.replace("/login");
+      router.replace("/login");
     }
-}, [router]);
+  }, [router]);
 
   if (!userInfo.userId) return <div>Loading dashboard…</div>;
 
@@ -29,21 +30,23 @@ useEffect(() => {
         return <CompanyData />;
       case "candidate":
         return <Candidate />;
-         case "changepassword":
-      return <ChangePasswordForm />;
-       case "job":
-      return <Job />;
-        default:
-          return <CompanyData />
+      case "changepassword":
+        return <ChangePasswordForm />;
+      case "job":
+        return <Job />;
+      case "boosts":
+        return <BoostRequests />;
+      default:
+        return <CompanyData />
     }
   };
 
   return (
-     <section className="profile__area py-2 my-4">
+    <section className="profile__area py-2 my-4">
       <div className="container">
         <div className="profile__tab-content p-3">
           <div>{renderContent()}</div>
-          </div>
+        </div>
       </div>
     </section>
   );

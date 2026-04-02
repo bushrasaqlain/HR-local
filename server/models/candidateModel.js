@@ -3,6 +3,7 @@ const router = express.Router();
 const connection = require("../connection");
 const authMiddleware = require("../middleware/auth");
 const logAudit = require("../utils/auditLogger");
+const { get } = require("../routes/accountRoutes");
 
 const createCandidateTable = () => {
   const createCandidateInfoTable = `
@@ -119,6 +120,81 @@ const createsaveJobsTableQuery = () => {
       console.log("Saved Jobs table created successfully");
     }
   });
+};
+
+// ============ BOOST TABLE CREATION ============
+
+const createBoostPackagesTable = () => {
+  const sql = `
+    CREATE TABLE IF NOT EXISTS boost_packages (
+      id            INT AUTO_INCREMENT PRIMARY KEY,
+      name          VARCHAR(100) NOT NULL,
+      duration_days INT NOT NULL,
+      price         DECIMAL(10,2) NOT NULL,
+      is_active     BOOLEAN DEFAULT TRUE,
+      created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+  connection.query(sql, (err) => {
+    if (err) return console.error("Error creating boost_packages table:", err.message);
+    console.log("boost_packages table created successfully");
+
+    const insertSql = `
+      INSERT IGNORE INTO boost_packages (id, name, duration_days, price) VALUES
+        (1, '7 Day Boost',  7,  299),
+        (2, '14 Day Boost', 14, 499),
+        (3, '30 Day Boost', 30, 799)
+    `;
+    connection.query(insertSql, (err2) => {
+      if (err2) return console.error("Error inserting default boost packages:", err2.message);
+      console.log("Default boost packages inserted successfully");
+    });
+  });
+};
+
+const createBoostOrdersTable = () => {
+  const sql = `
+    CREATE TABLE IF NOT EXISTS boost_orders (
+      id           INT AUTO_INCREMENT PRIMARY KEY,
+      candidate_id INT NOT NULL,
+      package_id   INT NOT NULL,
+      status       ENUM('pending','active','expired','rejected') DEFAULT 'pending',
+      start_date   DATE NULL,
+      end_date     DATE NULL,
+      created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (candidate_id) REFERENCES candidate_info(id) ON DELETE CASCADE,
+      FOREIGN KEY (package_id)   REFERENCES boost_packages(id)
+    )
+  `;
+  connection.query(sql, (err) => {
+    if (err) return console.error("Error creating boost_orders table:", err.message);
+    console.log("boost_orders table created successfully");
+  });
+};
+
+const addBoostColumnsToCandidateInfo = () => {
+
+  connection.query(
+    `ALTER TABLE candidate_info ADD COLUMN is_boosted BOOLEAN DEFAULT FALSE`,
+    (err) => {
+      if (err && err.code !== "ER_DUP_FIELDNAME") {
+        console.error("Error adding is_boosted column:", err.message);
+      } else {
+        console.log("is_boosted column ready in candidate_info");
+      }
+    }
+  );
+
+  connection.query(
+    `ALTER TABLE candidate_info ADD COLUMN boost_expires_at DATETIME NULL`,
+    (err) => {
+      if (err && err.code !== "ER_DUP_FIELDNAME") {
+        console.error("Error adding boost_expires_at column:", err.message);
+      } else {
+        console.log("boost_expires_at column ready in candidate_info");
+      }
+    }
+  );
 };
 
 const getAllCandidates = (req, res) => {
@@ -479,7 +555,9 @@ const getCandidateInfo = (req, res) => {
       ci.expected_salary,
       ci.profile_completed,
       ci.passport_photo,
-      ci.resume
+      ci.resume,
+      ci.is_boosted,
+      ci.boost_expires_at
     FROM account a
     LEFT JOIN candidate_info ci ON a.id = ci.account_id
     LEFT JOIN countries co ON ci.country = co.id
@@ -631,6 +709,9 @@ const getCandidateInfo = (req, res) => {
           passport_photo: candidate.passport_photo || null,
           resume: candidate.resume || null,
 
+          is_boosted: candidate.is_boosted || false,
+          boost_expires_at: candidate.boost_expires_at || null,
+
           // Tracking
           appeared_in_search: 0,
           profile_views: 0,
@@ -662,12 +743,12 @@ const getCandidateInfo = (req, res) => {
         SELECT 
           a.status,
            a.interview_day,
-  a.interview_time,
-  a.job_id,
-  a.candidate_id,
-  a.candidate_response,
-  a.company_status,
-  ci.account_id,
+          a.interview_time,
+          a.job_id,
+          a.candidate_id,
+          a.candidate_response,
+          a.company_status,
+          ci.account_id,
           ci.id AS company_id, 
           ci.company_name,
           ci.logo,
@@ -1038,6 +1119,273 @@ const addResume = (userId, resumePath, res) => {
   });
 };
 
+// ============ BOOST FUNCTIONS ============
+
+const getBoostPackages = (req, res) => {
+  connection.query(
+    "SELECT * FROM boost_packages WHERE is_active = 1",
+    (err, results) => {
+      if (err) {
+        console.error("Error fetching boost packages:", err.message);
+        return res.status(500).json({ error: "Database error" });
+      }
+      res.json({ success: true, data: results });
+    }
+  );
+};
+
+const placeBoostOrder = (req, res) => {
+  const accountId = req.user.userId;
+  const { package_id } = req.body;
+
+  if (!package_id) {
+    return res.status(400).json({ success: false, message: "Please select a package" });
+  }
+
+  connection.query(
+    `SELECT bo.id FROM boost_orders bo
+     JOIN candidate_info ci ON ci.id = bo.candidate_id
+     WHERE ci.account_id = ? AND bo.status IN ('pending', 'active')`,
+    [accountId],
+    (err, existing) => {
+      if (err) {
+        console.error("Error checking existing boost order:", err.message);
+        return res.status(500).json({ error: "Database error" });
+      }
+      if (existing.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: "A boost order is already active or pending",
+        });
+      }
+
+      connection.query(
+        "SELECT id FROM candidate_info WHERE account_id = ?",
+        [accountId],
+        (err2, rows) => {
+          if (err2) {
+            console.error("Error fetching candidate info id:", err2.message);
+            return res.status(500).json({ error: "Database error" });
+          }
+          if (!rows.length) {
+            return res.status(404).json({ success: false, message: "Candidate not found" });
+          }
+
+          const candidateInfoId = rows[0].id;
+
+          connection.query(
+            "INSERT INTO boost_orders (candidate_id, package_id) VALUES (?, ?)",
+            [candidateInfoId, package_id],
+            (err3) => {
+              if (err3) {
+                console.error("Error placing boost order:", err3.message);
+                return res.status(500).json({ error: "Database error" });
+              }
+              console.log("Boost order placed for candidate:", candidateInfoId);
+              res.json({
+                success: true,
+                message: "Boost order placed successfully. Waiting for admin approval.",
+              });
+            }
+          );
+        }
+      );
+    }
+  );
+};
+
+const getMyBoostStatus = (req, res) => {
+  const accountId = req.user.userId;
+
+  connection.query(
+    `SELECT bo.status, bo.start_date, bo.end_date,
+            bp.name AS package_name, bp.duration_days,
+            ci.id as candidate_id,
+            ci.is_boosted, ci.boost_expires_at
+     FROM candidate_info ci
+     LEFT JOIN boost_orders bo
+       ON bo.candidate_id = ci.id
+       AND bo.status IN ('pending', 'active')
+     LEFT JOIN boost_packages bp ON bp.id = bo.package_id
+     WHERE ci.account_id = ?
+     LIMIT 1`,
+    [accountId],
+    (err, rows) => {
+      if (err) {
+        console.error("Error fetching boost status:", err.message);
+        return res.status(500).json({ error: "Database error" });
+      }
+
+      let data = rows[0] || null;
+
+      if (data && data.is_boosted && data.boost_expires_at) {
+        const now = new Date();
+        const expiry = new Date(data.boost_expires_at);
+
+        if (expiry < now) {
+          connection.query(
+            "UPDATE candidate_info SET is_boosted = 0 WHERE id = ?",
+            [data.candidate_id]
+          );
+
+          data.is_boosted = false;
+        }
+      }
+
+      res.json({ success: true, data });
+    }
+  );
+};
+
+const getBoostOrders = (req, res) => {
+  connection.query(
+    `SELECT bo.id, bo.status, bo.created_at,
+            ci.id AS candidate_info_id,
+            a.email AS candidate_email,
+            ci.full_name AS candidate_name,
+            bp.name AS package_name,
+            bp.duration_days, bp.price
+     FROM boost_orders bo
+     JOIN candidate_info ci ON ci.id = bo.candidate_id
+     JOIN account a ON a.id = ci.account_id
+     JOIN boost_packages bp ON bp.id = bo.package_id
+     WHERE bo.status = 'pending'
+     ORDER BY bo.created_at DESC`,
+    (err, results) => {
+      if (err) {
+        console.error("Error fetching boost orders:", err.message);
+        return res.status(500).json({ error: "Database error" });
+      }
+      res.json({ success: true, data: results });
+    }
+  );
+};
+
+const activateBoost = (req, res) => {
+  const { orderId } = req.params;
+
+  connection.query(
+    `SELECT bo.*, bp.duration_days, bo.candidate_id
+     FROM boost_orders bo
+     JOIN boost_packages bp ON bp.id = bo.package_id
+     WHERE bo.id = ?`,
+    [orderId],
+    (err, rows) => {
+      if (err) {
+        console.error("Error fetching boost order for activation:", err.message);
+        return res.status(500).json({ error: "Database error" });
+      }
+      if (!rows.length) {
+        return res.status(404).json({ success: false, message: "Order not found" });
+      }
+
+      const order = rows[0];
+      const start = new Date();
+      const end = new Date();
+      end.setDate(end.getDate() + order.duration_days);
+
+      connection.query(
+        "UPDATE boost_orders SET status='active', start_date=?, end_date=? WHERE id=?",
+        [start, end, orderId],
+        (err2) => {
+          if (err2) {
+            console.error("Error updating boost order status:", err2.message);
+            return res.status(500).json({ error: "Database error" });
+          }
+
+          connection.query(
+            "UPDATE candidate_info SET is_boosted=1, boost_expires_at=? WHERE id=?",
+            [end, order.candidate_id],
+            (err3) => {
+              if (err3) {
+                console.error("Error updating candidate boost status:", err3.message);
+                return res.status(500).json({ error: "Database error" });
+              }
+              console.log("Boost activated for candidate:", order.candidate_id);
+              res.json({ success: true, message: "Boost activated successfully" });
+            }
+          );
+        }
+      );
+    }
+  );
+};
+
+const rejectBoost = (req, res) => {
+  const { orderId } = req.params;
+
+  connection.query(
+    "UPDATE boost_orders SET status='rejected' WHERE id=?",
+    [orderId],
+    (err) => {
+      if (err) {
+        console.error("Error rejecting boost order:", err.message);
+        return res.status(500).json({ error: "Database error" });
+      }
+      console.log("Boost order rejected:", orderId);
+      res.json({ success: true, message: "Boost order rejected" });
+    }
+  );
+};
+
+const getCandidatesForJob = (req, res) => {
+  const jobId = req.params.jobId;
+
+  const sql = `
+    SELECT 
+      ci.id,
+      ci.full_name,
+      ci.total_experience,
+      ci.skills,
+      ci.is_boosted,
+      ci.boost_expires_at
+    FROM candidate_info ci
+    JOIN job_posts jp ON 1=1
+    WHERE jp.id = ?
+    
+    -- Skills match (important)
+    AND JSON_OVERLAPS(ci.skills, jp.skill_ids)
+
+    -- Experience match (optional improve later)
+    AND ci.total_experience >= jp.min_experience
+
+    ORDER BY 
+      ci.is_boosted DESC,  
+      ci.created_at DESC
+  `;
+
+  connection.query(sql, [jobId], (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    res.json(results);
+  });
+};
+
+const getBoostAnalytics = (req, res) => {
+  const sql = `
+    SELECT 
+      COUNT(*) as total_orders,
+      SUM(CASE WHEN bo.status = 'active' THEN 1 ELSE 0 END) as active_boosts,
+      SUM(CASE WHEN bo.status = 'pending' THEN 1 ELSE 0 END) as pending_boosts,
+      SUM(bp.price) as total_revenue
+    FROM boost_orders bo
+    JOIN boost_packages bp ON bp.id = bo.package_id
+    WHERE bo.status = 'active'
+  `;
+
+  connection.query(sql, (err, result) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: "DB error" });
+    }
+
+    res.json({ success: true, data: result[0] });
+  });
+};
+
 module.exports = {
   getAllCandidates,
   updateStatus,
@@ -1053,4 +1401,16 @@ module.exports = {
   getCandidateFullProfilebyId,
   getCandidateInfobyAccountType,
   addResume,
+
+  createBoostPackagesTable,
+  createBoostOrdersTable,
+  addBoostColumnsToCandidateInfo,
+  getBoostPackages,
+  placeBoostOrder,
+  getMyBoostStatus,
+  getBoostOrders,
+  activateBoost,
+  rejectBoost,
+  getCandidatesForJob,
+  getBoostAnalytics,
 };
