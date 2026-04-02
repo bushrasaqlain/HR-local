@@ -199,7 +199,13 @@ const getAllApplicants = async (req, res) => {
         COALESCE(
           (SELECT a1.company_offered_time FROM applications a1 WHERE a1.candidate_id = c.id AND a1.job_id = ? ORDER BY a1.id DESC LIMIT 1),
           NULL
-        ) AS company_offered_time
+        ) AS company_offered_time,
+         CASE WHEN EXISTS (
+          SELECT 1 FROM applications a2
+          WHERE a2.candidate_id = c.id
+            AND a2.status = 'Approved'
+            AND a2.job_id != ?
+        ) THEN 1 ELSE 0 END AS is_hired_elsewhere
       FROM account a
       INNER JOIN candidate_info c ON a.id = c.account_id
       LEFT JOIN license_types li ON c.license_type = li.id
@@ -214,6 +220,7 @@ const getAllApplicants = async (req, res) => {
       connection.query(
         candidateQuery,
         [
+          jobId,
           jobId,
           jobId,
           jobId,
@@ -403,8 +410,9 @@ const getAllApplicants = async (req, res) => {
         ...c,
         skills: c.skills.map((id) => ({ id, name: skillsMap[id] || "" })),
         city_name,
-        is_boosted: !!c.is_boosted,                                  
-        boost_expires_at: c.boost_expires_at || null,  
+        is_boosted: !!c.is_boosted,
+        boost_expires_at: c.boost_expires_at || null,
+        is_hired_elsewhere: !!c.is_hired_elsewhere,
         otherPreferredCities: (c.otherPreferredCities || []).map((city) => {
           const cityId = typeof city === "object" ? city.id : city;
           return { id: cityId, name: cityMapObj[cityId] || "" };
