@@ -413,9 +413,11 @@ class BoostModal extends React.Component {
                 }}>
                 <div style={{ fontSize: "13px", fontWeight: 600 }}>{pkg.name}</div>
                 <div style={{ fontSize: "18px", fontWeight: 700, color: "#92400e" }}>
-                  Rs. {pkg.price}
+                  {pkg.currency} {pkg.price}
                 </div>
-                <div style={{ fontSize: "11px", color: "#6b7280" }}>{pkg.duration_days} days</div>
+                <div style={{ fontSize: "11px", color: "#6b7280" }}>
+                  {pkg.duration_value} {pkg.duration_unit}
+                </div>
               </div>
             ))}
           </div>

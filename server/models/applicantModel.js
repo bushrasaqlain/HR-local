@@ -69,14 +69,18 @@ const getAllApplicants = async (req, res) => {
     const jobId = req.query.job_id ? Number(req.query.job_id) : null;
     if (!jobId) return res.status(400).json({ error: "job_id is required" });
 
-    // Get job details for filtering
+    // ── Get job details + package info in one query ──
     const job = await new Promise((resolve, reject) => {
       connection.query(
-        `SELECT speciality_id, skill_ids, min_salary, max_salary,
-                min_experience, max_experience,
-                country_id, district_id, city_id,
-                account_id
-         FROM job_posts WHERE id = ?`,
+        `SELECT jp.speciality_id, jp.skill_ids, jp.min_salary, jp.max_salary,
+                jp.min_experience, jp.max_experience,
+                jp.country_id, jp.district_id, jp.city_id,
+                jp.account_id, jp.package_id,
+                p.location_scope,
+                p.package_type
+         FROM job_posts jp
+         LEFT JOIN packages p ON p.id = jp.package_id
+         WHERE jp.id = ?`,
         [jobId],
         (err, result) => (err ? reject(err) : resolve(result[0])),
       );
@@ -84,9 +88,16 @@ const getAllApplicants = async (req, res) => {
 
     if (!job) return res.status(404).json({ error: "Job not found" });
 
+    // ── Guard: only run matching for company packages ──
+    if (job.package_type && job.package_type !== "company") {
+      return res.status(400).json({
+        error: "This job is not linked to a company package",
+      });
+    }
+
     const companyId = job.account_id;
 
-    // --- Build WHERE conditions dynamically ---
+    // ── Build WHERE conditions ──
     const whereConditions = [
       `a.accountType = 'candidate'`,
       `a.isActive = 'Active'`,
@@ -101,9 +112,7 @@ const getAllApplicants = async (req, res) => {
 
     const minExp = parseInt(job.min_experience) || 0;
     const maxExp = parseInt(job.max_experience) || 50;
-    whereConditions.push(
-      `CAST(c.total_experience AS UNSIGNED) BETWEEN ? AND ?`,
-    );
+    whereConditions.push(`CAST(c.total_experience AS UNSIGNED) BETWEEN ? AND ?`);
     values.push(minExp, maxExp);
 
     if (job.speciality_id) {
@@ -126,14 +135,30 @@ const getAllApplicants = async (req, res) => {
       whereConditions.push(`c.country = ?`);
       values.push(job.country_id);
     }
+
     if (job.district_id) {
       whereConditions.push(`c.district = ?`);
       values.push(job.district_id);
     }
 
+    // ── location_scope filter ──
+    // 'city'  → only candidates whose primary city OR preferred cities include the job's city
+    // 'all'   → no city filter, match nationwide
+    // null    → fallback to 'city' (safe default)
+    const locationScope = job.location_scope || "city";
+
+    if (locationScope === "city" && job.city_id) {
+      whereConditions.push(`(
+        c.city = ?
+        OR JSON_CONTAINS(c.otherPreferredCities, CAST(? AS JSON))
+      )`);
+      values.push(job.city_id, JSON.stringify(job.city_id));
+    }
+    // if locationScope === 'all' → skip city filter entirely
+
     const whereClause = `WHERE ${whereConditions.join(" AND ")}`;
 
-    // --- Fetch candidate base info ---
+    // ── Fetch candidate base info ──
     const candidateQuery = `
       SELECT
         a.id AS account_id,
@@ -241,30 +266,22 @@ const getAllApplicants = async (req, res) => {
 
     const candidateIds = candidatesRaw.map((c) => c.candidate_id);
 
-    // --- Log search impressions ---
+    // ── Log search impressions ──
     if (candidateIds.length > 0 && companyId) {
       const impressionValues = candidateIds.map((candidateId) => [
-        companyId,
-        candidateId,
-        jobId,
+        companyId, candidateId, jobId,
       ]);
-
       connection.query(
-        `INSERT IGNORE INTO candidate_search_impressions 
-         (company_id, candidate_id, job_id) 
-         VALUES ?`,
+        `INSERT IGNORE INTO candidate_search_impressions (company_id, candidate_id, job_id) VALUES ?`,
         [impressionValues],
         (err) => {
           if (err) console.error("Failed to log search impressions:", err);
-          else
-            console.log(
-              `Logged ${impressionValues.length} impressions for company ${companyId}`,
-            );
+          else console.log(`Logged ${impressionValues.length} impressions for company ${companyId}`);
         },
       );
     }
 
-    // --- Fetch related tables in batch ---
+    // ── Fetch related tables in batch ──
     const [
       experienceRows,
       educationRows,
@@ -274,12 +291,11 @@ const getAllApplicants = async (req, res) => {
     ] = await Promise.all([
       candidateIds.length
         ? new Promise((resolve, reject) =>
-          connection.query(
-            `SELECT e.*, s.name AS speciality_name FROM candidate_experience e LEFT JOIN speciality s ON e.speciality_id = s.id WHERE e.candidate_id IN (?)`,
-            [candidateIds],
-            (err, res) => (err ? reject(err) : resolve(res)),
-          ),
-        )
+            connection.query(
+              `SELECT e.*, s.name AS speciality_name FROM candidate_experience e LEFT JOIN speciality s ON e.speciality_id = s.id WHERE e.candidate_id IN (?)`,
+              [candidateIds],
+              (err, res) => (err ? reject(err) : resolve(res)),
+            ))
         : [],
       candidateIds.length
         ? new Promise((resolve, reject) =>
@@ -290,41 +306,37 @@ const getAllApplicants = async (req, res) => {
                LEFT JOIN degreetypes dt ON df.degree_type_id = dt.id
                LEFT JOIN institute ins ON ed.institute_id = ins.id
                WHERE ed.candidate_id IN (?)`,
-            [candidateIds],
-            (err, res) => (err ? reject(err) : resolve(res)),
-          ),
-        )
+              [candidateIds],
+              (err, res) => (err ? reject(err) : resolve(res)),
+            ))
         : [],
       candidateIds.length
         ? new Promise((resolve, reject) =>
-          connection.query(
-            `SELECT * FROM candidate_availability WHERE candidate_id IN (?)`,
-            [candidateIds],
-            (err, res) => (err ? reject(err) : resolve(res)),
-          ),
-        )
+            connection.query(
+              `SELECT * FROM candidate_availability WHERE candidate_id IN (?)`,
+              [candidateIds],
+              (err, res) => (err ? reject(err) : resolve(res)),
+            ))
         : [],
       candidateIds.length
         ? new Promise((resolve, reject) =>
-          connection.query(
-            `SELECT * FROM candidate_certificates WHERE candidate_id IN (?) ORDER BY created_at DESC`,
-            [candidateIds],
-            (err, res) => (err ? reject(err) : resolve(res)),
-          ),
-        )
+            connection.query(
+              `SELECT * FROM candidate_certificates WHERE candidate_id IN (?) ORDER BY created_at DESC`,
+              [candidateIds],
+              (err, res) => (err ? reject(err) : resolve(res)),
+            ))
         : [],
       candidateIds.length
         ? new Promise((resolve, reject) =>
-          connection.query(
-            `SELECT * FROM candidate_research WHERE candidate_id IN (?) ORDER BY created_at DESC`,
-            [candidateIds],
-            (err, res) => (err ? reject(err) : resolve(res)),
-          ),
-        )
+            connection.query(
+              `SELECT * FROM candidate_research WHERE candidate_id IN (?) ORDER BY created_at DESC`,
+              [candidateIds],
+              (err, res) => (err ? reject(err) : resolve(res)),
+            ))
         : [],
     ]);
 
-    // --- Map skills & cities ---
+    // ── Map skills & cities ──
     const allSkillIds = [];
     const allCityIds = [];
 
@@ -334,12 +346,7 @@ const getAllApplicants = async (req, res) => {
           c.skills = Array.isArray(c.skills) ? c.skills : JSON.parse(c.skills);
           allSkillIds.push(...c.skills);
         } catch (err) {
-          console.warn(
-            "Invalid skills JSON for candidate",
-            c.candidate_id,
-            ":",
-            c.skills,
-          );
+          console.warn("Invalid skills JSON for candidate", c.candidate_id);
           c.skills = [];
         }
       } else {
@@ -359,7 +366,6 @@ const getAllApplicants = async (req, res) => {
       }
 
       if (c.city) allCityIds.push(c.city);
-
       c.otherPreferredCities.forEach((city) => {
         const cityId = typeof city === "object" ? city.id : city;
         if (cityId) allCityIds.push(cityId);
@@ -390,15 +396,12 @@ const getAllApplicants = async (req, res) => {
       citiesMap.forEach((c) => (cityMapObj[c.id] = c.name));
     }
 
-    // --- Construct final objects ---
+    // ── Construct final objects ──
     const candidates = candidatesRaw.map((c) => {
       const candidateCityIds = [];
-
       if (c.city) candidateCityIds.push(Number(c.city));
-
       (c.otherPreferredCities || []).forEach((city) => {
-        const cityId =
-          typeof city === "object" ? Number(city.id) : Number(city);
+        const cityId = typeof city === "object" ? Number(city.id) : Number(city);
         candidateCityIds.push(cityId);
       });
 
@@ -441,19 +444,19 @@ const getAllApplicants = async (req, res) => {
             start_date: ed.start_date,
             end_date: ed.end_date,
           })),
-        availability: availabilityRows.filter(
-          (a) => a.candidate_id === c.candidate_id,
-        ),
-        certificates: certificatesRows.filter(
-          (cert) => cert.candidate_id === c.candidate_id,
-        ),
+        availability: availabilityRows.filter((a) => a.candidate_id === c.candidate_id),
+        certificates: certificatesRows.filter((cert) => cert.candidate_id === c.candidate_id),
         research: researchRows.filter((r) => r.candidate_id === c.candidate_id),
       };
     });
 
-    res
-      .status(200)
-      .json({ total: candidates.length, page, limit, candidate: candidates });
+    res.status(200).json({
+      total: candidates.length,
+      page,
+      limit,
+      location_scope: locationScope,   // useful for frontend to know which mode was used
+      candidate: candidates,
+    });
   } catch (err) {
     console.error("getAllApplicants error:", err);
     res.status(500).json({ error: "Server error" });
