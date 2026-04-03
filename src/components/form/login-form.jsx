@@ -229,7 +229,7 @@ class FormContent extends Component {
           <div className="divider my-3">
             <span>or</span>
           </div>
-          <div className="text mb-3">
+          <div className="bottom-text mt-4">
             Don&apos;t have an account?{" "}
             <Link href="/?page=register" className="signup">
               Signup
