@@ -89,13 +89,15 @@ class DefaulHeader2 extends Component {
 
             <Button
               href="/?page=login"
-              className="btn-outline-modern btn-dark text-center p-2 text-decoration-none"
+              className="btn  text-center p-2 text-decoration-none"
+              style={{background: "#264049", border: "#1e2a2e"}}
             >
-              Login / Register
+              Login / Register 
             </Button>
             <Button
               href="/?page=login"
-              className="btn-gradient btn-dark text-center p-2 text-decoration-none"
+              className="btn-gradient text-center p-2 text-decoration-none"
+              style={{background: "#264049", border: "#1e2a2e"}}
             >
               Post Job
             </Button>

@@ -207,7 +207,7 @@ span.badge.badge-inactive-custom {
 
 /* 🔥 HOVER EFFECT */
 .about-card:hover {
-  background: linear-gradient(135deg, #116dc2, #2b6fd4);
+  background: linear-gradient(135deg, #5a838f, #36565f);
   transform: translateY(-10px) scale(1.03);
 }
 
@@ -220,7 +220,7 @@ span.badge.badge-inactive-custom {
 /* ICON STYLE */
 .about-card .icon {
   font-size: 35px;
-  color: #116dc2;
+  color: #36565f;
   transition: 0.3s;
 }
 
@@ -233,7 +233,7 @@ span.badge.badge-inactive-custom {
 /* 🔷 STEP ICON */
 .step-icon {
   font-size: 30px;
-  color: #116dc2;
+  color: #36565f;
   margin-bottom: 10px;
   transition: 0.3s;
 }
@@ -294,13 +294,13 @@ span.badge.badge-inactive-custom {
 
 /* ACTIVE */
 .custom-accordion .accordion-button:not(.collapsed) {
-  background: linear-gradient(135deg, #116dc2, #2b6fd4);
+  background: linear-gradient(135deg, #36565f, #36565f);
   color: #fff;
 }
 
 /* ICON */
 .custom-accordion .icon {
-  color: #116dc2;
+  color: #36565f;
 }
 
 .custom-accordion .accordion-button:not(.collapsed) .icon {
@@ -356,7 +356,7 @@ span.badge.badge-inactive-custom {
 /* 🔥 HOVER EFFECT */
 .terms-card:hover {
   transform: translateY(-5px);
-  background: linear-gradient(135deg, #116dc2, #2b6fd4);
+  background: linear-gradient(135deg, #36565f, #36565f);
 }
 
 /* TEXT COLOR CHANGE */
@@ -385,7 +385,7 @@ span.badge.badge-inactive-custom {
 
 /* 🔷 TOP */
 .footer-top {
-  background: #1a1a1a;
+  background: #2a4249;
 }
 
 /* 🔷 TEXT */
@@ -435,11 +435,25 @@ span.badge.badge-inactive-custom {
 }
 
 .footer-left p svg {
-  color: #2b6fd4;
+  color: white;
   /* 🔥 blue icons */
   margin-right: 8px;
 }
+.right-box .love-item .icon {
+  color: #36565f;
+  background-color: white;
+  padding: 15px;
+  border-radius: 50%;
+  font-size: 45px;
+}
 
+.left-box .love-item .icon {
+  color: #36565f;
+  background-color: white;
+  padding: 15px;
+  border-radius: 50%;
+  font-size: 45px;
+}
 /* 🔷 SOCIAL */
 .social-icons {
   display: flex;
@@ -452,18 +466,18 @@ span.badge.badge-inactive-custom {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #222;
+  background: #121a1d;
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  color: #2b6fd4;
+  color: white;
   /* 🔥 ICON BLUE */
   font-size: 14px;
   transition: 0.3s;
 }
 
 .social-icons a:hover {
-  background: #2b6fd4;
+  background: #537785;
   color: #fff;
   /* hover white */
   transform: scale(1.1);
@@ -471,7 +485,7 @@ span.badge.badge-inactive-custom {
 
 /* 🔷 BOTTOM */
 .footer-bottom2 {
-  background: #2e2e2e;
+  background: #121a1d;
 
   font-size: 12px;
   color: #bbb;
@@ -513,7 +527,7 @@ span.badge.badge-inactive-custom {
 
 /* 🔷 BUTTON */
 .terms-btn {
-  background: linear-gradient(135deg, #2b6fd4, #2b6fd4);
+  background: linear-gradient(135deg, #36565f, #36565f);
   border: none;
   padding: 10px 22px;
   color: #fff;
@@ -535,7 +549,7 @@ span.badge.badge-inactive-custom {
 .custom-btn {
   display: inline-block;
   border: 2px solid #000;
-  background-color: #000;
+  background-color: #000; 
   color: #fff;
   padding: 10px 30px;
   font-size: 16px;
@@ -560,7 +574,7 @@ span.badge.badge-inactive-custom {
 
 /* 🔷 Top Employers */
 .top-employers {
-  background: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)),
+background: linear-gradient(rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.9)),
     url('/images/background/4.jpg');
   background-size: cover;
   background-position: center;
@@ -711,6 +725,7 @@ input {
   list-style: none;
   padding: 0;
   margin-top: 10;
+  color: #5f8190;
 }
 
 .footer-menu li {
@@ -737,7 +752,8 @@ input {
 }
 
 .footer-menu a:hover {
-  color: #2b6fd4;
+  color: #fff;
+  font-weight: bold;
 }
 
 /* 🔷 CENTER ALIGN EVERYTHING */
@@ -776,13 +792,14 @@ input {
 
 .love-item {
   display: flex;
-  align-items: flex-start;
+  // align-items: flex-start;
+  align-items: center;
   margin-bottom: 20px;
 }
 
 .love-item .icon {
   font-size: 16px;
-  color: #3654d8 !important;
+  color: #2e2f35;
   background: #cff4ff;
   padding: 12px;
   border-radius: 50%;
@@ -806,7 +823,7 @@ input {
 }
 
 .btns {
-  margin-top: 20px;
+  margin-top: 22px;
 }
 
 .btn-light {
