@@ -65,7 +65,7 @@ const Footer = () => {
       </div>
 
       {/* 🔷 BOTTOM */}
-      <div className="footer-bottom2 text-center">
+      <div className="footer-bottom2 text-center fw-bold">
         © {new Date().getFullYear()} Superio. All Rights Reserved.
       </div>
 

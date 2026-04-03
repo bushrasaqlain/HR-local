@@ -14,7 +14,7 @@ import Profile from "./dashboard/profile.jsx";
 import TopCardBlock from "./dashboard/TopCardBlock.jsx";
 import ShortlistedCandidates from "./shortlistedcandidates.jsx";
 import ApprovedCandidates from "./approved.jsx";
-import PricingForm from "./pricingform.jsx";
+import PricingForm2 from "./viewpackage.jsx";
 
 const CompanyDashboardArea = ({ activeTab, onTabChange, jobListFilterStatus }) => {
     const router = useRouter();
@@ -82,8 +82,8 @@ const CompanyDashboardArea = ({ activeTab, onTabChange, jobListFilterStatus }) =
 
             case "packagesList":
                 return <PackagesList />;
-            case "pricingform":
-                return <PricingForm />;
+            case "viewpackage":
+                return <PricingForm2 />;
             case "shortlistedcandidates":
                 return <ShortlistedCandidates />;
             case "approved":

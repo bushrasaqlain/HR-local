@@ -92,6 +92,7 @@ class Hero extends Component {
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
                     className="btn-lg rounded-pill ms-2 custom-btn d-inline-block text-center"
+                    style={{backgroundColor: "#1e2a2e", border: "#1e2a2e"}}
                   >
                     Register
                   </motion.a>
