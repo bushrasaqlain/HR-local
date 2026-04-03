@@ -31,7 +31,8 @@ import {
   Progress,
 } from "reactstrap";
 import api from "../../lib/api";
-let faceapi = null;
+let faceapi = null; 
+let faceapiLoaded = false;
 const CustomOption = (props) => (
   <components.Option {...props}>
     <span style={{ marginRight: 8 }}>{props.data.icon}</span>
@@ -98,12 +99,16 @@ class EditProfile extends Component {
       this.loadLicenseTypes();
     });
   }
+loadFaceModels = async () => {
+  if (faceapiLoaded) return; // already loaded, skip
 
-  loadFaceModels = async () => {
-    const MODEL_URL = "/models"; 
+  // Dynamically import so it only runs in the browser
+  faceapi = await import("face-api.js");
+  faceapiLoaded = true;
 
-    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-  };
+  const MODEL_URL = "/models";
+  await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+};
 
   detectFace = async (file) => {
     const img = await faceapi.bufferToImage(file);

@@ -10,6 +10,7 @@ import * as Yup from "yup";
 import api from "../../lib/api";
 import "bootstrap-icons/font/bootstrap-icons.css";
 let faceapi = null;
+let faceapiLoaded = false;
 class CandidateRegisterForm extends Component {
   constructor(props) {
     super(props);
