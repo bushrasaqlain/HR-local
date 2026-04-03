@@ -137,6 +137,9 @@ class FormContent extends Component {
 
     return (
       <div className="form-inner">
+        <div className="avatar-circle">
+          <i className="las la-user"></i>
+        </div>
         <h3 className="text-center mb-4">Login to Superio</h3>
 
         <Form onSubmit={this.handleSubmit}>
@@ -213,8 +216,7 @@ class FormContent extends Component {
           {/* Submit */}
           <FormGroup>
             <Button
-              color="primary"
-              className="w-100 theme-btn btn-style-one"
+              className="w-100 theme-btn"
               type="submit"
             >
               Log In
@@ -229,8 +231,8 @@ class FormContent extends Component {
           </div>
           <div className="text mb-3">
             Don&apos;t have an account?{" "}
-            <Link href="/?page=register">
-              <span className="signup">Signup</span>
+            <Link href="/?page=register" className="signup">
+              Signup
             </Link>
           </div>
         </div>
