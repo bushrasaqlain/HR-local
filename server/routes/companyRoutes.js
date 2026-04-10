@@ -30,5 +30,7 @@ router.get("/top-companies", companyController.getTopCompanies);
 
 router.get("/all-companies", companyController.getAllCompaniesList);
 
+router.get("/package-status/:userId", authMiddleware, companyController.getCompanyPackageStatus);
+
 
 module.exports = router;

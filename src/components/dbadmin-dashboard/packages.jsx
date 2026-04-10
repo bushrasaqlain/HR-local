@@ -26,7 +26,7 @@ class Packages extends Component {
         price: "",
         description: "",
         candidate_limit: "",
-        interview_slots: "",
+        // interview_slots: "",
         location_scope: "",
         package_type: "",
         is_featured: false,
@@ -127,17 +127,17 @@ class Packages extends Component {
     }
 
     const dataToExport = packages.map((pkg) => ({
-      "Name":             pkg.name,
-      "Package Type":     pkg.package_type,
-      "Duration unit":    pkg.duration_unit,
-      "Duration value":   pkg.duration_value,
-      "Price":            pkg.price,
-      "Currency":         pkg.currency,
-      "Candidate limit":  pkg.candidate_limit ?? "Unlimited",
-      "Interview slots":  pkg.interview_slots ?? "Unlimited",
-      "Location Slots":   pkg.location_scope,
-      "Is featured":      pkg.is_featured ? "Yes" : "No",
-      "Description":      pkg.description || "",
+      "Name": pkg.name,
+      "Package Type": pkg.package_type,
+      "Duration unit": pkg.duration_unit,
+      "Duration value": pkg.duration_value,
+      "Price": pkg.price,
+      "Currency": pkg.currency,
+      "Candidate limit": pkg.candidate_limit ?? "Unlimited",
+      // "Interview slots":  pkg.interview_slots ?? "Unlimited",
+      "Location Slots": pkg.location_scope,
+      "Is featured": pkg.is_featured ? "Yes" : "No",
+      "Description": pkg.description || "",
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -167,17 +167,17 @@ class Packages extends Component {
         const jsonData = XLSX.utils.sheet_to_json(sheet);
 
         const formatted = jsonData.map((row) => ({
-          name:            row["Name"],
-          package_type:    row["Package Type"],
-          duration_unit:   row["Duration unit"],
-          duration_value:  row["Duration value"],
-          price:           row["Price"],
-          currency:        row["Currency"],
+          name: row["Name"],
+          package_type: row["Package Type"],
+          duration_unit: row["Duration unit"],
+          duration_value: row["Duration value"],
+          price: row["Price"],
+          currency: row["Currency"],
           candidate_limit: row["Candidate limit"] === "Unlimited" ? null : row["Candidate limit"] || null,
-          interview_slots: row["Interview slots"] === "Unlimited" ? null : row["Interview slots"] || null,
-          location_scope:  row[ "Location Slots"],
-          is_featured:     row["Is featured"] === "Yes" ? 1 : 0,
-          description:     row["Description"] || null,
+          // interview_slots: row["Interview slots"] === "Unlimited" ? null : row["Interview slots"] || null,
+          location_scope: row["Location Slots"],
+          is_featured: row["Is featured"] === "Yes" ? 1 : 0,
+          description: row["Description"] || null,
         }));
 
         await api.post(`${this.apiBaseUrl}packages/`, { type: "csv", data: formatted });
@@ -235,11 +235,12 @@ class Packages extends Component {
 
   validateForm = () => {
     const { FormData, selectedCurrency } = this.state;
+    const isRegistration = FormData.package_type === "registration";
     let errors = {};
-    if (!FormData.duration_value) errors.duration_value = "Duration value is required";
-    if (!FormData.duration_unit)  errors.duration_unit  = "Duration unit is required";
-    if (!FormData.price)          errors.price          = "Price is required";
-    if (!selectedCurrency)        errors.currency       = "Currency is required";
+    if (!isRegistration && !FormData.duration_value) errors.duration_value = "Duration value is required";
+    if (!isRegistration && !FormData.duration_unit) errors.duration_unit = "Duration unit is required";
+    if (!FormData.price) errors.price = "Price is required";
+    if (!selectedCurrency) errors.currency = "Currency is required";
     this.setState({ errors });
     return Object.keys(errors).length === 0;
   };
@@ -250,16 +251,16 @@ class Packages extends Component {
         showModal: true,
         editId: item.id,
         FormData: {
-          name:            item.name,
-          duration_value:  item.duration_value,
-          duration_unit:   item.duration_unit,
-          price:           item.price,
-          description:     item.description || "",
+          name: item.name,
+          duration_value: item.duration_value,
+          duration_unit: item.duration_unit,
+          price: item.price,
+          description: item.description || "",
           candidate_limit: item.candidate_limit ?? "",
-          interview_slots: item.interview_slots ?? "",
-          location_scope:  item.location_scope,
-          package_type:    item.package_type || "",
-          is_featured:     item.is_featured === 1,
+          // interview_slots: item.interview_slots ?? "",
+          location_scope: item.location_scope,
+          package_type: item.package_type || "",
+          is_featured: item.is_featured === 1,
         },
         selectedCurrency: { label: item.currency, value: item.currency_id },
         errors: {},
@@ -270,7 +271,7 @@ class Packages extends Component {
         editId: null,
         FormData: {
           name: "", duration_value: "", duration_unit: "", price: "",
-          description: "", candidate_limit: "", interview_slots: "", location_scope: "", package_type: "", is_featured: false,
+          description: "", candidate_limit: "", location_scope: "", package_type: "", is_featured: false,
         },
         selectedCurrency: null,
         errors: {},
@@ -281,20 +282,21 @@ class Packages extends Component {
   handleSubmit = async () => {
     if (!this.validateForm()) return;
     const { editId, FormData, selectedCurrency } = this.state;
+    const isRegistration = FormData.package_type === "registration";
 
     const payload = {
-      name:            FormData.name,
-      duration_value:  FormData.duration_value,
-      duration_unit:   FormData.duration_unit,
-      price:           FormData.price,
-      currency_id:     selectedCurrency.value,
-      description:     FormData.description || null,
+      name: FormData.name,
+      duration_value: isRegistration ? null : FormData.duration_value,
+      duration_unit: isRegistration ? null : FormData.duration_unit,
+      price: FormData.price,
+      currency_id: selectedCurrency.value,
+      description: FormData.description || null,
       // Send null for unlimited (empty string → null)
       candidate_limit: FormData.candidate_limit !== "" ? Number(FormData.candidate_limit) : null,
-      interview_slots: FormData.interview_slots !== "" ? Number(FormData.interview_slots) : null,
-      location_scope:  FormData.location_scope,
-      package_type:    FormData.package_type,
-      is_featured:     FormData.is_featured ? 1 : 0,
+      // interview_slots: FormData.interview_slots !== "" ? Number(FormData.interview_slots) : null,
+      location_scope: FormData.location_scope,
+      package_type: FormData.package_type,
+      is_featured: FormData.is_featured ? 1 : 0,
     };
 
     try {
@@ -307,7 +309,7 @@ class Packages extends Component {
       this.fetchPackages();
       this.setState({
         showModal: false, editId: null,
-        FormData: { name: "", duration_value: "", duration_unit: "", price: "", description: "", candidate_limit: "", interview_slots: "", location_scope: "", package_type: "", is_featured: false },
+        FormData: { name: "", duration_value: "", duration_unit: "", price: "", description: "", candidate_limit: "", location_scope: "", package_type: "", is_featured: false },
         selectedCurrency: null, errors: {},
         successMessage: editId ? "Package updated successfully!" : "Package added successfully!",
       });
@@ -347,6 +349,7 @@ class Packages extends Component {
       errors, selectedCurrency, FormData,
     } = this.state;
     const totalPages = Math.ceil(totalPackages / this.itemsPerPage);
+    const isRegistration = FormData.package_type === "registration";
 
     return (
       <React.Fragment>
@@ -404,12 +407,12 @@ class Packages extends Component {
                       <tr>
                         {/* Existing columns */}
                         {[
-                          { label: "Name",           id: "name",           type: "text"},
-                          { label: "Package Type",   id: "package_type",   type: "text"},
-                          { label: "Price",          id: "price",          type: "number" },
-                          { label: "Duration Unit",  id: "duration_unit",  type: "text"   },
-                          { label: "Duration Value", id: "duration_value", type: "text"   },
-                          { label: "Currency",       id: "currency",       type: "text"   },
+                          { label: "Name", id: "name", type: "text" },
+                          { label: "Package Type", id: "package_type", type: "text" },
+                          { label: "Price", id: "price", type: "number" },
+                          { label: "Duration Unit", id: "duration_unit", type: "text" },
+                          { label: "Duration Value", id: "duration_value", type: "text" },
+                          { label: "Currency", id: "currency", type: "text" },
                         ].map(({ label, id, type }) => (
                           <th key={id} className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
                             <div className="d-flex flex-column align-items-center gap-1">
@@ -424,9 +427,9 @@ class Packages extends Component {
                         <th className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
                           <small className="text-dark fw-bold" style={{ fontSize: "1rem" }}>Candidates</small>
                         </th>
-                        <th className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
+                        {/* <th className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
                           <small className="text-dark fw-bold" style={{ fontSize: "1rem" }}>Interviews</small>
-                        </th>
+                        </th> */}
                         <th className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
                           <small className="text-dark fw-bold" style={{ fontSize: "1rem" }}>Location Slot</small>
                         </th>
@@ -475,11 +478,11 @@ class Packages extends Component {
                               {this.formatLimit(item.candidate_limit)}
                             </span>
                           </td>
-                          <td className="text-center">
+                          {/* <td className="text-center">
                             <span className="badge bg-light text-dark border">
                               {this.formatLimit(item.interview_slots)}
                             </span>
-                          </td>
+                          </td> */}
                           <td className="text-center">
                             <span className="badge bg-light text-dark border">
                               {this.formatLimit(item.location_scope)}
@@ -529,171 +532,175 @@ class Packages extends Component {
           <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={this.handlePageChange} />
 
           {/* Add / Edit Modal */}
-       <Modal show={showModal} onHide={() => this.setState({ showModal: false })} centered size="lg">
-  <Modal.Header closeButton style={{ background: "#f8fafc" }}>
-    <Modal.Title style={{ fontSize: "1.2rem", fontWeight: 600 }}>
-      {editId ? "Edit Package" : "Add New Package"}
-    </Modal.Title>
-  </Modal.Header>
+          <Modal show={showModal} onHide={() => this.setState({ showModal: false })} centered size="lg">
+            <Modal.Header closeButton style={{ background: "#f8fafc" }}>
+              <Modal.Title style={{ fontSize: "1.2rem", fontWeight: 600 }}>
+                {editId ? "Edit Package" : "Add New Package"}
+              </Modal.Title>
+            </Modal.Header>
 
-  <Modal.Body style={{ padding: "2rem" }}>
-    <Row>
+            <Modal.Body style={{ padding: "2rem" }}>
+              <Row>
 
-      {/* ── Step 1: Pick type first ── */}
-      <Col md={12}>
-        <div className="mb-3">
-          <label className="form-label fw-semibold">Package Type <span className="text-danger">*</span></label>
-          <select
-            name="package_type"
-            value={FormData.package_type}
-            onChange={this.handleInputChange}
-            className="form-select"
-          >
-            <option value="">Select type first</option>
-            <option value="company">Company — for posting jobs</option>
-            <option value="candidate">Candidate — for boosting profile</option>
-          </select>
-          <small className="text-muted">
-            {FormData.package_type === "candidate"
-              ? "Candidate buys this to boost their profile visibility"
-              : FormData.package_type === "company"
-              ? "Company buys this to post a job and view matched candidates"
-              : "Select a type to continue"}
-          </small>
-        </div>
-      </Col>
+                {/* ── Step 1: Pick type first ── */}
+                <Col md={12}>
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold">Package Type <span className="text-danger">*</span></label>
+                    <select
+                      name="package_type"
+                      value={FormData.package_type}
+                      onChange={this.handleInputChange}
+                      className="form-select"
+                    >
+                      <option value="">Select type first</option>
+                      <option value="registration">Company Registration</option>
+                      <option value="company">Company — for posting jobs</option>
+                      <option value="candidate">Candidate — for boosting profile</option>
+                    </select>
+                    <small className="text-muted">
+                      {FormData.package_type === "candidate"
+                        ? "Candidate buys this to boost their profile visibility"
+                        : FormData.package_type === "company"
+                          ? "Company buys this to post a job and view matched candidates"
+                          : FormData.package_type === "registration"
+                            ? "Company must purchase this package to register on the platform"
+                            : "Select a type to continue"}
+                    </small>
+                  </div>
+                </Col>
 
-      {/* ── Rest of fields only show after type is selected ── */}
-      {FormData.package_type && (
-        <>
-          <Col md={6}>
-            <div className="mb-3">
-              <label className="form-label fw-semibold">Name <span className="text-danger">*</span></label>
-              <input type="text" name="name" value={FormData.name}
-                className={`form-control ${errors.name ? "is-invalid" : ""}`}
-                onChange={this.handleInputChange} placeholder="e.g., Basic, Standard, Premium" />
-              {errors.name && <div className="text-danger small mt-1">{errors.name}</div>}
-            </div>
-          </Col>
+                {/* ── Rest of fields only show after type is selected ── */}
+                {FormData.package_type && (
+                  <>
+                    {/* Name — all types */}
+                    <Col md={6}>
+                      <div className="mb-3">
+                        <label className="form-label fw-semibold">Name</label>
+                        <input type="text" name="name" value={FormData.name}
+                          className={`form-control ${errors.name ? "is-invalid" : ""}`}
+                          onChange={this.handleInputChange} placeholder="e.g., Basic, Standard, Premium" />
+                        {errors.name && <div className="text-danger small mt-1">{errors.name}</div>}
+                      </div>
+                    </Col>
 
-          <Col md={6}>
-            <div className="mb-3">
-              <label className="form-label fw-semibold">Duration Value <span className="text-danger">*</span></label>
-              <input type="number" name="duration_value" value={FormData.duration_value}
-                className={`form-control ${errors.duration_value ? "is-invalid" : ""}`}
-                onChange={this.handleInputChange} placeholder="e.g., 7, 15, 30" />
-              {errors.duration_value && <div className="text-danger small mt-1">{errors.duration_value}</div>}
-            </div>
-          </Col>
+                    {/* Duration fields — hidden for registration */}
+                    {!isRegistration && (
+                      <>
+                        <Col md={6}>
+                          <div className="mb-3">
+                            <label className="form-label fw-semibold">Duration Value <span className="text-danger">*</span></label>
+                            <input type="number" name="duration_value" value={FormData.duration_value}
+                              className={`form-control ${errors.duration_value ? "is-invalid" : ""}`}
+                              onChange={this.handleInputChange} placeholder="e.g., 7, 15, 30" />
+                            {errors.duration_value && <div className="text-danger small mt-1">{errors.duration_value}</div>}
+                          </div>
+                        </Col>
 
-          <Col md={6}>
-            <div className="mb-3">
-              <label className="form-label fw-semibold">Duration Unit <span className="text-danger">*</span></label>
-              <select name="duration_unit" value={FormData.duration_unit} onChange={this.handleInputChange}
-                className={`form-select ${errors.duration_unit ? "is-invalid" : ""}`}>
-                <option value="">Select Unit</option>
-                <option value="Hours">Hours</option>
-                <option value="Days">Days</option>
-                <option value="Weeks">Weeks</option>
-                <option value="Months">Months</option>
-                <option value="Years">Years</option>
-              </select>
-              {errors.duration_unit && <div className="text-danger small mt-1">{errors.duration_unit}</div>}
-            </div>
-          </Col>
+                        <Col md={6}>
+                          <div className="mb-3">
+                            <label className="form-label fw-semibold">Duration Unit <span className="text-danger">*</span></label>
+                            <select name="duration_unit" value={FormData.duration_unit} onChange={this.handleInputChange}
+                              className={`form-select ${errors.duration_unit ? "is-invalid" : ""}`}>
+                              <option value="">Select Unit</option>
+                              <option value="Hours">Hours</option>
+                              <option value="Days">Days</option>
+                              <option value="Weeks">Weeks</option>
+                              <option value="Months">Months</option>
+                              <option value="Years">Years</option>
+                            </select>
+                            {errors.duration_unit && <div className="text-danger small mt-1">{errors.duration_unit}</div>}
+                          </div>
+                        </Col>
+                      </>
+                    )}
 
-          <Col md={6}>
-            <div className="mb-3">
-              <label className="form-label fw-semibold">Price <span className="text-danger">*</span></label>
-              <input type="number" name="price" value={FormData.price}
-                className={`form-control ${errors.price ? "is-invalid" : ""}`}
-                onChange={this.handleInputChange} placeholder="e.g., 2000, 6000" />
-              {errors.price && <div className="text-danger small mt-1">{errors.price}</div>}
-            </div>
-          </Col>
+                    {/* Price — all types */}
+                    <Col md={6}>
+                      <div className="mb-3">
+                        <label className="form-label fw-semibold">Price <span className="text-danger">*</span></label>
+                        <input type="number" name="price" value={FormData.price}
+                          className={`form-control ${errors.price ? "is-invalid" : ""}`}
+                          onChange={this.handleInputChange} placeholder="e.g., 2000, 6000" />
+                        {errors.price && <div className="text-danger small mt-1">{errors.price}</div>}
+                      </div>
+                    </Col>
 
-          <Col md={6}>
-            <div className="mb-3">
-              <label className="form-label fw-semibold">Currency <span className="text-danger">*</span></label>
-              <AsyncSelect cacheOptions defaultOptions loadOptions={this.loadCurrencies}
-                value={selectedCurrency} onChange={this.handleCurrencyChange}
-                placeholder="Select Currency" classNamePrefix="react-select" />
-              {errors.currency && <div className="text-danger small mt-1">{errors.currency}</div>}
-            </div>
-          </Col>
+                    {/* Currency — all types */}
+                    <Col md={6}>
+                      <div className="mb-3">
+                        <label className="form-label fw-semibold">Currency <span className="text-danger">*</span></label>
+                        <AsyncSelect cacheOptions defaultOptions loadOptions={this.loadCurrencies}
+                          value={selectedCurrency} onChange={this.handleCurrencyChange}
+                          placeholder="Select Currency" classNamePrefix="react-select" />
+                        {errors.currency && <div className="text-danger small mt-1">{errors.currency}</div>}
+                      </div>
+                    </Col>
 
-          {/* ── Company-only fields ── */}
-          {FormData.package_type === "company" && (
-            <>
-              <Col md={6}>
-                <div className="mb-3">
-                  <label className="form-label fw-semibold">Candidate Limit</label>
-                  <input type="number" name="candidate_limit" value={FormData.candidate_limit}
-                    className="form-control" onChange={this.handleInputChange}
-                    placeholder="Leave empty for unlimited" min="1" />
-                  <small className="text-muted">How many matched candidates the company can view</small>
-                </div>
-              </Col>
+                    {/* Company-only fields */}
+                    {FormData.package_type === "company" && (
+                      <>
+                        <Col md={6}>
+                          <div className="mb-3">
+                            <label className="form-label fw-semibold">Candidate Limit</label>
+                            <input type="number" name="candidate_limit" value={FormData.candidate_limit}
+                              className="form-control" onChange={this.handleInputChange}
+                              placeholder="Leave empty for unlimited" min="1" />
+                            <small className="text-muted">How many matched candidates the company can view</small>
+                          </div>
+                        </Col>
 
-              <Col md={6}>
-                <div className="mb-3">
-                  <label className="form-label fw-semibold">Shortlist Limit</label>
-                  <input type="number" name="interview_slots" value={FormData.interview_slots}
-                    className="form-control" onChange={this.handleInputChange}
-                    placeholder="Leave empty for unlimited" min="1" />
-                  <small className="text-muted">How many candidates the company can shortlist</small>
-                </div>
-              </Col>
+                        <Col md={6}>
+                          <div className="mb-3">
+                            <label className="form-label fw-semibold">Location Scope</label>
+                            <select name="location_scope" value={FormData.location_scope}
+                              onChange={this.handleInputChange} className="form-select">
+                              <option value="city">Job city only</option>
+                              <option value="all">All cities</option>
+                            </select>
+                            <small className="text-muted">Match candidates from the job's city only, or nationwide</small>
+                          </div>
+                        </Col>
+                      </>
+                    )}
 
-              <Col md={6}>
-                <div className="mb-3">
-                  <label className="form-label fw-semibold">Location Scope</label>
-                  <select name="location_scope" value={FormData.location_scope}
-                    onChange={this.handleInputChange} className="form-select">
-                    <option value="city">Job city only</option>
-                    <option value="all">All cities</option>
-                  </select>
-                  <small className="text-muted">Match candidates from the job's city only, or nationwide</small>
-                </div>
-              </Col>
-            </>
-          )}
+                    {/* Description — all types */}
+                    <Col md={12}>
+                      <div className="mb-3">
+                        <label className="form-label fw-semibold">Description <span className="text-muted">(Optional)</span></label>
+                        <textarea name="description" value={FormData.description} onChange={this.handleInputChange}
+                          className="form-control" rows="3"
+                          placeholder={"Enter one feature per line:\nHighlighted in search results\nEmail alerts to candidates"} />
+                        <small className="text-muted">Each line becomes a bullet point on the pricing card</small>
+                      </div>
+                    </Col>
 
-          <Col md={12}>
-            <div className="mb-3">
-              <label className="form-label fw-semibold">Description <span className="text-muted">(Optional)</span></label>
-              <textarea name="description" value={FormData.description} onChange={this.handleInputChange}
-                className="form-control" rows="3"
-                placeholder={"Enter one feature per line:\nHighlighted in search results\nEmail alerts to candidates"} />
-              <small className="text-muted">Each line becomes a bullet point on the pricing card</small>
-            </div>
-          </Col>
+                    {/* Featured checkbox — hidden for registration */}
+                    {!isRegistration && (
+                      <Col md={12}>
+                        <div className="mb-3 d-flex align-items-center gap-3 p-3 rounded" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                          <input type="checkbox" name="is_featured" id="is_featured" checked={FormData.is_featured}
+                            onChange={this.handleInputChange} className="form-check-input" style={{ width: 20, height: 20 }} />
+                          <div>
+                            <label htmlFor="is_featured" className="form-label fw-semibold mb-0" style={{ cursor: "pointer" }}>
+                              Mark as "Most Popular"
+                            </label>
+                            <p className="text-muted small mb-0">This plan will be highlighted with a blue border and "Most popular" badge on the pricing page</p>
+                          </div>
+                        </div>
+                      </Col>
+                    )}
+                  </>
+                )}
+              </Row>
 
-          <Col md={12}>
-            <div className="mb-3 d-flex align-items-center gap-3 p-3 rounded" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-              <input type="checkbox" name="is_featured" id="is_featured" checked={FormData.is_featured}
-                onChange={this.handleInputChange} className="form-check-input" style={{ width: 20, height: 20 }} />
-              <div>
-                <label htmlFor="is_featured" className="form-label fw-semibold mb-0" style={{ cursor: "pointer" }}>
-                  Mark as "Most Popular"
-                </label>
-                <p className="text-muted small mb-0">This plan will be highlighted with a blue border and "Most popular" badge on the pricing page</p>
+              <div className="d-flex justify-content-end gap-2 mt-2">
+                <Button variant="secondary" onClick={() => this.setState({ showModal: false })}>Cancel</Button>
+                <Button variant="success" onClick={this.handleSubmit} disabled={!FormData.package_type}>
+                  {editId ? "Update Package" : "Save Package"}
+                </Button>
               </div>
-            </div>
-          </Col>
-        </>
-      )}
-
-    </Row>
-
-    <div className="d-flex justify-content-end gap-2 mt-2">
-      <Button variant="secondary" onClick={() => this.setState({ showModal: false })}>Cancel</Button>
-      <Button variant="success" onClick={this.handleSubmit} disabled={!FormData.package_type}>
-        {editId ? "Update Package" : "Save Package"}
-      </Button>
-    </div>
-  </Modal.Body>
-</Modal>
+            </Modal.Body>
+          </Modal>
 
           {/* Delete Confirmation */}
           <Modal show={showDeleteConfirm} onHide={this.cancelDelete} centered>

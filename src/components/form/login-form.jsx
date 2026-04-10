@@ -108,6 +108,7 @@ class FormContent extends Component {
       sessionStorage.setItem("accountType", res.data.accountType);
       sessionStorage.setItem("displayName", res.data.displayName);
       sessionStorage.setItem("profile_completed", res.data.profile_completed);
+      sessionStorage.setItem("has_package", res.data.has_package ? "true" : "false");
       dispatch(setUser(res.data));
       this.setState({ successMessage: "Login successfully!" });
       setTimeout(() => this.setState({ successMessage: "" }), 3000);
@@ -115,15 +116,35 @@ class FormContent extends Component {
 
       // ✅ Role-based routing
       const { accountType, profile_completed } = res.data;
+      console.log("LOGIN RESPONSE:", {
+        accountType,
+        profile_completed,
+        has_package: res.data.has_package,
+      });
 
       if (accountType === "candidate") {
         if (profile_completed) {
-          router.push("/dashboard-header"); // candidate dashboard
+          router.push("/dashboard-header");
         } else {
-          router.push("/dashboard-header"); // complete profile
+          router.push("/candidate-profile");
         }
-      } else {
-        router.push("/dashboard-header"); // other account types
+      }
+
+      else if (accountType === "employer") {
+
+        sessionStorage.setItem("has_package", res.data.has_package ? "true" : "false");
+
+        if (!profile_completed) {
+          router.push("/company-profile");
+        } else if (!res.data.has_package) {
+          router.push("/company-packages");   // ← package page
+        } else {
+          router.push("/dashboard-header");   // ← full dashboard
+        }
+      }
+
+      else {
+        router.push("/dashboard-header");
       }
 
     } catch (err) {
@@ -164,7 +185,7 @@ class FormContent extends Component {
               />
             </Alert>
           )}
-          {loginError && <Alert color="danger">{loginError}</Alert>}
+          {/* {loginError && <Alert color="danger">{loginError}</Alert>} */}
 
           {/* Email */}
           <FormGroup>

@@ -221,8 +221,9 @@ const login = (req, res) => {
         a.accountType,
         a.isActive,
         ci.profile_completed,
-        ci.full_name,
-        comp.company_name
+        comp.company_name,
+        comp.profile_completed AS company_profile_completed,
+        comp.has_package
       FROM account a
       LEFT JOIN candidate_info ci ON a.id = ci.account_id
       LEFT JOIN company_info comp ON a.id = comp.account_id
@@ -276,13 +277,25 @@ const login = (req, res) => {
       }
 
       // Admin or Employer login
-      if (user.accountType === "employer" || adminTypes.includes(user.accountType)) {
+      if (user.accountType === "employer") {
         return res.json({
           success: true,
           token,
           userId: user.id,
-          displayName,      // ✅ use displayName here
-          username: user.username,
+          displayName,
+          accountType: user.accountType,
+          isActive: isActiveNormalized,
+          profile_completed: !!user.company_profile_completed,
+          has_package: !!user.has_package
+        });
+      }
+
+      if (user.accountType === "db_admin" || user.accountType === "reg_admin") {
+        return res.json({
+          success: true,
+          token,
+          userId: user.id,
+          displayName: user.username,
           accountType: user.accountType,
           isActive: isActiveNormalized,
         });

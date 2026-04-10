@@ -2,7 +2,6 @@
 import React, { Component } from "react";
 import { Modal, ModalHeader, ModalBody, ModalFooter, Form, FormGroup, Label, Input, Button } from "reactstrap";
 import axios from "axios";
-// import { toast } from "react-toastify";
 
 class Payment extends Component {
 
@@ -37,7 +36,6 @@ class Payment extends Component {
     this.setState({ userId });
     this.getCurrencies();
     
-    // Set amount and currency from props
     const { amount, currency } = this.props;
     if (amount && currency) {
       this.setState(prev => ({
@@ -51,7 +49,6 @@ class Payment extends Component {
   }
 
   componentDidUpdate(prevProps) {
-    // Update amount and currency if props change
     if (prevProps.amount !== this.props.amount || prevProps.currency !== this.props.currency) {
       const { amount, currency } = this.props;
       if (amount && currency) {
@@ -84,20 +81,15 @@ class Payment extends Component {
         ...prev.paymentData,
         [name]: value,
       },
+      // ✅ ADD: type karne par us field ka error clear ho
+      errors: { ...prev.errors, [name]: "" },
     }));
   };
 
   validate = () => {
     const { paymentData } = this.state;
     const errors = {};
-    const {
-      cardNumber,
-      cardHolder,
-      expiry,
-      cvv,
-      amount,
-      currency,
-    } = paymentData;
+    const { cardNumber, cardHolder, expiry, cvv, amount, currency } = paymentData;
 
     if (!/^\d{16}$/.test(cardNumber)) {
       errors.cardNumber = "Card number must be 16 digits";
@@ -138,32 +130,53 @@ class Payment extends Component {
   handlePayment = async () => {
     if (!this.validate()) return;
 
-    const { packageId, jobId, onPaymentSuccess } = this.props;
+    // ✅ ADD: isRegistration prop bhi lo
+    const { packageId, jobId, onPaymentSuccess, isRegistration } = this.props;
 
     try {
       this.setState({ loading: true });
 
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}payment/addpayment/${this.state.userId}`,
-        {
-          ...this.state.paymentData,
-          packageId,
-          jobId
-        }
-      );
-
-      console.log("Payment successful");
+      // ✅ ADD: isRegistration true ho to naya endpoint, warna purana
+      if (isRegistration) {
+        await axios.post(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}payment/registration/${this.state.userId}`,
+          {
+            ...this.state.paymentData,
+            packageId,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+            },
+          }
+        );
+      } else {
+        await axios.post(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}payment/addpayment/${this.state.userId}`,
+          {
+            ...this.state.paymentData,
+            packageId,
+            jobId,
+          }
+        );
+      }
 
       // Close modal
       this.props.toggle();
 
-      // Close pricing + redirect
       if (onPaymentSuccess) {
         onPaymentSuccess();
       }
+
     } catch (err) {
       console.error("Payment error:", err.response?.data || err.message);
-      console.error("Payment failed: " + (err.response?.data?.message || err.message));
+      // ✅ ADD: error screen par dikhao
+      this.setState((prev) => ({
+        errors: {
+          ...prev.errors,
+          general: err.response?.data?.message || "Payment failed. Try again.",
+        },
+      }));
     } finally {
       this.setState({ loading: false });
     }
@@ -173,15 +186,18 @@ class Payment extends Component {
     const { isOpen, toggle } = this.props;
     const { paymentData, loading, errors, currencies } = this.state;
 
-    
     return (
-      
       <Modal isOpen={isOpen} toggle={toggle} centered>
         <ModalHeader toggle={toggle}>
           Payment Details
         </ModalHeader>
 
         <ModalBody>
+          {/* ✅ ADD: General error alert */}
+          {errors.general && (
+            <div className="alert alert-danger">{errors.general}</div>
+          )}
+
           <Form>
             <FormGroup>
               <Label>Card Number</Label>
@@ -199,9 +215,9 @@ class Payment extends Component {
 
             <FormGroup>
               <Label>Card Holder</Label>
-              <Input 
-                name="cardHolder" 
-                value={paymentData.cardHolder} 
+              <Input
+                name="cardHolder"
+                value={paymentData.cardHolder}
                 onChange={this.handleChange}
                 placeholder="Enter Card Holder Name"
               />
@@ -224,10 +240,10 @@ class Payment extends Component {
 
             <FormGroup>
               <Label>CVV</Label>
-              <Input 
-                type="password" 
-                name="cvv" 
-                value={paymentData.cvv} 
+              <Input
+                type="password"
+                name="cvv"
+                value={paymentData.cvv}
                 onChange={this.handleChange}
                 placeholder="123"
                 maxLength="4"
@@ -237,10 +253,10 @@ class Payment extends Component {
 
             <FormGroup>
               <Label>Amount</Label>
-              <Input 
-                type="number" 
-                name="amount" 
-                value={paymentData.amount} 
+              <Input
+                type="number"
+                name="amount"
+                value={paymentData.amount}
                 onChange={this.handleChange}
                 readOnly
                 style={{ backgroundColor: '#f0f0f0' }}

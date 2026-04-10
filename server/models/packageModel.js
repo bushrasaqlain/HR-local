@@ -7,14 +7,14 @@ const createPackagesTable = () => {
       id             INT AUTO_INCREMENT PRIMARY KEY,
       name           VARCHAR(255) NULL,
       price          VARCHAR(255) NOT NULL,
-      duration_unit  VARCHAR(20)  NOT NULL,
-      duration_value VARCHAR(255) NOT NULL,
+      duration_unit  VARCHAR(20) NULL,
+      duration_value VARCHAR(255) NULL,
       currency       VARCHAR(50)  NOT NULL,
       currency_id    INT          NOT NULL,
       candidate_limit INT         DEFAULT NULL COMMENT 'NULL = unlimited, company only',
       interview_slots INT         DEFAULT NULL COMMENT 'NULL = unlimited, company only',
       location_scope ENUM('city','all') DEFAULT 'city' COMMENT 'company only',
-      package_type   ENUM('company','candidate') DEFAULT 'company',
+      package_type   ENUM('company','candidate','registration') DEFAULT 'company',
       is_featured    TINYINT      DEFAULT 0,
       description    TEXT         NULL,
       status         ENUM('Active','Inactive') DEFAULT 'Active',
@@ -40,19 +40,19 @@ const getAllPackages = (
   const offset = (page - 1) * limit;
 
   const columnMap = {
-    name:           "p.name",
-    price:          "p.price",
+    name: "p.name",
+    price: "p.price",
     duration_value: "p.duration_value",
-    duration_unit:  "p.duration_unit",
-    currency:       "c.code",
-    created_at:     "p.created_at",
-    updated_at:     "p.updated_at",
-    status:         "p.status",
+    duration_unit: "p.duration_unit",
+    currency: "c.code",
+    created_at: "p.created_at",
+    updated_at: "p.updated_at",
+    status: "p.status",
   };
 
-  if (name === "amount")   name = "price";
+  if (name === "amount") name = "price";
   if (name === "duration") name = "duration_value";
-  if (!columnMap[name])    name = "price";
+  if (!columnMap[name]) name = "price";
 
   let query = `
     SELECT p.*, c.id AS currency_id, c.code AS currency
@@ -63,8 +63,8 @@ const getAllPackages = (
   let values = [];
 
   if (status !== "all") { query += ` AND p.status = ?`; values.push(status); }
-// ✅ Add after status filter
-  if (package_type && ["company", "candidate"].includes(package_type)) {
+  // ✅ Add after status filter
+  if (package_type && ["company", "candidate", "registration"].includes(package_type)) {
     query += ` AND p.package_type = ?`;
     values.push(package_type);
   }
@@ -105,10 +105,10 @@ const getAllPackages = (
         countValues.push(`%${search}%`);
       }
     }
-  if (package_type && ["company", "candidate"].includes(package_type)) {
-    countQuery += ` AND p.package_type = ?`;
-    countValues.push(package_type);
-  }
+    if (package_type && ["company", "candidate", "registration"].includes(package_type)) {
+      countQuery += ` AND p.package_type = ?`;
+      countValues.push(package_type);
+    }
     connection.query(countQuery, countValues, (err2, countResult) => {
       if (err2) return callback(err2);
       callback(null, { total: countResult[0].total, page, limit, packages: results });
@@ -141,11 +141,13 @@ const validateByType = (body) => {
   const { package_type, duration_unit, duration_value, price, currency_id } = body;
   const errors = [];
 
-  if (!package_type || !["company", "candidate"].includes(package_type)) {
-    errors.push("package_type must be 'company' or 'candidate'");
+  if (!package_type || !["company", "candidate", "registration"].includes(package_type)) {
+    errors.push("package_type must be 'company' or 'candidate' or 'registration'");
   }
-  if (!duration_unit) errors.push("duration_unit is required");
-  if (!duration_value) errors.push("duration_value is required");
+  if (package_type !== "registration") {
+    if (!duration_unit) errors.push("duration_unit is required");
+    if (!duration_value) errors.push("duration_value is required");
+  }
   if (!price) errors.push("price is required");
   if (!currency_id) errors.push("currency_id is required");
 
@@ -164,21 +166,22 @@ const buildPayload = (body, currencyCode) => {
   } = body;
 
   const isCompany = package_type === "company";
+  const isRegistration = package_type === "registration";
 
   return {
-    name:            name || null,
-    duration_unit,
-    duration_value,
+    name: name || null,
+    duration_unit: isRegistration ? null : duration_unit,
+    duration_value: isRegistration ? null : duration_value,
     price,
-    currency:        currencyCode,
+    currency: currencyCode,
     currency_id,
-    description:     description || null,
+    description: description || null,
     package_type,
-    is_featured:     is_featured ? 1 : 0,
+    is_featured: is_featured ? 1 : 0,
     // company-only fields: send null for candidate packages
     candidate_limit: isCompany && candidate_limit ? Number(candidate_limit) : null,
-    interview_slots: isCompany && interview_slots  ? Number(interview_slots)  : null,
-    location_scope:  isCompany ? (location_scope || "city") : null,
+    interview_slots: isCompany && interview_slots ? Number(interview_slots) : null,
+    location_scope: isCompany ? (location_scope || "city") : null,
   };
 };
 
@@ -198,13 +201,16 @@ const addPackage = (req, res) => {
     getCurrencyMap()
       .then((currencyMap) => {
         const packages = data.map((row) => {
-          const unit        = row.duration_unit?.trim();
-          const value       = Number(row.duration_value);
-          const rowPrice    = Number(row.price);
+          const unit = row.duration_unit?.trim();
+          const value = Number(row.duration_value);
+          const rowPrice = Number(row.price);
           const currencyTxt = row.currency?.toLowerCase()?.trim();
-          const cur_id      = currencyMap[currencyTxt];
-          const pkgType     = ["company", "candidate"].includes(row.package_type) ? row.package_type : "company";
-          const isCompany   = pkgType === "company";
+          const cur_id = currencyMap[currencyTxt];
+          const pkgType = ["company", "candidate", "registration"].includes(row.package_type)
+            ? row.package_type
+            : "company";
+          const isCompany = pkgType === "company";
+          const isRegistration = pkgType === "registration";
 
           if (!unit || !value || !rowPrice || !cur_id) return null;
 
@@ -219,7 +225,7 @@ const addPackage = (req, res) => {
             pkgType,
             row.is_featured === "Yes" ? 1 : 0,
             isCompany && row.candidate_limit ? Number(row.candidate_limit) : null,
-            isCompany && row.interview_slots  ? Number(row.interview_slots)  : null,
+            isCompany && row.interview_slots ? Number(row.interview_slots) : null,
             isCompany ? (row.location_scope || "city") : null,
           ];
         }).filter(Boolean);
