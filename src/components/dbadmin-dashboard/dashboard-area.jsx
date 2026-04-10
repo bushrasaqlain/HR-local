@@ -14,7 +14,8 @@ import Packages from "./packages.jsx";
 import LicenseType from "./licensetypes.jsx";
 import Institute from "./institute.jsx";
 import Bank from "./bank.jsx";
-import ChangePasswordForm from "../form/changepassword/changepasswordform.jsx"
+import ChangePasswordForm from "../form/changepassword/changepasswordform.jsx";
+import JobTitle from "./jobtitles.jsx";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useSelector } from "react-redux";
@@ -61,6 +62,8 @@ const DashboardArea = ({ activeTab }) => {
         return <BusinessEntityTypes />;
       case "jobtypes":
         return <Jobtype />;
+      case "jobtitles":
+        return <JobTitle />;
       case "packages":
         return <Packages />;
       case "licensetypes":

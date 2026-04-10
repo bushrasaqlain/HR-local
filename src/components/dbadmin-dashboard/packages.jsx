@@ -26,7 +26,7 @@ class Packages extends Component {
         price: "",
         description: "",
         candidate_limit: "",
-        interview_slots: "",
+        // interview_slots: "",
         location_scope: "",
         package_type: "",
         is_featured: false,
@@ -134,7 +134,7 @@ class Packages extends Component {
       "Price":            pkg.price,
       "Currency":         pkg.currency,
       "Candidate limit":  pkg.candidate_limit ?? "Unlimited",
-      "Interview slots":  pkg.interview_slots ?? "Unlimited",
+      // "Interview slots":  pkg.interview_slots ?? "Unlimited",
       "Location Slots":   pkg.location_scope,
       "Is featured":      pkg.is_featured ? "Yes" : "No",
       "Description":      pkg.description || "",
@@ -174,7 +174,7 @@ class Packages extends Component {
           price:           row["Price"],
           currency:        row["Currency"],
           candidate_limit: row["Candidate limit"] === "Unlimited" ? null : row["Candidate limit"] || null,
-          interview_slots: row["Interview slots"] === "Unlimited" ? null : row["Interview slots"] || null,
+          // interview_slots: row["Interview slots"] === "Unlimited" ? null : row["Interview slots"] || null,
           location_scope:  row[ "Location Slots"],
           is_featured:     row["Is featured"] === "Yes" ? 1 : 0,
           description:     row["Description"] || null,
@@ -256,7 +256,7 @@ class Packages extends Component {
           price:           item.price,
           description:     item.description || "",
           candidate_limit: item.candidate_limit ?? "",
-          interview_slots: item.interview_slots ?? "",
+          // interview_slots: item.interview_slots ?? "",
           location_scope:  item.location_scope,
           package_type:    item.package_type || "",
           is_featured:     item.is_featured === 1,
@@ -270,7 +270,7 @@ class Packages extends Component {
         editId: null,
         FormData: {
           name: "", duration_value: "", duration_unit: "", price: "",
-          description: "", candidate_limit: "", interview_slots: "", location_scope: "", package_type: "", is_featured: false,
+          description: "", candidate_limit: "", location_scope: "", package_type: "", is_featured: false,
         },
         selectedCurrency: null,
         errors: {},
@@ -291,7 +291,7 @@ class Packages extends Component {
       description:     FormData.description || null,
       // Send null for unlimited (empty string → null)
       candidate_limit: FormData.candidate_limit !== "" ? Number(FormData.candidate_limit) : null,
-      interview_slots: FormData.interview_slots !== "" ? Number(FormData.interview_slots) : null,
+      // interview_slots: FormData.interview_slots !== "" ? Number(FormData.interview_slots) : null,
       location_scope:  FormData.location_scope,
       package_type:    FormData.package_type,
       is_featured:     FormData.is_featured ? 1 : 0,
@@ -307,7 +307,7 @@ class Packages extends Component {
       this.fetchPackages();
       this.setState({
         showModal: false, editId: null,
-        FormData: { name: "", duration_value: "", duration_unit: "", price: "", description: "", candidate_limit: "", interview_slots: "", location_scope: "", package_type: "", is_featured: false },
+        FormData: { name: "", duration_value: "", duration_unit: "", price: "", description: "", candidate_limit: "",  location_scope: "", package_type: "", is_featured: false },
         selectedCurrency: null, errors: {},
         successMessage: editId ? "Package updated successfully!" : "Package added successfully!",
       });
@@ -424,9 +424,9 @@ class Packages extends Component {
                         <th className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
                           <small className="text-dark fw-bold" style={{ fontSize: "1rem" }}>Candidates</small>
                         </th>
-                        <th className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
+                        {/* <th className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
                           <small className="text-dark fw-bold" style={{ fontSize: "1rem" }}>Interviews</small>
-                        </th>
+                        </th> */}
                         <th className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
                           <small className="text-dark fw-bold" style={{ fontSize: "1rem" }}>Location Slot</small>
                         </th>
@@ -475,11 +475,11 @@ class Packages extends Component {
                               {this.formatLimit(item.candidate_limit)}
                             </span>
                           </td>
-                          <td className="text-center">
+                          {/* <td className="text-center">
                             <span className="badge bg-light text-dark border">
                               {this.formatLimit(item.interview_slots)}
                             </span>
-                          </td>
+                          </td> */}
                           <td className="text-center">
                             <span className="badge bg-light text-dark border">
                               {this.formatLimit(item.location_scope)}
@@ -635,7 +635,7 @@ class Packages extends Component {
                 </div>
               </Col>
 
-              <Col md={6}>
+              {/* <Col md={6}>
                 <div className="mb-3">
                   <label className="form-label fw-semibold">Shortlist Limit</label>
                   <input type="number" name="interview_slots" value={FormData.interview_slots}
@@ -643,7 +643,7 @@ class Packages extends Component {
                     placeholder="Leave empty for unlimited" min="1" />
                   <small className="text-muted">How many candidates the company can shortlist</small>
                 </div>
-              </Col>
+              </Col> */}
 
               <Col md={6}>
                 <div className="mb-3">

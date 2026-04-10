@@ -54,6 +54,7 @@ const emplyeeModel = require("../models/companyModel");
 const historyModel = require("../models/historyModel")
 const applicantModel = require("../models/applicantModel")
 const jobModel = require("../models/jobModel")
+const jobtitleModel = require("../models/jobtitleModel")
 const messageModel = require("../models/messageModel")
 const licensetypesModel=require("../models/licensetypesModel")
 const specialityModel=require("../models/specialityModel")
@@ -102,6 +103,7 @@ currency.createCurrenciesTable();
   applicantModel.createCandidateSearchImpressionsTable();
   historyModel.createHistoryTable();
   messageModel.createMessagesTable();
+  jobtitleModel.createJobTitlesTable();
   candidateeducationModel.createEducationTable();
   candidateexperience.createExperienceTable();
   candidateAvailabilityModel.createCandidateAvailabilityTable();

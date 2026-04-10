@@ -25,7 +25,7 @@ class ApplicantCard extends React.Component {
         <div className="d-flex flex-row align-items-center gap-2">
           <Button
             size="sm"
-            className="custom-progress-bar"
+            className="custom-progress-bar text-white"
             onClick={() => {
               if (isHired) {
                 const confirmed = window.confirm(

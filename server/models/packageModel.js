@@ -12,7 +12,7 @@ const createPackagesTable = () => {
       currency       VARCHAR(50)  NOT NULL,
       currency_id    INT          NOT NULL,
       candidate_limit INT         DEFAULT NULL COMMENT 'NULL = unlimited, company only',
-      interview_slots INT         DEFAULT NULL COMMENT 'NULL = unlimited, company only',
+      // interview_slots INT         DEFAULT NULL COMMENT 'NULL = unlimited, company only',
       location_scope ENUM('city','all') DEFAULT 'city' COMMENT 'company only',
       package_type   ENUM('company','candidate') DEFAULT 'company',
       is_featured    TINYINT      DEFAULT 0,
@@ -160,7 +160,7 @@ const buildPayload = (body, currencyCode) => {
     name, duration_unit, duration_value, price, currency_id,
     description, package_type, is_featured,
     // company-only
-    candidate_limit, interview_slots, location_scope,
+    // candidate_limit, interview_slots, location_scope,
   } = body;
 
   const isCompany = package_type === "company";
@@ -177,7 +177,7 @@ const buildPayload = (body, currencyCode) => {
     is_featured:     is_featured ? 1 : 0,
     // company-only fields: send null for candidate packages
     candidate_limit: isCompany && candidate_limit ? Number(candidate_limit) : null,
-    interview_slots: isCompany && interview_slots  ? Number(interview_slots)  : null,
+    // interview_slots: isCompany && interview_slots  ? Number(interview_slots)  : null,
     location_scope:  isCompany ? (location_scope || "city") : null,
   };
 };
@@ -219,7 +219,7 @@ const addPackage = (req, res) => {
             pkgType,
             row.is_featured === "Yes" ? 1 : 0,
             isCompany && row.candidate_limit ? Number(row.candidate_limit) : null,
-            isCompany && row.interview_slots  ? Number(row.interview_slots)  : null,
+            // isCompany && row.interview_slots  ? Number(row.interview_slots)  : null,
             isCompany ? (row.location_scope || "city") : null,
           ];
         }).filter(Boolean);
@@ -232,7 +232,7 @@ const addPackage = (req, res) => {
           INSERT INTO packages
             (name, duration_unit, duration_value, price, currency, currency_id,
              description, package_type, is_featured,
-             candidate_limit, interview_slots, location_scope)
+             candidate_limit, location_scope)
           VALUES ?
         `;
 
@@ -285,8 +285,8 @@ const addPackage = (req, res) => {
           INSERT INTO packages
             (name, duration_unit, duration_value, price, currency, currency_id,
              description, package_type, is_featured,
-             candidate_limit, interview_slots, location_scope)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             candidate_limit, location_scope)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         connection.query(
@@ -295,7 +295,7 @@ const addPackage = (req, res) => {
             p.name, p.duration_unit, p.duration_value, p.price,
             p.currency, p.currency_id, p.description,
             p.package_type, p.is_featured,
-            p.candidate_limit, p.interview_slots, p.location_scope,
+            p.candidate_limit, p.location_scope,
           ],
           (err2, insertRes) => {
             if (err2) return res.status(500).json({ error: "Database error", details: err2.message });
@@ -342,7 +342,7 @@ const editPackage = (req, res) => {
         SET name = ?, duration_unit = ?, duration_value = ?, price = ?,
             currency = ?, currency_id = ?, description = ?,
             package_type = ?, is_featured = ?,
-            candidate_limit = ?, interview_slots = ?, location_scope = ?
+            // candidate_limit = ?, interview_slots = ?, location_scope = ?
         WHERE id = ?
       `;
 
@@ -352,7 +352,7 @@ const editPackage = (req, res) => {
           p.name, p.duration_unit, p.duration_value, p.price,
           p.currency, p.currency_id, p.description,
           p.package_type, p.is_featured,
-          p.candidate_limit, p.interview_slots, p.location_scope,
+          p.candidate_limit, p.location_scope,
           id,
         ],
         (err2) => {
@@ -471,7 +471,7 @@ const getPackageDetail = (req, res) => {
     SELECT pay.account_id AS company_id,
       jp.id AS job_id, jp.job_title, jp.status AS job_status, jp.created_at AS job_date,
       p.id AS package_id, p.price AS package_price, p.package_type,
-      p.candidate_limit, p.interview_slots, p.location_scope,
+      p.candidate_limit, p.location_scope,
       cur.code AS package_currency, p.duration_unit, p.duration_value,
       pay.payment_status
     FROM payment pay

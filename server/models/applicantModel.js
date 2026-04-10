@@ -89,7 +89,7 @@ const getAllApplicants = async (req, res) => {
     if (!job) return res.status(404).json({ error: "Job not found" });
 
     // ── Guard: only run matching for company packages ──
-    if (job.package_type && job.package_type !== "company") {
+    if (job.package_type && job.package_type.toLowerCase() !== "company") {
       return res.status(400).json({
         error: "This job is not linked to a company package",
       });
@@ -238,7 +238,7 @@ const getAllApplicants = async (req, res) => {
      ORDER BY 
         CASE WHEN c.is_boosted = 1 AND c.boost_expires_at > NOW() THEN 0 ELSE 1 END ASC,
         a.id DESC
-      LIMIT ? OFFSET ?;
+      LIMIT ? OFFSET ?
     `;
 
     const candidatesRaw = await new Promise((resolve, reject) => {
@@ -247,6 +247,7 @@ const getAllApplicants = async (req, res) => {
         [
           jobId, jobId, jobId, jobId, jobId,
           jobId, jobId, jobId, jobId, jobId,
+          jobId,
           ...values,
           limit,
           offset,

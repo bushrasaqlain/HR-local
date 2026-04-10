@@ -51,6 +51,7 @@ const projects = require("./routes/projectsRoutes");
 const certificateAwards = require("./routes/certificateawardRoutes");
 const jobs = require("./routes/candidatejobsRoutes")
 const dbAdminHistory = require("./routes/dbHistoryRoutes");
+const jobtitlesRoutes = require("./routes/jobtitlesRoutes");
 
 
 const candidatejobs = require("./routes/candidatejobsRoutes")
@@ -98,6 +99,7 @@ app.use("/", applicantRoute)
 app.use('/message', messages)
 app.use("/payment", paymentRoutes)
 app.use("/", dashboardRoutes);
+app.use("/", jobtitlesRoutes);
 
 
 
