@@ -20,6 +20,8 @@ const createCompanyInfoTable = () => {
   NTN VARCHAR(20),
   size_of_company INT,
   established_date VARCHAR(100),
+  profile_completed BOOLEAN DEFAULT FALSE,
+  has_package BOOLEAN DEFAULT FALSE,
   FOREIGN KEY (account_id) REFERENCES account(id),
   FOREIGN KEY (Business_entity_type_id) REFERENCES business_entity_type(id),
   FOREIGN KEY (country_id) REFERENCES countries(id),
@@ -274,6 +276,14 @@ const updateCompanyinfo = async (req, res) => {
 
     connection.query(sql, params, (err, result) => {
       if (err) return res.status(500).json({ error: err });
+
+      const markProfileComplete = `
+        UPDATE company_info 
+        SET profile_completed = TRUE 
+        WHERE account_id = ?
+      `;
+
+      connection.query(markProfileComplete, [accountId]);
 
       // update account table if needed
       if (username || email) {
@@ -543,6 +553,31 @@ const getAllCompaniesList = (req, res) => {
   });
 };
 
+const getCompanyPackageStatus = (req, res) => {
+  const accountId = parseInt(req.params.userId);
+
+  if (!Number.isInteger(accountId)) {
+    return res.status(400).json({ error: "Invalid userId" });
+  }
+
+  const sql = `
+    SELECT has_package, profile_completed 
+    FROM company_info 
+    WHERE account_id = ?
+    LIMIT 1
+  `;
+
+  connection.query(sql, [accountId], (err, results) => {
+    if (err) return res.status(500).json({ error: "Database error" });
+    if (results.length === 0) return res.status(404).json({ error: "Company not found" });
+
+    return res.json({
+      has_package: !!results[0].has_package,
+      profile_completed: !!results[0].profile_completed,
+    });
+  });
+};
+
 
 
 module.exports = {
@@ -554,5 +589,6 @@ module.exports = {
   updateCompanySatus,
   getCount,
   getTopCompanies,
-  getAllCompaniesList
+  getAllCompaniesList,
+  getCompanyPackageStatus,
 };

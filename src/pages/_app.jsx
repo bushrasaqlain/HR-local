@@ -1,15 +1,13 @@
 "use client";
 import { useRouter } from "next/router";
-
 import { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { ToastContainer } from "react-toastify";
 import { Elements } from "@stripe/react-stripe-js";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { loadStripe } from "@stripe/stripe-js";
 import { Provider } from "react-redux";
 import { store } from "../redux/store";
-import { setUserFromToken } from "../redux/features/user/userSlice"; // make sure path is correct
+import { setUserFromToken } from "../redux/features/user/userSlice";
 import "../styles/index.scss";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../../public/scss/components/employer/pricing.scss";
@@ -22,12 +20,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import AOS from "aos";
 import "aos/dist/aos.css";
 
-
 if (typeof window !== "undefined") {
   require("bootstrap/dist/js/bootstrap");
 }
 
-// stripePromise
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_KEY);
 
 function AppContent({ Component, pageProps }) {
@@ -37,29 +33,45 @@ function AppContent({ Component, pageProps }) {
   const router = useRouter();
 
   useEffect(() => {
-    AOS.init({
-      duration: 1000,
-      once: true,
-      easing: "ease-in-out",
-    });
+    AOS.init({ duration: 1000, once: true, easing: "ease-in-out" });
   }, []);
 
-  // Restore user from sessionStorage
   useEffect(() => {
     const storedAccountType = sessionStorage.getItem("accountType");
     const storedUserId = sessionStorage.getItem("userId");
     if (storedAccountType && storedUserId) {
-      dispatch(setUserFromToken({
-        userId: storedUserId,
-        accountType: storedAccountType,
-      }));
+      dispatch(setUserFromToken({ userId: storedUserId, accountType: storedAccountType }));
     }
     setRestored(true);
   }, [dispatch]);
 
-  if (!restored) return null;  // ⬅️ don't render anything until restored
+  // ✅ EMPLOYER GUARD - har route change pe
+  useEffect(() => {
+    if (!restored) return;
+    if (typeof window === "undefined") return;
 
-  const role = accountType?.toLowerCase();
+    const storedAccountType = sessionStorage.getItem("accountType");
+    if (storedAccountType !== "employer") return;
+
+    const profileCompleted = sessionStorage.getItem("profile_completed") === "true";
+    const hasPackage = sessionStorage.getItem("has_package") === "true";
+    const currentPath = window.location.pathname;
+
+    if (!profileCompleted && currentPath !== "/company-profile") {
+      window.location.href = "/company-profile";
+      return;
+    }
+
+    if (profileCompleted && !hasPackage && currentPath !== "/company-packages") {
+      window.location.href = "/company-packages";
+      return;
+    }
+  }, [restored, router.pathname]);
+
+  if (!restored) return null;
+
+  const role = (accountType || sessionStorage.getItem("accountType"))?.toLowerCase();
+
   const isDashboardRoute =
     role === "db_admin" ||
     role === "reg_admin" ||
@@ -68,14 +80,26 @@ function AppContent({ Component, pageProps }) {
 
   const isHistoryPage = router.pathname.startsWith("/history");
 
+  const isProfileOrPackages =
+    router.pathname === "/company-packages" ||
+    router.pathname === "/company-profile";
+
+  console.log("APP DEBUG:", { role, isDashboardRoute, isProfileOrPackages, pathname: router.pathname });
+
   return isHistoryPage ? (
-    // ✅ Sirf navbar, no dashboard content
     <>
       <DashboardHeader key="history" headerOnly={true} />
       <Component {...pageProps} />
     </>
   ) : isDashboardRoute ? (
-    <DashboardHeader key="dashboard" />
+    isProfileOrPackages ? (
+      <>
+        <DashboardHeader key="dashboard-header-only" headerOnly={true} />
+        <Component {...pageProps} />
+      </>
+    ) : (
+      <DashboardHeader key="dashboard" />
+    )
   ) : (
     <PublicLayout key="public">
       <DefaulHeader2 />
@@ -83,6 +107,7 @@ function AppContent({ Component, pageProps }) {
     </PublicLayout>
   );
 }
+
 function MyApp({ Component, pageProps }) {
   const [queryClient] = useState(() => new QueryClient());
   const [mounted, setMounted] = useState(false);

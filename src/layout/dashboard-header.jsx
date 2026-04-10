@@ -53,20 +53,17 @@ class DashboardHeader extends Component {
     const userId = sessionStorage.getItem("userId");
     const displayName = sessionStorage.getItem("displayName") || "User";
     const accountType = sessionStorage.getItem("accountType");
-    const profileCompleted =
-      sessionStorage.getItem("profile_completed") === "true";
+    const profileCompleted = sessionStorage.getItem("profile_completed") === "true";
+    const hasPackage = sessionStorage.getItem("has_package") === "true";
+    const currentPath = window.location.pathname;
 
-    if (!accountType)
-      // optional: redirect to login
-      return;
+    if (!accountType) return;
 
+    // ✅ Pehle hamesha setState karo
     const savedTab = sessionStorage.getItem("activeTab");
-
-
-    // ✅ Set all user info at once
     this.setState({
       userInfo: { userId, displayName, accountType, profileCompleted },
-      activeTab: savedTab || (  
+      activeTab: savedTab || (
         accountType === "db_admin" ? "country"
           : accountType === "reg_admin" ? "company"
             : accountType === "employer" ? "profile"
@@ -75,6 +72,18 @@ class DashboardHeader extends Component {
                 : null
       ),
     });
+
+    // ✅ Phir sirf dashboard-header pe guard lagao
+    if (accountType === "employer" && currentPath === "/dashboard-header") {
+      if (!profileCompleted) {
+        window.location.href = "/company-profile";
+        return;
+      }
+      if (!hasPackage) {
+        window.location.href = "/company-packages";
+        return;
+      }
+    }
 
     window.addEventListener("scroll", this.changeBackground);
   }
@@ -143,6 +152,44 @@ class DashboardHeader extends Component {
     const profileCompleted = userInfo?.profileCompleted;
 
     if (!accountType) return null;
+
+    if (accountType === "employer") {
+      const hasPackage = sessionStorage.getItem("has_package") === "true";
+
+      if (!profileCompleted) {
+        // Sirf Update Profile button
+        return (
+          <NavItem key="update-profile">
+            <Button
+              color="custom-progress-bar"
+              outline
+              className="text-white border-bottom border-white border-2"
+              onClick={() => { window.location.href = "/company-profile"; }}
+            >
+              <i className="las la-user-edit me-1"></i>
+              Update Profile
+            </Button>
+          </NavItem>
+        );
+      }
+
+      if (!hasPackage) {
+        // Sirf Buy Package button
+        return (
+          <NavItem key="buy-package">
+            <Button
+              color="custom-progress-bar"
+              outline
+              className="text-white border-bottom border-white border-2"
+              onClick={() => { window.location.href = "/company-packages"; }}
+            >
+              <i className="las la-box me-1"></i>
+              Buy Package
+            </Button>
+          </NavItem>
+        );
+      }
+    }
 
     let items = [];
     if (accountType === "db_admin") items = dbadminmenuitem;
@@ -269,7 +316,8 @@ class DashboardHeader extends Component {
     const { headerOnly } = this.props;
     const { navbar, userDropdownOpen, menuDropdownOpen, activeTab, userInfo } =
       this.state;
-    const { accountType, displayName, userId } = userInfo;
+    const { accountType, displayName, userId, profileCompleted } = userInfo;
+
 
     if (!accountType) {
       return (

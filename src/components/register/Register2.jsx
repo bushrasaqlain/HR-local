@@ -12,7 +12,7 @@ const Register2 = ({ setShowNext, setUserId, setAccountType }) => {
     <Row
       className="justify-content-center align-items-center"
       style={{
-        background: "linear-gradient(135deg, #5f9ea0, #b0e0e6)",
+        background: "linear-gradient(135deg, #537785, rgb(169, 209, 214))",
         minHeight: "100vh",
       }}
     >

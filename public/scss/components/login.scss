@@ -218,7 +218,7 @@ Login Section
 .login-section {
   height: 100vh;
   overflow: hidden;
-  background: linear-gradient(135deg, #5f9ea0, #b0e0e6);
+  background: linear-gradient(135deg, #537785, rgb(169, 209, 214));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -576,4 +576,11 @@ Login Section
 
 .signup:hover {
   text-decoration: none;
+}
+
+.bottom-text {
+  margin-top: 40px;
+  padding-bottom: 20px;
+  text-align: center;
+  color: #424242;
 }
