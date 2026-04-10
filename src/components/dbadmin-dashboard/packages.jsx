@@ -649,56 +649,43 @@ class Packages extends Component {
                           </div>
                         </Col>
 
-                        <Col md={6}>
+
+                        {/* Description — all types */}
+                        <Col md={12}>
                           <div className="mb-3">
-                            <label className="form-label fw-semibold">Location Scope</label>
-                            <select name="location_scope" value={FormData.location_scope}
-                              onChange={this.handleInputChange} className="form-select">
-                              <option value="city">Job city only</option>
-                              <option value="all">All cities</option>
-                            </select>
-                            <small className="text-muted">Match candidates from the job's city only, or nationwide</small>
+                            <label className="form-label fw-semibold">Description <span className="text-muted">(Optional)</span></label>
+                            <textarea name="description" value={FormData.description} onChange={this.handleInputChange}
+                              className="form-control" rows="3"
+                              placeholder={"Enter one feature per line:\nHighlighted in search results\nEmail alerts to candidates"} />
+                            <small className="text-muted">Each line becomes a bullet point on the pricing card</small>
                           </div>
                         </Col>
+
+                        {/* Featured checkbox — hidden for registration */}
+                        {!isRegistration && (
+                          <Col md={12}>
+                            <div className="mb-3 d-flex align-items-center gap-3 p-3 rounded" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                              <input type="checkbox" name="is_featured" id="is_featured" checked={FormData.is_featured}
+                                onChange={this.handleInputChange} className="form-check-input" style={{ width: 20, height: 20 }} />
+                              <div>
+                                <label htmlFor="is_featured" className="form-label fw-semibold mb-0" style={{ cursor: "pointer" }}>
+                                  Mark as "Most Popular"
+                                </label>
+                                <p className="text-muted small mb-0">This plan will be highlighted with a blue border and "Most popular" badge on the pricing page</p>
+                              </div>
+                            </div>
+                          </Col>
+                        )}
                       </>
                     )}
-
-                    {/* Description — all types */}
-                    <Col md={12}>
-                      <div className="mb-3">
-                        <label className="form-label fw-semibold">Description <span className="text-muted">(Optional)</span></label>
-                        <textarea name="description" value={FormData.description} onChange={this.handleInputChange}
-                          className="form-control" rows="3"
-                          placeholder={"Enter one feature per line:\nHighlighted in search results\nEmail alerts to candidates"} />
-                        <small className="text-muted">Each line becomes a bullet point on the pricing card</small>
-                      </div>
-                    </Col>
-
-                    {/* Featured checkbox — hidden for registration */}
-                    {!isRegistration && (
-                      <Col md={12}>
-                        <div className="mb-3 d-flex align-items-center gap-3 p-3 rounded" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                          <input type="checkbox" name="is_featured" id="is_featured" checked={FormData.is_featured}
-                            onChange={this.handleInputChange} className="form-check-input" style={{ width: 20, height: 20 }} />
-                          <div>
-                            <label htmlFor="is_featured" className="form-label fw-semibold mb-0" style={{ cursor: "pointer" }}>
-                              Mark as "Most Popular"
-                            </label>
-                            <p className="text-muted small mb-0">This plan will be highlighted with a blue border and "Most popular" badge on the pricing page</p>
-                          </div>
-                        </div>
-                      </Col>
-                    )}
-                  </>
-                )}
+                  </>)}
+                <div className="d-flex justify-content-end gap-2 mt-2">
+                  <Button variant="secondary" onClick={() => this.setState({ showModal: false })}>Cancel</Button>
+                  <Button variant="success" onClick={this.handleSubmit} disabled={!FormData.package_type}>
+                    {editId ? "Update Package" : "Save Package"}
+                  </Button>
+                </div>
               </Row>
-
-              <div className="d-flex justify-content-end gap-2 mt-2">
-                <Button variant="secondary" onClick={() => this.setState({ showModal: false })}>Cancel</Button>
-                <Button variant="success" onClick={this.handleSubmit} disabled={!FormData.package_type}>
-                  {editId ? "Update Package" : "Save Package"}
-                </Button>
-              </div>
             </Modal.Body>
           </Modal>
 

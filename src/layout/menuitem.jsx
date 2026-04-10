@@ -46,6 +46,7 @@ export const dbadminmenuitem = [
     children: [
       { key: "businessentitytypes", label: "Business Entities" },
       { key: "jobtypes", label: "Job Types" },
+      { key: "jobtitles", label: "Job Titles"},
       { key: "packages", label: "Packages" },
       { key: "licensetypes", label: "License Types" },
     ],

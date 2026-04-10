@@ -89,7 +89,7 @@ const getAllApplicants = async (req, res) => {
     if (!job) return res.status(404).json({ error: "Job not found" });
 
     // ── Guard: only run matching for company packages ──
-    if (job.package_type && job.package_type !== "company") {
+    if (job.package_type && job.package_type.toLowerCase() !== "company") {
       return res.status(400).json({
         error: "This job is not linked to a company package",
       });
