@@ -22,6 +22,7 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 import DetailModal from "../common/DetailModal";
 import HistoryModal from "../common/HistoryModal";
 import Head from "next/head";
+import { withRouter } from "next/router";
 class CompanyData extends Component {
   constructor(props) {
     super(props);
@@ -350,7 +351,7 @@ class CompanyData extends Component {
 
                                   {/* History */}
                                   <button
-                                    onClick={() => this.getHistory(item.account_id)}
+                                     onClick={() => this.props.router.push(`/history1/employer/${item.account_id}`)}
                                     className="icon-btn"
                                     title="View History"
                                   >
@@ -467,4 +468,4 @@ class CompanyData extends Component {
   }
 }
 
-export default CompanyData;
+export default withRouter(CompanyData);

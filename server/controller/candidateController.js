@@ -1,5 +1,6 @@
 
 const candidateModel = require("../models/candidateModel");
+const { get } = require("../routes/accountRoutes");
 
 
 const addCandidateInfo = (req, res) => {
@@ -86,6 +87,20 @@ const rejectBoost = (req, res) => {
 const getCandidatesForJob = (req, res) => {
     candidateModel.getCandidatesForJob(req, res);
 };
+const getMatchingJobsForCandidate = (req, res) => {
+  candidateModel.getMatchingJobsForCandidate(req, res);
+};
+const getAllCandidatesForEmployer = (req, res) => {
+  candidateModel.getAllCandidatesForEmployer(req, res);
+};
+const parseCVAndSave = (req, res) => {
+    const resumeFile = req.file;
+    if (!resumeFile) {
+        return res.status(400).json({ error: "No CV file uploaded" });
+    }
+    req.cvFile = resumeFile;
+    candidateModel.parseCVAndSave(req, res);
+};
 
 module.exports = {
     getAllCandidates,
@@ -107,4 +122,7 @@ module.exports = {
     activateBoost,
     rejectBoost,
     getCandidatesForJob,
+    getMatchingJobsForCandidate,
+    getAllCandidatesForEmployer,
+    parseCVAndSave,
 }

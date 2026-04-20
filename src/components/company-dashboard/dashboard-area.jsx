@@ -15,12 +15,13 @@ import TopCardBlock from "./dashboard/TopCardBlock.jsx";
 import ShortlistedCandidates from "./shortlistedcandidates.jsx";
 import ApprovedCandidates from "./approved.jsx";
 import PricingForm2 from "./viewpackage.jsx";
+import AvailableCandidates from "./Available Candidates.jsx";
 
 const CompanyDashboardArea = ({ activeTab, onTabChange, jobListFilterStatus }) => {
     const router = useRouter();
     const [userInfo, setUserInfo] = useState({ userId: null, token: null });
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-    
+
     useEffect(() => {
         if (typeof window !== "undefined") {
             const userId = sessionStorage.getItem("userId");
@@ -59,7 +60,7 @@ const CompanyDashboardArea = ({ activeTab, onTabChange, jobListFilterStatus }) =
         };
 
         if (userInfo.userId) {
-           // fetchUserPackageStatus();
+            // fetchUserPackageStatus();
         }
     }, [userInfo.userId]);
 
@@ -88,6 +89,8 @@ const CompanyDashboardArea = ({ activeTab, onTabChange, jobListFilterStatus }) =
                 return <ShortlistedCandidates />;
             case "approved":
                 return <ApprovedCandidates />;
+            case "availableCandidates":
+                return <AvailableCandidates onTabChange={onTabChange} />;
             case "chatBox":
                 return <ChatBox />;
 
@@ -103,11 +106,11 @@ const CompanyDashboardArea = ({ activeTab, onTabChange, jobListFilterStatus }) =
         <section className="user-dashboard py-2 my-4">
             <div className="container">
                 {/* Add TopCardBlock here - it will hide itself when not on profile tab */}
-                <TopCardBlock 
-                    onTabChange={onTabChange} 
-                    activeTab={activeTab} 
+                <TopCardBlock
+                    onTabChange={onTabChange}
+                    activeTab={activeTab}
                 />
-                
+
                 <div className="profile__tab-content p-3">{renderContent()}</div>
             </div>
         </section>

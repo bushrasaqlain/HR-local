@@ -310,7 +310,7 @@ const updateCompanyinfo = async (req, res) => {
         entityType: "employer",
         entityId: accountId,
         action: "UPDATED",
-        data: { ...req.body },
+        data: { event: "Company profile updated", company_name, city_id, country_id },
         changedBy: accountId,
       });
 

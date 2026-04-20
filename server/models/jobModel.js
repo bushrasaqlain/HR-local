@@ -350,7 +350,7 @@ const getJobbyRegAdmin = (req, res) => {
 
 
 const updateJobPostStatus = (req, res) => {
-  const { id, status, userId } = req.params; // add userId here
+  const { id, status, userId } = req.params;
 
   if (!id || !status || !userId) {
     return res.status(400).json({
@@ -362,7 +362,16 @@ const updateJobPostStatus = (req, res) => {
   const isActiveStatus = normalizedStatus === "Active" || normalizedStatus === "Inactive";
   const columnToUpdate = isActiveStatus ? "status" : "approval_status";
 
-  // Get previous value
+  // ✅ Action decide karo status ke hisaab se
+  let auditAction;
+  if (normalizedStatus === "Active") {
+    auditAction = "ACTIVE";
+  } else if (normalizedStatus === "Inactive") {
+    auditAction = "INACTIVE";
+  } else {
+    auditAction = "UPDATED";
+  }
+
   const selectSql = `SELECT ${columnToUpdate} FROM job_posts WHERE id = ?`;
 
   connection.query(selectSql, [id], (selectErr, rows) => {
@@ -371,19 +380,24 @@ const updateJobPostStatus = (req, res) => {
 
     const previousValue = rows[0][columnToUpdate];
 
-    // Update job post
     const updateSql = `UPDATE job_posts SET ${columnToUpdate} = ? WHERE id = ?`;
     connection.query(updateSql, [normalizedStatus, id], (err, result) => {
       if (err) return res.status(500).json({ error: "Internal Server Error" });
 
-      // Log history
+      // ✅ Sahi action pass karo
       logAudit({
         tableName: "history",
         entityType: "job",
-        entityId: id, // use job id here
-        action: "UPDATED",
-        data: { previousValue, normalizedStatus },
-        changedBy: userId, // now defined
+        entityId: id,
+        action: auditAction,  // ACTIVE / INACTIVE / UPDATED
+        data: {
+          previousValue,
+          newValue: normalizedStatus,
+          event: normalizedStatus === "Active" ? "Job activated" :
+            normalizedStatus === "Inactive" ? "Job deactivated" :
+              `Approval status changed to ${normalizedStatus}`
+        },
+        changedBy: userId,
       });
 
       return res.status(200).json({
@@ -392,7 +406,6 @@ const updateJobPostStatus = (req, res) => {
     });
   });
 };
-
 
 
 const getSingleJob = (req, res) => {
@@ -601,6 +614,15 @@ const postJob = (req, res) => {
         changedBy: userId,
       });
 
+      logAudit({
+        tableName: "history",
+        entityType: "employer",
+        entityId: userId,
+        action: "UPDATED",
+        data: { event: "Job posted", job_title, job_id: result.insertId },
+        changedBy: userId,
+      });
+
       return res.status(201).json({ message: "job post created successfully", job_id: result.insertId });
     }
   })
@@ -725,6 +747,14 @@ const updatePostJob = (req, res) => {
         city_id,
         status: "Active"
       },
+      changedBy: userId,
+    });
+    logAudit({
+      tableName: "history",
+      entityType: "employer",
+      entityId: userId,
+      action: "UPDATED",
+      data: { event: "Job updated", job_title, job_id: jobId },
       changedBy: userId,
     });
 

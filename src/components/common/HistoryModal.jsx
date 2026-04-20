@@ -1,158 +1,122 @@
 import React from "react";
 import { Modal, ModalHeader, ModalBody } from "reactstrap";
 
-const HistoryModal = ({ isOpen, toggle, historyData }) => {
-  const renderValue = (value) => {
-    if (value === null || value === undefined) return "-";
+const badgeConfig = {
+  ADDED: { label: "Added", cls: "badge-added", dot: "dot-added", sym: "+" },
+  UPDATED: { label: "Updated", cls: "badge-updated", dot: "dot-updated", sym: "↻" },
+  ACTIVE: { label: "Active", cls: "badge-active", dot: "dot-active", sym: "✓" },
+  INACTIVE: { label: "Inactive", cls: "badge-inactive", dot: "dot-inactive", sym: "✕" },
+};
 
-    if (Array.isArray(value)) return value.join(", ");
+const formatKey = (key) =>
+  key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 
-    if (typeof value === "object") {
-      if (value.name) return value.name;
-      if (value.title) return value.title;
-      return JSON.stringify(value);
-    }
+const renderValue = (value) => {
+  if (value === null || value === undefined) return "-";
+  if (Array.isArray(value)) return value.join(", ");
+  if (typeof value === "object") {
+    if (value.name) return value.name;
+    if (value.title) return value.title;
+    return JSON.stringify(value);
+  }
+  return String(value);
+};
 
-    return value;
-  };
-
-
+const HistoryModal = ({ isOpen, toggle, historyData = [] }) => {
   return (
     <Modal isOpen={isOpen} toggle={toggle} size="lg" centered>
       <ModalHeader toggle={toggle} className="custom-modal-header">
         History
       </ModalHeader>
 
-      <ModalBody
-        style={{
-          maxHeight: "70vh",
-          overflowY: "auto",
-          backgroundColor: "#f1f3f5",
-        }}
-      >
+      <ModalBody style={{ maxHeight: "70vh", overflowY: "auto", backgroundColor: "#f8fafc", padding: "20px" }}>
+        <style>{`
+          .htimeline { position: relative; padding-left: 32px; }
+          .htimeline::before { content: ''; position: absolute; left: 11px; top: 0; bottom: 0; width: 1.5px; background: #e2e8f0; }
+          .hitem { position: relative; margin-bottom: 18px; }
+          .hitem:last-child { margin-bottom: 0; }
+          .hdot { position: absolute; left: -32px; top: 14px; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; border: 2px solid #f8fafc; }
+          .dot-added    { background: #ede9fe; color: #5b21b6; }
+          .dot-updated  { background: #dbeafe; color: #1e40af; }
+          .dot-active   { background: #d1fae5; color: #065f46; }
+          .dot-inactive { background: #fee2e2; color: #991b1b; }
+          .hcard { background: #ffffff; border: 0.5px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
+          .hcard-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+          .hbadge { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 20px; }
+          .badge-added    { background: #ede9fe; color: #5b21b6; }
+          .badge-updated  { background: #dbeafe; color: #1e40af; }
+          .badge-active   { background: #d1fae5; color: #065f46; }
+          .badge-inactive { background: #fee2e2; color: #991b1b; }
+          .htime { font-size: 11px; color: #94a3b8; }
+          .hby { font-size: 12px; color: #64748b; margin-bottom: 8px; }
+          .hby strong { color: #1e293b; }
+          .hdata { border-top: 0.5px solid #e2e8f0; padding-top: 10px; display: grid; grid-template-columns: 130px 1fr; row-gap: 6px; column-gap: 12px; margin-top: 8px; }
+          .hdata-label { font-size: 12px; color: #64748b; font-weight: 500; }
+          .hdata-label-title { font-size: 12px; color: #10b981; font-weight: 600; grid-column: 1 / -1; margin-bottom: 2px; }
+          .hdata-val { font-size: 12px; color: #1e293b; font-weight: 500; word-break: break-word; }
+        `}</style>
+
         {historyData.length > 0 ? (
-          historyData.map((item, index) => (
-            <div
-              key={index}
-              style={{
-                background: "#ffffff",
-                borderRadius: "10px",
-                padding: "16px",
-                marginBottom: "14px",
-                boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-              }}
-            >
-              {/* Header */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: "10px",
-                }}
-              >
-                <span style={{ fontWeight: "600", color: "#3f5f66" }}>
-                  {item.action}
-                </span>
-                <span style={{ fontSize: "12px", color: "#6c757d" }}>
-                  {new Date(item.changed_at).toLocaleString()}
-                </span>
-              </div>
+          <div className="htimeline">
+            {historyData.map((item, index) => {
+              const cfg = badgeConfig[item.action] || badgeConfig.UPDATED;
 
-              {/* Meta */}
-              <p style={{ margin: "4px 0", fontSize: "14px" }}>
-                <strong style={{color: "#2c9cf8"}}>Changed By:</strong>{" "}
-                {item.changed_by_name || item.changed_by}
-              </p>
+              const dataEntries = item.data
+                ? Object.entries(item.data).filter(
+                  ([k, v]) => k !== "logo" && v !== null && v !== undefined && v !== ""
+                )
+                : [];
 
-              {/* Updated Data */}
-              {item.data && (
-                <div
-                  style={{
-                    marginTop: "10px",
-                    paddingTop: "10px",
-                    borderTop: "1px solid #dee2e6",
-                  }}
-                >
-                  <strong style={{ fontSize: "14px", color: "green" }}>Updated Data</strong>
+              return (
+                <div className="hitem" key={index}>
+                  <div className={`hdot ${cfg.dot}`}>{cfg.sym}</div>
+                  <div className="hcard">
 
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "160px 1fr",
-                      rowGap: "6px",
-                      columnGap: "12px",
-                      marginTop: "8px",
-                    }}
-                  >
-                    {Object.keys(item.data).length === 1 && item.data.field
-                      ? Object.entries({
-                        [item.data.field]: item.data.new,
-                      }).map(([key, value]) => (
-                        <React.Fragment key={key}>
-                          <div
-                            style={{
-                              fontWeight: "500",
-                              fontSize: "13px",
-                              color: "#495057",
-                            }}
-                          >
-                            {formatKey(key)}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: "13px",
-                              color: "#212529",
-                              wordBreak: "break-word",
-                              overflowWrap: "anywhere",
-                              whiteSpace: "pre-wrap",
-                            }}
-                          >
-                            {value || "-"}
-                          </div>
-                        </React.Fragment>
-                      ))
-                      : Object.keys(item.data)
-                        .filter((key) => key !== "logo")
-                        .map((key) => (
-                          <React.Fragment key={key}>
-                            <div
-                              style={{
-                                fontWeight: "500",
-                                fontSize: "13px",
-                                color: "#495057",
-                              }}
-                            >
-                              {formatKey(key)}
-                            </div>
-                            <div
-                              style={{
-                                fontSize: "13px",
-                                color: "#212529",
-                                wordBreak: "break-word",
-                                overflowWrap: "anywhere",
-                                whiteSpace: "pre-wrap",
-                              }}
-                            >
-                              {renderValue(item.data[key])}
-                            </div>
-                          </React.Fragment>
-                        ))}
+                    {/* Top: badge + time */}
+                    <div className="hcard-top">
+                      <span className={`hbadge ${cfg.cls}`}>{cfg.label}</span>
+                      <span className="htime">
+                        {new Date(item.changed_at).toLocaleString()}
+                      </span>
+                    </div>
+
+                    {/* Changed by */}
+                    <div className="hby">
+                      Changed by: <strong>{item.changed_by_name || item.changed_by}</strong>
+                    </div>
+
+                    {/* Data rows */}
+                    {dataEntries.length > 0 && (
+                      <div className="hdata">
+                        <span className="hdata-label-title">Updated Data</span>
+                        {item.readable_event && (
+                          <>
+                            <span className="hdata-label">Event</span>
+                            <span className="hdata-val">{item.readable_event}</span>
+                          </>
+                        )}
+                        {dataEntries.map(([key, value]) =>
+                          key !== "event" ? (
+                            <React.Fragment key={key}>
+                              <span className="hdata-label">{formatKey(key)}</span>
+                              <span className="hdata-val">{renderValue(value)}</span>
+                            </React.Fragment>
+                          ) : null
+                        )}
+                      </div>
+                    )}
+
                   </div>
                 </div>
-              )}
-
-            </div>
-          ))
+              );
+            })}
+          </div>
         ) : (
-          <p className="text-center text-muted">No history found.</p>
+          <p className="text-center text-muted py-4">No history found.</p>
         )}
       </ModalBody>
     </Modal>
   );
 };
-
-// Helper
-const formatKey = (key) =>
-  key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 
 export default HistoryModal;

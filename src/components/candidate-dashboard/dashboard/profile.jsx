@@ -9,6 +9,11 @@ class Profile extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      matchingJobs: [],
+      applyingJobId: null,
+      applySuccess: null,
+      selectedJob: null,
+      showJobModal: false,
       passport_photo: "",
       formData: {},
       dashboardStats: {
@@ -54,9 +59,52 @@ class Profile extends Component {
     }
   };
 
+  fetchMatchingJobs = async () => {
+    try {
+      const token = sessionStorage.getItem("token");
+      const res = await api.get("/candidateProfile/matching-jobs", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      this.setState({ matchingJobs: res.data.data || [] });
+    } catch (err) {
+      console.error("Matching jobs fetch failed", err);
+    }
+  };
+
+  handleApply = async (jobId) => {
+    this.setState({ applyingJobId: jobId });
+    try {
+      const token = sessionStorage.getItem("token");
+      await api.post("/apply",
+        { job_id: jobId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      this.setState({ applySuccess: jobId });
+      this.fetchMatchingJobs(); // refresh
+      setTimeout(() => this.setState({ applySuccess: null }), 3000);
+    } catch (err) {
+      console.error("Apply failed", err);
+    }
+    this.setState({ applyingJobId: null });
+  };
+
+  handleJobClick = async (jobId) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await api.get(`/job/getSinglejob/${jobId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      this.setState({ selectedJob: res.data, showJobModal: true });
+    } catch (err) {
+      console.error("Job details fetch failed", err);
+    }
+  };
+
+
   componentDidMount() {
     this.router = require("next/router").default;
     this.fetchCandidateInfo();
+    this.fetchMatchingJobs();
   }
   handleEditProfile = () => {
     if (this.props.onEdit) this.props.onEdit();
@@ -244,19 +292,100 @@ class Profile extends Component {
                 />
               )}
 
-              {/* Matching Jobs (Read Only) */}
+              {this.state.showJobModal && (
+                <JobDetailModal
+                  job={this.state.selectedJob}
+                  onClose={() => this.setState({ showJobModal: false, selectedJob: null })}
+                />
+              )}
+
+              {/* Matching Jobs */}
               <div className="col-12">
                 <Card>
-                  <CardHeader>Jobs Matching Your Profile</CardHeader>
+                  <CardHeader>
+                    <strong>Jobs Matching Your Profile</strong>
+                    <small className="text-muted ms-2">Based on your skills</small>
+                  </CardHeader>
                   <CardBody>
-                    <p className="text-muted small">
-                      Based on your skills and experience
-                    </p>
+                    {/* ✅ Boost nahi hai toh locked message dikhao */}
+                    {!this.state.boostStatus?.isBoosted ? (
+                      <div style={{
+                        textAlign: "center", padding: "32px 20px",
+                        background: "#fffbeb", borderRadius: "10px",
+                        border: "1.5px dashed #f59e0b",
+                      }}>
+                        <div style={{ fontSize: 36, marginBottom: 12 }}>🔒</div>
+                        <div style={{ fontWeight: 600, fontSize: 15, color: "#92400e", marginBottom: 6 }}>
+                          This feature is available for Boosted Profiles
+                        </div>
+                        <div style={{ fontSize: 13, color: "#a16207", marginBottom: 16 }}>
+                          Boost your profile to unlock job matches based on your skills and apply directly from your dashboard.
+                        </div>
+                      </div>
 
-                    <ul className="list-unstyled mb-0">
-                      <li className="mb-2"></li>
-                      <li></li>
-                    </ul>
+                    ) : this.state.matchingJobs.length === 0 ? (
+                      <p className="text-muted small">
+                        No matching jobs found. Make sure your skills are updated in your profile.
+                      </p>
+
+                    ) : (
+                      <div className="d-flex flex-column gap-3">
+                        {this.state.matchingJobs.map(job => (
+                          <div key={job.id} className="d-flex align-items-center justify-content-between p-3"
+                            style={{ border: "1px solid #e5e7eb", borderRadius: "10px", cursor: "pointer" }}
+                            onClick={() => this.handleJobClick(job.id)}>
+                            <div className="d-flex align-items-center gap-3">
+                              {job.logo ? (
+                                <img
+                                  src={`data:image/png;base64,${job.logo}`}
+                                  alt={job.company_name}
+                                  style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover" }}
+                                />
+                              ) : (
+                                <div style={{
+                                  width: 40, height: 40, borderRadius: 8,
+                                  background: "#f3f4f6", display: "flex",
+                                  alignItems: "center", justifyContent: "center",
+                                  fontSize: 18, color: "#9ca3af"
+                                }}>🏢</div>
+                              )}
+                              <div>
+                                <div style={{ fontWeight: 600, fontSize: 14 }}>{job.job_title}</div>
+                                <div style={{ fontSize: 12, color: "#6b7280" }}>
+                                  {job.company_name} • {job.city_name}
+                                </div>
+                                {job.min_salary && (
+                                  <div style={{ fontSize: 12, color: "#059669" }}>
+                                    {job.currency} {job.min_salary} - {job.max_salary}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div>
+                              {job.already_applied ? (
+                                <span className="badge" style={{ background: "#d1fae5", color: "#065f46" }}>
+                                  ✓ Applied
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => this.handleApply(job.id)}
+                                  disabled={this.state.applyingJobId === job.id}
+                                  style={{
+                                    background: "#36565F", color: "#fff",
+                                    border: "none", borderRadius: 8,
+                                    padding: "8px 16px", fontSize: 13,
+                                    fontWeight: 600, cursor: "pointer",
+                                  }}
+                                >
+                                  {this.state.applyingJobId === job.id ? "Applying..." : "Apply"}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </CardBody>
                 </Card>
               </div>
@@ -346,6 +475,122 @@ class Profile extends Component {
           </div>
         </div>
       </Container>
+    );
+  }
+}
+
+class JobDetailModal extends React.Component {
+  render() {
+    const { job, onClose } = this.props;
+    if (!job) return null;
+
+    return (
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 9999, padding: "16px",
+        }}>
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            background: "#fff", borderRadius: "14px",
+            padding: "24px", width: "100%", maxWidth: "560px",
+            maxHeight: "85vh", overflowY: "auto", position: "relative",
+          }}>
+          {/* Close Button */}
+          <button onClick={onClose} style={{
+            position: "absolute", top: "16px", right: "16px",
+            background: "#fee2e2", border: "none", borderRadius: "50%",
+            width: "32px", height: "32px", cursor: "pointer",
+            color: "#991b1b", fontWeight: 700, fontSize: "16px",
+          }}>×</button>
+
+          {/* Header */}
+          <h5 style={{ marginBottom: "4px", paddingRight: "40px" }}>{job.job_title}</h5>
+          <p style={{ fontSize: "13px", color: "#6b7280", marginBottom: "16px" }}>
+            {job.speciality} • {job.city} • {job.country}
+          </p>
+
+          {/* Salary & Experience */}
+          <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
+            {job.min_salary && (
+              <span style={{
+                background: "#d1fae5", color: "#065f46",
+                borderRadius: "20px", padding: "4px 12px", fontSize: "12px", fontWeight: 600,
+              }}>
+                💰 {job.currency} {job.min_salary} - {job.max_salary}
+              </span>
+            )}
+            {job.min_experience && (
+              <span style={{
+                background: "#dbeafe", color: "#1e40af",
+                borderRadius: "20px", padding: "4px 12px", fontSize: "12px", fontWeight: 600,
+              }}>
+                🕒 {job.min_experience} - {job.max_experience} yrs exp
+              </span>
+            )}
+            {job.job_type && (
+              <span style={{
+                background: "#f3f4f6", color: "#374151",
+                borderRadius: "20px", padding: "4px 12px", fontSize: "12px", fontWeight: 600,
+              }}>
+                {job.job_type}
+              </span>
+            )}
+          </div>
+
+          {/* Skills */}
+          {job.skills && job.skills.length > 0 && (
+            <div style={{ marginBottom: "16px" }}>
+              <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "8px", color: "#374151" }}>
+                Required Skills
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {(Array.isArray(job.skills) ? job.skills : job.skills.split(",")).map((skill, i) => (
+                  <span key={i} style={{
+                    background: "#eff6ff", color: "#1d4ed8",
+                    borderRadius: "6px", padding: "3px 10px", fontSize: "12px",
+                  }}>
+                    {skill.trim()}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Description */}
+          {job.job_description && (
+            <div style={{ marginBottom: "16px" }}>
+              <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "6px", color: "#374151" }}>
+                Job Description
+              </div>
+              <p style={{ fontSize: "13px", color: "#6b7280", lineHeight: "1.6", margin: 0 }}>
+                {job.job_description}
+              </p>
+            </div>
+          )}
+
+          {/* Degree & Deadline */}
+          <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+            {job.degree && (
+              <div>
+                <span style={{ fontSize: "12px", color: "#9ca3af" }}>Degree: </span>
+                <span style={{ fontSize: "12px", fontWeight: 600 }}>{job.degree}</span>
+              </div>
+            )}
+            {job.application_deadline && (
+              <div>
+                <span style={{ fontSize: "12px", color: "#9ca3af" }}>Deadline: </span>
+                <span style={{ fontSize: "12px", fontWeight: 600 }}>
+                  {new Date(job.application_deadline).toLocaleDateString()}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     );
   }
 }

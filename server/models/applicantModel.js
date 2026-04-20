@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const connection = require("../connection");
+const logAudit = require("../utils/auditLogger");
 
 const createApplicantsTable = () => {
   const applicantsTable = `
@@ -98,6 +99,7 @@ const getAllApplicants = async (req, res) => {
     const companyId = job.account_id;
 
     // ── Build WHERE conditions ──
+    // ── Build WHERE conditions ──
     const whereConditions = [
       `a.accountType = 'candidate'`,
       `a.isActive = 'Active'`,
@@ -105,56 +107,70 @@ const getAllApplicants = async (req, res) => {
     ];
     const values = [];
 
+    // ── Match conditions (sirf un candidates ke liye jo apply nahi kiye) ──
+    const matchConditions = [];
+    const matchValues = [];
+
     if (job.min_salary && job.max_salary) {
-      whereConditions.push(`c.expected_salary BETWEEN ? AND ?`);
-      values.push(job.min_salary, job.max_salary);
+      matchConditions.push(`c.expected_salary BETWEEN ? AND ?`);
+      matchValues.push(job.min_salary, job.max_salary);
     }
 
     const minExp = parseInt(job.min_experience) || 0;
     const maxExp = parseInt(job.max_experience) || 50;
-    whereConditions.push(`CAST(c.total_experience AS UNSIGNED) BETWEEN ? AND ?`);
-    values.push(minExp, maxExp);
+    matchConditions.push(`CAST(c.total_experience AS UNSIGNED) BETWEEN ? AND ?`);
+    matchValues.push(minExp, maxExp);
 
     if (job.speciality_id) {
-      whereConditions.push(`EXISTS (
-        SELECT 1 FROM candidate_experience ce
-        WHERE ce.candidate_id = c.id AND ce.speciality_id = ?
-      )`);
-      values.push(job.speciality_id);
+      matchConditions.push(`EXISTS (
+    SELECT 1 FROM candidate_experience ce
+    WHERE ce.candidate_id = c.id AND ce.speciality_id = ?
+  )`);
+      matchValues.push(job.speciality_id);
     }
 
     if (job.skill_ids) {
       let skillArray = Array.isArray(job.skill_ids)
         ? job.skill_ids
         : JSON.parse(job.skill_ids || "[]");
-      whereConditions.push(`JSON_OVERLAPS(c.skills, CAST(? AS JSON))`);
-      values.push(JSON.stringify(skillArray));
+      matchConditions.push(`JSON_OVERLAPS(c.skills, CAST(? AS JSON))`);
+      matchValues.push(JSON.stringify(skillArray));
     }
 
     if (job.country_id) {
-      whereConditions.push(`c.country = ?`);
-      values.push(job.country_id);
+      matchConditions.push(`c.country = ?`);
+      matchValues.push(job.country_id);
     }
 
     if (job.district_id) {
-      whereConditions.push(`c.district = ?`);
-      values.push(job.district_id);
+      matchConditions.push(`c.district = ?`);
+      matchValues.push(job.district_id);
     }
 
-    // ── location_scope filter ──
-    // 'city'  → only candidates whose primary city OR preferred cities include the job's city
-    // 'all'   → no city filter, match nationwide
-    // null    → fallback to 'city' (safe default)
     const locationScope = job.location_scope || "city";
-
     if (locationScope === "city" && job.city_id) {
-      whereConditions.push(`(
-        c.city = ?
-        OR JSON_CONTAINS(c.otherPreferredCities, CAST(? AS JSON))
-      )`);
-      values.push(job.city_id, JSON.stringify(job.city_id));
+      matchConditions.push(`(
+      c.city = ?
+      OR JSON_CONTAINS(c.otherPreferredCities, CAST(? AS JSON))
+    )`);
+      matchValues.push(job.city_id, JSON.stringify(job.city_id));
     }
-    // if locationScope === 'all' → skip city filter entirely
+
+    // ── Applied candidates hamesha dikhao, baaki sirf match hone par ──
+    const matchClause = matchConditions.length > 0
+      ? matchConditions.join(" AND ")
+      : "1=1";
+
+    whereConditions.push(`(
+      EXISTS (
+        SELECT 1 FROM applications ap
+        WHERE ap.candidate_id = c.id AND ap.job_id = ?
+      )
+      OR (${matchClause})
+    )`);
+
+    values.push(jobId);          // applied check ka jobId
+    values.push(...matchValues); // baaki match conditions ki values
 
     const whereClause = `WHERE ${whereConditions.join(" AND ")}`;
 
@@ -230,7 +246,11 @@ const getAllApplicants = async (req, res) => {
           WHERE a2.candidate_id = c.id
             AND a2.status = 'Approved'
             AND a2.job_id != ?
-        ) THEN 1 ELSE 0 END AS is_hired_elsewhere
+        ) THEN 1 ELSE 0 END AS is_hired_elsewhere,
+         CASE WHEN EXISTS (
+          SELECT 1 FROM applications ap 
+          WHERE ap.candidate_id = c.id AND ap.job_id = ?
+        ) THEN 1 ELSE 0 END AS has_applied
       FROM account a
       INNER JOIN candidate_info c ON a.id = c.account_id
       LEFT JOIN license_types li ON c.license_type = li.id
@@ -247,6 +267,7 @@ const getAllApplicants = async (req, res) => {
         [
           jobId, jobId, jobId, jobId, jobId,
           jobId, jobId, jobId, jobId, jobId,
+          jobId,
           jobId,
           ...values,
           limit,
@@ -283,11 +304,11 @@ const getAllApplicants = async (req, res) => {
     ] = await Promise.all([
       candidateIds.length
         ? new Promise((resolve, reject) =>
-            connection.query(
-              `SELECT e.*, s.name AS speciality_name FROM candidate_experience e LEFT JOIN speciality s ON e.speciality_id = s.id WHERE e.candidate_id IN (?)`,
-              [candidateIds],
-              (err, res) => (err ? reject(err) : resolve(res)),
-            ))
+          connection.query(
+            `SELECT e.*, s.name AS speciality_name FROM candidate_experience e LEFT JOIN speciality s ON e.speciality_id = s.id WHERE e.candidate_id IN (?)`,
+            [candidateIds],
+            (err, res) => (err ? reject(err) : resolve(res)),
+          ))
         : [],
       candidateIds.length
         ? new Promise((resolve, reject) =>
@@ -298,33 +319,33 @@ const getAllApplicants = async (req, res) => {
                LEFT JOIN degreetypes dt ON df.degree_type_id = dt.id
                LEFT JOIN institute ins ON ed.institute_id = ins.id
                WHERE ed.candidate_id IN (?)`,
-              [candidateIds],
-              (err, res) => (err ? reject(err) : resolve(res)),
-            ))
+            [candidateIds],
+            (err, res) => (err ? reject(err) : resolve(res)),
+          ))
         : [],
       candidateIds.length
         ? new Promise((resolve, reject) =>
-            connection.query(
-              `SELECT * FROM candidate_availability WHERE candidate_id IN (?)`,
-              [candidateIds],
-              (err, res) => (err ? reject(err) : resolve(res)),
-            ))
+          connection.query(
+            `SELECT * FROM candidate_availability WHERE candidate_id IN (?)`,
+            [candidateIds],
+            (err, res) => (err ? reject(err) : resolve(res)),
+          ))
         : [],
       candidateIds.length
         ? new Promise((resolve, reject) =>
-            connection.query(
-              `SELECT * FROM candidate_certificates WHERE candidate_id IN (?) ORDER BY created_at DESC`,
-              [candidateIds],
-              (err, res) => (err ? reject(err) : resolve(res)),
-            ))
+          connection.query(
+            `SELECT * FROM candidate_certificates WHERE candidate_id IN (?) ORDER BY created_at DESC`,
+            [candidateIds],
+            (err, res) => (err ? reject(err) : resolve(res)),
+          ))
         : [],
       candidateIds.length
         ? new Promise((resolve, reject) =>
-            connection.query(
-              `SELECT * FROM candidate_research WHERE candidate_id IN (?) ORDER BY created_at DESC`,
-              [candidateIds],
-              (err, res) => (err ? reject(err) : resolve(res)),
-            ))
+          connection.query(
+            `SELECT * FROM candidate_research WHERE candidate_id IN (?) ORDER BY created_at DESC`,
+            [candidateIds],
+            (err, res) => (err ? reject(err) : resolve(res)),
+          ))
         : [],
     ]);
 
@@ -397,15 +418,16 @@ const getAllApplicants = async (req, res) => {
         candidateCityIds.push(cityId);
       });
 
-      const city_name = candidateCityIds.includes(Number(job.city_id))
-        ? cityMapObj[job.city_id] || "-"
-        : "-";
+      const city_name = cityMapObj[c.city]
+        || (candidateCityIds.length > 0 ? cityMapObj[candidateCityIds[0]] : null)
+        || "-";
 
       return {
         ...c,
         skills: c.skills.map((id) => ({ id, name: skillsMap[id] || "" })),
         city_name,
         is_boosted: !!c.is_boosted,
+        has_applied: !!c.has_applied,
         boost_expires_at: c.boost_expires_at || null,
         is_hired_elsewhere: !!c.is_hired_elsewhere,
         otherPreferredCities: (c.otherPreferredCities || []).map((city) => {
@@ -567,6 +589,32 @@ const updateApplcantStatus = (req, res) => {
 
       connection.query(updateQuery, values, (err2) => {
         if (err2) return res.status(500).json({ error: "Database error" });
+        if (status === "Shortlisted" || status === "Approved" || status === "Rejected") {
+          connection.query(
+            "SELECT account_id FROM candidate_info WHERE id = ? LIMIT 1",
+            [candidateId],
+            (err3, rows) => {
+              if (!err3 && rows.length > 0) {
+                logAudit({
+                  tableName: "history",
+                  entityType: "candidate",
+                  entityId: rows[0].account_id,
+                  action: "UPDATED",
+                  data: { event: `Status changed to ${status}`, job_id: jobId },
+                  changedBy: rows[0].account_id,
+                });
+                logAudit({
+                  tableName: "history",
+                  entityType: "employer",
+                  entityId: rows[0].account_id,
+                  action: "UPDATED",
+                  data: { event: `Candidate ${status}`, job_id: jobId, candidate_id: candidateId },
+                  changedBy: rows[0].account_id,
+                });
+              }
+            }
+          );
+        }
         res.json({ message: "Application updated successfully" });
       });
     } else {
@@ -594,9 +642,58 @@ const updateApplcantStatus = (req, res) => {
   });
 };
 
+const applyJob = (req, res) => {
+  const accountId = req.user.userId;
+  const { job_id } = req.body;
+
+  if (!job_id) {
+    return res.status(400).json({ error: "job_id is required" });
+  }
+
+  connection.query(
+    "SELECT id FROM candidate_info WHERE account_id = ? LIMIT 1",
+    [accountId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: "Database error" });
+      if (!rows.length) return res.status(404).json({ error: "Candidate not found" });
+
+      const candidateId = rows[0].id;
+
+      connection.query(
+        "SELECT id FROM applications WHERE job_id = ? AND candidate_id = ?",
+        [job_id, candidateId],
+        (err2, existing) => {
+          if (err2) return res.status(500).json({ error: "Database error" });
+          if (existing.length > 0) {
+            return res.status(409).json({ error: "Already applied" });
+          }
+
+          connection.query(
+            "INSERT INTO applications (job_id, candidate_id, status) VALUES (?, ?, 'Pending')",
+            [job_id, candidateId],
+            (err3) => {
+              if (err3) return res.status(500).json({ error: "Database error", details: err3.message });
+              logAudit({
+                tableName: "history",
+                entityType: "candidate",
+                entityId: accountId,
+                action: "UPDATED",
+                data: { event: "Applied for job", job_id },
+                changedBy: accountId,
+              });
+              res.json({ success: true, message: "Applied successfully" });
+            }
+          );
+        }
+      );
+    }
+  );
+};
+
 module.exports = {
   createApplicantsTable,
   createCandidateSearchImpressionsTable, // add this
   getAllApplicants,
   updateApplcantStatus,
+  applyJob,
 };

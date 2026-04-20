@@ -18,5 +18,6 @@ const upload = multer({
 
 router.get("/applicantsData/:userId", applicantController.getAllApplicants)
 router.post("/updatestatus", applicantController.updateApplcantStatus);
+router.post("/apply", authMiddleware, applicantController.applyJob);
 
 module.exports = router;
