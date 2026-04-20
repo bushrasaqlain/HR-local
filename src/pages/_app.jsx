@@ -55,17 +55,16 @@ function AppContent({ Component, pageProps }) {
 
     const profileCompleted = sessionStorage.getItem("profile_completed") === "true";
     const hasPackage = sessionStorage.getItem("has_package") === "true";
-    const currentPath = window.location.pathname;
-
+    const currentPath = router.pathname;
     if (!profileCompleted && currentPath !== "/company-profile") {
-      window.location.href = "/company-profile";
+      router.push("/company-profile");
       return;
     }
 
-    if (profileCompleted && !hasPackage && currentPath !== "/company-packages") {
-      window.location.href = "/company-packages";
-      return;
-    }
+    // if (profileCompleted && !hasPackage && currentPath !== "/company-packages") {
+    //   window.location.href = "/company-packages";
+    //   return;
+    // }
   }, [restored, router.pathname]);
 
   if (!restored) return null;
@@ -81,7 +80,6 @@ function AppContent({ Component, pageProps }) {
   const isHistoryPage = router.pathname.startsWith("/history");
 
   const isProfileOrPackages =
-    router.pathname === "/company-packages" ||
     router.pathname === "/company-profile";
 
   console.log("APP DEBUG:", { role, isDashboardRoute, isProfileOrPackages, pathname: router.pathname });
@@ -126,5 +124,5 @@ function MyApp({ Component, pageProps }) {
     </Provider>
   );
 }
-
+ 
 export default MyApp;

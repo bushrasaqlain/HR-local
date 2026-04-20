@@ -98,6 +98,7 @@ currency.createCurrenciesTable();
   candidateModel.addBoostColumnsToCandidateInfo();
   // candidateModel.createsaveJobsTableQuery();
   jobModel.createJobPostTable()
+  jobModel.createCompanyPackagesTable();
   paymentModel.createPaymentTable()
   applicantModel.createApplicantsTable();
   applicantModel.createCandidateSearchImpressionsTable();

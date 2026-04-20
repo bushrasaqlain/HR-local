@@ -129,19 +129,29 @@ class FormContent extends Component {
           router.push("/candidate-profile");
         }
       }
+else if (accountType === "employer") {
+  const { profile_completed, approval_status } = res.data;
 
-      else if (accountType === "employer") {
+  sessionStorage.setItem("profile_completed", profile_completed);
+  sessionStorage.setItem("approval_status", approval_status);
 
-        sessionStorage.setItem("has_package", res.data.has_package ? "true" : "false");
+  // 🧩 1. Profile incomplete → go complete it
+  if (!profile_completed) {
+    router.push("/company-profile");
+  }
 
-        if (!profile_completed) {
-          router.push("/company-profile");
-        } else if (!res.data.has_package) {
-          router.push("/company-packages");   // ← package page
-        } else {
-          router.push("/dashboard-header");   // ← full dashboard
-        }
-      }
+  // ⏳ 2. Profile completed but not approved
+  else if (approval_status !== "approved") {
+    this.setState({
+      loginError: "Your profile is under review. Please wait for admin approval."
+    });
+  }
+
+  // 🚀 3. Approved → dashboard
+  else {
+    router.push("/dashboard-header");
+  }
+}
 
       else {
         router.push("/dashboard-header");

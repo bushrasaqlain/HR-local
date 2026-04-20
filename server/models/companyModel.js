@@ -407,26 +407,53 @@ const updateCompanySatus = (id, status, userId, res) => {
 
   connection.query(query, [status, id], (err, result) => {
     if (err) {
-      console.error("Update company status error:", err);
       return res.status(500).json({ success: false, message: "Server error" });
     }
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: "Company not found" });
     }
+
+    // ✅ ONLY WHEN ACTIVATED → START TRIAL
+    if (status === "Active") {
+      const trialSql = `
+        UPDATE company_info
+        SET 
+          subscription_status = 'trial',
+          trial_start = NOW(),
+          trial_end = DATE_ADD(NOW(), INTERVAL 30 DAY)
+        WHERE account_id = ?
+      `;
+
+      connection.query(trialSql, [id]);
+    }
+
+    // ❌ If deactivated
+    if (status === "Inactive") {
+      const lockSql = `
+        UPDATE company_info
+        SET subscription_status = 'locked'
+        WHERE account_id = ?
+      `;
+
+      connection.query(lockSql, [id]);
+    }
+
     logAudit({
       tableName: "history",
       entityType: "employer",
       entityId: id,
-      action: status === "Active" ? "ACTIVE" : "INACTIVE",  // ✅ fix
+      action: status === "Active" ? "ACTIVE" : "INACTIVE",
       data: { status },
       changedBy: userId,
     });
 
-    return res.status(200).json({ success: true, message: `Company status updated to ${status}` });
+    return res.status(200).json({
+      success: true,
+      message: `Company status updated to ${status}`,
+    });
   });
 };
-
 const getCount = (req, res) => {
   const userId = req.params.userId;
 

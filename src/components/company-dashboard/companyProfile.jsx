@@ -24,6 +24,8 @@ class CompanyProfile extends Component {
         established_date: "",
         logo: "",
       },
+        showConfirmModal: false,
+  pendingSubmit: false,
       selectedCountry: null,
       selectedDistrict: null,
       selectedCity: null,
@@ -65,9 +67,9 @@ class CompanyProfile extends Component {
             account_email: data.account_email || "",
             phone: data.phone || "",
             NTN: data.NTN || "",
-            city: data.city_name || "",
-            country: data.country_name || "",
-            district: data.district_name || "",
+            city: data.city_id || "",         // ✅ ID sent to backend
+  country: data.country_id || "",   // ✅ ID sent to backend
+  district: data.district_id || "",
             size_of_company: data.size_of_company || "",
             business_type: data.Business_entity_type_id || "",
             company_address: data.company_address || "",
@@ -284,56 +286,63 @@ class CompanyProfile extends Component {
 
     return new Blob(byteArrays, { type: contentType });
   };
+handleSubmit = async (e) => {
+  e.preventDefault();
+  this.setState({ showConfirmModal: true }); // show review modal first
+};
+handleConfirmedSubmit = async () => {
+  this.setState({ showConfirmModal: false });
+  const { formData } = this.state;
+  const formDataToSend = new FormData();
 
-  handleSubmit = async (e) => {
-    e.preventDefault();
-    const { formData } = this.state;
-    const formDataToSend = new FormData();
+  if (formData.logo) {
+    const base64Data = formData.logo.split(",")[1];
+    const logoBlob = this.base64toBlob(base64Data, "image/png");
+    formDataToSend.append("logo", logoBlob, formData.logoName || "logo.png");
+  }
 
-    if (formData.logo) {
-      const base64Data = formData.logo.split(",")[1];
-      const logoBlob = this.base64toBlob(base64Data, "image/png");
-      formDataToSend.append("logo", logoBlob, formData.logoName || "");
+  // ✅ Match exact field names the API expects
+  formDataToSend.append("userId", this.userId);
+  formDataToSend.append("account_id", this.userId);
+  formDataToSend.append("username", formData.username || "");
+  formDataToSend.append("email", formData.account_email || "");  // ✅ API expects "email"
+  formDataToSend.append("company_name", formData.company_name || "");
+  formDataToSend.append("business_type", formData.business_type || "");
+  formDataToSend.append("phone", formData.phone || "");
+  formDataToSend.append("country", formData.country || "");
+  formDataToSend.append("district", formData.district || "");
+  formDataToSend.append("city", formData.city || "");
+  formDataToSend.append("company_address", formData.company_address || "");
+  formDataToSend.append("company_website", formData.company_website || "");
+  formDataToSend.append("NTN", formData.NTN || "");
+  formDataToSend.append("size_of_company", formData.size_of_company || "");
+  formDataToSend.append("established_date", formData.established_date || "");
+
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  try {
+    const response = await axios.put(
+      `${apiBaseUrl}company-info/updateCompanyinfo`,
+      formDataToSend,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    );
+
+    if (response.status === 200) {
+      sessionStorage.setItem("profile_completed", "true");
+      this.setState({ 
+        successMessage: "Profile saved! Redirecting to login...",
+        showConfirmModal: false 
+      });
+
+      setTimeout(() => {
+        sessionStorage.clear();
+        window.location.href = "/?page=login";
+      }, 2000);
     }
-
-    Object.entries(formData).forEach(([key, value]) => {
-      if (value !== undefined && key !== "logo") {
-        formDataToSend.append(key, value);
-      }
-    });
-
-    formDataToSend.append("account_id", this.userId);
-    formDataToSend.append("userId", this.userId);
-
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-    try {
-      const response = await axios.put(
-        `${apiBaseUrl}company-info/updateCompanyinfo`,
-        formDataToSend,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
-
-      if (response.status === 200) {
-        sessionStorage.setItem("profile_completed", "true");
-
-        // ✅ Sirf tab packages pe bhejo jab pehli baar package nahi liya
-        const hasPackage = sessionStorage.getItem("has_package") === "true";
-
-        this.setState({ successMessage: "Profile saved successfully!" });
-
-        setTimeout(() => {
-          if (!hasPackage) {
-            window.location.href = "/company-packages";  // pehli baar
-          } else {
-            window.location.href = "/dashboard-header";  // already package hai
-          }
-        }, 1500);
-      }
-    } catch (error) {
-      console.error(error);
-      this.setState({ successMessage: "Error saving profile. Please try again." });
-    }
-  };
+  } catch (error) {
+    console.error(error);
+    this.setState({ successMessage: "Error saving profile. Please try again." });
+  }
+};
 
   render() {
     const { formData, logoImg, successMessage, countryOptions, districtOptions, cityOptions, businesstypeOptions } =
@@ -557,6 +566,107 @@ class CompanyProfile extends Component {
             </div>
           </div>
         </div>
+{this.state.showConfirmModal && (
+  <div style={{
+    position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.6)", zIndex: 9999,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    overflowY: "auto", padding: "20px"
+  }}>
+    <div className="card p-4" style={{ maxWidth: "650px", width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
+      
+      <h5 className="mb-1">Review Your Profile</h5>
+      <p className="text-muted small mb-3">
+        Please review all details before submitting. After saving, you will be 
+        logged out and your profile will be sent for admin review.
+      </p>
+
+      {/* Logo preview */}
+      {this.state.logoImg && (
+        <div className="text-center mb-3">
+          <img 
+            src={this.state.logoImg} 
+            alt="Company Logo" 
+            style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "8px" }} 
+          />
+        </div>
+      )}
+
+      <table className="table table-sm table-bordered mb-3">
+        <tbody>
+          <tr>
+            <td style={{ width: "40%" }}><strong>Username</strong></td>
+            <td>{this.state.formData.username || <span className="text-muted">—</span>}</td>
+          </tr>
+          <tr>
+            <td><strong>Email</strong></td>
+            <td>{this.state.formData.account_email || <span className="text-muted">—</span>}</td>
+          </tr>
+          <tr>
+            <td><strong>Company Name</strong></td>
+            <td>{this.state.formData.company_name || <span className="text-muted">—</span>}</td>
+          </tr>
+          <tr>
+            <td><strong>Phone</strong></td>
+            <td>{this.state.formData.phone || <span className="text-muted">—</span>}</td>
+          </tr>
+          <tr>
+            <td><strong>NTN</strong></td>
+            <td>{this.state.formData.NTN || <span className="text-muted">—</span>}</td>
+          </tr>
+          <tr>
+            <td><strong>Company Size</strong></td>
+            <td>{this.state.formData.size_of_company || <span className="text-muted">—</span>}</td>
+          </tr>
+          <tr>
+            <td><strong>Business Type</strong></td>
+            <td>{this.state.selectedbusiness_type?.label || <span className="text-muted">—</span>}</td>
+          </tr>
+          <tr>
+            <td><strong>Website</strong></td>
+            <td>{this.state.formData.company_website || <span className="text-muted">—</span>}</td>
+          </tr>
+          <tr>
+            <td><strong>Established Date</strong></td>
+            <td>{this.state.formData.established_date || <span className="text-muted">—</span>}</td>
+          </tr>
+          <tr>
+            <td><strong>Country</strong></td>
+            <td>{this.state.selectedCountry?.label || <span className="text-muted">—</span>}</td>
+          </tr>
+          <tr>
+            <td><strong>District</strong></td>
+            <td>{this.state.selectedDistrict?.label || <span className="text-muted">—</span>}</td>
+          </tr>
+          <tr>
+            <td><strong>City</strong></td>
+            <td>{this.state.selectedCity?.label || <span className="text-muted">—</span>}</td>
+          </tr>
+          <tr>
+            <td><strong>Company Address</strong></td>
+            <td>{this.state.formData.company_address || <span className="text-muted">—</span>}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div className="d-flex gap-2 justify-content-end">
+        <Button
+          color="secondary"
+          onClick={() => this.setState({ showConfirmModal: false })}
+        >
+          ← Go Back & Edit
+        </Button>
+        <Button
+          style={{ backgroundColor: "#36565F", border: "none", color: "#fff" }}
+          onClick={this.handleConfirmedSubmit}
+        >
+          ✓ Confirm & Save
+        </Button>
+      </div>
+
+    </div>
+  </div>
+)}
       </>
 
     );

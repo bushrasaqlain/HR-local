@@ -48,20 +48,20 @@ class CompanyPricingPage extends Component {
        
         setTimeout(() => {
             const accountType = sessionStorage.getItem("accountType");
-            const has_package = sessionStorage.getItem("has_package");
+            // const has_package = sessionStorage.getItem("has_package");
 
             console.log("accountType:", accountType);
-            console.log("has_package:", has_package);
+            // console.log("has_package:", has_package);
 
             if (!accountType) {
                 window.location.href = "/";
                 return;
             }
 
-            if (has_package === "true") {
-                window.location.href = "/dashboard-header";
-                return;
-            }
+            // if (has_package === "true") {
+            //     window.location.href = "/dashboard-header";
+            //     return;
+            // }
 
             this.loadPackages();
         }, 100); 
@@ -90,7 +90,7 @@ class CompanyPricingPage extends Component {
     // ✅ Payment.jsx se success callback
     handlePaymentSuccess = () => {
         // has_package session update
-        sessionStorage.setItem("has_package", "true");
+        // sessionStorage.setItem("has_package", "true");
 
         this.setState({
             showPayment: false,
