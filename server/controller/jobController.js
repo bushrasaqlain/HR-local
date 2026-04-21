@@ -28,7 +28,9 @@ const updatePostJob = (req, res) => {
 const subcribePackage = (req, res) => {
   jobModel.subcribePackage(req, res);
 }
-
+const getUserPackages = (req, res) => {
+  jobModel.getUserPackages(req, res);
+}
 const getJobTitle=(req,res)=>{
   jobModel
   .getJobTitle(req,res);
@@ -75,5 +77,6 @@ module.exports = {
   getJobTitle,
   getTopCompanies,
   popularCategories,
-  getTotalJobPosts
+  getTotalJobPosts,
+  getUserPackages
 }

@@ -92,7 +92,7 @@ export const companymenuitem = [
       { key: "viewpackage", label: "Pricing"},
     ],
   },
-
+{ key: "wallet", label: "Wallet", type: "single"},
 
   { key: "allApplicants", label: "All Applicants", type: "single" },
   { key: "shortlistedcandidates", label: "Shortlisted", type: "single" },

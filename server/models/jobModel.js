@@ -825,7 +825,51 @@ const subcribePackage = (req, res) => {
     );
   });
 };
+const getUserPackages = (req, res) => {
+  const { userId } = req.params;
 
+  const query = `
+    SELECT 
+      cp.id as subscription_id,
+      cp.start_date,
+      cp.end_date,
+      cp.pricing_model,
+      cp.status,
+      cp.used_posts,
+      cp.used_credits,
+      cp.used_slots,
+      cp.package_snapshot
+    FROM company_packages cp
+    WHERE cp.account_id = ?
+    ORDER BY cp.id DESC
+  `;
+
+  connection.query(query, [userId], (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: "Failed to fetch packages" });
+    }
+
+    const packages = result.map(item => {
+      const pkg = typeof item.package_snapshot === "string"
+        ? JSON.parse(item.package_snapshot)
+        : item.package_snapshot;
+
+      return {
+        subscription_id: item.subscription_id,
+        start_date: item.start_date,
+        end_date: item.end_date,
+        pricing_model: item.pricing_model,
+        status: item.status,
+        used_posts: item.used_posts,
+        used_credits: item.used_credits,
+        used_slots: item.used_slots,
+        package: pkg
+      };
+    });
+
+    res.json(packages);
+  });
+};
 const getJobTitle = (req, res) => {
   const userId = req.params.userId;
 
@@ -960,6 +1004,7 @@ module.exports = {
   getJobTitle,
   getTopCompanies,
   popularCategory,
-  getTotalJobPosts
+  getTotalJobPosts,
+  getUserPackages 
 
 }
