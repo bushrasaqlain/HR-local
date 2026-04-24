@@ -10,6 +10,7 @@ class Profile extends Component {
     super(props);
     this.state = {
       matchingJobs: [],
+      searchTerm: "",
       applyingJobId: null,
       applySuccess: null,
       selectedJob: null,
@@ -124,6 +125,17 @@ class Profile extends Component {
 
   render() {
     const { dashboardStats, formData, passport_photo, boostStatus, showBoostModal } = this.state;
+    const { matchingJobs, searchTerm } = this.state;
+
+    const filteredJobs = matchingJobs.filter(job => {
+      const keyword = searchTerm.toLowerCase();
+
+      return (
+        job.job_title?.toLowerCase().includes(keyword) ||
+        job.company_name?.toLowerCase().includes(keyword) ||
+        job.city_name?.toLowerCase().includes(keyword)
+      );
+    });
 
     return (
       <Container fluid>
@@ -306,6 +318,48 @@ class Profile extends Component {
                     <strong>Jobs Matching Your Profile</strong>
                     <small className="text-muted ms-2">Based on your skills</small>
                   </CardHeader>
+                  {/* 🔍 Search Bar */}
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    background: "#f9fafb",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "10px",
+                    padding: "8px 12px",
+                    marginBottom: "16px"
+                  }}>
+                    <span style={{ color: "#9ca3af", marginRight: "8px" }}>🔍</span>
+
+                    <input
+                      type="text"
+                      placeholder="Search jobs by title, company, city..."
+                      value={this.state.searchTerm}
+                      onChange={(e) => this.setState({ searchTerm: e.target.value })}
+                      style={{
+                        border: "none",
+                        outline: "none",
+                        background: "transparent",
+                        width: "100%",
+                        fontSize: "13px",
+                        color: "#374151"
+                      }}
+                    />
+
+                    {/* ❌ Clear Button */}
+                    {this.state.searchTerm && (
+                      <span
+                        onClick={() => this.setState({ searchTerm: "" })}
+                        style={{
+                          cursor: "pointer",
+                          color: "#9ca3af",
+                          fontWeight: "bold",
+                          marginLeft: "8px"
+                        }}
+                      >
+                        ✕
+                      </span>
+                    )}
+                  </div>
                   <CardBody>
                     {/* ✅ Boost nahi hai toh locked message dikhao */}
                     {!this.state.boostStatus?.isBoosted ? (
@@ -323,14 +377,14 @@ class Profile extends Component {
                         </div>
                       </div>
 
-                    ) : this.state.matchingJobs.length === 0 ? (
+                    ) : filteredJobs.length === 0 ? (
                       <p className="text-muted small">
                         No matching jobs found. Make sure your skills are updated in your profile.
                       </p>
 
                     ) : (
                       <div className="d-flex flex-column gap-3">
-                        {this.state.matchingJobs.map(job => (
+                        {filteredJobs.map(job => (
                           <div key={job.id} className="d-flex align-items-center justify-content-between p-3"
                             style={{ border: "1px solid #e5e7eb", borderRadius: "10px", cursor: "pointer" }}
                             onClick={() => this.handleJobClick(job.id)}>

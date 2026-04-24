@@ -335,7 +335,7 @@ handleConfirmedSubmit = async () => {
 
       setTimeout(() => {
         sessionStorage.clear();
-        window.location.href = "/?page=login";
+        window.location.href = "/login";
       }, 2000);
     }
   } catch (error) {

@@ -20,7 +20,7 @@ const CompanyDashboardArea = ({
   activeTab,
   onTabChange,
   jobListFilterStatus,
-  profileCompleted,      
+  profileCompleted,
   onProfileComplete,
 }) => {
   const router = useRouter();
@@ -82,6 +82,9 @@ const CompanyDashboardArea = ({
 
       case "approved":
         return <ApprovedCandidates />;
+
+      case "availableCandidates":
+        return <AvailableCandidates onTabChange={onTabChange} />;
 
       case "chatBox":
         return <ChatBox />;

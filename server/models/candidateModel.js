@@ -1145,12 +1145,17 @@ const addResume = (userId, resumePath, res) => {
 
 const getBoostPackages = (req, res) => {
   connection.query(
-    `SELECT p.id, p.name, p.price, p.duration_value, p.duration_unit, 
-            p.description,
-            COALESCE(p.currency, c.code) AS currency
-     FROM packages p
-     LEFT JOIN currencies c ON c.id = p.currency_id
-     WHERE p.package_type = 'candidate' AND p.status = 'Active'
+    `SELECT 
+      p.id,
+      p.name,
+      p.price,
+      p.duration_days,
+      p.description,
+      COALESCE(c.code, 'PKR') AS currency
+    FROM packages p
+    LEFT JOIN currencies c ON c.id = p.currency_id
+    WHERE p.package_type = 'Candidate'
+    AND p.status = 'Active'
      ORDER BY p.price ASC`,
     (err, results) => {
       if (err) return res.status(500).json({ error: "Database error" });
@@ -1274,18 +1279,22 @@ const getMyBoostStatus = (req, res) => {
 
 const getBoostOrders = (req, res) => {
   connection.query(
-    `SELECT bo.id, bo.status, bo.created_at,
-            ci.id AS candidate_info_id,
-            a.email AS candidate_email,
-            ci.full_name AS candidate_name,
-            p.name AS package_name,
-            p.duration_value, p.duration_unit, p.price,  p.currency  
-     FROM boost_orders bo
-     JOIN candidate_info ci ON ci.id = bo.candidate_id
-     JOIN account a ON a.id = ci.account_id
-     JOIN packages p ON p.id = bo.package_id
-     WHERE bo.status = 'pending'
-     ORDER BY bo.created_at DESC`,
+    `SELECT 
+      bo.id, bo.status, bo.created_at,
+      ci.id AS candidate_info_id,
+      a.email AS candidate_email,
+      ci.full_name AS candidate_name,
+      p.name AS package_name,
+      p.price,
+      p.boost_duration_days,
+      c.code AS currency
+    FROM boost_orders bo
+    JOIN candidate_info ci ON ci.id = bo.candidate_id
+    JOIN account a ON a.id = ci.account_id
+    JOIN packages p ON p.id = bo.package_id
+    LEFT JOIN currencies c ON c.id = p.currency_id
+    WHERE bo.status = 'pending'
+    ORDER BY bo.created_at DESC`,
     (err, results) => {
       if (err) {
         console.error("Error fetching boost orders:", err.message);
@@ -1300,7 +1309,7 @@ const activateBoost = (req, res) => {
   const { orderId } = req.params;
 
   connection.query(
-    `SELECT bo.*, p.duration_value, p.duration_unit, bo.candidate_id
+    `SELECT bo.*, p.duration_days, bo.candidate_id
       FROM boost_orders bo
       JOIN packages p ON p.id = bo.package_id
       WHERE bo.id = ?`,
@@ -1317,14 +1326,14 @@ const activateBoost = (req, res) => {
       const order = rows[0];
       const start = new Date();
       const end = new Date();
-      const val = parseInt(order.duration_value);
-      const unit = (order.duration_unit || "Days").toLowerCase();
+      const days = parseInt(order.duration_days || 0);
+      end.setDate(end.getDate() + days);
 
-      if (unit === "days") end.setDate(end.getDate() + val);
-      else if (unit === "weeks") end.setDate(end.getDate() + val * 7);
-      else if (unit === "months") end.setMonth(end.getMonth() + val);
-      else if (unit === "hours") end.setHours(end.getHours() + val);
-      else end.setDate(end.getDate() + val); // fallback
+      // if (unit === "days") end.setDate(end.getDate() + val);
+      // else if (unit === "weeks") end.setDate(end.getDate() + val * 7);
+      // else if (unit === "months") end.setMonth(end.getMonth() + val);
+      // else if (unit === "hours") end.setHours(end.getHours() + val);
+      // else end.setDate(end.getDate() + val); // fallback
 
       connection.query(
         "UPDATE boost_orders SET status='active', start_date=?, end_date=? WHERE id=?",

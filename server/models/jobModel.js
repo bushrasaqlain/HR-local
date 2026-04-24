@@ -437,7 +437,6 @@ const getSingleJob = (req, res) => {
         jp.no_of_positions,
         jp.industry,
         pkg.price AS packageprice,
-        pkg.currency AS packagecurrency,
         co.name AS country,
         co.id AS country_id,
         d.name AS district,

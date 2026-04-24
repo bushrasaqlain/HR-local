@@ -262,7 +262,7 @@ else if (accountType === "employer") {
           </div>
           <div className="bottom-text mt-4">
             Don&apos;t have an account?{" "}
-            <Link href="/?page=register" className="signup">
+            <Link href="/register" className="signup">
               Signup
             </Link>
           </div>

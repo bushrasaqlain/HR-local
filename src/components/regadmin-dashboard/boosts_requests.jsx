@@ -34,6 +34,7 @@ const BoostRequests = () => {
                         <th>Email</th>
                         <th>Package</th>
                         <th>Price</th>
+                        <th>Duration</th>
                         <th>Action</th>
                     </tr>
                 </thead>
@@ -44,6 +45,7 @@ const BoostRequests = () => {
                             <td>{o.candidate_email}</td>
                             <td>{o.package_name}</td>
                             <td>{o.currency} {o.price}</td>
+                            <td>{o.boost_duration_days} days</td>
                             <td>
                                 <button onClick={() => handleApprove(o.id)} className="btn btn-success btn-sm me-2">
                                     Approve

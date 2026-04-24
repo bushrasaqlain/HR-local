@@ -690,10 +690,59 @@ const applyJob = (req, res) => {
   );
 };
 
+const getAppliedJobs = (req, res) => {
+  console.log("USER DATA:", req.user);
+  const accountId = req.user.userId;
+
+  connection.query(
+    "SELECT id FROM candidate_info WHERE account_id = ? LIMIT 1",
+    [accountId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: "Database error" });
+      if (!rows.length) return res.status(404).json({ error: "Candidate not found" });
+
+      const candidateId = rows[0].id;
+
+      const query = `
+      SELECT 
+        ap.id AS application_id,
+        ap.status,
+        ap.created_at,
+        jp.id AS job_id,
+        jp.job_title,
+        jp.min_salary,
+        jp.max_salary,
+        ccy.code AS currency,
+        jt.name AS job_type,
+        c.company_name AS company_name,
+        ci.name AS city_name
+      FROM applications ap
+      INNER JOIN job_posts jp ON ap.job_id = jp.id
+      LEFT JOIN company_info c ON jp.account_id = c.account_id
+      LEFT JOIN cities ci ON jp.city_id = ci.id
+      LEFT JOIN currencies ccy ON jp.currency_id = ccy.id
+      LEFT JOIN jobtypes jt ON jp.job_type_id = jt.id
+      WHERE ap.candidate_id = ?
+      ORDER BY ap.created_at DESC
+    `;
+
+      connection.query(query, [candidateId], (err2, results) => {
+        if (err2) return res.status(500).json({ error: "Database error" });
+
+        res.json({
+          success: true,
+          data: results
+        });
+      });
+    }
+  );
+};
+
 module.exports = {
   createApplicantsTable,
   createCandidateSearchImpressionsTable, // add this
   getAllApplicants,
   updateApplcantStatus,
   applyJob,
+  getAppliedJobs,
 };

@@ -10,11 +10,13 @@ const updateApplcantStatus=(req,res)=>{
 const applyJob = (req, res) => {
   applicantModel.applyJob(req, res);
 };
-
-
+const getAppliedJobs = (req, res) => {
+  applicantModel.getAppliedJobs(req, res);
+};
 
 module.exports={
     getAllApplicants,
     updateApplcantStatus,
     applyJob,
+    getAppliedJobs,
 }

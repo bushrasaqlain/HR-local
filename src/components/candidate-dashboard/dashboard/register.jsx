@@ -842,7 +842,7 @@ class CandidateRegisterForm extends Component {
       if (step === 5) {
         localStorage.clear();
         sessionStorage.clear();
-        setTimeout(() => { window.location.replace("/?page=login"); }, 1500);
+        setTimeout(() => { window.location.replace("/login"); }, 1500);
         return;
       }
     } catch (error) {
@@ -974,7 +974,7 @@ class CandidateRegisterForm extends Component {
         });
         this.setState({ formMessage: { type: "success", text: "Availability saved successfully" } });
         localStorage.removeItem("token");
-        setTimeout(() => { window.location.href = "/?page=login"; }, 1500);
+        setTimeout(() => { window.location.href = "/login"; }, 1500);
         return;
       }
 
@@ -1895,7 +1895,7 @@ class CandidateRegisterForm extends Component {
         </p>
         <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
           <button style={S.btnNext}
-            onClick={() => { localStorage.clear(); sessionStorage.clear(); window.location.replace("/?page=login"); }}>
+            onClick={() => { localStorage.clear(); sessionStorage.clear(); window.location.replace("/login"); }}>
             Go to login →
           </button>
           <button style={S.btnPrev}
