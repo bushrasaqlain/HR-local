@@ -410,6 +410,7 @@ class PostBoxForm extends Component {
         time_from: "",
         time_to: "",
         job_type_id: null,
+        job_location_type: "",
         min_salary: "",
         max_salary: "",
         min_experience: "",
@@ -429,8 +430,8 @@ class PostBoxForm extends Component {
       },
        initialDistricts: [], 
       selectedCountry: null,
-      selectedDistrict: null,
-      selectedCity: null,
+      selectedDistrict: [], 
+selectedCity: [], 
       errors: {},
       showPricing: false,
       jobId: null,
@@ -580,8 +581,8 @@ this.setState({
           industry: job.industry || "",
         },
         selectedCountry: job.country_id ? { label: job.country, value: job.country_id } : null,
-        selectedDistrict: job.district_id ? { label: job.district, value: job.district_id } : null,
-        selectedCity: job.city_id ? { label: job.city, value: job.city_id } : null,
+        selectedDistrict: job.district_id ? [{ label: job.district, value: job.district_id }] : [],
+selectedCity: job.city_id ? [{ label: job.city, value: job.city_id }] : [],
       });
     } catch (err) {
       console.error("Failed to load job details", err);
@@ -621,16 +622,26 @@ loadDistricts = async (inputValue = "") => {
     return res.data.districts.map((d) => ({ label: d.name, value: d.id }));
   } catch { return []; }
 };
-  fetchCities = async () => {
-    const { selectedDistrict } = this.state;
-    if (!selectedDistrict?.value) return [];
-    try {
-      const res = await axios.get(
-        `${this.apiBaseUrl}getCitiesByDistrict/${selectedDistrict.value}`
-      );
-      return res.data.cities.map((c) => ({ label: c.name, value: c.id }));
-    } catch { return []; }
-  };
+fetchCities = async () => {
+  const { selectedDistrict } = this.state;
+  if (!selectedDistrict?.length) return [];
+  try {
+    // fetch cities for all selected districts in parallel
+    const results = await Promise.all(
+      selectedDistrict.map((d) =>
+        axios.get(`${this.apiBaseUrl}getCitiesByDistrict/${d.value}`)
+          .then((res) => res.data.cities.map((c) => ({ label: c.name, value: c.id })))
+          .catch(() => [])
+      )
+    );
+    // flatten and deduplicate
+    const allCities = results.flat();
+    const unique = allCities.filter(
+      (city, index, self) => self.findIndex((c) => c.value === city.value) === index
+    );
+    return unique;
+  } catch { return []; }
+};
 
   loadJobTypes = async (inputValue) => {
     try {
@@ -685,14 +696,37 @@ loadDistricts = async (inputValue = "") => {
   /* ── Handlers ── */
   capitalizeWords = (str) => str.replace(/\b\w/g, (c) => c.toUpperCase());
 
-  handleInputChange = (e) => {
-    const { name, value } = e.target;
-    const capitalized = name === "industry" ? value : this.capitalizeWords(value);
-    this.setState((prev) => ({
-      values: { ...prev.values, [name]: capitalized },
-      errors: { ...prev.errors, [name]: undefined },
+handleInputChange = (e) => {
+  const { name, value } = e.target;
+
+  // ✅ Don't capitalize select/enum fields
+  const skipCapitalize = ["industry", "job_location_type"];
+  const capitalized = skipCapitalize.includes(name) ? value : this.capitalizeWords(value);
+
+  if (name === "NTN") {
+    this.setState((prevState) => ({
+      formData: { ...prevState.formData, [name]: value },
+      ntnError: this.validateNTN(value) ? "" : "Invalid NTN format. 8 digit",
     }));
-  };
+    return;
+  }
+
+  if (name === "phone") {
+    let cleanedValue = value.replace(/[^\d]/g, "");
+    if (cleanedValue.length > 4) {
+      cleanedValue = cleanedValue.slice(0, 4) + "-" + cleanedValue.slice(4, 11);
+    }
+    this.setState((prevState) => ({
+      formData: { ...prevState.formData, phone: cleanedValue },
+    }));
+    return;
+  }
+
+  this.setState((prevState) => ({
+    values: { ...prevState.values, [name]: capitalized },
+    errors: { ...prevState.errors, [name]: undefined },
+  }));
+};
 
   handleSelectChange = (name, option) => {
     this.setState((prev) => ({
@@ -705,20 +739,24 @@ loadDistricts = async (inputValue = "") => {
 validatePage1 = () => {
   const { values, selectedCountry, selectedDistrict, selectedCity, jobCountryId } = this.state;
   const errors = {};
+
   if (!values.job_title) errors.job_title = "Job title is required.";
   if (!values.job_description) errors.job_description = "Job description is required.";
   if (!values.job_type_id) errors.job_type_id = "Job type is required.";
+  if (!values.job_location_type) errors.job_location_type = "Job location type is required.";
   if (!values.industry) errors.industry = "Industry is required.";
   if (!values.time_from) errors.time_from = "Start time is required.";
   if (!values.time_to) errors.time_to = "End time is required.";
-  // ← only validate country if not already set via modal
-  // if (!selectedCountry && !jobCountryId) errors.country_id = "Country is required.";
-  const isRemote = values.job_type_id?.label?.toLowerCase() === "remote";
-  if (!isRemote && !selectedDistrict) errors.district_id = "District is required.";
-  if (!isRemote && !selectedCity) errors.city_id = "City is required.";
+
+  // ✅ Only validate district & city when NOT remote
+  const isRemote = values.job_location_type === "remote";
+if (!isRemote && !selectedDistrict?.length) errors.district_id = "District is required.";
+if (!isRemote && !selectedCity?.length) errors.city_id = "City is required.";
+
   if (values.min_salary && values.max_salary && parseFloat(values.max_salary) <= parseFloat(values.min_salary)) {
     errors.salary = "Max salary must exceed min salary.";
   }
+
   return errors;
 };
 
@@ -742,10 +780,14 @@ validatePage1 = () => {
   goToPage1 = () => this.setState({ currentPage: 1 });
 
   goToPage2 = () => {
-    const errors = this.validatePage1();
-    this.setState({ errors });
-    if (!Object.keys(errors).length) this.setState({ currentPage: 2, errors: {} });
-  };
+  const errors = this.validatePage1();
+  console.log("Validation errors:", errors);         // ← see what's failing
+  console.log("Current values:", this.state.values); // ← see current form state
+  console.log("selectedDistrict:", this.state.selectedDistrict);
+  console.log("selectedCity:", this.state.selectedCity);
+  this.setState({ errors });
+  if (!Object.keys(errors).length) this.setState({ currentPage: 2, errors: {} });
+};
 
   goToPage3 = () => {
     const errors = this.validatePage2();
@@ -765,9 +807,10 @@ validatePage1 = () => {
     const payload = {
       ...values,
       country_id: selectedCountry?.value,
-      district_id: selectedDistrict?.value,
-      city_id: selectedCity?.value,
+     district_id: selectedDistrict?.map((d) => d.value), 
+city_id: selectedCity?.map((c) => c.value),       
       job_type_id: values.job_type_id?.value,
+      job_location_type: values.job_location_type,
       currency_id: values.currency_id?.value,
       speciality_id: values.speciality_id?.value,
       degree_id: values.degree_id?.value,
@@ -806,7 +849,7 @@ validatePage1 = () => {
       currentPage: 1,
       values: {
         job_title: "", job_description: "", skill_ids: [],
-        time_from: "", time_to: "", job_type_id: null,
+        time_from: "", time_to: "", job_type_id: null, job_location_type: "",
         min_salary: "", max_salary: "", min_experience: "",
         max_experience: "", speciality_id: null, degree_id: null,
         application_deadline: "", no_of_positions: "", industry: "", currency_id: null,
@@ -816,7 +859,7 @@ validatePage1 = () => {
     interview_end: "",
     expected_joining_date: "",
       },
-      selectedCountry: null, selectedDistrict: null, selectedCity: null,
+      selectedCountry: null, selectedDistrict: [], selectedCity: [],
       errors: {}, showPricing: false, jobId: null,
     });
   };
@@ -841,7 +884,7 @@ validatePage1 = () => {
 
   renderPage1 = () => {
     const { values, errors, selectedCountry, selectedDistrict, selectedCity } = this.state;
-    const isRemote = values.job_type_id?.label?.toLowerCase() === "remote";
+    const isRemote = values.job_location_type === "remote";
 
     return (
       <div>
@@ -896,21 +939,34 @@ validatePage1 = () => {
               />
             </Field>
           </div>
+<div style={s.row2}>
+  <Field label="Job type" required error={errors.job_type_id}>
+    <AsyncSelect
+      cacheOptions
+      defaultOptions
+      loadOptions={this.loadJobTypes}
+      value={values.job_type_id}
+      onChange={(option) => this.handleSelectChange("job_type_id", option)}
+      placeholder="Select type..."
+      styles={indeedSelectStyles}
+    />
+  </Field>
 
-          <div style={s.row2}>
-            <Field label="Job location type" required error={errors.job_type_id}>
-              <AsyncSelect
-                cacheOptions
-                defaultOptions
-                loadOptions={this.loadJobTypes}
-                value={values.job_type_id}
-                onChange={(option) => this.handleSelectChange("job_type_id", option)}
-                placeholder="Select type..."
-                styles={indeedSelectStyles}
-              />
-            </Field>
-
-            <Field label="Industry / Facility type" required error={errors.industry}>
+  {/* ✅ New field */}
+  <Field label="Job location type" required error={errors.job_location_type}>
+    <select
+      name="job_location_type"
+      value={values.job_location_type}
+      onChange={this.handleInputChange}
+      style={{ ...s.select, borderColor: errors.job_location_type ? RED : BORDER }}
+    >
+      <option value="">Select location type</option>
+      <option value="on-site">On-site</option>
+      <option value="remote">Remote</option>
+      <option value="hybrid">Hybrid</option>
+    </select>
+  </Field>
+   <Field label="Industry / Facility type" required error={errors.industry}>
               <select
                 name="industry"
                 value={values.industry}
@@ -928,86 +984,90 @@ validatePage1 = () => {
                 <option value="medical_equipment_supplier">Medical Equipment Supplier</option>
               </select>
             </Field>
-          </div>
+</div>
         </div>
 
         {/* Location */}
         <div style={s.card}>
-          <div style={s.cardTitle}>Location & working hours</div>
+  <div style={s.cardTitle}>Location & working hours</div>
 
+  {/* District + City — same row */}
+  <div style={{ ...s.row2, marginBottom: "16px" }}>
+    <Field label="Districts" required={!isRemote} error={errors.district_id}>
+      <AsyncSelect
+        isMulti
+        key={`district-${selectedCountry?.value ?? this.state.jobCountryId}-${this.state.initialDistricts?.length}`}
+        defaultOptions={this.state.initialDistricts?.length ? this.state.initialDistricts : true}
+        loadOptions={this.loadDistricts}
+        value={selectedDistrict}
+        onChange={(options) =>
+          this.setState({
+            selectedDistrict: options || [],
+            selectedCity: [],
+            errors: { ...this.state.errors, district_id: undefined },
+          })
+        }
+        isDisabled={!selectedCountry && !this.state.jobCountryId}
+        placeholder="Select district..."
+        styles={indeedSelectStyles}
+      />
+    </Field>
 
-<div style={s.row2}>
-  <Field
-    label="Districts"
-    required={!isRemote}
-    error={errors.district_id}
-    style={{ gridColumn: "1 / -1" }}  // full width since country field is gone
-  >
+    <Field label="City" required={!isRemote} error={errors.city_id}>
+      <AsyncSelect
+        isMulti
+        key={selectedDistrict?.map((d) => d.value).join("-") || "city"}
+        cacheOptions
+        defaultOptions
+        loadOptions={this.fetchCities}
+        value={selectedCity}
+        onChange={(options) =>
+          this.setState({
+            selectedCity: options || [],
+            errors: { ...this.state.errors, city_id: undefined },
+          })
+        }
+        isDisabled={!selectedDistrict?.length}
+        placeholder="Select city..."
+        styles={indeedSelectStyles}
+      />
+    </Field>
+  </div>
 
-<AsyncSelect
-  key={`district-${selectedCountry?.value ?? this.state.jobCountryId}-${this.state.initialDistricts?.length}`}
-  defaultOptions={this.state.initialDistricts?.length ? this.state.initialDistricts : true}
-  loadOptions={this.loadDistricts}
-  value={selectedDistrict}
-  onChange={(option) =>
-    this.setState({
-      selectedDistrict: option,
-      selectedCity: null,
-      errors: { ...this.state.errors, district_id: undefined },
-    })
-  }
-  isDisabled={(!selectedCountry && !this.state.jobCountryId) || isRemote}
-  placeholder={isRemote ? "Not required for remote" : "Select state / district..."}
-  styles={indeedSelectStyles}
-/>
+  {/* Working hours — new row */}
+  {/* Working hours — new row */}
+<div>
+  <Field label="Working hours" required error={errors.time_from || errors.time_to}>
+    <div style={{
+      display: "flex",
+      gap: "8px",
+      alignItems: "center",
+      flexWrap: "wrap",   // ✅ wraps on small screens
+    }}>
+      <input
+        type="time"
+        name="time_from"
+        value={values.time_from}
+        onChange={this.handleInputChange}
+        style={{ ...s.input, flex: "1 1 120px", minWidth: "120px" }}  // ✅ flex-basis + minWidth
+        onFocus={(e) => (e.target.style.borderColor = BLUE)}
+        onBlur={(e) => (e.target.style.borderColor = BORDER)}
+      />
+      <span style={{ ...s.timeSep, flexShrink: 0 }}>to</span>
+      <input
+        type="time"
+        name="time_to"
+        value={values.time_to}
+        onChange={this.handleInputChange}
+        style={{ ...s.input, flex: "1 1 120px", minWidth: "120px" }}  // ✅ flex-basis + minWidth
+        onFocus={(e) => (e.target.style.borderColor = BLUE)}
+        onBlur={(e) => (e.target.style.borderColor = BORDER)}
+      />
+    </div>
   </Field>
 </div>
 
-          <div style={s.row2}>
-            <Field label="City" required={!isRemote} error={errors.city_id}>
-              <AsyncSelect
-                key={selectedDistrict?.value || "city"}
-                cacheOptions
-                defaultOptions
-                loadOptions={this.fetchCities}
-                value={selectedCity}
-                onChange={(option) =>
-                  this.setState({
-                    selectedCity: option,
-                    errors: { ...this.state.errors, city_id: undefined },
-                  })
-                }
-                isDisabled={!selectedDistrict || isRemote}
-                placeholder={isRemote ? "Not required for remote" : "Select after state..."}
-                styles={indeedSelectStyles}
-              />
-            </Field>
-
-            <Field label="Working hours" required error={errors.time_from || errors.time_to}>
-              <div style={s.timeRow}>
-                <input
-                  type="time"
-                  name="time_from"
-                  value={values.time_from}
-                  onChange={this.handleInputChange}
-                  style={{ ...s.input, flex: 1 }}
-                  onFocus={(e) => (e.target.style.borderColor = BLUE)}
-                  onBlur={(e) => (e.target.style.borderColor = BORDER)}
-                />
-                <span style={s.timeSep}>to</span>
-                <input
-                  type="time"
-                  name="time_to"
-                  value={values.time_to}
-                  onChange={this.handleInputChange}
-                  style={{ ...s.input, flex: 1 }}
-                  onFocus={(e) => (e.target.style.borderColor = BLUE)}
-                  onBlur={(e) => (e.target.style.borderColor = BORDER)}
-                />
-              </div>
-            </Field>
-          </div>
-        </div>
+</div>
 
         {/* Salary */}
         <div style={s.card}>
@@ -1327,17 +1387,22 @@ validatePage1 = () => {
 
   renderPage3 = () => {
     const { values, selectedCountry, selectedDistrict, selectedCity } = this.state;
-    const isRemote = values.job_type_id?.label?.toLowerCase() === "remote";
+   const isRemote = values.job_location_type === "remote";
 
     const location = isRemote
-      ? "Remote"
-      : [selectedCity?.label, selectedDistrict?.label, selectedCountry?.label]
-          .filter(Boolean)
-          .join(", ");
+  ? "Remote"
+  : [
+      selectedCity?.map((c) => c.label).join(", "),
+      selectedDistrict?.map((d) => d.label).join(", "),
+      selectedCountry?.label,
+    ]
+      .filter(Boolean)
+      .join(" — ");
 
     const rows = [
       ["Job Title", values.job_title],
       ["Job Type", values.job_type_id?.label],
+      ["Location Type", values.job_location_type || "—"],
       ["Industry", values.industry?.replace(/_/g, " ")],
       ["Location", location],
       ["Working Hours", values.time_from && values.time_to ? `${values.time_from} – ${values.time_to}` : "—"],
@@ -1353,7 +1418,7 @@ validatePage1 = () => {
       ["Qualification", values.degree_id?.label],
       ["No. of Positions", values.no_of_positions],
       ["Application Deadline", values.application_deadline],
-      ["Application Deadline", values.application_deadline],
+      // ["Application Deadline", values.application_deadline],
   ["Screening Period",
     values.screening_start && values.screening_end
       ? `${values.screening_start} – ${values.screening_end}`

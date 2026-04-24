@@ -1,11 +1,10 @@
 "use client";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { useSelector } from "react-redux";
+
 import AllApplicants from "./applicants/allApplicants.jsx";
 import CompanyProfile from "./companyProfile.jsx";
-import ChangePasswordForm from "../form/changepassword/changepasswordform.jsx"
+import ChangePasswordForm from "../form/changepassword/changepasswordform.jsx";
 import ChatBox from "./messages/chatBox.jsx";
 import JobListings from "./jobList.jsx";
 import PackagesList from "./packagesList.jsx";
@@ -17,104 +16,92 @@ import ApprovedCandidates from "./approved.jsx";
 import PricingForm2 from "./viewpackage.jsx";
 import AvailableCandidates from "./Available Candidates.jsx";
 
-const CompanyDashboardArea = ({ activeTab, onTabChange, jobListFilterStatus }) => {
-    const router = useRouter();
-    const [userInfo, setUserInfo] = useState({ userId: null, token: null });
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+const CompanyDashboardArea = ({
+  activeTab,
+  onTabChange,
+  jobListFilterStatus,
+  profileCompleted,      
+  onProfileComplete,
+}) => {
+  const router = useRouter();
 
-    useEffect(() => {
-        if (typeof window !== "undefined") {
-            const userId = sessionStorage.getItem("userId");
-            const token = sessionStorage.getItem("token");
-            if (!token) {
-                router.replace("/login");
-                return;
-            }
+  const [ready, setReady] = useState(false);
+  // const [profileCompleted, setProfileCompleted] = useState(false);
 
-            setUserInfo({ userId, token });
-        }
-    }, [router]);
+  useEffect(() => {
+    const token = sessionStorage.getItem("token");
 
-    const [hasActivePackage, setHasActivePackage] = useState(false);
-    useEffect(() => {
-        const fetchUserPackageStatus = async () => {
-            try {
-                if (!userInfo.userId) {
-                    console.error('User ID is undefined.');
-                    return;
-                }
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
 
-                const response = await fetch(`${apiBaseUrl}packages/checkCompanyPackageStatus/${userInfo.userId}`);
-                if (!response.ok) {
-                    console.error(`Error: ${response.status} - ${response.statusText}`);
-                    return;
-                }
+    // const completed =
+    //   sessionStorage.getItem("profile_completed") === "true";
 
-                const data = await response.json();
-                console.log('API Response:', data);
+    // setProfileCompleted(completed);
+    setReady(true);
+  }, []);
 
-                setHasActivePackage(data.packageStatus === "Active");
-            } catch (error) {
-                console.error('Error checking user package status:', error);
-            }
-        };
+  if (!ready) return <div>Loading dashboard…</div>;
 
-        if (userInfo.userId) {
-            // fetchUserPackageStatus();
-        }
-    }, [userInfo.userId]);
-
-    if (!userInfo.userId) return <div>Loading dashboard…</div>;
-
-    const renderContent = () => {
-        switch (activeTab) {
-            case "profile":
-                return <Profile />
-
-            case "postJob":
-                return <PostJob />
-            case "companyProfile":
-                return <CompanyProfile />;
-
-            case "allApplicants":
-                return <AllApplicants />
-            case "jobList":
-                return <JobListings filterStatus={jobListFilterStatus} />;
-
-            case "packagesList":
-                return <PackagesList />;
-            case "viewpackage":
-                return <PricingForm2 />;
-            case "shortlistedcandidates":
-                return <ShortlistedCandidates />;
-            case "approved":
-                return <ApprovedCandidates />;
-            case "availableCandidates":
-                return <AvailableCandidates onTabChange={onTabChange} />;
-            case "chatBox":
-                return <ChatBox />;
-
-            case "changepassword":
-                return <ChangePasswordForm />
-
-            default:
-                return <Profile />
-        }
-    };
-
+  // 🔥 SAME STYLE AS CANDIDATE (hard gate)
+  if (!profileCompleted) {
     return (
-        <section className="user-dashboard py-2 my-4">
-            <div className="container">
-                {/* Add TopCardBlock here - it will hide itself when not on profile tab */}
-                <TopCardBlock
-                    onTabChange={onTabChange}
-                    activeTab={activeTab}
-                />
-
-                <div className="profile__tab-content p-3">{renderContent()}</div>
-            </div>
-        </section>
+      <div className="container">
+        <CompanyProfile onComplete={onProfileComplete} />
+      </div>
     );
+  }
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case "profile":
+        return <Profile />;
+
+      case "postJob":
+        return <PostJob />;
+
+      case "companyProfile":
+        return <CompanyProfile />;
+
+      case "allApplicants":
+        return <AllApplicants />;
+
+      case "jobList":
+        return <JobListings filterStatus={jobListFilterStatus} />;
+
+      case "packagesList":
+        return <PackagesList />;
+
+      case "viewpackage":
+        return <PricingForm2 />;
+
+      case "shortlistedcandidates":
+        return <ShortlistedCandidates />;
+
+      case "approved":
+        return <ApprovedCandidates />;
+
+      case "chatBox":
+        return <ChatBox />;
+
+      case "changepassword":
+        return <ChangePasswordForm />;
+
+      default:
+        return <div>Select a menu option</div>;
+    }
+  };
+
+  return (
+    <section className="user-dashboard py-2 my-4">
+      <div className="container">
+        <TopCardBlock onTabChange={onTabChange} activeTab={activeTab} />
+        {renderContent()}
+      </div>
+    </section>
+  );
 };
 
 export default CompanyDashboardArea;

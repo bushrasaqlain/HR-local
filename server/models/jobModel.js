@@ -27,10 +27,13 @@ CREATE TABLE IF NOT EXISTS job_posts (
   application_deadline TIMESTAMP,
   no_of_positions INT,
   industry VARCHAR(255),
-  package_id INT,
   country_id INT,
   district_id INT,
   city_id INT,
+  is_sponsored TINYINT DEFAULT 0,
+daily_budget DECIMAL(10,2) DEFAULT 0,
+cost_per_click DECIMAL(10,2) DEFAULT 0,
+spent_amount DECIMAL(10,2) DEFAULT 0,
   approval_status ENUM( 'Pending','Pending Payment','Approved','UnApproved') DEFAULT 'Pending',
   status ENUM('Active', 'Inactive') DEFAULT 'Active',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -40,7 +43,6 @@ CREATE TABLE IF NOT EXISTS job_posts (
   FOREIGN KEY (speciality_id) REFERENCES speciality(id),
   FOREIGN KEY (degree_id) REFERENCES degreetypes(id),
   FOREIGN KEY (currency_id) REFERENCES currencies(id),
-  FOREIGN KEY (package_id) REFERENCES packages(id),
   FOREIGN KEY (country_id) REFERENCES countries(id),
   FOREIGN KEY (district_id) REFERENCES districts(id),
   FOREIGN KEY (city_id) REFERENCES cities(id)
@@ -765,26 +767,94 @@ const updatePostJob = (req, res) => {
   });
 };
 
+const createCompanyPackagesTable = () => {
+  const createcompany_packagesTableQuery = `
+CREATE TABLE IF NOT EXISTS company_packages (
+ id INT AUTO_INCREMENT PRIMARY KEY,
 
-const subcribePackage = (req, res) => {
-  const { packageId, jobId, userId } = req.body;
-  connection.query(`UPDATE job_posts SET package_id = ? WHERE id = ? AND account_id = ?`, [packageId, jobId, userId], (error, result) => {
-    if (error) {
-      console.error("ERROR subscribing package:", error);
-      return res.status(500).json({ error: "database error " });
-    } else {
-      logAudit({
-        tableName: "history",
-        entityType: "job",
-        entityId: jobId,
-        action: "UPDATED",
-        data: { packageId: packageId },
-        changedBy: userId,
-      });
-      return res.status(200).json({ message: "Subscribed Successfully" });
+  account_id INT NOT NULL,
+  package_id INT NOT NULL,
+
+  pricing_model ENUM(
+    'daily_budget',
+    'per_apply',
+    'job_slot',
+    'duration_bundle',
+    'cv_credits',
+    'featured_boost'
+  ) NOT NULL,
+
+  -- 🟢 Common lifecycle
+  start_date DATE,
+  end_date DATE,
+  status ENUM('active','expired','used','cancelled') DEFAULT 'active',
+
+  -- 🟡 Usage tracking (depends on type)
+  used_posts INT DEFAULT 0,
+  used_credits INT DEFAULT 0,
+  used_slots INT DEFAULT 0,
+  used_budget DECIMAL(10,2) DEFAULT 0,
+  used_applies INT DEFAULT 0,
+
+  -- 🔵 Store original package config snapshot (VERY IMPORTANT)
+  package_snapshot JSON,
+
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (account_id) REFERENCES account(id),
+  FOREIGN KEY (package_id) REFERENCES packages(id)
+);
+`;
+
+  // Execute the queries to create the tables
+  connection.query(createcompany_packagesTableQuery, function (err, results, fields) {
+    if (err) {
+      return console.error(err.message);
     }
+    console.log("company_packages  table created successfully");
   })
 }
+const subcribePackage = (req, res) => {
+  const { userId, packageId } = req.body;
+
+  const getPackageQuery = `SELECT * FROM packages WHERE id = ?`;
+
+  connection.query(getPackageQuery, [packageId], (err, result) => {
+    if (err || !result.length) {
+      return res.status(400).json({ error: "Invalid package" });
+    }
+
+    const pkg = result[0];
+
+    const duration =
+      pkg.duration_days ||
+      pkg.bundle_validity_days ||
+      pkg.credit_expiry_days ||
+      pkg.campaign_duration_days ||
+      30;
+
+    const insertQuery = `
+      INSERT INTO company_packages
+      (account_id, package_id, pricing_model, start_date, end_date, package_snapshot)
+      VALUES (?, ?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL ? DAY), ?)
+    `;
+
+    connection.query(
+      insertQuery,
+      [userId, packageId, pkg.pricing_model, duration, JSON.stringify(pkg)],
+      (err2, result2) => {
+        if (err2) {
+          return res.status(500).json({ error: "Subscription failed" });
+        }
+
+        return res.status(201).json({
+          message: "Package subscribed successfully",
+          subscriptionId: result2.insertId
+        });
+      }
+    );
+  });
+};
 
 const getJobTitle = (req, res) => {
   const userId = req.params.userId;
@@ -908,6 +978,7 @@ const getTotalJobPosts = (accountId, type, value) => {
 
 module.exports = {
   createJobPostTable,
+  createCompanyPackagesTable,
   getJobbyRegAdmin,
   updateJobPostStatus,
   getAllJobs,

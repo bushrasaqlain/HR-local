@@ -43,50 +43,59 @@ class DashboardHeader extends Component {
       activeTab: null,
       profileGroup: false,
       jobsGroup: false,
-      userInfo: { userId: null, displayName: "User", accountType: null },
+      userInfo: { userId: null, displayName: "User", accountType: null, profileCompleted: false },
       jobListFilterStatus: null,
       openDesktopDropdown: null,
     };
   }
 
-  componentDidMount() {
-    const userId = sessionStorage.getItem("userId");
-    const displayName = sessionStorage.getItem("displayName") || "User";
-    const accountType = sessionStorage.getItem("accountType");
-    const profileCompleted = sessionStorage.getItem("profile_completed") === "true";
-    const hasPackage = sessionStorage.getItem("has_package") === "true";
-    const currentPath = window.location.pathname;
+componentDidMount() {
+  const userId = sessionStorage.getItem("userId");
+  const displayName = sessionStorage.getItem("displayName") || "User";
+  const accountType = sessionStorage.getItem("accountType");
+  const profileCompleted =
+    sessionStorage.getItem("profile_completed") === "true";
 
-    if (!accountType) return;
+  const savedTab = sessionStorage.getItem("activeTab");
 
-    // ✅ Pehle hamesha setState karo
-    const savedTab = sessionStorage.getItem("activeTab");
-    this.setState({
-      userInfo: { userId, displayName, accountType, profileCompleted },
-      activeTab: savedTab || (
-        accountType === "db_admin" ? "country"
-          : accountType === "reg_admin" ? "company"
-            : accountType === "employer" ? "profile"
-              : accountType === "candidate"
-                ? profileCompleted ? "profile" : "register"
-                : null
-      ),
-    });
+  if (!accountType) return;
 
-    // ✅ Phir sirf dashboard-header pe guard lagao
-    if (accountType === "employer" && currentPath === "/dashboard-header") {
-      if (!profileCompleted) {
-        window.location.href = "/company-profile";
-        return;
-      }
-      if (!hasPackage) {
-        window.location.href = "/company-packages";
-        return;
-      }
-    }
+  const validTabs = [
+    "profile",
+    "postJob",
+    "companyProfile",
+    "allApplicants",
+    "jobList",
+    "packagesList",
+    "viewpackage",
+    "shortlistedcandidates",
+    "approved",
+    "chatBox",
+    "changepassword",
+  ];
 
-    window.addEventListener("scroll", this.changeBackground);
-  }
+  const safeTab =
+    savedTab && validTabs.includes(savedTab)
+      ? savedTab
+      : accountType === "db_admin"
+      ? "country"
+      : accountType === "reg_admin"
+      ? "company"
+      : accountType === "employer"
+      ? "profile"
+      : accountType === "candidate"
+      ? profileCompleted
+        ? "profile"
+        : "register"
+      : null;
+
+  this.setState({
+    userInfo: { userId, displayName, accountType, profileCompleted },
+    activeTab: safeTab,
+  });
+
+  window.addEventListener("scroll", this.changeBackground);
+}
 
   componentWillUnmount() {
     window.removeEventListener("scroll", this.changeBackground);
@@ -156,45 +165,51 @@ class DashboardHeader extends Component {
     if (accountType === "employer") {
       const hasPackage = sessionStorage.getItem("has_package") === "true";
 
-      if (!profileCompleted) {
-        // Sirf Update Profile button
-        return (
-          <NavItem key="update-profile">
-            <Button
-              color="custom-progress-bar"
-              outline
-              className="text-white border-bottom border-white border-2"
-              onClick={() => { window.location.href = "/company-profile"; }}
-            >
-              <i className="las la-user-edit me-1"></i>
-              Update Profile
-            </Button>
-          </NavItem>
-        );
-      }
+      // if (!profileCompleted) {
+      //   // Sirf Update Profile button
+      //   return (
+      //     <NavItem key="update-profile">
+      //       <Button
+      //         color="custom-progress-bar"
+      //         outline
+      //         className="text-white border-bottom border-white border-2"
+      //         onClick={() => { window.location.href = "/company-profile"; }}
+      //       >
+      //         <i className="las la-user-edit me-1"></i>
+      //         Update Profile
+      //       </Button>
+      //     </NavItem>
+      //   );
+      // }
 
-      if (!hasPackage) {
-        // Sirf Buy Package button
-        return (
-          <NavItem key="buy-package">
-            <Button
-              color="custom-progress-bar"
-              outline
-              className="text-white border-bottom border-white border-2"
-              onClick={() => { window.location.href = "/company-packages"; }}
-            >
-              <i className="las la-box me-1"></i>
-              Buy Package
-            </Button>
-          </NavItem>
-        );
-      }
+      // if (!hasPackage) {
+      //   // Sirf Buy Package button
+      //   return (
+      //     <NavItem key="buy-package">
+      //       <Button
+      //         color="custom-progress-bar"
+      //         outline
+      //         className="text-white border-bottom border-white border-2"
+      //         onClick={() => { window.location.href = "/company-packages"; }}
+      //       >
+      //         <i className="las la-box me-1"></i>
+      //         Buy Package
+      //       </Button>
+      //     </NavItem>
+      //   );
+      // }
     }
 
     let items = [];
     if (accountType === "db_admin") items = dbadminmenuitem;
     else if (accountType === "reg_admin") items = regadminmenuitem;
-    else if (accountType === "employer") items = companymenuitem;
+else if (accountType === "employer") {
+  if (!profileCompleted) {
+    // ✅ Return nothing — the dashboard area already shows CompanyProfile
+    return null;
+  }
+  items = companymenuitem;
+}
     else if (accountType === "candidate") {
       items = profileCompleted
         ? candidatesmenuitem.filter(
@@ -447,12 +462,14 @@ class DashboardHeader extends Component {
                 />
               )}
               {accountType === "employer" && (
-                <CompanyDashboardArea
-                  activeTab={activeTab}
-                  onTabChange={this.handleTabChange}
-                  jobListFilterStatus={this.state.jobListFilterStatus}
-                />
-              )}
+  <CompanyDashboardArea
+    activeTab={activeTab}
+    onTabChange={this.handleTabChange}
+    jobListFilterStatus={this.state.jobListFilterStatus}
+    profileCompleted={profileCompleted}
+    onProfileComplete={this.handleProfileComplete}  // ✅ add this
+  />
+)}
               {accountType === "candidate" && (
                 <CandidateDashboardArea
                   activeTab={activeTab}
