@@ -31,6 +31,9 @@ const subcribePackage = (req, res) => {
 const getUserPackages = (req, res) => {
   jobModel.getUserPackages(req, res);
 }
+const getTransactionHistory = (req, res) => {
+  jobModel.getTransactionHistory(req, res);
+}
 const getJobTitle=(req,res)=>{
   jobModel
   .getJobTitle(req,res);
@@ -78,5 +81,6 @@ module.exports = {
   getTopCompanies,
   popularCategories,
   getTotalJobPosts,
-  getUserPackages
+  getUserPackages,
+  getTransactionHistory
 }

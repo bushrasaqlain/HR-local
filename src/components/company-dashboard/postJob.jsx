@@ -8,6 +8,7 @@ import PricingForm from "./pricingform";
 import api from "../lib/api";
 import { withRouter } from "next/router";
 import Head from "next/head";
+import PricingPage from "./viewpackage";
 
 /* ─────────────────────────────────────────────
    Indeed-style design tokens
@@ -64,7 +65,7 @@ const indeedSelectStyles = {
     ...base,
     color: BLUE_TEXT,
     borderRadius: "50%",
-    "&:hover": { backgroundColor: "#c7d9fd", color: BLUE },
+    "&:hover": { backgroundColor: "#c7d9fd", color: "#5f8190" },
   }),
   singleValue: (base) => ({ ...base, color: TEXT_PRIMARY, fontSize: "14px" }),
   menu: (base) => ({ ...base, borderRadius: "8px", border: `1px solid ${BORDER}`, boxShadow: "0 4px 16px rgba(0,0,0,0.08)", zIndex: 99 }),
@@ -435,6 +436,11 @@ selectedCity: [],
       errors: {},
       showPricing: false,
       jobId: null,
+      availablePackages: [],
+showPackageModal: false,
+chosenPackageId: null,
+dailyBudget: "",
+budgetMode: false, 
     };
 
     this.allSkills = [];
@@ -794,55 +800,158 @@ if (!isRemote && !selectedCity?.length) errors.city_id = "City is required.";
     this.setState({ errors });
     if (!Object.keys(errors).length) this.setState({ currentPage: 3, errors: {} });
   };
+submitJobPayload = async (chosenPackageId) => {
+  const { values, selectedCountry, selectedDistrict, selectedCity, dailyBudget } = this.state;
+  const editjobid = this.props.jobId;
 
-  handleSubmit = async () => {
-    const { values, selectedCountry, selectedDistrict, selectedCity } = this.state;
-    const editjobid = this.props.jobId;
+  const payload = {
+    ...values,
+    country_id: selectedCountry?.value,
+    district_id: selectedDistrict?.map((d) => d.value) ?? [],
+    city_id: selectedCity?.map((c) => c.value) ?? [],
+    job_type_id: values.job_type_id?.value,
+    currency_id: values.currency_id?.value,
+    speciality_id: values.speciality_id?.value,
+    degree_id: values.degree_id?.value,
+    skill_ids: values.skill_ids.map((s) => s.value),
+    application_deadline: new Date(values.application_deadline)
+      .toISOString().slice(0, 19).replace("T", " "),
+    screening_start: values.screening_start || null,
+    screening_end: values.screening_end || null,
+    interview_start: values.interview_start || null,
+    interview_end: values.interview_end || null,
+    expected_joining_date: values.expected_joining_date || null,
+    chosen_package_id: chosenPackageId || null,
+    daily_budget: dailyBudget ? parseFloat(dailyBudget) : 0,
+  };
 
-    const formattedDeadline = new Date(values.application_deadline)
-      .toISOString()
-      .slice(0, 19)
-      .replace("T", " ");
-
-    const payload = {
-      ...values,
-      country_id: selectedCountry?.value,
-     district_id: selectedDistrict?.map((d) => d.value), 
-city_id: selectedCity?.map((c) => c.value),       
-      job_type_id: values.job_type_id?.value,
-      job_location_type: values.job_location_type,
-      currency_id: values.currency_id?.value,
-      speciality_id: values.speciality_id?.value,
-      degree_id: values.degree_id?.value,
-      skill_ids: values.skill_ids.map((s) => s.value),
-      application_deadline: formattedDeadline,
-       screening_start: values.screening_start || null,
-  screening_end: values.screening_end || null,
-  interview_start: values.interview_start || null,
-  interview_end: values.interview_end || null,
-  expected_joining_date: values.expected_joining_date || null,
-    };
-
-    try {
-      if (editjobid) {
-        await api.put(
-          `${this.apiBaseUrl}job/updatejob/${this.userId}/${editjobid}`,
-          payload
-        );
-        if (this.props.onSuccess) this.props.onSuccess();
-        return;
-      }
-
+  try {
+    if (editjobid) {
+      await api.put(
+        `${this.apiBaseUrl}job/updatejob/${this.userId}/${editjobid}`,
+        payload
+      );
+      if (this.props.onSuccess) this.props.onSuccess();
+    } else {
       const response = await api.post(
         `${this.apiBaseUrl}job/postjob/${this.userId}`,
         payload
       );
-
-      this.setState({ jobId: response.data.job_id, showPricing: true });
-    } catch (err) {
-      console.error(err);
+      this.setState({
+        jobId: response.data.job_id,
+        showPackageModal: false,
+        budgetMode: false,
+      });
+      this.resetForm();                                    // ← always reset
+      if (this.props.onSuccess) this.props.onSuccess();
     }
-  };
+  } catch (err) {                                          // ← catch is now inside try/catch properly
+    const errorCode = err.response?.data?.error;
+    if (errorCode === "no_package" || errorCode === "package_exhausted") {
+      this.setState({ showPricing: true, showPackageModal: false });
+    } else {
+      console.error("Job post failed:", err);
+    }
+  }
+};
+handleSubmit = async () => {
+  const editjobid = this.props.jobId;
+
+  if (editjobid) {
+    await this.submitJobPayload(null);
+    return;
+  }
+
+  try {
+    const res = await axios.get(
+      `${this.apiBaseUrl}job/getUserPackages/${this.userId}`
+    );
+
+    const allPackages = res.data || [];
+
+    const usablePackages = allPackages
+      .filter((pkg) => {
+        const snap = pkg.package;
+        const today = new Date();
+        const endDate = new Date(pkg.end_date);
+
+        if (pkg.status !== "active") return false;
+        if (endDate < today) return false;
+
+        if (pkg.pricing_model === "duration_bundle") {
+          return pkg.used_posts < (snap?.num_posts || 0);
+        }
+        if (pkg.pricing_model === "job_slot") {
+          return pkg.used_slots < (snap?.slot_count || 0);
+        }
+        if (pkg.pricing_model === "cv_credits") {
+          return true;
+        }
+        return false;
+      })
+      .map((pkg) => {
+        const snap = pkg.package;
+        let remaining = null;
+        let detail = "";
+
+        if (pkg.pricing_model === "duration_bundle") {
+          remaining = (snap?.num_posts || 0) - (pkg.used_posts || 0);
+          detail = `${remaining} post${remaining !== 1 ? "s" : ""} remaining`;
+        } else if (pkg.pricing_model === "job_slot") {
+          remaining = (snap?.slot_count || 0) - (pkg.used_slots || 0);
+          detail = `${remaining} slot${remaining !== 1 ? "s" : ""} remaining`;
+        } else if (pkg.pricing_model === "cv_credits") {
+          detail = "CV credits (unlimited posts)";
+        }
+
+        return {
+          id: pkg.subscription_id,
+          name: snap?.name || "Package",
+          pricing_model: pkg.pricing_model,
+          end_date: pkg.end_date,
+          remaining,
+          detail,
+        };
+      });
+
+    if (usablePackages.length > 1) {
+      // Multiple active packages — let user pick one
+      this.setState({ availablePackages: usablePackages, showPackageModal: true, budgetMode: false });
+
+    } else if (usablePackages.length === 1) {
+      // Only one — use it automatically
+      await this.submitJobPayload(usablePackages[0].id);
+
+    } else {
+      // No active package — fetch daily_budget packages from DB
+      try {
+        const pkgRes = await axios.get(`${this.apiBaseUrl}packages/getAvailablePackages`, {
+  params: { pricing_model: "daily_budget" },
+});
+        this.setState({
+          availablePackages: pkgRes.data.packages || [],
+          showPackageModal: true,
+          budgetMode: true,
+          chosenPackageId: null,
+          dailyBudget: "",
+        });
+      } catch (err) {
+        console.error("Failed to fetch daily_budget packages", err);
+        // Fallback — show modal with no packages, user can still enter custom budget
+        this.setState({
+          availablePackages: [],
+          showPackageModal: true,
+          budgetMode: true,
+          chosenPackageId: null,
+          dailyBudget: "",
+        });
+      }
+    }
+
+  } catch (err) {
+    console.error("Failed to fetch user packages", err);
+  }
+};
 
   resetForm = () => {
     this.setState({
@@ -1120,7 +1229,7 @@ city_id: selectedCity?.map((c) => c.value),
           <button
             style={s.btnPrimary}
             onClick={this.goToPage2}
-            onMouseEnter={(e) => (e.target.style.background = "#1a52cc")}
+            onMouseEnter={(e) => (e.target.style.background = "#5f8190")}
             onMouseLeave={(e) => (e.target.style.background = BLUE)}
           >
             Continue →
@@ -1478,7 +1587,7 @@ city_id: selectedCity?.map((c) => c.value),
           <button
             style={s.btnPrimary}
             onClick={this.handleSubmit}
-            onMouseEnter={(e) => (e.target.style.background = "#1a52cc")}
+            onMouseEnter={(e) => (e.target.style.background = "#5f8190")}
             onMouseLeave={(e) => (e.target.style.background = BLUE)}
           >
             Post Job
@@ -1490,7 +1599,28 @@ city_id: selectedCity?.map((c) => c.value),
 
   render() {
     const { currentPage, showPricing, jobId } = this.state;
-
+  if (showPricing) return (
+    <div style={{ background: BG, minHeight: "100vh" }}>
+      <div style={{ 
+        padding: "14px 32px", 
+        borderBottom: `1px solid ${BORDER}`, 
+        background: WHITE 
+      }}>
+        <button
+          style={s.btnGhost}
+          onClick={() => this.setState({ showPricing: false })}
+        >
+          ← Back to Job Post
+        </button>
+      </div>
+      <div style={{ padding: "32px" }}>
+        <PricingPage
+          jobId={jobId}
+          onPaymentSuccess={() => this.setState({ showPricing: false })}
+        />
+      </div>
+    </div>
+  );
     return (
       <div style={{ background: BG, minHeight: "100vh" }}>
         <Head>
@@ -1649,6 +1779,399 @@ onClick={() => {
             </ModalBody>
           </Modal>
         )}
+        {this.state.showPackageModal && (
+  <div style={{
+    position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+    display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100,
+  }}>
+    <div style={{
+      background: "#fff", borderRadius: "12px", padding: "28px",
+      width: "100%", maxWidth: "480px",
+      maxHeight: "90vh",        // ← cap the height
+      overflowY: "auto",        // ← enable scroll
+      boxShadow: "0 8px 32px rgba(0,0,0,0.18)", fontFamily: "inherit",
+    }}>
+      {/* ── Multiple packages ── */}
+      {!this.state.budgetMode && this.state.availablePackages.length > 0 && (
+        <>
+          <h3 style={{ fontSize: "17px", fontWeight: 700, marginBottom: "6px" }}>
+            Select a package to use
+          </h3>
+          <p style={{ fontSize: "13px", color: "#6b7280", marginBottom: "20px" }}>
+            You have {this.state.availablePackages.length} active packages.
+            Choose which one to apply to this job post.
+          </p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "24px" }}>
+            {this.state.availablePackages.map((pkg) => {
+              const snap = JSON.parse(pkg.package_snapshot || "{}");
+              const isChosen = this.state.chosenPackageId === pkg.id;
+
+              let detail = "";
+              if (pkg.pricing_model === "duration_bundle")
+                detail = `${pkg.remaining} post${pkg.remaining !== 1 ? "s" : ""} remaining`;
+              else if (pkg.pricing_model === "job_slot")
+                detail = `${pkg.remaining} slot${pkg.remaining !== 1 ? "s" : ""} remaining`;
+              else if (pkg.pricing_model === "cv_credits")
+                detail = "CV credits (unlimited posts)";
+
+              return (
+                <div
+                  key={pkg.id}
+                  onClick={() => this.setState({ chosenPackageId: pkg.id })}
+                  style={{
+                    border: `2px solid ${isChosen ? "#36565f" : "#e5e7eb"}`,
+                    borderRadius: "10px", padding: "14px 16px",
+                    cursor: "pointer", background: isChosen ? "#e8f0fe" : "#fff",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontWeight: 600, fontSize: "14px" }}>
+                      {pkg.package_name}
+                    </span>
+                    <span style={{
+                      fontSize: "11px", padding: "2px 10px", borderRadius: "20px",
+                      background: isChosen ? "#36565f" : "#f3f4f6",
+                      color: isChosen ? "#fff" : "#6b7280", fontWeight: 600,
+                    }}>
+                      {isChosen ? "Selected" : "Select"}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>
+                    {detail} · Expires {new Date(pkg.end_date).toLocaleDateString()}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+            <button
+              onClick={() => this.setState({ showPackageModal: false, chosenPackageId: null })}
+              style={{ ...s.btnGhost, padding: "0 20px" }}
+            >
+              Cancel
+            </button>
+            <button
+              disabled={!this.state.chosenPackageId}
+              onClick={() => {
+                this.setState({ showPackageModal: false });
+                this.submitJobPayload(this.state.chosenPackageId);
+              }}
+              style={{
+                ...s.btnPrimary, padding: "0 24px",
+                opacity: this.state.chosenPackageId ? 1 : 0.5,
+                cursor: this.state.chosenPackageId ? "pointer" : "not-allowed",
+              }}
+            >
+              Post Job with Selected Package
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* ── No package — budget / subscription ── */}
+{this.state.budgetMode && (
+  <>
+    <h3 style={{ fontSize: "17px", fontWeight: 700, marginBottom: "4px" }}>
+      No active package found
+    </h3>
+    <p style={{ fontSize: "13px", color: "#6b7280", marginBottom: "16px" }}>
+      Choose a daily budget plan — your job gets promoted and you're only 
+      charged based on actual candidate interactions, up to your daily cap.
+    </p>
+
+    {/* ── How it works ── */}
+    <div style={{
+      display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
+      gap: "0", marginBottom: "20px",
+      background: "#f8fafc", borderRadius: "10px",
+      border: "1px solid #e5e7eb", overflow: "hidden",
+    }}>
+      {[
+        { 
+          icon: "📋", 
+          title: "Job goes live", 
+          desc: "Your post is published and shown to matching candidates" 
+        },
+        { 
+          icon: "📩", 
+          title: "Applications come in", 
+          desc: "Candidates apply or appear in your search results" 
+        },
+        { 
+          icon: "💳", 
+          title: "You're charged", 
+          desc: "Only when you view profiles or receive applications — up to your daily cap" 
+        },
+      ].map((step, i) => (
+        <div key={i} style={{
+          padding: "12px 14px", textAlign: "center",
+          borderRight: i < 2 ? "1px solid #e5e7eb" : "none",
+        }}>
+          <div style={{ fontSize: "20px", marginBottom: "4px" }}>{step.icon}</div>
+          <div style={{ fontSize: "12px", fontWeight: 600, color: "#111827", marginBottom: "2px" }}>{step.title}</div>
+          <div style={{ fontSize: "11px", color: "#6b7280", lineHeight: "1.4" }}>{step.desc}</div>
+        </div>
+      ))}
+    </div>
+
+    {/* ── Billing model legend ── */}
+    <div style={{
+      display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
+      gap: "8px", marginBottom: "20px",
+    }}>
+      {[
+        { 
+          key: "cpc", 
+          label: "CPC", 
+          title: "Cost per Profile View",
+          desc: "Charged each time you open a candidate's profile",
+          color: "#185FA5", bg: "#E6F1FB"
+        },
+        { 
+          key: "cpm", 
+          label: "CPM",
+          title: "Cost per 1,000 Profiles",
+          desc: "Charged per 1,000 candidate profiles shown to you",
+          color: "#3B6D11", bg: "#EAF3DE"
+        },
+        { 
+          key: "cpa", 
+          label: "CPA",
+          title: "Cost per Application",
+          desc: "Charged only when a candidate applies to your job",
+          color: "#854F0B", bg: "#FAEEDA"
+        },
+      ].map((bm) => (
+        <div key={bm.key} style={{
+          background: bm.bg, borderRadius: "8px",
+          padding: "10px 12px", textAlign: "center",
+        }}>
+          <span style={{
+            fontSize: "11px", fontWeight: 700, color: bm.color,
+            background: "rgba(255,255,255,0.6)", padding: "1px 8px",
+            borderRadius: "20px", display: "inline-block", marginBottom: "4px"
+          }}>{bm.label}</span>
+          <div style={{ fontSize: "11px", fontWeight: 600, color: "#111827", marginBottom: "2px" }}>{bm.title}</div>
+          <div style={{ fontSize: "10px", color: "#6b7280", lineHeight: "1.3" }}>{bm.desc}</div>
+        </div>
+      ))}
+    </div>
+
+    {/* ── Package cards from DB ── */}
+    <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "20px" }}>
+      {this.state.availablePackages.length === 0 && (
+        <div style={{ 
+          fontSize: "13px", color: "#6b7280", textAlign: "center", 
+          padding: "24px", background: "#f9fafb", borderRadius: "10px",
+          border: "1px dashed #d1d5db"
+        }}>
+          No daily budget plans available right now.
+        </div>
+      )}
+
+      {this.state.availablePackages.map((pkg) => {
+        const isChosen = this.state.chosenPackageId === pkg.id;
+
+        const billingMeta = {
+          cpc: { label: "Cost per Profile View", color: "#185FA5", bg: "#E6F1FB" },
+          cpm: { label: "Cost per 1,000 Profiles", color: "#3B6D11", bg: "#EAF3DE" },
+          cpa: { label: "Cost per Application", color: "#854F0B", bg: "#FAEEDA" },
+        }[pkg.billing_model] || { label: pkg.billing_model?.toUpperCase(), color: "#6b7280", bg: "#f3f4f6" };
+
+        // description lines → bullet points (same as your admin)
+        const features = pkg.description
+          ? pkg.description.split("\n").map(l => l.trim()).filter(Boolean)
+          : [];
+
+        return (
+          <div
+            key={pkg.id}
+            onClick={() => this.setState({ 
+              chosenPackageId: pkg.id, 
+              dailyBudget: pkg.daily_budget_cap 
+            })}
+            style={{
+              border: `2px solid ${isChosen ? "#36565f" : "#e5e7eb"}`,
+              borderRadius: "12px",
+              padding: "18px",
+              cursor: "pointer",
+              background: isChosen ? "#f0f7f8" : "#fff",
+              transition: "all 0.15s",
+            }}
+          >
+            {/* ── Top row: name + billing badge + select ── */}
+            <div style={{ 
+              display: "flex", justifyContent: "space-between", 
+              alignItems: "flex-start", marginBottom: "12px" 
+            }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "2px" }}>
+                  <span style={{ fontWeight: 700, fontSize: "15px", color: "#111827" }}>
+                    {pkg.name}
+                  </span>
+                  {pkg.is_featured === 1 && (
+                    <span style={{
+                      fontSize: "10px", padding: "1px 8px", borderRadius: "20px",
+                      background: "#36565f", color: "#fff", fontWeight: 600
+                    }}>
+                      ⭐ Most Popular
+                    </span>
+                  )}
+                  {pkg.sponsor_to_top === 1 && (
+                    <span style={{
+                      fontSize: "10px", padding: "1px 8px", borderRadius: "20px",
+                      background: "#FAEEDA", color: "#854F0B", fontWeight: 600
+                    }}>
+                      🚀 Sponsored to Top
+                    </span>
+                  )}
+                </div>
+                <span style={{
+                  fontSize: "11px", fontWeight: 600, padding: "2px 10px",
+                  borderRadius: "20px", background: billingMeta.bg, color: billingMeta.color,
+                }}>
+                  {billingMeta.label}
+                </span>
+              </div>
+              <span style={{
+                fontSize: "11px", padding: "4px 14px", borderRadius: "20px", fontWeight: 600,
+                background: isChosen ? "#36565f" : "#f3f4f6",
+                color: isChosen ? "#fff" : "#6b7280",
+                flexShrink: 0, marginLeft: "10px", alignSelf: "center"
+              }}>
+                {isChosen ? "✓ Selected" : "Select"}
+              </span>
+            </div>
+
+            {/* ── Stats: daily cap / rate / duration ── */}
+            <div style={{
+              display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
+              gap: "8px", marginBottom: "12px",
+            }}>
+              {[
+                { 
+                  label: "Daily Cap", 
+                  value: `${pkg.daily_budget_cap}`, 
+                  sub: "max spend per day" 
+                },
+                { 
+                  label: "Rate", 
+                  value: `${pkg.rate_per_unit}`, 
+                  sub: pkg.billing_model === "cpm" 
+                    ? "per 1k profiles" 
+                    : pkg.billing_model === "cpc" 
+                    ? "per profile view" 
+                    : "per application" 
+                },
+                { 
+                  label: "Duration", 
+                  value: pkg.campaign_duration_days ? `${pkg.campaign_duration_days} days` : "Open-ended", 
+                  sub: "campaign length" 
+                },
+              ].map((stat) => (
+                <div key={stat.label} style={{
+                  background: isChosen ? "rgba(255,255,255,0.7)" : "#f9fafb",
+                  borderRadius: "8px", padding: "8px 10px", textAlign: "center",
+                }}>
+                  <div style={{ fontSize: "14px", fontWeight: 700, color: "#111827" }}>{stat.value}</div>
+                  <div style={{ fontSize: "10px", fontWeight: 600, color: "#6b7280", marginTop: "1px" }}>{stat.label}</div>
+                  <div style={{ fontSize: "10px", color: "#9ca3af" }}>{stat.sub}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Min budget warning ── */}
+            {pkg.min_daily_budget && (
+              <div style={{
+                fontSize: "11px", color: "#854F0B", background: "#FAEEDA",
+                borderRadius: "6px", padding: "4px 10px", marginBottom: "10px",
+                display: "inline-block"
+              }}>
+                ⚠️ Minimum daily spend: {pkg.min_daily_budget}
+              </div>
+            )}
+
+            {/* ── Feature bullets from description ── */}
+            {features.length > 0 && (
+              <div style={{ 
+                display: "flex", flexWrap: "wrap", gap: "6px", 
+                marginBottom: "4px" 
+              }}>
+                {features.map((f, i) => (
+                  <span key={i} style={{
+                    fontSize: "11px", color: "#374151",
+                    background: "#f3f4f6", borderRadius: "20px",
+                    padding: "2px 10px",
+                  }}>
+                    ✓ {f}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+
+
+
+    {/* ── Buy subscription ── */}
+    <div style={{
+      border: "1.5px solid #e5e7eb", borderRadius: "10px",
+      padding: "14px 16px", marginBottom: "24px",
+      display: "flex", alignItems: "center", 
+      justifyContent: "space-between", gap: "12px",
+    }}>
+      <div>
+        <div style={{ fontWeight: 600, fontSize: "14px" }}>
+          📦 Need unlimited posts or job slots?
+        </div>
+        <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>
+          Buy a duration bundle, job slot, or CV credits package for better value.
+        </div>
+      </div>
+      <button
+  onClick={() => this.setState({ showPackageModal: false, showPricing: true })}
+  style={{ ...s.btnPrimary, padding: "0 18px", fontSize: "13px", flexShrink: 0 }}
+>
+  View plans
+</button>
+    </div>
+
+    {/* ── Actions ── */}
+    <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+      <button
+        onClick={() => this.setState({ 
+          showPackageModal: false, budgetMode: false, 
+          chosenPackageId: null, dailyBudget: "" 
+        })}
+        style={{ ...s.btnGhost, padding: "0 20px" }}
+      >
+        Cancel
+      </button>
+      <button
+        disabled={!this.state.dailyBudget && !this.state.chosenPackageId}
+        onClick={() => {
+          this.setState({ showPackageModal: false, budgetMode: false });
+          this.submitJobPayload(this.state.chosenPackageId || null);
+        }}
+        style={{
+          ...s.btnPrimary, padding: "0 24px",
+          opacity: (this.state.dailyBudget || this.state.chosenPackageId) ? 1 : 0.5,
+          cursor: (this.state.dailyBudget || this.state.chosenPackageId) ? "pointer" : "not-allowed",
+        }}
+      >
+        Post Job →
+      </button>
+    </div>
+  </>
+)}
+    </div>
+  </div>
+)}
       </div>
     );
   }

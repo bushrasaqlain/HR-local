@@ -100,6 +100,7 @@ currency.createCurrenciesTable();
   jobModel.createJobPostTable()
   jobModel.createCompanyPackagesTable();
   paymentModel.createPaymentTable()
+  paymentModel.createSaveCardTable()
   applicantModel.createApplicantsTable();
   applicantModel.createCandidateSearchImpressionsTable();
   historyModel.createHistoryTable();

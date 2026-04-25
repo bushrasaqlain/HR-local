@@ -87,6 +87,8 @@
           return <ChatBox />;
         case "wallet":
           return <CompanyWallet />;
+        case "transactinhistory":
+          return <TransactionHistory />;  
 
         case "changepassword":
           return <ChangePasswordForm />;

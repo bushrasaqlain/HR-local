@@ -7,5 +7,6 @@ router.post("/addpayment/:userId", paymentController.addPayment);
 
 // New - company registration package payment
 router.post("/registration/:userId", authMiddleware, paymentController.addRegistrationPayment);
+router.get("/getSavedCards/:userId", paymentController.getSavedCards);
 
 module.exports = router;

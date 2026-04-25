@@ -43,6 +43,8 @@
     "google-map-react": "^2.2.0",
     "handlebars": "^4.7.8",
     "jsonwebtoken": "^9.0.2",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.7",
     "libreoffice-convert": "^1.6.1",
     "mammoth": "^1.11.0",
     "multer": "^1.4.5-lts.1",

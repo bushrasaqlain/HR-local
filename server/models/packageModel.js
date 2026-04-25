@@ -203,7 +203,22 @@ const addPackage = (req, res) => {
     }
   );
 };
+const getAvailablePackages = (req, res) => {
+  const { pricing_model } = req.query;
 
+  let sql = `SELECT * FROM packages WHERE status = 'Active' AND package_type = 'Company'`;
+  const params = [];
+
+  if (pricing_model) {
+    sql += ` AND pricing_model = ?`;
+    params.push(pricing_model);
+  }
+
+  connection.query(sql, params, (err, results) => {
+    if (err) return res.status(500).json({ error: "DB error", details: err.message });
+    return res.status(200).json({ packages: results });
+  });
+};
 // ─────────────────────────────────────────────
 const getAllPackages = (
   { page = 1, limit = 10, name = "price", search = "", status = "Active", package_type = "" },
@@ -552,4 +567,5 @@ module.exports = {
   getPackagebyCompany,
   getCompanyPackgestatus,
   getPackageDetail,
+  getAvailablePackages
 };
