@@ -1,4 +1,3 @@
-
 export const pageItems = [
   {
     name: "About",
@@ -17,7 +16,6 @@ export const pageItems = [
     routePath: "/terms",
   },
 ];
-
 
 export const dbadminmenuitem = [
   {
@@ -46,7 +44,7 @@ export const dbadminmenuitem = [
     children: [
       { key: "businessentitytypes", label: "Business Entities" },
       { key: "jobtypes", label: "Job Types" },
-      { key: "jobtitles", label: "Job Titles"},
+      { key: "jobtitles", label: "Job Titles" },
       { key: "packages", label: "Packages" },
       { key: "licensetypes", label: "License Types" },
     ],
@@ -65,8 +63,8 @@ export const regadminmenuitem = [
   { key: "company", label: "Company List" },
   { key: "candidate", label: "Candidates List" },
   { key: "job", label: "Job List" },
-  {key: "boosts", label: "Boost Requests"},
-]
+  { key: "boosts", label: "Boost Requests" },
+];
 
 export const companymenuitem = [
   {
@@ -76,40 +74,17 @@ export const companymenuitem = [
     children: [
       { key: "profile", label: "Profile" },
       { key: "companyProfile", label: "Update Profile" },
-      
     ],
   },
 
-
-  {
-    key: "jobsGroup",
-    label: "Jobs",
-    type: "dropdown",
-    children: [
-      { key: "postJob", label: "Post Job" },
-      { key: "jobList", label: "Job Post List" },
-      { key: "packagesList", label: "Packages List" },
-      { key: "viewpackage", label: "Pricing"},
-    ],
-  },
-  {
-    key: "Applicants",
-    label: "Applicants",
-    type: "dropdown",
-    children: [
-      { key: "allApplicants", label: "All Applicants" },
-  { key: "shortlistedcandidates", label: "Shortlisted" },
-  { key: "approved", label: "Approved"},
-    ],
-  },
-  
-{ key: "wallet", label: "Wallet", type: "single"},
+  { key: "jobList", label: "Jobs" },
+  { key: "allApplicants", label: "Applicants" },
+  { key: "wallet", label: "Wallet", type: "single" },
 ];
-
 
 export const candidatesmenuitem = [
   { key: "profile", label: "Profile" },
   { key: "lists", label: "Job List" },
   // { key: "chatbox", label: "Message"},
-  { key: "register", label: "Candidate Register Form"},
-]
+  { key: "register", label: "Candidate Register Form" },
+];

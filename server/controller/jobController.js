@@ -4,6 +4,9 @@ const jobModel = require("../models/jobModel");
 const getJobbyRegAdmin = (req, res) => {
   jobModel.getJobbyRegAdmin(req, res);
 }
+const approveJob = (req, res) => {
+  jobModel.approveJob(req, res);
+}
 const updateJobPostStatus = (req, res) => {
   jobModel.updateJobPostStatus(req, res);
 }
@@ -67,7 +70,13 @@ const getTotalJobPosts = async (req, res) => {
     res.status(500).json({ msg: "SERVER_ERROR" ,});
   }
 };
+const viewCandidate = (req, res) => {
+  jobModel.viewCandidate(req, res);
+}
 
+const resetDailyBudgets = (req, res) => {
+  jobModel.resetDailyBudgets(req, res);
+}
 module.exports = {
   getJobbyRegAdmin,
   updateJobPostStatus,
@@ -82,5 +91,8 @@ module.exports = {
   popularCategories,
   getTotalJobPosts,
   getUserPackages,
-  getTransactionHistory
+  getTransactionHistory,
+  approveJob,
+  resetDailyBudgets,
+  viewCandidate 
 }
