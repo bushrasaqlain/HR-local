@@ -67,7 +67,7 @@ const STYLES = `
   .aw-topbar-tab:hover { color: #1a1a1a; }
   .aw-topbar-tab.active {
     color: #1a1a1a;
-    border-bottom: 3px solid #2164f3;
+   border-bottom-color: #36565f;
     font-weight: 700;
   }
   .aw-topbar-right {
@@ -228,7 +228,7 @@ const STYLES = `
     transition: color 0.15s;
   }
   .aw-roi-tab:hover { color: #1a1a1a; }
-  .aw-roi-tab.active { color: #2164f3; border-bottom: 2px solid #2164f3; }
+  .aw-roi-tab.active { color: #000; border-bottom: 2px solid #36565f; }
 
   .aw-roi-inner { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
   .aw-roi-stats { display: flex; flex-direction: column; gap: 16px; min-width: 200px; }
@@ -354,6 +354,7 @@ const STYLES = `
     padding: 20px; background: #fef2f2; border: 1px solid #fecaca;
     border-radius: 8px; color: #dc2626; font-size: 14px;
   }
+
   .aw-empty {
     padding: 60px; text-align: center; color: #9e9e9e; font-size: 14px;
   }
@@ -528,7 +529,7 @@ function UsageROI({ packages, activeTab, onTab }) {
       {
         label: "Used",
         data: filtered.map((p) => p.used),
-        backgroundColor: "#2164f3",
+        backgroundColor: "#36565f",
         borderRadius: 4,
         borderSkipped: false,
       },
@@ -1011,8 +1012,7 @@ class CompanyWallet extends Component {
       activeRoiTab:     0,
       loading:          true,
       error:            null,
-      showPricing:      false,
-      showTransactions: false,
+     activeTab:    "overview", 
       savedMethod:      null,
       cardSaved:        false, 
     };
@@ -1134,212 +1134,201 @@ savePaymentMethod = async () => {
     console.error("Failed to save card", err);
   }
 };
-  render() {
-    const { packages, selectedCard, activeRoiTab, loading, error, savedMethod } = this.state;
+render() {
+  const { packages, selectedCard, activeRoiTab, loading, error, savedMethod, activeTab } = this.state;
 
-    if (this.state.showPricing) return (
-      <div className="aw-root">
-        <div style={{ padding: "16px 32px", borderBottom: "1px solid #e0e0e0", background: "#fff" }}>
-          <button className="aw-btn-ghost" onClick={() => this.setState({ showPricing: false })}>← Back to Wallet</button>
-        </div>
-        <div style={{ padding: 32 }}><PricingPage /></div>
-      </div>
-    );
+  if (loading) return <div className="aw-loading"><IconSpinner /> Loading wallet…</div>;
+  if (error)   return <div className="aw-error">{error}</div>;
 
-    if (this.state.showTransactions) return (
-      <div className="aw-root">
-        <div style={{ padding: "16px 32px", borderBottom: "1px solid #e0e0e0", background: "#fff" }}>
-          <button className="aw-btn-ghost" onClick={() => this.setState({ showTransactions: false })}>← Back to Wallet</button>
-        </div>
-        <div style={{ padding: 32 }}><TransactionHistory /></div>
-      </div>
-    );
-
-    if (loading) return <div className="aw-loading"><IconSpinner /> Loading wallet…</div>;
-    if (error)   return <div className="aw-error">{error}</div>;
-    // replace the single empty check with this
-if (!packages.length) return (
-  <div className="aw-root">
+  // ── Shared topbar (always the same) ──
+  const Topbar = (
     <div className="aw-topbar">
       <div className="aw-topbar-tabs">
-        <button className="aw-topbar-tab active">Overview</button>
-        <button className="aw-topbar-tab" onClick={() => this.setState({ showTransactions: true })}>Transaction History</button>
-        <button className="aw-topbar-tab" onClick={() => this.setState({ showPricing: true })}>Packages</button>
+        {["overview", "transactions", "packages"].map((tab) => (
+          <button
+            key={tab}
+            className={`aw-topbar-tab${activeTab === tab ? " active" : ""}`}
+            onClick={() => this.setState({ activeTab: tab })}
+          >
+            {tab === "overview" ? "Overview" : tab === "transactions" ? "Transaction History" : "Packages"}
+          </button>
+        ))}
       </div>
       <div className="aw-topbar-right">
-        <button className="aw-btn-primary" onClick={() => this.setState({ showPricing: true })}>
+        <button className="aw-btn-ghost" onClick={this.fetchPackages}>Refresh</button>
+        <button className="aw-btn-primary" onClick={() => this.setState({ activeTab: "packages" })}>
           <IconPlus /> Buy Packages
         </button>
       </div>
     </div>
+  );
 
-    <div style={{ padding: "40px 32px", display: "flex", justifyContent: "center" }}>
-      <div className="aw-card" style={{ width: "100%", maxWidth: 480, overflow: "hidden" }}>
+  // ── Empty state (no packages yet) ──
+  if (!packages.length) return (
+    <div className="aw-root">
+      <Head><title>Wallets</title></Head>
+      {Topbar}
 
-        <div style={{
-          background: "linear-gradient(135deg, #36565f 0%, #1e3a42 100%)",
-          padding: "36px 32px", textAlign: "center"
-        }}>
-          <div style={{
-            width: 64, height: 64, background: "rgba(255,255,255,0.15)",
-            borderRadius: 16, display: "flex", alignItems: "center",
-            justifyContent: "center", fontSize: 32, margin: "0 auto 16px"
-          }}>💳</div>
-          <div style={{ color: "#fff", fontSize: 20, fontWeight: 800, marginBottom: 6 }}>
-            {savedMethod ? "Your Wallet" : "Set Up Your Wallet"}
-          </div>
-          <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, lineHeight: 1.6 }}>
-            {savedMethod
-              ? "Card saved. Buy a package to start posting jobs."
-              : "Add a payment method to activate packages and start posting jobs."}
-          </div>
-        </div>
+      {activeTab === "transactions" && (
+        <div style={{ padding: 32 }}><TransactionHistory /></div>
+      )}
 
-        <div style={{ padding: "28px 32px" }}>
-          {savedMethod ? (
-            // ── Card already saved ──
-            <>
+      {activeTab === "packages" && (
+        <div style={{ padding: 32 }}><PricingPage /></div>
+      )}
+
+      {activeTab === "overview" && (
+        <div style={{ padding: "40px 32px", display: "flex", justifyContent: "center" }}>
+          <div className="aw-card" style={{ width: "100%", maxWidth: 480, overflow: "hidden" }}>
+            <div style={{
+              background: "linear-gradient(135deg, #36565f 0%, #1e3a42 100%)",
+              padding: "36px 32px", textAlign: "center"
+            }}>
               <div style={{
-                border: "1.5px solid #e0e0e0", borderRadius: 8,
-                padding: "16px", marginBottom: 16,
-                display: "flex", alignItems: "center", gap: 12
-              }}>
-                <div style={{
-                  width: 44, height: 30, borderRadius: 4, background: "#f0f0f0",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 11, fontWeight: 800, color: "#595959"
-                }}>
-                  {savedMethod.brand?.toUpperCase() || "CARD"}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>
-                    •••• •••• •••• {savedMethod.last4}
-                  </div>
-                  <div style={{ fontSize: 12, color: "#767676" }}>{savedMethod.holder}</div>
-                </div>
-                <span style={{
-                  fontSize: 11, background: "#d1fae5", color: "#059669",
-                  padding: "3px 8px", borderRadius: 3, fontWeight: 700
-                }}>SAVED</span>
+                width: 64, height: 64, background: "rgba(255,255,255,0.15)",
+                borderRadius: 16, display: "flex", alignItems: "center",
+                justifyContent: "center", fontSize: 32, margin: "0 auto 16px"
+              }}>💳</div>
+              <div style={{ color: "#fff", fontSize: 20, fontWeight: 800, marginBottom: 6 }}>
+                {savedMethod ? "Your Wallet" : "Set Up Your Wallet"}
               </div>
-
-              {savedMethod.acceptedTypes?.length > 0 && (
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 12, color: "#767676", marginBottom: 8 }}>Accepted types</div>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    {savedMethod.acceptedTypes.map(t => (
-                      <span key={t} style={{
-                        fontSize: 11, fontWeight: 700, padding: "3px 10px",
-                        borderRadius: 4, background: "#f0f5ff", color: "#2164f3",
-                        border: "1px solid #c0d4ff", textTransform: "uppercase"
-                      }}>{t}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <button className="aw-btn-primary"
-                style={{ width: "100%", justifyContent: "center", padding: 12, fontSize: 14, borderRadius: 8, marginBottom: 10 }}
-                onClick={() => this.setState({ showPricing: true })}>
-                Browse Packages →
-              </button>
-              <button className="aw-btn-ghost"
-                style={{ width: "100%", justifyContent: "center" }}
-                onClick={() => this.setState({ savedMethod: null, cardSaved: false })}>
-                Change Card
-              </button>
-            </>
-          ) : this.state.cardSaved ? (
-            // ── Just saved, show success ──
-            <div style={{ textAlign: "center", padding: "24px 0" }}>
-              <div style={{
-                width: 56, height: 56, background: "#d1fae5", borderRadius: "50%",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                margin: "0 auto 14px"
-              }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <path d="M5 13L9 17L19 7" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+              <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, lineHeight: 1.6 }}>
+                {savedMethod
+                  ? "Card saved. Buy a package to start posting jobs."
+                  : "Add a payment method to activate packages and start posting jobs."}
               </div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: "#1a1a1a", marginBottom: 6 }}>Card Saved!</div>
-              <div style={{ fontSize: 13, color: "#767676", marginBottom: 20 }}>
-                You can now buy packages and start posting jobs.
-              </div>
-              <button className="aw-btn-primary"
-                style={{ margin: "0 auto", justifyContent: "center" }}
-                onClick={() => this.setState({ showPricing: true })}>
-                Browse Packages →
-              </button>
             </div>
-          ) : (
-            // ── No card yet, show form ──
-            <AddCardForm
-              onSave={async (cardInput) => {
-                const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-                try {
-                  await axios.post(`${apiBaseUrl}payment/addPayment/${this.userId}`, {
-                    paymentDetails: {
-                      method:        "card",
-                      cardLast4:     cardInput.last4,
-                      cardName:      cardInput.holder,
-                      saveForLater:  cardInput.saveForLater,
-                      acceptedTypes: cardInput.acceptedTypes,
-                    },
-                    amount: 0, currency: "PKR", packageId: null, jobId: null,
-                  });
-                  this.setState({
-                    cardSaved:   true,
-                    savedMethod: {
-                      last4:         cardInput.last4,
-                      brand:         cardInput.brand,
-                      holder:        cardInput.holder,
-                      acceptedTypes: cardInput.acceptedTypes,
-                    },
-                  });
-                } catch (err) {
-                  console.error("Failed to save card", err);
-                  alert("Could not save card. Please try again.");
-                }
-              }}
-              onBrowse={() => this.setState({ showPricing: true })}
-            />
-          )}
+
+            <div style={{ padding: "28px 32px" }}>
+              {savedMethod ? (
+                <>
+                  <div style={{
+                    border: "1.5px solid #e0e0e0", borderRadius: 8,
+                    padding: "16px", marginBottom: 16,
+                    display: "flex", alignItems: "center", gap: 12
+                  }}>
+                    <div style={{
+                      width: 44, height: 30, borderRadius: 4, background: "#f0f0f0",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 11, fontWeight: 800, color: "#595959"
+                    }}>
+                      {savedMethod.brand?.toUpperCase() || "CARD"}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>
+                        •••• •••• •••• {savedMethod.last4}
+                      </div>
+                      <div style={{ fontSize: 12, color: "#767676" }}>{savedMethod.holder}</div>
+                    </div>
+                    <span style={{
+                      fontSize: 11, background: "#d1fae5", color: "#059669",
+                      padding: "3px 8px", borderRadius: 3, fontWeight: 700
+                    }}>SAVED</span>
+                  </div>
+
+                  {savedMethod.acceptedTypes?.length > 0 && (
+                    <div style={{ marginBottom: 20 }}>
+                      <div style={{ fontSize: 12, color: "#767676", marginBottom: 8 }}>Accepted types</div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        {savedMethod.acceptedTypes.map(t => (
+                          <span key={t} style={{
+                            fontSize: 11, fontWeight: 700, padding: "3px 10px",
+                            borderRadius: 4, background: "#f0f5ff", color: "#2164f3",
+                            border: "1px solid #c0d4ff", textTransform: "uppercase"
+                          }}>{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <button className="aw-btn-primary"
+                    style={{ width: "100%", justifyContent: "center", padding: 12, fontSize: 14, borderRadius: 8, marginBottom: 10 }}
+                    onClick={() => this.setState({ activeTab: "packages" })}>
+                    Browse Packages →
+                  </button>
+                  <button className="aw-btn-ghost"
+                    style={{ width: "100%", justifyContent: "center" }}
+                    onClick={() => this.setState({ savedMethod: null, cardSaved: false })}>
+                    Change Card
+                  </button>
+                </>
+              ) : this.state.cardSaved ? (
+                <div style={{ textAlign: "center", padding: "24px 0" }}>
+                  <div style={{
+                    width: 56, height: 56, background: "#d1fae5", borderRadius: "50%",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    margin: "0 auto 14px"
+                  }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <path d="M5 13L9 17L19 7" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: "#1a1a1a", marginBottom: 6 }}>Card Saved!</div>
+                  <div style={{ fontSize: 13, color: "#767676", marginBottom: 20 }}>
+                    You can now buy packages and start posting jobs.
+                  </div>
+                  <button className="aw-btn-primary"
+                    style={{ margin: "0 auto", justifyContent: "center" }}
+                    onClick={() => this.setState({ activeTab: "packages" })}>
+                    Browse Packages →
+                  </button>
+                </div>
+              ) : (
+                <AddCardForm
+                  onSave={async (cardInput) => {
+                    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+                    try {
+                      await axios.post(`${apiBaseUrl}payment/addPayment/${this.userId}`, {
+                        paymentDetails: {
+                          method: "card", cardLast4: cardInput.last4,
+                          cardName: cardInput.holder, saveForLater: cardInput.saveForLater,
+                          acceptedTypes: cardInput.acceptedTypes,
+                        },
+                        amount: 0, currency: "PKR", packageId: null, jobId: null,
+                      });
+                      this.setState({
+                        cardSaved: true,
+                        savedMethod: {
+                          last4: cardInput.last4, brand: cardInput.brand,
+                          holder: cardInput.holder, acceptedTypes: cardInput.acceptedTypes,
+                        },
+                      });
+                    } catch (err) {
+                      console.error("Failed to save card", err);
+                      alert("Could not save card. Please try again.");
+                    }
+                  }}
+                  onBrowse={() => this.setState({ activeTab: "packages" })}
+                />
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
-  </div>
-);
-    const pkg  = packages[selectedCard];
+  );
 
-    // Today's date range display
-    const now      = new Date();
-    const monthAgo = new Date(now); monthAgo.setMonth(now.getMonth() - 1);
-    const rangeStr = `${monthAgo.toLocaleDateString("en-PK", { day: "numeric", month: "short", year: "numeric" })} – ${now.toLocaleDateString("en-PK", { day: "numeric", month: "short", year: "numeric" })}`;
+  // ── Normal state (has packages) ──
+  const pkg = packages[selectedCard];
+  const now = new Date();
+  const monthAgo = new Date(now); monthAgo.setMonth(now.getMonth() - 1);
+  const rangeStr = `${monthAgo.toLocaleDateString("en-PK", { day: "numeric", month: "short", year: "numeric" })} – ${now.toLocaleDateString("en-PK", { day: "numeric", month: "short", year: "numeric" })}`;
 
-    return (
-      <div className="aw-root">
-<Head>
-          <title>Wallets</title>
-        </Head>
-        {/* ── Top Nav ── */}
-        <div className="aw-topbar">
-          <div className="aw-topbar-tabs">
-            <button className="aw-topbar-tab active">Overview</button>
-            <button className="aw-topbar-tab" onClick={() => this.setState({ showTransactions: true })}>Transaction History</button>
-            <button className="aw-topbar-tab" onClick={() => this.setState({ showPricing: true })}>Packages</button>
-          </div>
-          <div className="aw-topbar-right">
-            <button className="aw-btn-ghost" onClick={this.fetchPackages}>Refresh</button>
-            <button className="aw-btn-primary" onClick={() => this.setState({ showPricing: true })}>
-              <IconPlus /> Buy Packages
-            </button>
-          </div>
-        </div>
+  return (
+    <div className="aw-root">
+      <Head><title>Wallets</title></Head>
+      {Topbar}
 
-        {/* ── Body ── */}
+      {activeTab === "transactions" && (
+        <div style={{ padding: 32 }}><TransactionHistory /></div>
+      )}
+
+      {activeTab === "packages" && (
+        <div style={{ padding: 32 }}><PricingPage /></div>
+      )}
+
+      {activeTab === "overview" && (
         <div className="aw-body">
-
-          {/* Page header */}
           <div className="aw-page-header">
             <div>
               <div className="aw-page-title">Company Wallet</div>
@@ -1347,13 +1336,10 @@ if (!packages.length) return (
             </div>
             <div className="aw-date-range">
               <span style={{ fontSize: 13, color: "#767676" }}>Date range</span>
-              <div className="aw-date-badge">
-                <IconCalendar /> {rangeStr}
-              </div>
+              <div className="aw-date-badge"><IconCalendar /> {rangeStr}</div>
             </div>
           </div>
 
-          {/* Package selector row */}
           <div className="aw-full aw-card aw-card-pad">
             <div className="aw-card-title" style={{ marginBottom: 4 }}>Your Packages</div>
             <div className="aw-card-range">{packages.length} package{packages.length !== 1 ? "s" : ""} found — select one to see details</div>
@@ -1364,7 +1350,6 @@ if (!packages.length) return (
             </div>
           </div>
 
-          {/* Spend snapshot + ROI */}
           <div className="aw-two-col">
             <div className="aw-card aw-card-pad">
               <div className="aw-card-title">Spend Snapshot</div>
@@ -1374,24 +1359,17 @@ if (!packages.length) return (
                 This is not an invoice. Contact billing for official records.
               </p>
             </div>
-
             <div className="aw-card aw-card-pad">
-              <UsageROI
-                packages={packages}
-                activeTab={activeRoiTab}
-                onTab={(i) => this.setState({ activeRoiTab: i })}
-              />
+              <UsageROI packages={packages} activeTab={activeRoiTab} onTab={(i) => this.setState({ activeRoiTab: i })} />
             </div>
           </div>
 
-          {/* Package detail + payment method */}
           <div className="aw-two-col">
             <div className="aw-card aw-card-pad">
               <div className="aw-card-title" style={{ marginBottom: 4 }}>Package Details</div>
               <div className="aw-card-range">{pkg.name}</div>
               <PackageDetail pkg={pkg} />
             </div>
-
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div className="aw-card aw-card-pad">
                 <PaymentMethodCard
@@ -1403,17 +1381,18 @@ if (!packages.length) return (
               <div className="aw-card aw-card-pad" style={{ flex: 1 }}>
                 <div className="aw-card-title" style={{ marginBottom: 14 }}>Quick Actions</div>
                 <QuickLinks
-                  onBuy={() => this.setState({ showPricing: true })}
-                  onHistory={() => this.setState({ showTransactions: true })}
+                  onBuy={() => this.setState({ activeTab: "packages" })}
+                  onHistory={() => this.setState({ activeTab: "transactions" })}
                 />
               </div>
             </div>
           </div>
-
         </div>
-      </div>
-    );
-  }
+      )}
+    </div>
+  );
+}
 }
 
 export default CompanyWallet;
+export { AddCardForm };

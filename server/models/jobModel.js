@@ -400,7 +400,151 @@ pkg.credit_count,
     });
   });
 };
+const approveJob = (req, res) => {
+  const { jobId } = req.params;
 
+  // ─────────────────────────────────────────────
+  // STEP 1: GET JOB DETAILS
+  // ─────────────────────────────────────────────
+  connection.query(
+    `SELECT id, account_id, billing_model, daily_budget, approval_status
+     FROM job_posts
+     WHERE id = ?
+     LIMIT 1`,
+    [jobId],
+    (err, jobs) => {
+      if (err) {
+        console.error("approveJob fetch error:", err);
+        return res.status(500).json({ success: false, message: "Failed to fetch job" });
+      }
+
+      if (!jobs.length) {
+        return res.status(404).json({ success: false, message: "Job not found" });
+      }
+
+      const job = jobs[0];
+
+      if (job.approval_status === "Approved") {
+        return res.status(400).json({ success: false, message: "Job is already approved" });
+      }
+
+      // ─────────────────────────────────────────────
+      // STEP 2: NON-DAILY-BUDGET — just approve, no charge
+      // ─────────────────────────────────────────────
+      if (job.billing_model !== "daily_budget") {
+        connection.query(
+          `UPDATE job_posts SET approval_status = 'Approved' WHERE id = ?`,
+          [jobId],
+          (updateErr) => {
+            if (updateErr) {
+              console.error("Approval update error:", updateErr);
+              return res.status(500).json({ success: false, message: "Approval failed" });
+            }
+
+            return res.json({ success: true, message: "Job approved ✅" });
+          }
+        );
+        return;
+      }
+
+      // ─────────────────────────────────────────────
+      // STEP 3: DAILY BUDGET — look up saved card
+      // ─────────────────────────────────────────────
+      connection.query(
+        `SELECT id, card_last4, card_brand, card_holder, payment_token
+         FROM saved_cards
+         WHERE account_id = ?
+         LIMIT 1`,
+        [job.account_id],
+        (cardErr, cards) => {
+          if (cardErr) {
+            console.error("Card lookup error:", cardErr);
+            return res.status(500).json({ success: false, message: "Card lookup failed" });
+          }
+
+          if (!cards.length) {
+            return res.status(402).json({
+              success: false,
+              message: "No saved card found for this account — cannot approve daily budget job",
+            });
+          }
+
+          const card = cards[0];
+
+          // ─────────────────────────────────────────────
+          // STEP 4: TRANSACTION — charge card + approve job
+          // ─────────────────────────────────────────────
+          connection.beginTransaction((txErr) => {
+            if (txErr) {
+              return res.status(500).json({ success: false, message: "Transaction failed" });
+            }
+
+            // Insert payment record
+            // In production: call your real payment gateway here using card.payment_token
+            const insertPayment = `
+              INSERT INTO payment
+              (account_id, job_id,
+               card_last4, card_brand, card_holder,
+               amount, currency,
+               payment_type, payment_method, payment_status,
+               payment_reference)
+              VALUES (?, ?, ?, ?, ?, ?, 'PKR', 'job', 'Card', 'Paid', ?)
+            `;
+
+            connection.query(
+              insertPayment,
+              [
+                job.account_id,
+                job.id,
+                card.card_last4,
+                card.card_brand,
+                card.card_holder,
+                job.daily_budget,
+                `daily_budget_job_${job.id}_${Date.now()}`,
+              ],
+              (payErr, payResult) => {
+                if (payErr) {
+                  console.error("Payment insert error:", payErr);
+                  return connection.rollback(() =>
+                    res.status(500).json({ success: false, message: "Payment record failed" })
+                  );
+                }
+
+                // Approve the job
+                connection.query(
+                  `UPDATE job_posts SET approval_status = 'Approved' WHERE id = ?`,
+                  [jobId],
+                  (updateErr) => {
+                    if (updateErr) {
+                      console.error("Job approval error:", updateErr);
+                      return connection.rollback(() =>
+                        res.status(500).json({ success: false, message: "Job approval failed" })
+                      );
+                    }
+
+                    connection.commit((commitErr) => {
+                      if (commitErr) {
+                        return connection.rollback(() =>
+                          res.status(500).json({ success: false, message: "Commit failed" })
+                        );
+                      }
+
+                      return res.json({
+                        success: true,
+                        message: "Job approved and card charged ✅",
+                        payment_id: payResult.insertId,
+                      });
+                    });
+                  }
+                );
+              }
+            );
+          });
+        }
+      );
+    }
+  );
+};
 const updateJobPostStatus = (req, res) => {
   const { id, status, userId } = req.params;
 
@@ -661,98 +805,131 @@ const postJob = (req, res) => {
     }
 
     // ─────────────────────────────────────────────
-    // STEP 4: INSERT JOB
+    // STEP 4: INSERT JOB (after optional card check)
     // ─────────────────────────────────────────────
-    const sql = `
-      INSERT INTO job_posts (
-        account_id, job_title, job_description, skill_ids,
-        time_from, time_to, job_type_id,
-        min_salary, max_salary, currency_id,
-        min_experience, max_experience,
-        speciality_id, degree_id,
-        application_deadline, no_of_positions, industry,
-        country_id, district_id, city_id,
-        is_sponsored, daily_budget, cost_per_click, spent_amount,
-        approval_status, status,
-        company_package_id, package_id, billing_model,
-        job_location_type,
-        screening_start, screening_end,
-        interview_start, interview_end,
-        expected_joining_date
-      )
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-    `;
+    const proceedWithJobInsert = () => {
 
-    const params = [
-      userId,
-      job_title,
-      job_description,
-      JSON.stringify(skill_ids),
-      time_from,
-      time_to,
-      job_type_id,
-      min_salary || null,
-      max_salary || null,
-      currency_id || null,
-      min_experience,
-      max_experience,
-      speciality_id,
-      degree_id,
-      application_deadline,
-      no_of_positions,
-      industry,
-      country_id || null,
-      Array.isArray(district_id) && district_id.length ? JSON.stringify(district_id) : null,
-      Array.isArray(city_id) && city_id.length ? JSON.stringify(city_id) : null,
-      isSponsored,
-      daily_budget || 0,
-      cost_per_click || 0,
-      0, // spent_amount
-      (activePackage || finalBillingModel === "daily_budget") ? "Pending" : "Pending Payment",
-      "Active",
-      finalCompanyPackageId,
-      finalPackageId,
-      finalBillingModel,
-      job_location_type || null,
-      screening_start || null,
-      screening_end || null,
-      interview_start || null,
-      interview_end || null,
-      expected_joining_date || null,
-    ];
+      const sql = `
+        INSERT INTO job_posts (
+          account_id, job_title, job_description, skill_ids,
+          time_from, time_to, job_type_id,
+          min_salary, max_salary, currency_id,
+          min_experience, max_experience,
+          speciality_id, degree_id,
+          application_deadline, no_of_positions, industry,
+          country_id, district_id, city_id,
+          is_sponsored, daily_budget, cost_per_click, spent_amount,
+          approval_status, status,
+          company_package_id, package_id, billing_model,
+          job_location_type,
+          screening_start, screening_end,
+          interview_start, interview_end,
+          expected_joining_date,
+          chosen_daily_package_id
+        )
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      `;
 
-    connection.query(sql, params, (err2, result) => {
-      if (err2) {
-        console.error("Insert error:", err2);
-        return res.status(500).json({ error: "Database error" });
-      }
+      const params = [
+        userId,
+        job_title,
+        job_description,
+        JSON.stringify(skill_ids),
+        time_from,
+        time_to,
+        job_type_id,
+        min_salary || null,
+        max_salary || null,
+        currency_id || null,
+        min_experience,
+        max_experience,
+        speciality_id,
+        degree_id,
+        application_deadline,
+        no_of_positions,
+        industry,
+        country_id || null,
+        Array.isArray(district_id) && district_id.length ? JSON.stringify(district_id) : null,
+        Array.isArray(city_id) && city_id.length ? JSON.stringify(city_id) : null,
+        isSponsored,
+        daily_budget || 0,
+        cost_per_click || 0,
+        0, // spent_amount
+        "Pending", // always Pending — admin approves, then charges card for daily_budget jobs
+        "Active",
+        finalCompanyPackageId,
+        finalPackageId,
+        finalBillingModel,
+        job_location_type || null,
+        screening_start || null,
+        screening_end || null,
+        interview_start || null,
+        interview_end || null,
+        expected_joining_date || null,
+        finalBillingModel === "daily_budget" ? (req.body.chosen_daily_package_id || null) : null,
+      ];
 
-      const jobId = result.insertId;
+      connection.query(sql, params, (err2, result) => {
+        if (err2) {
+          console.error("Insert error:", err2);
+          return res.status(500).json({ error: "Database error" });
+        }
 
-      // ─────────────────────────────────────────────
-      // STEP 5: DEDUCT PACKAGE USAGE
-      // ─────────────────────────────────────────────
-      if (finalCompanyPackageId && deductField) {
-        connection.query(
-          `UPDATE company_packages 
-           SET ${deductField} = ${deductField} + 1 
-           WHERE id = ?`,
-          [finalCompanyPackageId],
-          (err3) => {
-            if (err3) console.error("Deduction error:", err3);
-          }
-        );
-      }
+        const jobId = result.insertId;
 
-      // ─────────────────────────────────────────────
-      // DONE 🎉
-      // ─────────────────────────────────────────────
-      return res.status(201).json({
-        message: "Job posted successfully ✅",
-        job_id: jobId,
-        billing_model: finalBillingModel,
+        // ─────────────────────────────────────────────
+        // STEP 5: DEDUCT PACKAGE USAGE (package jobs only)
+        // ─────────────────────────────────────────────
+        if (finalCompanyPackageId && deductField) {
+          connection.query(
+            `UPDATE company_packages SET ${deductField} = ${deductField} + 1 WHERE id = ?`,
+            [finalCompanyPackageId],
+            (err3) => {
+              if (err3) console.error("Deduction error:", err3);
+            }
+          );
+        }
+
+        // ─────────────────────────────────────────────
+        // DONE 🎉
+        // ─────────────────────────────────────────────
+        return res.status(201).json({
+          message: finalBillingModel === "daily_budget"
+            ? "Job posted successfully ✅ — pending admin approval. Your saved card will be charged once approved."
+            : "Job posted successfully ✅",
+          job_id: jobId,
+          billing_model: finalBillingModel,
+        });
       });
-    });
+    };
+
+    // ─────────────────────────────────────────────
+    // Daily budget: verify a saved card exists first
+    // Package-based: skip card check entirely
+    // ─────────────────────────────────────────────
+    if (finalBillingModel === "daily_budget") {
+      connection.query(
+        `SELECT id FROM saved_cards WHERE account_id = ? LIMIT 1`,
+        [userId],
+        (cardErr, cards) => {
+          if (cardErr) {
+            console.error("Saved card lookup error:", cardErr);
+            return res.status(500).json({ error: "Card lookup failed" });
+          }
+
+          if (!cards.length) {
+            return res.status(402).json({
+              error: "no_saved_card",
+              message: "A saved card is required to post a daily budget job. Please add a card first.",
+            });
+          }
+
+          proceedWithJobInsert();
+        }
+      );
+    } else {
+      proceedWithJobInsert();
+    }
   });
 };
 
@@ -1128,7 +1305,8 @@ const getUserPackages = (req, res) => {
 const getTransactionHistory = (req, res) => {
   const { userId } = req.params;
 
-  const query = `
+  // Query 1: Package-based transactions (existing)
+  const packageQuery = `
     SELECT 
       cp.id              AS transaction_id,
       cp.account_id,
@@ -1149,51 +1327,90 @@ const getTransactionHistory = (req, res) => {
     ORDER BY cp.created_at DESC
   `;
 
-  connection.query(query, [userId], (err, results) => {
-    if (err) {
-      return res.status(500).json({ error: "Failed to fetch transaction history" });
-    }
+  // Query 2: Daily budget jobs
+  const dailyBudgetQuery = `
+    SELECT
+      id, job_title, status, billing_model,
+      daily_budget, cost_per_click,
+      spent_amount, application_deadline,
+      created_at
+    FROM job_posts
+    WHERE account_id = ? AND billing_model = 'daily_budget'
+    ORDER BY created_at DESC
+  `;
 
-    const transactions = results.map((item) => {
-      const pkg =
-        typeof item.package_snapshot === "string"
-          ? JSON.parse(item.package_snapshot)
-          : item.package_snapshot || {};
+  connection.query(packageQuery, [userId], (err, packageResults) => {
+    if (err) return res.status(500).json({ error: "Failed to fetch transaction history" });
 
-      // Pull units from snapshot based on pricing model
-      const totalUnits =
-        pkg.num_posts ||
-        pkg.credit_count ||
-        pkg.slot_count ||
-        pkg.daily_budget ||
-        pkg.applies_limit ||
-        0;
+    connection.query(dailyBudgetQuery, [userId], (err2, dailyResults) => {
+      if (err2) return res.status(500).json({ error: "Failed to fetch daily budget jobs" });
 
-      const usedUnits =
-        item.used_posts ||
-        item.used_credits ||
-        item.used_slots ||
-        item.used_applies ||
-        Number(item.used_budget) ||
-        0;
+      // Format package transactions (your existing logic, unchanged)
+      const packageTransactions = packageResults.map((item) => {
+        const pkg =
+          typeof item.package_snapshot === "string"
+            ? JSON.parse(item.package_snapshot)
+            : item.package_snapshot || {};
 
-      return {
-        transaction_id: item.transaction_id,
-        package_name: pkg.name || "Package",
-        package_type: pkg.type || item.pricing_model,
-        pricing_model: item.pricing_model,
-        amount_paid: pkg.price || 0,
-        status: item.status,
-        start_date: item.start_date,
-        end_date: item.end_date,
-        purchased_at: item.created_at,  // ← exact purchase timestamp
-        total_units: totalUnits,
-        used_units: usedUnits,
-        remaining_units: Math.max(totalUnits - usedUnits, 0),
-      };
+        const totalUnits =
+          pkg.num_posts     ||
+          pkg.credit_count  ||
+          pkg.slot_count    ||
+          pkg.daily_budget  ||
+          pkg.applies_limit ||
+          0;
+
+        const usedUnits =
+          item.used_posts   ||
+          item.used_credits ||
+          item.used_slots   ||
+          item.used_applies ||
+          Number(item.used_budget) ||
+          0;
+
+        return {
+          transaction_id:  item.transaction_id,
+          package_name:    pkg.name         || "Package",
+          package_type:    pkg.type         || item.pricing_model,
+          pricing_model:   item.pricing_model,
+          amount_paid:     pkg.price        || 0,
+          status:          item.status,
+          start_date:      item.start_date,
+          end_date:        item.end_date,
+          purchased_at:    item.created_at,
+          total_units:     totalUnits,
+          used_units:      usedUnits,
+          remaining_units: Math.max(totalUnits - usedUnits, 0),
+          is_daily_budget: false,
+        };
+      });
+
+      // Format daily budget jobs to match the same shape
+      const dailyTransactions = dailyResults.map((job) => ({
+        transaction_id:  `job_${job.id}`,
+        package_name: job.billing_model.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
+        package_type:    "daily_budget",
+        pricing_model:   "daily_budget",
+        amount_paid:     job.spent_amount || 0,   // actual spend so far
+        status:          job.status,
+        start_date:      job.created_at,
+        end_date:        job.application_deadline,
+        purchased_at:    job.created_at,
+        total_units:     job.daily_budget  || 0,  // the cap they set
+        used_units:      job.spent_amount  || 0,  // what's been spent
+        remaining_units: Math.max((job.daily_budget || 0) - (job.spent_amount || 0), 0),
+        is_daily_budget: true,
+        // extra detail useful for the UI
+        cost_per_click:  job.cost_per_click || 0,
+      }));
+
+      // Merge and sort everything by date descending
+      const allTransactions = [...packageTransactions, ...dailyTransactions].sort(
+        (a, b) => new Date(b.purchased_at) - new Date(a.purchased_at)
+      );
+
+      res.json(allTransactions);
     });
-
-    res.json(transactions);
   });
 };
 const getJobTitle = (req, res) => {
@@ -1314,12 +1531,308 @@ const getTotalJobPosts = (accountId, type, value) => {
   });
 };
 
+const viewCandidate = (req, res) => {
+  const { jobId, candidateId } = req.params;
+  const userId = req.params.userId; // company account_id from auth middleware
 
+  // ─────────────────────────────────────────────
+  // STEP 1: GET JOB DETAILS
+  // ─────────────────────────────────────────────
+  connection.query(
+    `SELECT id, account_id, billing_model, daily_budget, cost_per_click, spent_amount
+     FROM job_posts
+     WHERE id = ? AND account_id = ? AND approval_status = 'Approved' AND status = 'Active'
+     LIMIT 1`,
+    [jobId, userId],
+    (err, jobs) => {
+      if (err) {
+        console.error("viewCandidate job fetch error:", err);
+        return res.status(500).json({ success: false, message: "Failed to fetch job" });
+      }
+
+      if (!jobs.length) {
+        return res.status(404).json({ success: false, message: "Job not found" });
+      }
+
+      const job = jobs[0];
+
+      // ─────────────────────────────────────────────
+      // STEP 2: IF DAILY BUDGET — CHECK CAP + CHARGE
+      // ─────────────────────────────────────────────
+      const fetchCandidate = () => {
+        connection.query(
+          `SELECT 
+             a.id, a.username, a.email,
+             cp.full_name, cp.phone, cp.profile_picture,
+             cp.dob, cp.gender, cp.location,
+             cp.bio, cp.experience_years,
+             cp.resume_url
+           FROM account a
+           LEFT JOIN candidate_profile cp ON cp.account_id = a.id
+           WHERE a.id = ?
+           LIMIT 1`,
+          [candidateId],
+          (candErr, candidates) => {
+            if (candErr) {
+              console.error("Candidate fetch error:", candErr);
+              return res.status(500).json({ success: false, message: "Failed to fetch candidate" });
+            }
+
+            if (!candidates.length) {
+              return res.status(404).json({ success: false, message: "Candidate not found" });
+            }
+
+            return res.json({
+              success: true,
+              candidate: candidates[0],
+            });
+          }
+        );
+      };
+
+      if (job.billing_model !== "daily_budget") {
+        // Non daily budget job — just return candidate directly
+        return fetchCandidate();
+      }
+
+      // ─────────────────────────────────────────────
+      // STEP 3: CHECK IF DAILY BUDGET CAP IS HIT
+      // ─────────────────────────────────────────────
+      if (job.spent_amount >= job.daily_budget) {
+        return res.status(402).json({
+          success: false,
+          error: "daily_budget_exceeded",
+          message: "You have reached your daily budget cap. You can view more candidates tomorrow.",
+          spent_amount: job.spent_amount,
+          daily_budget: job.daily_budget,
+        });
+      }
+
+      // ─────────────────────────────────────────────
+      // STEP 4: GET SAVED CARD
+      // ─────────────────────────────────────────────
+      connection.query(
+        `SELECT id, card_last4, card_brand, card_holder, payment_token
+         FROM saved_cards
+         WHERE account_id = ?
+         LIMIT 1`,
+        [userId],
+        (cardErr, cards) => {
+          if (cardErr) {
+            console.error("Card lookup error:", cardErr);
+            return res.status(500).json({ success: false, message: "Card lookup failed" });
+          }
+
+          if (!cards.length) {
+            return res.status(402).json({
+              success: false,
+              message: "No saved card found. Please add a card to view candidates.",
+            });
+          }
+
+          const card = cards[0];
+
+          // ─────────────────────────────────────────────
+          // STEP 5: TRANSACTION — charge CPC + update spent_amount
+          // ─────────────────────────────────────────────
+          connection.beginTransaction((txErr) => {
+            if (txErr) {
+              return res.status(500).json({ success: false, message: "Transaction failed" });
+            }
+
+            // Insert payment record for this click
+            // In production: call your real payment gateway here using card.payment_token
+            const insertPayment = `
+              INSERT INTO payment
+              (account_id, job_id,
+               card_last4, card_brand, card_holder,
+               amount, currency,
+               payment_type, payment_method, payment_status,
+               payment_reference)
+              VALUES (?, ?, ?, ?, ?, ?, 'PKR', 'job', 'Card', 'Paid', ?)
+            `;
+
+            connection.query(
+              insertPayment,
+              [
+                userId,
+                job.id,
+                card.card_last4,
+                card.card_brand,
+                card.card_holder,
+                job.cost_per_click,
+                `cpc_job_${job.id}_candidate_${candidateId}_${Date.now()}`,
+              ],
+              (payErr) => {
+                if (payErr) {
+                  console.error("CPC payment insert error:", payErr);
+                  return connection.rollback(() =>
+                    res.status(500).json({ success: false, message: "Payment failed" })
+                  );
+                }
+
+                // Update spent_amount on the job
+                connection.query(
+                  `UPDATE job_posts
+                   SET spent_amount = spent_amount + ?
+                   WHERE id = ?`,
+                  [job.cost_per_click, job.id],
+                  (updateErr) => {
+                    if (updateErr) {
+                      console.error("spent_amount update error:", updateErr);
+                      return connection.rollback(() =>
+                        res.status(500).json({ success: false, message: "Spend update failed" })
+                      );
+                    }
+
+                    connection.commit((commitErr) => {
+                      if (commitErr) {
+                        return connection.rollback(() =>
+                          res.status(500).json({ success: false, message: "Commit failed" })
+                        );
+                      }
+
+                      // ─────────────────────────────────────────────
+                      // STEP 6: RETURN CANDIDATE PROFILE
+                      // ─────────────────────────────────────────────
+                      fetchCandidate();
+                    });
+                  }
+                );
+              }
+            );
+          });
+        }
+      );
+    }
+  );
+};
+
+// const cron = require("node-cron");
+
+const resetDailyBudgets = () => {
+  console.log("⏰ Running daily budget reset...", new Date().toISOString());
+
+  connection.query(
+    `UPDATE job_posts
+     SET spent_amount = 0
+     WHERE billing_model = 'daily_budget'
+       AND approval_status = 'Approved'
+       AND status = 'Active'
+       AND application_deadline >= CURDATE()`,
+    [],
+    (err, result) => {
+      if (err) {
+        console.error("❌ Daily budget reset failed:", err.message);
+        return;
+      }
+
+      console.log(`✅ Reset spent_amount for ${result.affectedRows} daily budget job(s)`);
+    }
+  );
+};
+
+const cron = require("node-cron");
+
+// at the bottom of jobModel.js
+cron.schedule("0 0 * * *", () => {
+  console.log("⏰ Daily budget cron running...");
+
+  // Get all active daily budget jobs + their saved cards
+  connection.query(
+    `SELECT jp.id, jp.account_id, jp.daily_budget,
+            sc.payment_token, sc.card_last4, sc.card_brand, sc.card_holder
+     FROM job_posts jp
+     LEFT JOIN saved_cards sc ON sc.account_id = jp.account_id
+     WHERE jp.billing_model = 'daily_budget'
+       AND jp.approval_status = 'Approved'
+       AND jp.status = 'Active'
+       AND jp.application_deadline >= CURDATE()
+     ORDER BY sc.id DESC`,
+    [],
+    (err, jobs) => {
+      if (err) return console.error("Cron fetch error:", err);
+
+      jobs.forEach((job) => {
+        if (!job.payment_token) {
+          // No card → pause job
+          connection.query(
+            `UPDATE job_posts SET status = 'Inactive' WHERE id = ?`,
+            [job.id]
+          );
+          return;
+        }
+
+        // 🔴 Replace with real payment gateway charge here
+        const chargeSuccess = true;
+
+        if (chargeSuccess) {
+          // Log the daily charge
+          connection.query(
+            `INSERT INTO daily_budget_charges (job_id, account_id, amount, status, payment_token)
+             VALUES (?, ?, ?, 'success', ?)`,
+            [job.id, job.account_id, job.daily_budget, job.payment_token]
+          );
+
+          // Log in payment table
+          connection.query(
+            `INSERT INTO payment (account_id, job_id, card_last4, card_brand, card_holder, amount, currency, payment_type, payment_method, payment_status, payment_reference)
+             VALUES (?, ?, ?, ?, ?, ?, 'PKR', 'job', 'Card', 'Paid', ?)`,
+            [job.account_id, job.id, job.card_last4, job.card_brand, job.card_holder, job.daily_budget,
+             `daily_cron_job${job.id}_${Date.now()}`]
+          );
+
+          // Reset spent_amount for new day
+          connection.query(
+            `UPDATE job_posts SET spent_amount = 0 WHERE id = ?`,
+            [job.id]
+          );
+
+        } else {
+          // Charge failed → pause job
+          connection.query(
+            `INSERT INTO daily_budget_charges (job_id, account_id, amount, status, payment_token)
+             VALUES (?, ?, ?, 'failed', ?)`,
+            [job.id, job.account_id, job.daily_budget, job.payment_token]
+          );
+
+          connection.query(
+            `UPDATE job_posts SET status = 'Inactive' WHERE id = ?`,
+            [job.id]
+          );
+
+          console.log(`⚠️ Job ${job.id} paused — charge failed`);
+        }
+      });
+    }
+  );
+});
+const createDailyBudgetChargesTable = () => {
+  const sql = `
+    CREATE TABLE IF NOT EXISTS daily_budget_charges (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      job_id INT NOT NULL,
+      account_id INT NOT NULL,
+      amount DECIMAL(10,2) NOT NULL,
+      status ENUM('success', 'failed') DEFAULT 'success',
+      payment_token VARCHAR(255),
+      charged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (job_id) REFERENCES job_posts(id),
+      FOREIGN KEY (account_id) REFERENCES account(id)
+    );
+  `;
+  connection.query(sql, (err) => {
+    if (err) return console.error("Daily budget charges table error:", err.message);
+    console.log("✅ daily_budget_charges table ready");
+  });
+};
 
 module.exports = {
   createJobPostTable,
   createCompanyPackagesTable,
+  createDailyBudgetChargesTable,
   getJobbyRegAdmin,
+  approveJob,
   updateJobPostStatus,
   getAllJobs,
   getSingleJob,
@@ -1334,5 +1847,6 @@ module.exports = {
   getUserPackages,
   getTransactionHistory,
   subcribePackageInternal,
-
+  resetDailyBudgets,
+  viewCandidate
 }

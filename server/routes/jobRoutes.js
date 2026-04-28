@@ -4,6 +4,7 @@ const authMiddleware = require("../middleware/auth.js");
 const jobController=require('../controller/jobController')
 
 router.get('/getJobbyRegAdmin',jobController.getJobbyRegAdmin)
+router.put("/jobs/:jobId/approve", jobController.approveJob);
 router.put('/updateJobPostStatus/:id/:status/:userId',jobController.updateJobPostStatus)
 router.get('/managejob/:userId',jobController.getAllJobs);
 
@@ -18,6 +19,9 @@ router.get('/getjob/:userId',jobController.getJobTitle)
 router.get("/gettotaljob/:userId",jobController.getTotalJobPosts);
 router.get("/topCompanies/:limit?",jobController.getTopCompanies)
 router.get("/popularcategories/:limit?",jobController.popularCategories)
+// router
+router.get("/:userId/jobs/:jobId/candidates/:candidateId/view", jobController.viewCandidate);
+
 
 // router.get("/gettotaljob/:userId",jobController.getTotalJobPosts);
 

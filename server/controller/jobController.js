@@ -4,6 +4,9 @@ const jobModel = require("../models/jobModel");
 const getJobbyRegAdmin = (req, res) => {
   jobModel.getJobbyRegAdmin(req, res);
 }
+const approveJob = (req, res) => {
+  jobModel.approveJob(req, res);
+}
 const updateJobPostStatus = (req, res) => {
   jobModel.updateJobPostStatus(req, res);
 }
@@ -76,7 +79,13 @@ const subcribePackageInternal = async (accountId, packageId) => {
     throw new Error("Subscription failed");
   }
 };
+const viewCandidate = (req, res) => {
+  jobModel.viewCandidate(req, res);
+}
 
+const resetDailyBudgets = (req, res) => {
+  jobModel.resetDailyBudgets(req, res);
+}
 module.exports = {
   getJobbyRegAdmin,
   updateJobPostStatus,
@@ -92,5 +101,8 @@ module.exports = {
   getTotalJobPosts,
   getUserPackages,
   getTransactionHistory,
-  subcribePackageInternal
+  subcribePackageInternal,
+  approveJob,
+  resetDailyBudgets,
+  viewCandidate 
 }

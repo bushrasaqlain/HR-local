@@ -9,6 +9,7 @@ const TYPE_META = {
   job_slot:     { label: "Job Slots",    color: "#534AB7", bg: "#EEEDFE" },
   subscription: { label: "Subscription", color: "#0F6E56", bg: "#E1F5EE" },
   bundle:       { label: "Bundle",       color: "#854F0B", bg: "#FAEEDA" },
+  daily_budget: { label: "Daily Budget", color: "#B45309", bg: "#FEF3C7" },
 };
 
 const PAGE_SIZE = 8;
@@ -59,55 +60,67 @@ class TransactionHistory extends Component {
     }
   };
 
-  exportPDF = () => {
-    const { transactions } = this.state;
-    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
-    const pageW = doc.internal.pageSize.getWidth();
-    doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, pageW, 56, "F");
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(17); doc.setFont("helvetica", "bold");
-    doc.text("Transaction History", 36, 32);
-    doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(148, 163, 184);
-    doc.text(`Generated: ${new Date().toLocaleDateString("en-PK", { day: "numeric", month: "long", year: "numeric" })}   ·   Total records: ${transactions.length}`, 36, 47);
-    const totalSpent = transactions.reduce((s, t) => s + Number(t.price || 0), 0);
-    const summaryItems = [
-      { label: "Total Spent", value: fmtPrice(totalSpent) },
-      { label: "Total Packages", value: String(transactions.length) },
-      { label: "Active", value: String(transactions.filter((t) => t.status === "active").length) },
-      { label: "Expired", value: String(transactions.filter((t) => t.status === "expired").length) },
-    ];
-    const boxW = (pageW - 72 - 24) / 4;
-    summaryItems.forEach((item, i) => {
-      const x = 36 + i * (boxW + 8);
-      doc.setFillColor(248, 250, 252); doc.roundedRect(x, 68, boxW, 46, 4, 4, "F");
-      doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(148, 163, 184);
-      doc.text(item.label.toUpperCase(), x + 14, 82);
-      doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.setTextColor(15, 23, 42);
-      doc.text(item.value, x + 14, 102);
-    });
-    autoTable(doc, {
-      startY: 126,
-      head: [["#", "Package Name", "Type", "Purchased", "Expires", "Units Used", "Amount (PKR)", "Status"]],
-      body: transactions.map((t, i) => [
-        String(i + 1), t.name || "—", (TYPE_META[t.type] || TYPE_META.bundle).label,
-        fmtDate(t.purchasedAt), fmtDate(t.expiresAt), `${t.used ?? 0} / ${t.total ?? 0}`,
-        `PKR ${Number(t.price || 0).toLocaleString("en-PK")}`,
-        t.status ? t.status.charAt(0).toUpperCase() + t.status.slice(1) : "—",
-      ]),
-      margin: { left: 36, right: 36 },
-      styles: { fontSize: 9, cellPadding: { top: 7, bottom: 7, left: 8, right: 8 }, textColor: [30, 41, 59] },
-      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-      didParseCell(data) {
-        if (data.section === "body" && data.column.index === 7) {
-          const v = (data.cell.raw || "").toLowerCase();
-          data.cell.styles.textColor = v === "active" ? [16, 185, 129] : v === "expired" ? [239, 68, 68] : [100, 116, 139];
-        }
-      },
-    });
-    doc.save("transaction_history.pdf");
-  };
+exportPDF = () => {
+  const { transactions } = this.state;
+  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+  const pageW = doc.internal.pageSize.getWidth();
+
+  // Header bar — dark teal
+  doc.setFillColor(54, 86, 95);  // #36565f
+  doc.rect(0, 0, pageW, 56, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(17); doc.setFont("helvetica", "bold");
+  doc.text("Transaction History", 36, 32);
+  doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(200, 220, 224);
+  doc.text(`Generated: ${new Date().toLocaleDateString("en-PK", { day: "numeric", month: "long", year: "numeric" })}   ·   Total records: ${transactions.length}`, 36, 47);
+
+  const totalSpent = transactions.reduce((s, t) => s + Number(t.price || 0), 0);
+  const summaryItems = [
+    { label: "Total Spent",    value: fmtPrice(totalSpent) },
+    { label: "Total Packages", value: String(transactions.length) },
+    { label: "Active",         value: String(transactions.filter((t) => t.status === "active").length) },
+    { label: "Expired",        value: String(transactions.filter((t) => t.status === "expired").length) },
+  ];
+
+  const boxW = (pageW - 72 - 24) / 4;
+  summaryItems.forEach((item, i) => {
+    const x = 36 + i * (boxW + 8);
+
+    // Alternating box backgrounds using your two colors
+    const isEven = i % 2 === 0;
+    const [r, g, b] = isEven ? [54, 86, 95] : [95, 129, 144];  // #36565f : #5f8190
+    doc.setFillColor(r, g, b);
+    doc.roundedRect(x, 68, boxW, 46, 4, 4, "F");
+
+    doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(200, 220, 224);
+    doc.text(item.label.toUpperCase(), x + 14, 82);
+    doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
+    doc.text(item.value, x + 14, 102);
+  });
+
+  autoTable(doc, {
+    startY: 126,
+    head: [["#", "Package Name", "Type", "Purchased", "Expires", "Units Used", "Amount (PKR)", "Status"]],
+    body: transactions.map((t, i) => [
+      String(i + 1), t.name || "—", (TYPE_META[t.type] || TYPE_META.bundle).label,
+      fmtDate(t.purchasedAt), fmtDate(t.expiresAt), `${t.used ?? 0} / ${t.total ?? 0}`,
+      `PKR ${Number(t.price || 0).toLocaleString("en-PK")}`,
+      t.status ? t.status.charAt(0).toUpperCase() + t.status.slice(1) : "—",
+    ]),
+    margin: { left: 36, right: 36 },
+    styles: { fontSize: 9, cellPadding: { top: 7, bottom: 7, left: 8, right: 8 }, textColor: [30, 41, 59] },
+    headStyles: { fillColor: [54, 86, 95], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 }, // #36565f
+    alternateRowStyles: { fillColor: [240, 246, 248] }, // very light teal tint
+    didParseCell(data) {
+      if (data.section === "body" && data.column.index === 7) {
+        const v = (data.cell.raw || "").toLowerCase();
+        data.cell.styles.textColor = v === "active" ? [16, 185, 129] : v === "expired" ? [239, 68, 68] : [100, 116, 139];
+      }
+    },
+  });
+
+  doc.save("transaction_history.pdf");
+};
 
   getFiltered() {
     const { transactions, filter, search } = this.state;
@@ -143,7 +156,7 @@ class TransactionHistory extends Component {
     const FILTERS = [
       { key: "all", label: "All" }, { key: "active", label: "Active" }, { key: "expired", label: "Expired" },
       { key: "cv_credits", label: "CV Credits" }, { key: "job_slot", label: "Job Slots" },
-      { key: "subscription", label: "Subscription" }, { key: "bundle", label: "Bundle" },
+      { key: "subscription", label: "Subscription" }, { key: "bundle", label: "Bundle" },{ key: "daily_budget", label: "Daily Budget" },
     ];
 
     const pageNums = Array.from({ length: totalPages }, (_, i) => i + 1)
