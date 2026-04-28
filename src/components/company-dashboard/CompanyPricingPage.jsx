@@ -163,7 +163,7 @@ class CompanyPricingPage extends Component {
                         }}>
                             {packages.map((pkg) => {
                                 const features = this.parseFeatures(pkg.description);
-                                const color = CHECK_COLORS[pkg.duration_unit] || DEFAULT_COLOR;
+                                const durationLabel = pkg.duration_days ? `${pkg.duration_days} Days` : "One-time";
                                 const featured = this.isFeatured(pkg);
 
                                 return (

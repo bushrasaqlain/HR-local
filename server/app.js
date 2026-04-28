@@ -1,3 +1,4 @@
+require("dotenv").config();
 const path = require("path");
 const express = require("express");
 const bodyParser = require("body-parser");
@@ -95,7 +96,7 @@ app.use("/candidateCertificate", candidatecertificateRoutes)
 
 app.use("/company-info", companyRoute);
 app.use("/job", jobRoutes);
-app.use("/", applicantRoute)
+app.use("/applicant", applicantRoute)
 app.use('/message', messages)
 app.use("/payment", paymentRoutes)
 app.use("/", dashboardRoutes);

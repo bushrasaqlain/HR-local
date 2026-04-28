@@ -24,8 +24,8 @@ const createHistoryTable = () => {
 }
 
 const getHistory = (req, res) => {
-    const { entity_type } = req.params;   
-    const entity_id = req.params.id;      
+    const { entity_type } = req.params;
+    const entity_id = req.params.id;
 
     if (!entity_id || !entity_type) {
         return res.status(400).json({ error: "entity_type and entity_id are required" });
@@ -40,19 +40,39 @@ const getHistory = (req, res) => {
 
         // Fetch mapping tables separately
         const [cities, countries, districts, businessTypes] = await Promise.all([
-            getLookupMap("cities"), 
-            getLookupMap("countries"), 
-            getLookupMap("districts"), 
+            getLookupMap("cities"),
+            getLookupMap("countries"),
+            getLookupMap("districts"),
             getLookupMap("business_entity_type")
         ]);
 
         // Replace IDs with names
         results.forEach(item => {
-            if(item.data) {
+            if (item.data) {
                 item.data.city = cities[item.data.city] || item.data.city;
                 item.data.country = countries[item.data.country] || item.data.country;
                 item.data.district = districts[item.data.district] || item.data.district;
                 item.data.Business_entity_type = businessTypes[item.data.Business_entity_type] || item.data.Business_entity_type;
+            }
+        });
+
+        results.forEach(item => {
+            if (item.data && item.data.event) {
+                item.readable_event = item.data.event;  
+            } else if (item.action === "ADDED") {
+                item.readable_event = entity_type === "employer" ? "Company registered" :
+                    entity_type === "job" ? "Job posted" :  
+                        "Candidate registered";
+            } else if (item.action === "ACTIVE") {
+                item.readable_event = entity_type === "job" ? "Job activated" :  
+                    "Account activated";
+            } else if (item.action === "INACTIVE") {
+                item.readable_event = entity_type === "job" ? "Job deactivated" :  
+                    "Account deactivated";
+            } else {
+                item.readable_event = entity_type === "job" ? "Job updated" :  
+                    entity_type === "employer" ? "Company updated" :
+                        "Profile updated";
             }
         });
 
@@ -64,7 +84,7 @@ const getHistory = (req, res) => {
 function getLookupMap(table) {
     return new Promise((resolve, reject) => {
         connection.query(`SELECT id, name FROM ${table}`, (err, results) => {
-            if(err) return reject(err);
+            if (err) return reject(err);
             const map = {};
             results.forEach(r => map[r.id] = r.name);
             resolve(map);

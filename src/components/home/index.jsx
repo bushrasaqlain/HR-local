@@ -125,11 +125,11 @@ const index = () => {
               </div>
 
               <div className="btn">
-                <Link href="/?page=about" className="btn-light">
+                <Link href="/about" className="btn-light">
                   Learn More
                 </Link>
 
-                <Link href="/?page=register" className="btn border-3 text-white " style={{background: "#121a1d"}}>
+                <Link href="/register" className="btn border-3 text-white " style={{background: "#121a1d"}}>
                   Sign Up
                 </Link>
               </div>
@@ -162,11 +162,11 @@ const index = () => {
               </div>
 
               <div className="btns">
-                <Link href="/?page=about" className="btn-light">
+                <Link href="/about" className="btn-light">
                   Learn More
                 </Link>
 
-                <Link href="/?page=register" className="btn border-3 text-white " style={{background: "#121a1d"}}>
+                <Link href="/register" className="btn border-3 text-white " style={{background: "#121a1d"}}>
                   Sign Up
                 </Link>
               </div>

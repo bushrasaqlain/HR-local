@@ -399,7 +399,10 @@ class EducationStep extends Component {
                       value={educationDraft.degree || ""}
                       onChange={(e) => {
                         const degreeId = e.target.value;
-                        console.log("✅ Selected Degree:", degreeId);
+                        const selectedDegree = this.state.degreeFieldData.find(
+                          (d) => String(d.id) === String(degreeId)
+                        ); 
+
                         this.setState((prev) => ({
                           educationDraft: {
                             ...prev.educationDraft,

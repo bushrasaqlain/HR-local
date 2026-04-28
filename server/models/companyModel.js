@@ -22,6 +22,9 @@ const createCompanyInfoTable = () => {
   established_date VARCHAR(100),
   profile_completed BOOLEAN DEFAULT FALSE,
   has_package BOOLEAN DEFAULT FALSE,
+  subscription_status ENUM('pending','trial','active','expired','locked') DEFAULT 'pending',
+  trial_start DATETIME NULL,
+  trial_end DATETIME NULL,
   FOREIGN KEY (account_id) REFERENCES account(id),
   FOREIGN KEY (Business_entity_type_id) REFERENCES business_entity_type(id),
   FOREIGN KEY (country_id) REFERENCES countries(id),
@@ -310,7 +313,7 @@ const updateCompanyinfo = async (req, res) => {
         entityType: "employer",
         entityId: accountId,
         action: "UPDATED",
-        data: { ...req.body },
+        data: { event: "Company profile updated", company_name, city_id, country_id },
         changedBy: accountId,
       });
 

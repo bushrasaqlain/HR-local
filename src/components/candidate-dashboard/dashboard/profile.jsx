@@ -5,10 +5,17 @@ import { Card, CardBody, CardHeader, Container } from "reactstrap";
 import api from "../../lib/api";
 import EditProfile from "./editprofile";
 import JobList from "./lists";
+import Payment from "../../company-dashboard/payment";
 class Profile extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      matchingJobs: [],
+      searchTerm: "",
+      applyingJobId: null,
+      applySuccess: null,
+      selectedJob: null,
+      showJobModal: false,
       passport_photo: "",
       formData: {},
       dashboardStats: {
@@ -54,9 +61,52 @@ class Profile extends Component {
     }
   };
 
+  fetchMatchingJobs = async () => {
+    try {
+      const token = sessionStorage.getItem("token");
+      const res = await api.get("/candidateProfile/matching-jobs", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      this.setState({ matchingJobs: res.data.data || [] });
+    } catch (err) {
+      console.error("Matching jobs fetch failed", err);
+    }
+  };
+
+  handleApply = async (jobId) => {
+    this.setState({ applyingJobId: jobId });
+    try {
+      const token = sessionStorage.getItem("token");
+      await api.post("/apply",
+        { job_id: jobId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      this.setState({ applySuccess: jobId });
+      this.fetchMatchingJobs(); // refresh
+      setTimeout(() => this.setState({ applySuccess: null }), 3000);
+    } catch (err) {
+      console.error("Apply failed", err);
+    }
+    this.setState({ applyingJobId: null });
+  };
+
+  handleJobClick = async (jobId) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await api.get(`/job/getSinglejob/${jobId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      this.setState({ selectedJob: res.data, showJobModal: true });
+    } catch (err) {
+      console.error("Job details fetch failed", err);
+    }
+  };
+
+
   componentDidMount() {
     this.router = require("next/router").default;
     this.fetchCandidateInfo();
+    this.fetchMatchingJobs();
   }
   handleEditProfile = () => {
     if (this.props.onEdit) this.props.onEdit();
@@ -76,6 +126,17 @@ class Profile extends Component {
 
   render() {
     const { dashboardStats, formData, passport_photo, boostStatus, showBoostModal } = this.state;
+    const { matchingJobs, searchTerm } = this.state;
+
+    const filteredJobs = matchingJobs.filter(job => {
+      const keyword = searchTerm.toLowerCase();
+
+      return (
+        job.job_title?.toLowerCase().includes(keyword) ||
+        job.company_name?.toLowerCase().includes(keyword) ||
+        job.city_name?.toLowerCase().includes(keyword)
+      );
+    });
 
     return (
       <Container fluid>
@@ -244,19 +305,133 @@ class Profile extends Component {
                 />
               )}
 
-              {/* Matching Jobs (Read Only) */}
+              {this.state.showJobModal && (
+                <JobDetailModal
+                  job={this.state.selectedJob}
+                  onClose={() => this.setState({ showJobModal: false, selectedJob: null })}
+                />
+              )}
+
+              {/* Matching Jobs */}
               <div className="col-12">
                 <Card>
-                  <CardHeader>Jobs Matching Your Profile</CardHeader>
-                  <CardBody>
-                    <p className="text-muted small">
-                      Based on your skills and experience
-                    </p>
+                  <CardHeader>
+                    <strong>Jobs Matching Your Profile</strong>
+                    <small className="text-muted ms-2">Based on your skills</small>
+                  </CardHeader>
+                  {/* 🔍 Search Bar */}
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    background: "#f9fafb",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "10px",
+                    padding: "8px 12px",
+                    marginBottom: "16px"
+                  }}>
+                    <span style={{ color: "#9ca3af", marginRight: "8px" }}>🔍</span>
 
-                    <ul className="list-unstyled mb-0">
-                      <li className="mb-2"></li>
-                      <li></li>
-                    </ul>
+                    <input
+                      type="text"
+                      placeholder="Search jobs by title, company, city..."
+                      value={this.state.searchTerm}
+                      onChange={(e) => this.setState({ searchTerm: e.target.value })}
+                      style={{
+                        border: "none",
+                        outline: "none",
+                        background: "transparent",
+                        width: "100%",
+                        fontSize: "13px",
+                        color: "#374151"
+                      }}
+                    />
+
+                    {/* ❌ Clear Button */}
+                    {this.state.searchTerm && (
+                      <span
+                        onClick={() => this.setState({ searchTerm: "" })}
+                        style={{
+                          cursor: "pointer",
+                          color: "#9ca3af",
+                          fontWeight: "bold",
+                          marginLeft: "8px"
+                        }}
+                      >
+                        ✕
+                      </span>
+                    )}
+                  </div>
+                  <CardBody>
+                    {filteredJobs.length === 0 ? (
+                      <p className="text-muted small">
+                        No matching jobs found. Make sure your skills are updated in your profile.
+                      </p>
+                    ) : (
+                      <div className="d-flex flex-column gap-3">
+                        {filteredJobs.map(job => (
+                          <div key={job.id} className="d-flex align-items-center justify-content-between p-3"
+                            style={{ border: "1px solid #e5e7eb", borderRadius: "10px", cursor: "pointer" }}
+                            onClick={() => this.handleJobClick(job.id)}>
+
+                            <div className="d-flex align-items-center gap-3">
+                              {job.logo ? (
+                                <img src={`data:image/png;base64,${job.logo}`} alt={job.company_name}
+                                  style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover" }} />
+                              ) : (
+                                <div style={{
+                                  width: 40, height: 40, borderRadius: 8, background: "#f3f4f6",
+                                  display: "flex", alignItems: "center", justifyContent: "center",
+                                  fontSize: 18, color: "#9ca3af"
+                                }}>🏢</div>
+                              )}
+                              <div>
+                                <div style={{ fontWeight: 600, fontSize: 14 }}>{job.job_title}</div>
+                                <div style={{ fontSize: 12, color: "#6b7280" }}>
+                                  {job.company_name} • {job.city_name}
+                                </div>
+                                {job.min_salary && (
+                                  <div style={{ fontSize: 12, color: "#059669" }}>
+                                    {job.currency} {job.min_salary} - {job.max_salary}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div onClick={(e) => e.stopPropagation()}>
+                              {job.already_applied ? (
+                                <span className="badge" style={{ background: "#d1fae5", color: "#065f46" }}>
+                                  ✓ Applied
+                                </span>
+                              ) : !this.state.boostStatus?.isBoosted ? (
+
+                                <span style={{
+                                  fontSize: 11, color: "#a16207", background: "#fffbeb",
+                                  border: "1px solid #f59e0b", borderRadius: 8,
+                                  padding: "6px 10px", display: "inline-block",
+                                  maxWidth: 120, textAlign: "center", lineHeight: "1.3"
+                                }}>
+                                  Boost your profile to apply
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => this.handleApply(job.id)}
+                                  disabled={this.state.applyingJobId === job.id}
+                                  style={{
+                                    background: "#36565F", color: "#fff",
+                                    border: "none", borderRadius: 8,
+                                    padding: "8px 16px", fontSize: 13,
+                                    fontWeight: 600, cursor: "pointer",
+                                  }}
+                                >
+                                  {this.state.applyingJobId === job.id ? "Applying..." : "Apply"}
+                                </button>
+                              )}
+                            </div>
+
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </CardBody>
                 </Card>
               </div>
@@ -350,11 +525,133 @@ class Profile extends Component {
   }
 }
 
+class JobDetailModal extends React.Component {
+  render() {
+    const { job, onClose } = this.props;
+    if (!job) return null;
+
+    return (
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 9999, padding: "16px",
+        }}>
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            background: "#fff", borderRadius: "14px",
+            padding: "24px", width: "100%", maxWidth: "560px",
+            maxHeight: "85vh", overflowY: "auto", position: "relative",
+          }}>
+          {/* Close Button */}
+          <button onClick={onClose} style={{
+            position: "absolute", top: "16px", right: "16px",
+            background: "#fee2e2", border: "none", borderRadius: "50%",
+            width: "32px", height: "32px", cursor: "pointer",
+            color: "#991b1b", fontWeight: 700, fontSize: "16px",
+          }}>×</button>
+
+          {/* Header */}
+          <h5 style={{ marginBottom: "4px", paddingRight: "40px" }}>{job.job_title}</h5>
+          <p style={{ fontSize: "13px", color: "#6b7280", marginBottom: "16px" }}>
+            {job.speciality} • {job.city} • {job.country}
+          </p>
+
+          {/* Salary & Experience */}
+          <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
+            {job.min_salary && (
+              <span style={{
+                background: "#d1fae5", color: "#065f46",
+                borderRadius: "20px", padding: "4px 12px", fontSize: "12px", fontWeight: 600,
+              }}>
+                💰 {job.currency} {job.min_salary} - {job.max_salary}
+              </span>
+            )}
+            {job.min_experience && (
+              <span style={{
+                background: "#dbeafe", color: "#1e40af",
+                borderRadius: "20px", padding: "4px 12px", fontSize: "12px", fontWeight: 600,
+              }}>
+                🕒 {job.min_experience} - {job.max_experience} yrs exp
+              </span>
+            )}
+            {job.job_type && (
+              <span style={{
+                background: "#f3f4f6", color: "#374151",
+                borderRadius: "20px", padding: "4px 12px", fontSize: "12px", fontWeight: 600,
+              }}>
+                {job.job_type}
+              </span>
+            )}
+          </div>
+
+          {/* Skills */}
+          {job.skills && job.skills.length > 0 && (
+            <div style={{ marginBottom: "16px" }}>
+              <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "8px", color: "#374151" }}>
+                Required Skills
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {(Array.isArray(job.skills) ? job.skills : job.skills.split(",")).map((skill, i) => (
+                  <span key={i} style={{
+                    background: "#eff6ff", color: "#1d4ed8",
+                    borderRadius: "6px", padding: "3px 10px", fontSize: "12px",
+                  }}>
+                    {skill.trim()}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Description */}
+          {job.job_description && (
+            <div style={{ marginBottom: "16px" }}>
+              <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "6px", color: "#374151" }}>
+                Job Description
+              </div>
+              <p style={{ fontSize: "13px", color: "#6b7280", lineHeight: "1.6", margin: 0 }}>
+                {job.job_description}
+              </p>
+            </div>
+          )}
+
+          {/* Degree & Deadline */}
+          <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+            {job.degree && (
+              <div>
+                <span style={{ fontSize: "12px", color: "#9ca3af" }}>Degree: </span>
+                <span style={{ fontSize: "12px", fontWeight: 600 }}>{job.degree}</span>
+              </div>
+            )}
+            {job.application_deadline && (
+              <div>
+                <span style={{ fontSize: "12px", color: "#9ca3af" }}>Deadline: </span>
+                <span style={{ fontSize: "12px", fontWeight: 600 }}>
+                  {new Date(job.application_deadline).toLocaleDateString()}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
 
 class BoostModal extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { packages: [], selected: null, loading: false };
+    this.state = {
+      packages: [],
+      selected: null,
+      loading: false,
+      showPayment: false,   // ← naya
+      selectedPkg: null,    // ← naya
+    };
   }
 
   componentDidMount() {
@@ -364,10 +661,9 @@ class BoostModal extends React.Component {
     }).then(res => this.setState({ packages: res.data.data || [] }));
   }
 
-  handleOrder = async () => {
+  // Payment success ke baad boost order place karo
+  handlePaymentSuccess = async () => {
     const { selected } = this.state;
-    if (!selected) return;
-    this.setState({ loading: true });
     const token = localStorage.getItem("token");
     try {
       const res = await api.post("/candidateProfile/boost/order",
@@ -375,7 +671,7 @@ class BoostModal extends React.Component {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.data.success) {
-        alert("Your boost order has been placed! It will be approved by the admin.");
+        alert("Boost order placed! Waiting for admin approval.");
         this.props.onSuccess();
       } else {
         alert(res.data.message);
@@ -383,64 +679,235 @@ class BoostModal extends React.Component {
     } catch (err) {
       alert("Something went wrong. Please try again.");
     }
-    this.setState({ loading: false });
+  };
+
+  getDuration = (pkg) => `${pkg.boost_duration_days || 7} days`;
+
+  getModelLabel = (pricing_model) => {
+    if (pricing_model === "featured_boost")
+      return { label: "Profile Spotlight", color: "#F59E0B" };
+    return { label: "", bg: "#f3f4f6", color: "#374151" };
+  };
+
+  getFirstLine = (description) => {
+    if (!description) return null;
+    return description.split("\n")[0];
   };
 
   render() {
-    const { packages, selected, loading } = this.state;
+    const { packages, selected, loading, showPayment, selectedPkg } = this.state;
+
+    if (showPayment && selectedPkg) {
+      return (
+        <Payment
+          isOpen={true}
+          toggle={() => this.setState({ showPayment: false, selectedPkg: null })}
+          amount={selectedPkg.price}
+          currency={selectedPkg.currency}
+          packageId={selectedPkg.id}
+          paymentType="candidate_boost"
+          onPaymentSuccess={this.handlePaymentSuccess}
+        />
+      );
+    }
+
     return (
       <div style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
-        display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999,
+        position: "fixed", inset: 0,
+        background: "rgba(0,0,0,0.6)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        zIndex: 9999, padding: "16px",
       }}>
         <div style={{
-          background: "#fff", borderRadius: "14px",
-          padding: "24px", width: "100%", maxWidth: "420px",
+          background: "#36454F",
+          borderRadius: "16px",
+          padding: "32px 24px",
+          width: "100%", maxWidth: "700px",
+          maxHeight: "90vh", overflowY: "auto",
         }}>
-          <h5 style={{ marginBottom: "6px" }}>Choose a Boost Plan</h5>
-          <p style={{ fontSize: "12px", color: "#6b7280", marginBottom: "16px" }}>
-            The admin will review and approve — then your profile will be featured
-          </p>
-
-          <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
-            {packages.map(pkg => (
-              <div key={pkg.id} onClick={() => this.setState({ selected: pkg.id })}
-                style={{
-                  flex: 1, border: selected === pkg.id ? "1.5px solid #f59e0b" : "1.5px solid #e5e7eb",
-                  background: selected === pkg.id ? "#fffbeb" : "#fff",
-                  borderRadius: "10px", padding: "14px", cursor: "pointer", textAlign: "center",
-                  transition: "all .2s",
-                }}>
-                <div style={{ fontSize: "13px", fontWeight: 600 }}>{pkg.name}</div>
-                <div style={{ fontSize: "18px", fontWeight: 700, color: "#92400e" }}>
-                  {pkg.currency} {pkg.price}
-                </div>
-                <div style={{ fontSize: "11px", color: "#6b7280" }}>
-                  {pkg.duration_value} {pkg.duration_unit}
-                </div>
-              </div>
-            ))}
+          {/* Header */}
+          <div style={{ textAlign: "center", marginBottom: "24px" }}>
+            <h5 style={{ color: "#fff", margin: "0 0 6px", fontSize: "20px", fontWeight: 600 }}>
+              Choose a Boost Plan
+            </h5>
+            <p style={{ color: "rgba(255,255,255,0.65)", fontSize: "13px", margin: 0 }}>
+              Select a plan — pay — admin will activate your boost
+            </p>
           </div>
 
-          <div style={{ display: "flex", gap: "8px" }}>
-            <button onClick={this.props.onClose}
+          {/* Cards */}
+          {packages.length === 0 ? (
+            <div style={{
+              textAlign: "center", padding: "32px",
+              background: "rgba(255,255,255,0.1)",
+              borderRadius: "12px", color: "rgba(255,255,255,0.6)",
+              fontSize: "13px",
+            }}>
+              No boost packages available at the moment.
+            </div>
+          ) : (
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${Math.min(packages.length, 3)}, 1fr)`,
+              gap: "14px",
+              marginBottom: "20px",
+            }}>
+              {packages.map((pkg, index) => {
+                const isSelected = selected === pkg.id;
+                const isPopular = pkg.is_featured === 1;
+                const duration = pkg.pricing_model === "featured_boost"
+                  ? `${pkg.boost_duration_days || 7} days`
+                  : `${pkg.duration_days || 30} days`;
+                const modelLabel = { label: "Profile Spotlight", color: "#F59E0B" };
+
+                // description lines as feature bullets
+                const features = pkg.description
+                  ? pkg.description.split("\n").filter(Boolean)
+                  : [];
+
+                return (
+                  <div
+                    key={pkg.id}
+                    onClick={() => this.setState({ selected: pkg.id, selectedPkg: pkg })}
+                    style={{
+                      background: "#fff",
+                      borderRadius: "14px",
+                      overflow: "hidden",
+                      border: isSelected ? "2.5px solid #F59E0B" : isPopular ? "2px solid #5B9BD5" : "2px solid transparent",
+                      cursor: "pointer",
+                      transition: "transform 0.2s",
+                      transform: isSelected ? "translateY(-6px)" : "none",
+                      position: "relative",
+                    }}
+                  >
+                    {/* Most popular badge */}
+                    {isPopular && (
+                      <div style={{
+                        position: "absolute", top: 0, right: "12px",
+                        background: "#5B9BD5", color: "#fff",
+                        fontSize: "10px", fontWeight: 600,
+                        padding: "2px 10px",
+                        borderRadius: "0 0 8px 8px",
+                      }}>
+                        Most popular
+                      </div>
+                    )}
+
+                    {/* Ribbon */}
+                    <div style={{ textAlign: "center", paddingTop: "14px" }}>
+                      <span style={{
+                        display: "inline-block",
+                        background: modelLabel.color,
+                        color: "#fff",
+                        fontSize: "11px", fontWeight: 500,
+                        padding: "3px 14px",
+                        borderRadius: "0 0 8px 8px",
+                      }}>
+                        {modelLabel.label}
+                      </span>
+                    </div>
+
+                    {/* Card body */}
+                    <div style={{ padding: "12px 18px 20px" }}>
+                      <p style={{ fontSize: "15px", fontWeight: 600, color: "#1f2937", margin: "0 0 3px" }}>
+                        {pkg.name}
+                      </p>
+                      {pkg.boost_type && (
+                        <div style={{ marginBottom: "8px" }}>
+                          <span style={{
+                            display: "inline-flex", alignItems: "center", gap: "5px",
+                            background: "#eff6ff", color: "#1e40af",
+                            fontSize: "11px", fontWeight: 600,
+                            padding: "3px 10px", borderRadius: "20px",
+                            border: "1px solid #bfdbfe",
+                          }}>
+                            {pkg.boost_type === "profile_top" && "⬆ Top of Search Results"}
+                            {pkg.boost_type === "highlighted_profile" && "✦ Highlighted Profile"}
+                            {pkg.boost_type === "recruiter_spotlight" && "🎯 Recruiter Spotlight"}
+                          </span>
+                        </div>
+                      )}
+                      <p style={{ fontSize: "11px", color: "#9ca3af", margin: "0 0 14px" }}>
+                        {duration} · one-time payment
+                      </p>
+
+                      {/* Price */}
+                      <div style={{ display: "flex", alignItems: "baseline", gap: "3px", marginBottom: "16px" }}>
+                        <span style={{ fontSize: "14px", fontWeight: 500, color: "#1f2937" }}>
+                          {pkg.currency}
+                        </span>
+                        <span style={{ fontSize: "32px", fontWeight: 700, color: "#1f2937", lineHeight: 1 }}>
+                          {Number(pkg.price).toFixed(0)}
+                        </span>
+                      </div>
+
+                      {/* Features */}
+                      {features.length > 0 && (
+                        <ul style={{ listStyle: "none", padding: 0, margin: "0 0 16px", display: "flex", flexDirection: "column", gap: "7px" }}>
+                          {features.map((f, i) => (
+                            <li key={i} style={{ fontSize: "12px", color: "#374151", display: "flex", alignItems: "center", gap: "7px" }}>
+                              <span style={{
+                                width: "16px", height: "16px", borderRadius: "50%",
+                                background: "#d1fae5", display: "flex",
+                                alignItems: "center", justifyContent: "center", flexShrink: 0,
+                              }}>
+                                <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+                                  <path d="M2 5l2 2 4-4" stroke="#065f46" strokeWidth="1.5" strokeLinecap="round" />
+                                </svg>
+                              </span>
+                              {f}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+
+                      {/* Selected indicator */}
+                      {isSelected && (
+                        <div style={{
+                          textAlign: "center", fontSize: "11px", fontWeight: 600,
+                          color: "#92400e", background: "#fef3c7",
+                          borderRadius: "6px", padding: "4px", marginBottom: "8px",
+                        }}>
+                          ✓ Selected
+                        </div>
+                      )}
+
+                      {/* Buy button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          this.setState({ selected: pkg.id, selectedPkg: pkg, showPayment: true });
+                        }}
+                        style={{
+                          width: "100%", padding: "9px",
+                          border: "none", borderRadius: "8px",
+                          fontSize: "13px", fontWeight: 600,
+                          cursor: "pointer",
+                          background: isPopular ? "#F59E0B" : "#36454F",
+                          color: isPopular ? "#78350f" : "#fff",
+                        }}
+                      >
+                        Buy now
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Cancel button */}
+          <div style={{ textAlign: "center" }}>
+            <button
+              onClick={this.props.onClose}
               style={{
-                flex: 1, background: "transparent", color: "#6b7280",
-                border: "1px solid #e5e7eb", borderRadius: "8px",
-                padding: "10px", fontSize: "13px", cursor: "pointer",
-              }}>
+                background: "transparent", color: "rgb(255, 255, 255)",
+                border: "1px solid rgb(255, 255, 255)",
+                borderRadius: "8px", padding: "8px 24px",
+                fontSize: "13px", cursor: "pointer",
+              }}
+            >
               Cancel
-            </button>
-            <button onClick={this.handleOrder}
-              disabled={!selected || loading}
-              style={{
-                flex: 1, background: selected ? "#f59e0b" : "#e5e7eb",
-                color: selected ? "#78350f" : "#9ca3af",
-                border: "none", borderRadius: "8px",
-                padding: "10px", fontSize: "13px",
-                fontWeight: 600, cursor: selected ? "pointer" : "not-allowed",
-              }}>
-              {loading ? "Processing..." : "Place Order"}
             </button>
           </div>
         </div>

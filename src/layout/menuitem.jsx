@@ -85,6 +85,7 @@ export const companymenuitem = [
 export const candidatesmenuitem = [
   { key: "profile", label: "Profile" },
   { key: "lists", label: "Job List" },
+  { key: "appliedJobs", label: "Applied Jobs" },
   // { key: "chatbox", label: "Message"},
   { key: "register", label: "Candidate Register Form" },
 ];

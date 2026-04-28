@@ -87,7 +87,7 @@ class Hero extends Component {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.6, duration: 0.5 }}
               >
-                <Link href="/?page=register">
+                <Link href="/register">
                   <motion.a
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}

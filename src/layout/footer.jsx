@@ -52,9 +52,9 @@ const Footer = () => {
               
               <ul className="footer-menu">
                 <li><a href="/">Home</a></li>
-                <li><a href="/?page=about">About</a></li>
-                <li><a href="/?page=faq">FAQ's</a></li>
-                <li><a href="/?page=terms">Terms</a></li>
+                <li><a href="/about">About</a></li>
+                <li><a href="/faq">FAQ's</a></li>
+                <li><a href="/terms">Terms</a></li>
               </ul>
 
             </Col>

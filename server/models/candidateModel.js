@@ -4,6 +4,10 @@ const connection = require("../connection");
 const authMiddleware = require("../middleware/auth");
 const logAudit = require("../utils/auditLogger");
 const { get } = require("../routes/accountRoutes");
+// const pdfParse = require("pdf-parse");
+const mammoth = require("mammoth");
+const axios = require("axios");
+const OpenAI = require("openai");
 
 const createCandidateTable = () => {
   const createCandidateInfoTable = `
@@ -18,8 +22,10 @@ const createCandidateTable = () => {
 
   gender ENUM('male','female','other'),
   marital_status ENUM('single','married','divorced','widowed'),
+  registration_type ENUM('manual', 'cv_only') DEFAULT 'manual',
 
-  total_experience VARCHAR(20),
+  total_experience VARCHAR(20) NULL,
+  is_fresher BOOLEAN DEFAULT FALSE,
 
   license_type INT,
   license_number VARCHAR(50),
@@ -359,6 +365,7 @@ const addCandidateInfo = async (req, res) => {
       gender,
       marital_status,
       total_experience,
+      is_fresher,
       license_type,
       license_number,
       address,
@@ -374,6 +381,8 @@ const addCandidateInfo = async (req, res) => {
       speciality,
       otherPreferredCities,
     } = req.body;
+
+    const isFresherVal = is_fresher === true || is_fresher === "true" || is_fresher === 1 ? 1 : 0;
 
     // 🔹 Safe JSON parser
     const parseJSON = (value) => {
@@ -447,10 +456,11 @@ const addCandidateInfo = async (req, res) => {
           otherPreferredCities,
           passport_photo,
           profile_completed,
-          resume
+          resume,
+          is_fresher
         )
         VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
         ON DUPLICATE KEY UPDATE
   full_name = COALESCE(VALUES(full_name), full_name),
@@ -472,7 +482,8 @@ const addCandidateInfo = async (req, res) => {
   otherPreferredCities = COALESCE(VALUES(otherPreferredCities), otherPreferredCities),
   passport_photo = COALESCE(VALUES(passport_photo), passport_photo),
   resume = COALESCE(VALUES(resume), resume),
-  profile_completed = COALESCE(VALUES(profile_completed), profile_completed)
+  profile_completed = COALESCE(VALUES(profile_completed), profile_completed),
+  is_fresher = VALUES(is_fresher)
       `;
 
       const params = [
@@ -482,7 +493,7 @@ const addCandidateInfo = async (req, res) => {
         date_of_birth,
         gender,
         marital_status,
-        total_experience,
+        total_experience || null,
         license_type,
         license_number,
         address,
@@ -497,6 +508,7 @@ const addCandidateInfo = async (req, res) => {
         passportPhotoPath,
         profileCompleted,
         resumePath, // 👈 add this
+        isFresherVal,
       ];
 
       connection.query(sql, params, (err2) => {
@@ -507,6 +519,14 @@ const addCandidateInfo = async (req, res) => {
             error: err2.message,
           });
         }
+        logAudit({
+          tableName: "history",
+          entityType: "candidate",
+          entityId: accountId,
+          action: "UPDATED",
+          data: { event: "Profile updated", profile_completed: profileCompleted },
+          changedBy: accountId,
+        });
 
         return res.json({
           success: true,
@@ -533,6 +553,7 @@ const getCandidateInfo = (req, res) => {
       a.email,
       ci.id AS candidate_id,
       ci.full_name,
+      ci.is_fresher,
       ci.phone,
       ci.date_of_birth,
       ci.gender,
@@ -594,7 +615,6 @@ const getCandidateInfo = (req, res) => {
       "date_of_birth",
       "gender",
       "marital_status",
-      "total_experience",
       "license_type_id",
       "license_number",
       "otherPreferredCities",
@@ -722,6 +742,7 @@ const getCandidateInfo = (req, res) => {
           // Detailed lists
           shortlisted_companies: [],
           approved_companies: [],
+          is_fresher: !!candidate.is_fresher,
         };
 
         // -------- Tracking Queries --------
@@ -866,6 +887,7 @@ const editCandidateInfo = (req, res) => {
     gender: "gender",
     marital_status: "marital_status",
     total_experience: "total_experience",
+    is_fresher: "is_fresher",
     license_type: "license_type",
     license_number: "license_number",
     address: "address",
@@ -1123,13 +1145,22 @@ const addResume = (userId, resumePath, res) => {
 
 const getBoostPackages = (req, res) => {
   connection.query(
-    `SELECT p.id, p.name, p.price, p.duration_value, p.duration_unit, 
-            p.description,
-            COALESCE(p.currency, c.code) AS currency
-     FROM packages p
-     LEFT JOIN currencies c ON c.id = p.currency_id
-     WHERE p.package_type = 'candidate' AND p.status = 'Active'
-     ORDER BY p.price ASC`,
+    `SELECT 
+      p.id,
+      p.name,
+      p.price,
+      p.pricing_model,
+      p.boost_type,
+      p.boost_duration_days,
+      p.duration_days,
+      p.description,
+      COALESCE(c.code, 'PKR') AS currency
+    FROM packages p
+    LEFT JOIN currencies c ON c.id = p.currency_id
+    WHERE p.package_type = 'Candidate'
+    AND p.status = 'Active'
+    AND p.pricing_model IN ('featured_boost', 'duration_bundle')
+    ORDER BY p.price ASC`,
     (err, results) => {
       if (err) return res.status(500).json({ error: "Database error" });
       res.json({ success: true, data: results });
@@ -1187,6 +1218,14 @@ const placeBoostOrder = (req, res) => {
                 console.error("Error placing boost order:", err3.message);
                 return res.status(500).json({ error: "Database error", details: err3.message }); // ✅
               }
+              logAudit({
+                tableName: "history",
+                entityType: "candidate",
+                entityId: accountId,
+                action: "UPDATED",
+                data: { event: "Boost order placed", package_id },
+                changedBy: accountId,
+              });
               res.json({
                 success: true,
                 message: "Boost order placed successfully. Waiting for admin approval.",
@@ -1244,18 +1283,22 @@ const getMyBoostStatus = (req, res) => {
 
 const getBoostOrders = (req, res) => {
   connection.query(
-    `SELECT bo.id, bo.status, bo.created_at,
-            ci.id AS candidate_info_id,
-            a.email AS candidate_email,
-            ci.full_name AS candidate_name,
-            p.name AS package_name,
-            p.duration_value, p.duration_unit, p.price,  p.currency  
-     FROM boost_orders bo
-     JOIN candidate_info ci ON ci.id = bo.candidate_id
-     JOIN account a ON a.id = ci.account_id
-     JOIN packages p ON p.id = bo.package_id
-     WHERE bo.status = 'pending'
-     ORDER BY bo.created_at DESC`,
+    `SELECT 
+      bo.id, bo.status, bo.created_at,
+      ci.id AS candidate_info_id,
+      a.email AS candidate_email,
+      ci.full_name AS candidate_name,
+      p.name AS package_name,
+      p.price,
+      p.boost_duration_days,
+      c.code AS currency
+    FROM boost_orders bo
+    JOIN candidate_info ci ON ci.id = bo.candidate_id
+    JOIN account a ON a.id = ci.account_id
+    JOIN packages p ON p.id = bo.package_id
+    LEFT JOIN currencies c ON c.id = p.currency_id
+    WHERE bo.status = 'pending'
+    ORDER BY bo.created_at DESC`,
     (err, results) => {
       if (err) {
         console.error("Error fetching boost orders:", err.message);
@@ -1270,7 +1313,7 @@ const activateBoost = (req, res) => {
   const { orderId } = req.params;
 
   connection.query(
-    `SELECT bo.*, p.duration_value, p.duration_unit, bo.candidate_id
+    `SELECT bo.*, p.duration_days, bo.candidate_id
       FROM boost_orders bo
       JOIN packages p ON p.id = bo.package_id
       WHERE bo.id = ?`,
@@ -1287,14 +1330,14 @@ const activateBoost = (req, res) => {
       const order = rows[0];
       const start = new Date();
       const end = new Date();
-      const val = parseInt(order.duration_value);
-      const unit = (order.duration_unit || "Days").toLowerCase();
+      const days = parseInt(order.duration_days || 0);
+      end.setDate(end.getDate() + days);
 
-      if (unit === "days") end.setDate(end.getDate() + val);
-      else if (unit === "weeks") end.setDate(end.getDate() + val * 7);
-      else if (unit === "months") end.setMonth(end.getMonth() + val);
-      else if (unit === "hours") end.setHours(end.getHours() + val);
-      else end.setDate(end.getDate() + val); // fallback
+      // if (unit === "days") end.setDate(end.getDate() + val);
+      // else if (unit === "weeks") end.setDate(end.getDate() + val * 7);
+      // else if (unit === "months") end.setMonth(end.getMonth() + val);
+      // else if (unit === "hours") end.setHours(end.getHours() + val);
+      // else end.setDate(end.getDate() + val); // fallback
 
       connection.query(
         "UPDATE boost_orders SET status='active', start_date=?, end_date=? WHERE id=?",
@@ -1307,6 +1350,22 @@ const activateBoost = (req, res) => {
             [end, order.candidate_id],
             (err3) => {
               if (err3) return res.status(500).json({ error: "Database error" });
+              connection.query(
+                "SELECT account_id FROM candidate_info WHERE id = ? LIMIT 1",
+                [order.candidate_id],
+                (err4, rows) => {
+                  if (!err4 && rows.length > 0) {
+                    logAudit({
+                      tableName: "history",
+                      entityType: "candidate",
+                      entityId: rows[0].account_id,
+                      action: "UPDATED",
+                      data: { event: "Boost activated by admin", boost_expires_at: end },
+                      changedBy: req.user.userId,
+                    });
+                  }
+                }
+              );
               res.json({ success: true, message: "Boost activated successfully" });
             }
           );
@@ -1391,6 +1450,420 @@ const getBoostAnalytics = (req, res) => {
   });
 };
 
+const getMatchingJobsForCandidate = (req, res) => {
+  const accountId = req.user.userId;
+
+  console.log("getMatchingJobsForCandidate called, accountId:", accountId); // ← add karo
+
+  const candidateSql = `
+    SELECT ci.id, ci.skills, ci.city, ci.is_boosted
+    FROM candidate_info ci
+    WHERE ci.account_id = ?
+    LIMIT 1
+  `;
+
+  connection.query(candidateSql, [accountId], (err, rows) => {
+    if (err) {
+      console.error("candidateSql error:", err); 
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    console.log("candidate rows:", rows); 
+
+    if (!rows.length) return res.status(404).json({ error: "Candidate not found" });
+
+    const candidate = rows[0];
+    let skills = [];
+    try {
+      skills = typeof candidate.skills === "string"
+        ? JSON.parse(candidate.skills)
+        : candidate.skills || [];
+    } catch { skills = []; }
+
+    console.log("skills:", skills); 
+
+    if (!skills.length) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const jobsSql = `
+      SELECT
+        jp.id, jp.job_title, jp.job_description,
+        jp.min_salary, jp.max_salary,
+        jp.min_experience, jp.max_experience,
+        jp.status, jp.created_at,
+        jt.name AS job_type,
+        ccy.code AS currency,
+        ci.company_name, ci.logo,
+        c.name AS city_name,
+        (SELECT COUNT(*) FROM applications a 
+        WHERE a.job_id = jp.id AND a.candidate_id = ?) AS already_applied
+      FROM job_posts jp
+      LEFT JOIN company_info ci ON ci.account_id = jp.account_id
+      LEFT JOIN cities c ON c.id = jp.city_id
+      LEFT JOIN jobtypes jt ON jt.id = jp.job_type_id
+      LEFT JOIN currencies ccy ON ccy.id = jp.currency_id
+      WHERE jp.status = 'Active'
+        AND jp.approval_status = 'Approved'
+        AND JSON_OVERLAPS(jp.skill_ids, ?)
+      ORDER BY jp.created_at DESC
+      LIMIT 20
+    `;
+
+    connection.query(
+      jobsSql,
+      [candidate.id, JSON.stringify(skills)],
+      (err2, jobs) => {
+        if (err2) {
+          console.error("jobsSql error:", err2); 
+          return res.status(500).json({ error: "Database error", details: err2.message });
+        }
+
+        console.log("jobs found:", jobs.length); 
+
+        const result = jobs.map(job => ({
+          ...job,
+          logo: job.logo ? job.logo.toString("base64") : null,
+          already_applied: job.already_applied > 0,
+        }));
+
+        res.json({ success: true, data: result });
+      }
+    );
+  });
+};
+
+const getAllCandidatesForEmployer = (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 12;
+  const offset = (page - 1) * limit;
+
+  const search = (req.query.search || "").trim();
+  const cityId = (req.query.city_id || "").trim();
+  const degreeId = (req.query.degree_id || "").trim();   // optional if you have degree table
+  const experience = (req.query.experience || "").trim();   // e.g. "0-2", "3-5", "5+"
+  const skillId = (req.query.skill_id || "").trim();
+
+  let whereConditions = [
+    `a.accountType = 'candidate'`,
+    `a.isActive = 'Active'`,           // only approved candidates
+    `ci.profile_completed = 1`,        // only complete profiles
+  ];
+  let values = [];
+
+  // Search by name only (no phone/email leak)
+  if (search) {
+    whereConditions.push(`ci.full_name LIKE ?`);
+    values.push(`%${search}%`);
+  }
+
+  // City filter
+  if (cityId) {
+    whereConditions.push(`ci.city = ?`);
+    values.push(cityId);
+  }
+
+  if (skillId) {
+    whereConditions.push(`JSON_CONTAINS(ci.skills, JSON_ARRAY(?))`);
+    values.push(parseInt(skillId));
+  }
+
+  // Experience filter
+  if (experience === "fresh") {
+    whereConditions.push(`(ci.total_experience = '0' OR ci.total_experience IS NULL OR ci.total_experience = '' OR ci.is_fresher = 1)`);
+  } else if (experience === "1-3") {
+    whereConditions.push(`CAST(IFNULL(ci.total_experience, 0) AS UNSIGNED) BETWEEN 1 AND 3`);
+  } else if (experience === "3-5") {
+    whereConditions.push(`CAST(IFNULL(ci.total_experience, 0) AS UNSIGNED) BETWEEN 3 AND 5`);
+  } else if (experience === "5+") {
+    whereConditions.push(`CAST(IFNULL(ci.total_experience, 0) AS UNSIGNED) >= 5`);
+  }
+
+  const whereClause = `WHERE ${whereConditions.join(" AND ")}`;
+
+  // ⚠️ INTENTIONALLY excluded: phone, email, resume, passport_photo path (privacy)
+  const query = `
+    SELECT
+      ci.id                   AS candidate_id,
+      ci.full_name,
+      ci.total_experience,
+      ci.skills,
+      ci.is_boosted,
+      ci.boost_expires_at,
+      ci.gender,
+      city.name               AS city_name,
+      ctry.name               AS country_name,
+
+      -- Masked initials for avatar (no real photo)
+      UPPER(LEFT(ci.full_name, 1))                                AS initial
+
+    FROM account a
+    LEFT JOIN candidate_info ci  ON a.id = ci.account_id
+    LEFT JOIN cities city        ON ci.city = city.id
+    LEFT JOIN countries ctry     ON ci.country = ctry.id
+    ${whereClause}
+    ORDER BY
+      ci.is_boosted DESC,
+      ci.updated_at DESC
+    LIMIT ? OFFSET ?
+  `;
+
+  const queryParams = [...values, limit, offset];
+
+  connection.query(query, queryParams, (err, results) => {
+    if (err) {
+      console.error("❌ getAllCandidatesForEmployer error:", err.sqlMessage);
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    const countQuery = `
+      SELECT COUNT(*) AS total
+      FROM account a
+      LEFT JOIN candidate_info ci ON a.id = ci.account_id
+      ${whereClause}
+    `;
+
+    connection.query(countQuery, values, (err2, countResult) => {
+      if (err2) {
+        console.error("❌ Count error:", err2.sqlMessage);
+        return res.status(500).json({ error: "Database error" });
+      }
+
+      // Parse skills JSON for each candidate
+      const candidates = results.map((c) => {
+        let skillNames = [];
+        try {
+          const parsed = typeof c.skills === "string" ? JSON.parse(c.skills) : (c.skills || []);
+          // skills is stored as array of IDs — we return raw IDs; frontend can show count
+          skillNames = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          skillNames = [];
+        }
+
+        return {
+          candidate_id: c.candidate_id,
+          full_name: c.full_name || "Anonymous",
+          initial: c.initial || "?",
+          total_experience: c.total_experience || "0",
+          city_name: c.city_name || null,
+          country_name: c.country_name || null,
+          is_boosted: !!c.is_boosted,
+          gender: c.gender || null,
+          skills_count: skillNames.length,   // only count, not names (teaser)
+        };
+      });
+
+      // Stats query — total candidates in system
+      const statsQuery = `
+        SELECT
+          COUNT(*) AS total_candidates,
+          SUM(CASE WHEN a.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS new_this_week,
+          SUM(CASE WHEN ci.is_boosted = 1 THEN 1 ELSE 0 END)                               AS boosted_count
+        FROM account a
+        LEFT JOIN candidate_info ci ON a.id = ci.account_id
+        WHERE a.accountType = 'candidate'
+          AND a.isActive = 'Active'
+          AND ci.profile_completed = 1
+      `;
+
+      connection.query(statsQuery, (err3, statsResult) => {
+        if (err3) {
+          // Non-fatal: return without stats
+          return res.status(200).json({
+            total: countResult[0].total,
+            page,
+            limit,
+            candidates,
+            stats: null,
+          });
+        }
+
+        return res.status(200).json({
+          total: countResult[0].total,
+          page,
+          limit,
+          candidates,
+          stats: {
+            total_candidates: statsResult[0].total_candidates || 0,
+            new_this_week: statsResult[0].new_this_week || 0,
+            boosted_count: statsResult[0].boosted_count || 0,
+          },
+        });
+      });
+    });
+  });
+};
+
+const parseCVAndSave = async (req, res) => {
+  try {
+    const accountId = req.user?.userId;
+    if (!accountId) return res.status(400).json({ error: "Invalid account" });
+
+    const file = req.cvFile;
+    if (!file) return res.status(400).json({ error: "No CV uploaded" });
+
+    const resumePath = file.path
+      .replace(/\\/g, "/")
+      .replace(/^.*uploads/, "/uploads");
+
+    // ✅ CV text extract
+    let cvText = "";
+    try {
+      const fs = require("fs");
+      const fileBuffer = fs.readFileSync(file.path);
+
+      console.log("File mimetype:", file.mimetype);
+      console.log("File size:", fileBuffer.length, "bytes");
+
+      if (file.mimetype === "application/pdf" || file.originalname?.toLowerCase().endsWith(".pdf")) {
+        const dataBuffer = fs.readFileSync(file.path);
+        const pdfData = await pdfParse(dataBuffer);
+        cvText = pdfData.text || "";
+        console.log("PDF text length:", cvText.length);
+        console.log("PDF text preview:", cvText.slice(0, 500)); // ← check this log!
+      } else {
+        // DOC/DOCX
+        const result = await mammoth.extractRawText({ path: file.path });
+        cvText = result.value || "";
+        console.log("DOC text length:", cvText.length);
+      }
+
+    } catch (parseErr) {
+      console.error("CV parse error:", parseErr.message);
+      cvText = "";
+    }
+
+    console.log("API KEY exists:", !!process.env.OPENAI_API_KEY);
+
+    // ✅ OpenAI se extract karo
+    let extracted = {
+      full_name: null,
+      total_experience: null,
+      skills_text: [],
+      is_fresher: false,
+    };
+
+    if (cvText.length > 50) {
+      try {
+        console.log("Calling OpenAI API...");
+
+        const openai = new OpenAI({
+          apiKey: process.env.OPENAI_API_KEY,
+        });
+
+        const completion = await openai.chat.completions.create({
+          model: "gpt-3.5-turbo",
+          messages: [
+            {
+              role: "system",
+              content: "You are a CV parser. Extract information and return ONLY valid JSON. No markdown, no explanation.",
+            },
+            {
+              role: "user",
+              content: `Extract from this CV and return ONLY this JSON format:
+{
+  "full_name": "string or null",
+  "total_experience": "number in years as string or null",
+  "skills_text": ["array of skill names found in CV"],
+  "is_fresher": true or false
+}
+
+CV Text:
+${cvText.slice(0, 3000)}`,
+            },
+          ],
+          temperature: 0,
+          max_tokens: 500,
+        });
+
+        const aiText = completion.choices[0].message.content.trim();
+        console.log("=== AI RESPONSE ===");
+        console.log(aiText);
+
+        const cleanJson = aiText.replace(/```json|```/g, "").trim();
+        extracted = JSON.parse(cleanJson);
+        console.log("=== EXTRACTED ===", extracted);
+
+      } catch (aiErr) {
+        console.error("=== AI ERROR ===");
+        console.error("Status:", aiErr.status);
+        console.error("Message:", aiErr.message);
+      }
+    } else {
+      console.log("CV text too short, skipping AI. Length:", cvText.length);
+    }
+
+    // ✅ Skills DB se match karo
+    let skillIds = [];
+    if (extracted.skills_text?.length) {
+      console.log("Skills to match:", extracted.skills_text);
+
+      const skillNames = extracted.skills_text.map(s => s.toLowerCase().trim());
+      const placeholders = skillNames.map(() => "LOWER(name) LIKE ?").join(" OR ");
+      const skillValues = skillNames.map(s => `%${s}%`);
+
+      await new Promise((resolve) => {
+        connection.query(
+          `SELECT id, name FROM skills WHERE (${placeholders}) AND status = 'Active'`,
+          skillValues,
+          (err, rows) => {
+            if (err) console.error("Skills DB error:", err);
+            console.log("Skills matched from DB:", rows);
+            if (!err && rows) skillIds = rows.map(r => r.id);
+            resolve();
+          }
+        );
+      });
+    }
+
+    // ✅ DB mein save
+    const sql = `
+      INSERT INTO candidate_info (
+        account_id, full_name, total_experience, skills,
+        resume, registration_type, is_fresher, profile_completed
+      )
+      VALUES (?, ?, ?, ?, ?, 'cv_only', ?, 1)
+      ON DUPLICATE KEY UPDATE
+        full_name        = IF(VALUES(full_name) IS NOT NULL, VALUES(full_name), full_name),
+        total_experience = IF(VALUES(total_experience) IS NOT NULL, VALUES(total_experience), total_experience),
+        skills           = IF(VALUES(skills) IS NOT NULL, VALUES(skills), skills),
+        resume           = VALUES(resume),
+        registration_type = 'cv_only',
+        is_fresher       = VALUES(is_fresher),
+        profile_completed = 1
+    `;
+
+    connection.query(sql, [
+      accountId,
+      extracted.full_name || null,
+      extracted.total_experience || null,
+      skillIds.length ? JSON.stringify(skillIds) : null,
+      resumePath,
+      extracted.is_fresher ? 1 : 0,
+    ], (err) => {
+      if (err) {
+        console.error("CV DB save error:", err);
+        return res.status(500).json({ error: err.message });
+      }
+
+      return res.json({
+        success: true,
+        message: "CV uploaded and parsed successfully",
+        extracted: {
+          full_name: extracted.full_name,
+          total_experience: extracted.total_experience,
+          skills_found: skillIds.length,
+          is_fresher: extracted.is_fresher,
+        },
+      });
+    });
+
+  } catch (error) {
+    console.error("parseCVAndSave error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   getAllCandidates,
   updateStatus,
@@ -1418,4 +1891,7 @@ module.exports = {
   rejectBoost,
   getCandidatesForJob,
   getBoostAnalytics,
+  getMatchingJobsForCandidate,
+  getAllCandidatesForEmployer,
+  parseCVAndSave,
 };

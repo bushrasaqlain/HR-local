@@ -108,13 +108,34 @@ class ExperienceStep extends Component {
     }
   };
 
+  saveSkills = async () => {
+    const { formData } = this.state;
+    const skillIds = (formData.skills || []).map((s) => s.value);
+
+    try {
+      const formDataObj = new FormData();
+      formDataObj.append("skills", JSON.stringify(skillIds));
+      formDataObj.append("mode", "save");
+
+      await api.post("/candidateProfile/candidate/passport-photo", formDataObj, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      this.setState({ editingSkills: false, successMessage: "Skills saved" });
+      setTimeout(() => this.setState({ successMessage: "" }), 3000);
+    } catch (err) {
+      console.error("Skills save failed", err);
+      this.setState({ errorMessage: "Failed to save skills" });
+      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
+    }
+  };
+
   // Load speciality options for AsyncSelect
   loadSpecialities = async (inputValue) => {
 
     try {
       const res = await api.get("/getAllspeciality");
 
-      // fix: use res.data.speciality
       const options = (res.data.speciality || []).map(s => ({
         value: s.id,
         label: s.name,
@@ -485,7 +506,7 @@ class ExperienceStep extends Component {
           <div className="mt-1">
             <button
               className="btn btn-sm btn-primary me-2"
-              onClick={() => this.setState({ editingSkills: false })}
+              onClick={this.saveSkills}
             >
               Save
             </button>
@@ -497,7 +518,6 @@ class ExperienceStep extends Component {
             </button>
           </div>
         )}
-
       </Container>
 
     );

@@ -259,7 +259,7 @@ const getJobbyRegAdmin = (req, res) => {
         whereClause += ` AND pkg_ccy.code LIKE ?`;
         params.push(`${search}%`);
       }
-    }  else if (["jp.status", "jp.approval_status"].includes(column)) {
+    } else if (["jp.status", "jp.approval_status"].includes(column)) {
       whereClause += ` AND LOWER(${column}) LIKE LOWER(?)`;
       params.push(`${search}%`);
     } else {
@@ -546,7 +546,7 @@ const approveJob = (req, res) => {
   );
 };
 const updateJobPostStatus = (req, res) => {
-  const { id, status, userId } = req.params; // add userId here
+  const { id, status, userId } = req.params;
 
   if (!id || !status || !userId) {
     return res.status(400).json({
@@ -558,7 +558,16 @@ const updateJobPostStatus = (req, res) => {
   const isActiveStatus = normalizedStatus === "Active" || normalizedStatus === "Inactive";
   const columnToUpdate = isActiveStatus ? "status" : "approval_status";
 
-  // Get previous value
+  // ✅ Action decide karo status ke hisaab se
+  let auditAction;
+  if (normalizedStatus === "Active") {
+    auditAction = "ACTIVE";
+  } else if (normalizedStatus === "Inactive") {
+    auditAction = "INACTIVE";
+  } else {
+    auditAction = "UPDATED";
+  }
+
   const selectSql = `SELECT ${columnToUpdate} FROM job_posts WHERE id = ?`;
 
   connection.query(selectSql, [id], (selectErr, rows) => {
@@ -567,19 +576,24 @@ const updateJobPostStatus = (req, res) => {
 
     const previousValue = rows[0][columnToUpdate];
 
-    // Update job post
     const updateSql = `UPDATE job_posts SET ${columnToUpdate} = ? WHERE id = ?`;
     connection.query(updateSql, [normalizedStatus, id], (err, result) => {
       if (err) return res.status(500).json({ error: "Internal Server Error" });
 
-      // Log history
+      // ✅ Sahi action pass karo
       logAudit({
         tableName: "history",
         entityType: "job",
-        entityId: id, // use job id here
-        action: "UPDATED",
-        data: { previousValue, normalizedStatus },
-        changedBy: userId, // now defined
+        entityId: id,
+        action: auditAction,  // ACTIVE / INACTIVE / UPDATED
+        data: {
+          previousValue,
+          newValue: normalizedStatus,
+          event: normalizedStatus === "Active" ? "Job activated" :
+            normalizedStatus === "Inactive" ? "Job deactivated" :
+              `Approval status changed to ${normalizedStatus}`
+        },
+        changedBy: userId,
       });
 
       return res.status(200).json({
@@ -588,7 +602,6 @@ const updateJobPostStatus = (req, res) => {
     });
   });
 };
-
 
 
 const getSingleJob = (req, res) => {
@@ -618,7 +631,6 @@ const getSingleJob = (req, res) => {
         jp.no_of_positions,
         jp.industry,
         pkg.price AS packageprice,
-        pkg.currency AS packagecurrency,
         co.name AS country,
         co.id AS country_id,
         d.name AS district,
@@ -1062,6 +1074,14 @@ const updatePostJob = (req, res) => {
       },
       changedBy: userId,
     });
+    logAudit({
+      tableName: "history",
+      entityType: "employer",
+      entityId: userId,
+      action: "UPDATED",
+      data: { event: "Job updated", job_title, job_id: jobId },
+      changedBy: userId,
+    });
 
     return res.status(200).json({
       message: "Job updated successfully",
@@ -1117,12 +1137,21 @@ CREATE TABLE IF NOT EXISTS company_packages (
     console.log("company_packages  table created successfully");
   })
 }
-const subcribePackage = ({ userId, packageId, paymentId }, callback) => {
+const subcribePackage = async (req, res) => {
+  const { userId, packageId, jobId, paymentId } = req.body;
+
+  // jobId ko paymentId ki jagah use karo agar paymentId nahi aaya
+  const resolvedPaymentId = paymentId || jobId || 0;
+
+  if (!userId || !packageId) {
+    return res.status(400).json({ error: "userId and packageId required" });
+  }
+
   const getPackageQuery = `SELECT * FROM packages WHERE id = ?`;
 
   connection.query(getPackageQuery, [packageId], (err, result) => {
     if (err || !result.length) {
-      return callback(new Error("Invalid package"));
+      return res.status(404).json({ error: "Invalid package" });
     }
 
     const pkg = result[0];
@@ -1145,22 +1174,48 @@ const subcribePackage = ({ userId, packageId, paymentId }, callback) => {
       [
         userId,
         packageId,
-        paymentId,        // ✅ now correctly passed in
+        resolvedPaymentId,  // ← jobId ya paymentId jo bhi aaya
         pkg.pricing_model,
         duration,
         JSON.stringify(pkg),
       ],
       (err2, result2) => {
         if (err2) {
-          return callback(new Error("Subscription failed"));
+          console.error("Subscription insert error:", err2);
+          return res.status(500).json({ error: "Subscription failed" });
         }
 
-        // ✅ Return result via callback, NOT res.json()
-        return callback(null, { subscriptionId: result2.insertId });
+        return res.status(201).json({
+          message: "Package subscribed successfully ✅",
+          subscriptionId: result2.insertId,
+        });
       }
     );
   });
 };
+// Sirf internal use ke liye (no res/req)
+const subcribePackageInternal = ({ userId, packageId, paymentId }) => {
+  return new Promise((resolve, reject) => {
+    connection.query(`SELECT * FROM packages WHERE id = ?`, [packageId], (err, result) => {
+      if (err || !result.length) return reject(new Error("Invalid package"));
+
+      const pkg = result[0];
+      const duration = pkg.duration_days || pkg.bundle_validity_days || 30;
+
+      connection.query(
+        `INSERT INTO company_packages
+         (account_id, package_id, payment_id, pricing_model, start_date, end_date, package_snapshot)
+         VALUES (?, ?, ?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL ? DAY), ?)`,
+        [userId, packageId, paymentId, pkg.pricing_model, duration, JSON.stringify(pkg)],
+        (err2, result2) => {
+          if (err2) return reject(new Error("Subscription failed"));
+          resolve({ subscriptionId: result2.insertId });
+        }
+      );
+    });
+  });
+};
+
 const getUserPackages = (req, res) => {
   const { userId } = req.params;
 
@@ -1180,7 +1235,7 @@ const getUserPackages = (req, res) => {
     ORDER BY cp.id DESC
   `;
 
-const dailyJobsQuery = `
+  const dailyJobsQuery = `
   SELECT 
     id, job_title, status, billing_model,
     cost_per_click  AS rate_per_unit,      -- your actual column
@@ -1208,38 +1263,38 @@ const dailyJobsQuery = `
 
         return {
           subscription_id: item.subscription_id,
-          start_date:      item.start_date,
-          end_date:        item.end_date,
-          pricing_model:   item.pricing_model,
-          status:          item.status,
-          used_posts:      item.used_posts,
-          used_credits:    item.used_credits,
-          used_slots:      item.used_slots,
-          package:         pkg,
+          start_date: item.start_date,
+          end_date: item.end_date,
+          pricing_model: item.pricing_model,
+          status: item.status,
+          used_posts: item.used_posts,
+          used_credits: item.used_credits,
+          used_slots: item.used_slots,
+          package: pkg,
           is_daily_budget: false,
         };
       });
 
       // format daily_budget jobs to match the same shape
       const dailyPackages = dailyJobs.map(job => ({
-        subscription_id:  `job_${job.id}`,
-        start_date:       null,
-        end_date:         job.application_deadline,
-        pricing_model:    "daily_budget",
-        status:           job.status,
-        used_posts:       0,
-        used_credits:     0,
-        used_slots:       0,
-        is_daily_budget:  true,
+        subscription_id: `job_${job.id}`,
+        start_date: null,
+        end_date: job.application_deadline,
+        pricing_model: "daily_budget",
+        status: job.status,
+        used_posts: 0,
+        used_credits: 0,
+        used_slots: 0,
+        is_daily_budget: true,
         package: {
-          name:              job.job_title,
-          pricing_model:     "daily_budget",
-          billing_model:     job.billing_model,
-          rate_per_unit:     job.rate_per_unit,
-          daily_budget_cap:  job.daily_budget_cap,
+          name: job.job_title,
+          pricing_model: "daily_budget",
+          billing_model: job.billing_model,
+          rate_per_unit: job.rate_per_unit,
+          daily_budget_cap: job.daily_budget_cap,
           daily_spend_today: job.daily_spend_today,
-          total_spend:       job.total_spend,
-          price:             job.total_spend, // actual spend so far
+          total_spend: job.total_spend,
+          price: job.total_spend, // actual spend so far
         },
       }));
 

@@ -39,7 +39,7 @@ router.post(
 //   uploadResume.single("resume"),
 //   candidateController.addResume
 // );
-
+router.get("/available-candidates", authMiddleware, candidateController.getAllCandidatesForEmployer);
 // Edit candidate info with passport photo and resume
 router.put(
   "/:accountId",
@@ -92,5 +92,16 @@ router.put(
   candidateController.rejectBoost
 );
 router.get("/candidates-by-job/:jobId", candidateController.getCandidatesForJob);
+router.get(
+  "/matching-jobs",
+  authMiddleware,
+  candidateController.getMatchingJobsForCandidate
+);
 
+router.post(
+  "/candidate/upload-cv",
+  authMiddleware,
+  uploadResume.single("resume"),  // existing middleware use karo
+  candidateController.parseCVAndSave
+);
 module.exports = router;

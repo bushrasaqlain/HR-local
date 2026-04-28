@@ -55,9 +55,9 @@ const navStyles = `
 
 const navItems = [
   { label: "Home", href: "/" },
-  { label: "About", href: "/?page=about" },
-  { label: "FAQ's", href: "/?page=faq" },
-  { label: "Terms", href: "/?page=terms" },
+  { label: "About", href: "/about" },
+  { label: "FAQ's", href: "/faq" },
+  { label: "Terms", href: "/terms" },
 ];
 
 class HeaderNavContent extends Component {

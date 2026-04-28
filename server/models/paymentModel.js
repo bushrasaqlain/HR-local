@@ -83,6 +83,7 @@ const addPayment = (req, res) => {
     packageId,
     jobId,
     reference,
+    payment_type,
   } = req.body;
 
   const {
@@ -96,19 +97,19 @@ const addPayment = (req, res) => {
   let last4 = null;
   let brand = null;
 
-if (method === "card") {
-  last4 = cardLast4 ? cardLast4.slice(-4) : null;
+  if (method?.toLowerCase() === "card") {
+    last4 = cardLast4 ? cardLast4.slice(-4) : null;
 
-  if (cardLast4?.startsWith("4"))      brand = "visa";
-  else if (cardLast4?.startsWith("5")) brand = "mastercard";
-  else if (cardLast4?.startsWith("3")) brand = "amex";
-  else if (cardLast4?.startsWith("6")) brand = "discover";
-  else                                  brand = "unknown";
-}
+    if (cardLast4?.startsWith("4")) brand = "visa";
+    else if (cardLast4?.startsWith("5")) brand = "mastercard";
+    else if (cardLast4?.startsWith("3")) brand = "amex";
+    else if (cardLast4?.startsWith("6")) brand = "discover";
+    else brand = "unknown";
+  }
 
-const payment_token = method === "card" && last4    // ← add this
-  ? `tok_dummy_${Date.now()}_${last4}`
-  : null;
+  const payment_token = method?.toLowerCase() === "card" && last4    // ← add this
+    ? `tok_dummy_${Date.now()}_${last4}`
+    : null;
 
   connection.beginTransaction((err) => {
     if (err) {
@@ -118,11 +119,11 @@ const payment_token = method === "card" && last4    // ← add this
     const paymentQuery = `
       INSERT INTO payment
       (account_id, job_id, package_id,
-       card_last4, card_brand, card_holder,
-       amount, currency,
-       payment_type, payment_method, payment_status,
-       payment_reference)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'job', ?, 'Paid', ?)
+      card_last4, card_brand, card_holder,
+      amount, currency,
+      payment_type, payment_method, payment_status,
+      payment_reference)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Paid', ?)
     `;
 
     connection.query(
@@ -136,11 +137,13 @@ const payment_token = method === "card" && last4    // ← add this
         cardName || null,
         amount,
         currency || "PKR",
+        payment_type || "job",
         method,
         reference || null,
       ],
       (err1, paymentResult) => {
         if (err1) {
+          console.error("❌ Payment INSERT error:", err1.message, err1.sqlMessage);
           return connection.rollback(() =>
             res.status(500).json({ success: false, message: "Payment failed" })
           );
@@ -150,7 +153,7 @@ const payment_token = method === "card" && last4    // ← add this
 
         // 💳 SAVE CARD
         const saveCardIfNeeded = (cb) => {
-          if (method === "card" && saveForLater && last4) {
+          if (method?.toLowerCase() === "card" && saveForLater && last4) {
             const checkQuery = `
               SELECT id FROM saved_cards
               WHERE account_id = ? AND card_last4 = ? AND card_brand = ?
@@ -171,7 +174,7 @@ const payment_token = method === "card" && last4    // ← add this
 
                 connection.query(
                   insertCard,
-                    [userId, last4, brand, cardName || null, JSON.stringify(acceptedTypes || []), payment_token],
+                  [userId, last4, brand, cardName || null, JSON.stringify(acceptedTypes || []), payment_token],
                   (errInsert) => {
                     if (errInsert) {
                       return connection.rollback(() =>
@@ -191,27 +194,29 @@ const payment_token = method === "card" && last4    // ← add this
         };
 
         // 🎁 SUBSCRIBE PACKAGE
-       saveCardIfNeeded(() => {
-  // ← add this check
-  if (!packageId) {
-    return connection.commit((err4) => {
-      if (err4) {
-        return connection.rollback(() =>
-          res.status(500).json({ success: false, message: "Commit failed" })
-        );
-      }
-      return res.status(201).json({
-        success: true,
-        message: "Card saved successfully",
-        payment_id: paymentId,
-      });
-    });
-  }
+        saveCardIfNeeded(() => {
+          if (!packageId) {
+            return connection.commit((err4) => {
+              if (err4) return connection.rollback(() => res.status(500).json({ success: false, message: "Commit failed" }));
+              return res.status(201).json({ success: true, message: "Payment saved", payment_id: paymentId });
+            });
+          }
 
-  // only runs when actually buying a package
-  subcribePackage(
-    { userId, packageId, paymentId },
-    (err2, subResult) => {
+          if (payment_type === "candidate_boost") {
+            return connection.commit((err4) => {
+              if (err4) return connection.rollback(() => res.status(500).json({ success: false, message: "Commit failed" }));
+              return res.status(201).json({
+                success: true,
+                message: "Boost payment successful",
+                payment_id: paymentId,
+              });
+            });
+          }
+
+          // only runs when actually buying a package
+          subcribePackage(
+            { userId, packageId, paymentId },
+            (err2, subResult) => {
               if (err2) {
                 return connection.rollback(() =>
                   res.status(500).json({ success: false, message: err2.message })
@@ -264,32 +269,32 @@ const payment_token = method === "card" && last4    // ← add this
 const getSavedCards = (req, res) => {
   const { userId } = req.params;
 
-const query = `
+  const query = `
   SELECT id, card_last4, card_brand, card_holder, accepted_types, payment_token
   FROM saved_cards
   WHERE account_id = ?
   ORDER BY id DESC
 `;
 
-  
-connection.query(query, [userId], (err, results) => {
-  if (err) {
-    console.error("getSavedCards error:", err.message);
-    return res.status(500).json({ success: false, error: err.message });
-  }
 
-  const cards = results.map(c => {
-    let accepted_types = [];
-    try {
-      accepted_types = c.accepted_types ? JSON.parse(c.accepted_types) : [];
-    } catch (e) {
-      accepted_types = [];
+  connection.query(query, [userId], (err, results) => {
+    if (err) {
+      console.error("getSavedCards error:", err.message);
+      return res.status(500).json({ success: false, error: err.message });
     }
-    return { ...c, accepted_types };
-  });
 
-  res.json({ success: true, cards });
-});
+    const cards = results.map(c => {
+      let accepted_types = [];
+      try {
+        accepted_types = c.accepted_types ? JSON.parse(c.accepted_types) : [];
+      } catch (e) {
+        accepted_types = [];
+      }
+      return { ...c, accepted_types };
+    });
+
+    res.json({ success: true, cards });
+  });
 };
 const addRegistrationPayment = (req, res) => {
   const { userId } = req.params;

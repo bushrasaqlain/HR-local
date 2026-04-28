@@ -156,7 +156,7 @@ class AllApplicants extends Component {
     }
 
     try {
-      const res = await axios.get(`${this.apiBaseUrl}applicantsData/${this.userId}`, {
+      const res = await axios.get(`${this.apiBaseUrl}applicant/applicantsData/${this.userId}`, {
         params: {
           skill_id: selectedSkillId,
           job_id: selectedJobId,
@@ -1225,6 +1225,16 @@ class AllApplicants extends Component {
                               <div className="compact-info">
                                 <div className="compact-name">{candidate.full_name}</div>
                                 <div className="compact-email">{candidate.email || ''}</div>
+                                {candidate.has_applied && (
+                                  <span style={{
+                                    background: "#d1fae5", color: "#065f46",
+                                    fontSize: "10px", fontWeight: 600,
+                                    padding: "1px 6px", borderRadius: "10px",
+                                    display: "inline-block", marginTop: "2px",
+                                  }}>
+                                    ✓ Applied
+                                  </span>
+                                )}
                               </div>
                             </div>
                           ))}
@@ -1322,6 +1332,9 @@ class AllApplicants extends Component {
                                   <th className="text-white p-2 p-md-3 border-bottom border-1"
                                     style={{ background: "#5f8190" }}>Boost
                                   </th>
+                                  <th className="text-white p-2 p-md-3 border-bottom border-1"
+                                    style={{ background: "#5f8190" }}>Applied
+                                  </th>
                                 </tr>
                               </thead>
                               <tbody className="border-2">
@@ -1391,6 +1404,24 @@ class AllApplicants extends Component {
                                           whiteSpace: "nowrap",
                                         }}>
                                           Featured
+                                        </span>
+                                      ) : (
+                                        <span style={{ color: "#cbd5e0", fontSize: "13px" }}>—</span>
+                                      )}
+                                    </td>
+                                    <td className="text-center">
+                                      {candidate.has_applied ? (
+                                        <span style={{
+                                          background: "#d1fae5",
+                                          color: "#065f46",
+                                          border: "1px solid #6ee7b7",
+                                          borderRadius: "20px",
+                                          padding: "4px 10px",
+                                          fontSize: "11px",
+                                          fontWeight: 600,
+                                          whiteSpace: "nowrap",
+                                        }}>
+                                          ✓ Applied
                                         </span>
                                       ) : (
                                         <span style={{ color: "#cbd5e0", fontSize: "13px" }}>—</span>

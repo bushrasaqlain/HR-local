@@ -88,14 +88,14 @@ class DefaulHeader2 extends Component {
             <HeaderNavContent />
 
             <Button
-              href="/?page=login"
+              href="/login"
               className="btn  text-center p-2 text-decoration-none"
               style={{background: "#264049", border: "#1e2a2e"}}
             >
               Login / Register 
             </Button>
             <Button
-              href="/?page=login"
+              href="/login"
               className="btn-gradient text-center p-2 text-decoration-none"
               style={{background: "#264049", border: "#1e2a2e"}}
             >

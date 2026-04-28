@@ -24,6 +24,7 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 import DetailModal from "../common/DetailModal";
 import HistoryModal from "../common/HistoryModal";
 import Head from "next/head";
+import { withRouter } from "next/router";
 class Job extends Component {
   constructor(props) {
     super(props);
@@ -386,7 +387,7 @@ class Job extends Component {
 
                                       {/* History */}
                                       <button
-                                        onClick={() => this.getHistory(item.jobpost_id)}
+                                        onClick={() => this.props.router.push(`/history1/job/${item.jobpost_id}`)}
                                         className="icon-btn"
                                         title="View History"
                                       >
@@ -525,4 +526,4 @@ class Job extends Component {
   }
 }
 
-export default Job;
+export default withRouter(Job);

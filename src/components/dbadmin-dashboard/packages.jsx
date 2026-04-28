@@ -324,6 +324,7 @@ class Packages extends Component {
       FormData: {
         ...prevState.FormData,
         [name]: type === "checkbox" ? checked : value,
+        ...(name === "package_type" ? { pricing_model: "" } : {}),
       },
       errors: { ...prevState.errors, [name]: "" },
     }));
@@ -390,10 +391,11 @@ class Packages extends Component {
     }
 
     if (pm === "duration_bundle") {
-      if (!FormData.num_posts) errors.num_posts = "Number of posts is required";
       if (!FormData.price) errors.price = "Bundle price is required";
       if (FormData.duration_days === "custom" && !FormData.custom_duration_days)
         errors.custom_duration_days = "Custom duration is required";
+      if (FormData.package_type === "Company" && !FormData.num_posts)
+        errors.num_posts = "Number of posts is required";
     }
 
     if (pm === "cv_credits") {
@@ -990,6 +992,73 @@ class Packages extends Component {
 
   renderDurationBundleFields = () => {
     const { FormData, errors } = this.state;
+    const isCandidate = FormData.package_type === "Candidate";
+
+    // ── Candidate ke liye simple boost duration fields ──
+    if (isCandidate) {
+      return (
+        <>
+          <div className="model-form-divider">
+            <i className="bi bi-calendar-range me-2" />Boost duration
+          </div>
+          <Row>
+            <Col md={6}>
+              <div className="mb-3">
+                <label className="form-label fw-semibold">
+                  Boost duration <span className="text-danger">*</span>
+                </label>
+                <select
+                  name="duration_days"
+                  value={FormData.duration_days}
+                  onChange={this.handleInputChange}
+                  className="form-select"
+                >
+                  <option value="7">7 days</option>
+                  <option value="14">14 days</option>
+                  <option value="30">30 days</option>
+                  <option value="60">60 days</option>
+                  <option value="90">90 days</option>
+                  <option value="custom">Custom…</option>
+                </select>
+                <small className="text-muted">Your profile will remain featured for the selected number of days</small>
+              </div>
+            </Col>
+
+            {FormData.duration_days === "custom" && (
+              <Col md={6}>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">
+                    Custom days <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="custom_duration_days"
+                    value={FormData.custom_duration_days}
+                    onChange={this.handleInputChange}
+                    className={`form-control ${errors.custom_duration_days ? "is-invalid" : ""}`}
+                    placeholder="e.g. 45"
+                  />
+                  {errors.custom_duration_days && (
+                    <div className="text-danger small mt-1">{errors.custom_duration_days}</div>
+                  )}
+                </div>
+              </Col>
+            )}
+          </Row>
+
+          <div className="alert alert-info" style={{ fontSize: "0.85rem" }}>
+            <i className="bi bi-info-circle me-2" />
+            The candidate's profile will be featured in search results for{" "}
+            <strong>
+              {FormData.duration_days === "custom"
+                ? FormData.custom_duration_days || "?"
+                : FormData.duration_days}{" "}
+              days
+            </strong>.
+          </div>
+        </>
+      );
+    }
     return (
       <>
         <div className="model-form-divider">
@@ -1187,6 +1256,8 @@ class Packages extends Component {
 
   renderFeaturedBoostFields = () => {
     const { FormData } = this.state;
+    const isCandidate = FormData.package_type === "Candidate";
+
     return (
       <>
         <div className="model-form-divider">
@@ -1198,10 +1269,20 @@ class Packages extends Component {
               <label className="form-label fw-semibold">Boost type</label>
               <select name="boost_type" value={FormData.boost_type}
                 onChange={this.handleInputChange} className="form-select">
-                <option value="top">Top of search results</option>
-                <option value="highlighted">Highlighted listing</option>
-                <option value="homepage">Homepage spotlight</option>
-                <option value="email">Candidate email blast</option>
+                {isCandidate ? (
+                  <>
+                    <option value="profile_top">Top of search results</option>
+                    <option value="highlighted_profile">Highlighted profile</option>
+                    <option value="recruiter_spotlight">Recruiter spotlight</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="top">Top of search results</option>
+                    <option value="highlighted">Highlighted listing</option>
+                    <option value="homepage">Homepage spotlight</option>
+                    <option value="email">Candidate email blast</option>
+                  </>
+                )}
               </select>
             </div>
           </Col>
@@ -1227,6 +1308,21 @@ class Packages extends Component {
         </div>
       </>
     );
+  };
+
+  getFilteredModels = () => {
+    const { FormData } = this.state;
+    if (FormData.package_type === "Candidate") {
+      return PRICING_MODELS
+        .filter(m => m.value === "featured_boost")
+        .map(m => ({
+          ...m,
+          label: "Profile Spotlight",
+          description: "Boost profile visibility",
+          hint: "Get noticed by recruiters — appear at the top of search results",
+        }));
+    }
+    return PRICING_MODELS;
   };
 
   renderModelFields = () => {
@@ -1505,7 +1601,7 @@ class Packages extends Component {
                         <div className="text-danger small mb-1">{errors.pricing_model}</div>
                       )}
                       <div className="model-selector-grid">
-                        {PRICING_MODELS.map((m) => (
+                        {this.getFilteredModels().map((m) => (
                           <div
                             key={m.value}
                             className={`model-selector-card${FormData.pricing_model === m.value ? " selected" : ""}`}
@@ -1590,9 +1686,9 @@ class Packages extends Component {
                         <div className="mb-3">
                           <label className="form-label fw-semibold">
                             {FormData.pricing_model === "duration_bundle" ? "Bundle price" :
-                             FormData.pricing_model === "cv_credits" ? "Pack price" :
-                             FormData.pricing_model === "featured_boost" ? "Boost price" :
-                             "Price"}{" "}
+                              FormData.pricing_model === "cv_credits" ? "Pack price" :
+                                FormData.pricing_model === "featured_boost" ? "Boost price" :
+                                  "Price"}{" "}
                             <span className="text-danger">*</span>
                           </label>
                           <input
