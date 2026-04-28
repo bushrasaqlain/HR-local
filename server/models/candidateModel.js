@@ -1149,6 +1149,9 @@ const getBoostPackages = (req, res) => {
       p.id,
       p.name,
       p.price,
+      p.pricing_model,
+      p.boost_type,
+      p.boost_duration_days,
       p.duration_days,
       p.description,
       COALESCE(c.code, 'PKR') AS currency
@@ -1156,7 +1159,8 @@ const getBoostPackages = (req, res) => {
     LEFT JOIN currencies c ON c.id = p.currency_id
     WHERE p.package_type = 'Candidate'
     AND p.status = 'Active'
-     ORDER BY p.price ASC`,
+    AND p.pricing_model IN ('featured_boost', 'duration_bundle')
+    ORDER BY p.price ASC`,
     (err, results) => {
       if (err) return res.status(500).json({ error: "Database error" });
       res.json({ success: true, data: results });
@@ -1460,11 +1464,11 @@ const getMatchingJobsForCandidate = (req, res) => {
 
   connection.query(candidateSql, [accountId], (err, rows) => {
     if (err) {
-      console.error("candidateSql error:", err); // ← add karo
+      console.error("candidateSql error:", err); 
       return res.status(500).json({ error: "Database error" });
     }
 
-    console.log("candidate rows:", rows); // ← add karo
+    console.log("candidate rows:", rows); 
 
     if (!rows.length) return res.status(404).json({ error: "Candidate not found" });
 
@@ -1476,7 +1480,7 @@ const getMatchingJobsForCandidate = (req, res) => {
         : candidate.skills || [];
     } catch { skills = []; }
 
-    console.log("skills:", skills); // ← add karo
+    console.log("skills:", skills); 
 
     if (!skills.length) {
       return res.json({ success: true, data: [] });
@@ -1511,11 +1515,11 @@ const getMatchingJobsForCandidate = (req, res) => {
       [candidate.id, JSON.stringify(skills)],
       (err2, jobs) => {
         if (err2) {
-          console.error("jobsSql error:", err2); // ← add karo
+          console.error("jobsSql error:", err2); 
           return res.status(500).json({ error: "Database error", details: err2.message });
         }
 
-        console.log("jobs found:", jobs.length); // ← add karo
+        console.log("jobs found:", jobs.length); 
 
         const result = jobs.map(job => ({
           ...job,

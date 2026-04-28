@@ -156,7 +156,7 @@ class AllApplicants extends Component {
     }
 
     try {
-      const res = await axios.get(`${this.apiBaseUrl}applicantsData/${this.userId}`, {
+      const res = await axios.get(`${this.apiBaseUrl}applicant/applicantsData/${this.userId}`, {
         params: {
           skill_id: selectedSkillId,
           job_id: selectedJobId,

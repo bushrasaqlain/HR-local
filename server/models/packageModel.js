@@ -72,7 +72,7 @@ const createPackagesTable = () => {
 
       -- ── featured_boost ───────────────────────────────────────────────────
       -- Standalone add-on; linked to a base package at checkout
-      boost_type           ENUM('top','highlighted','homepage','email') DEFAULT NULL,
+      boost_type           ENUM('top','highlighted','homepage','email','profile_top','highlighted_profile','recruiter_spotlight') DEFAULT NULL,
       boost_duration_days  INT DEFAULT NULL,
 
       -- ── Timestamps ───────────────────────────────────────────────────────
@@ -93,29 +93,30 @@ const validateByModel = (pricing_model, body) => {
   switch (pricing_model) {
     case "daily_budget":
       if (!body.daily_budget_cap) return "daily_budget_cap is required";
-      if (!body.billing_model)    return "billing_model (cpc/cpm/cpa) is required";
-      if (!body.rate_per_unit)    return "rate_per_unit is required";
+      if (!body.billing_model) return "billing_model (cpc/cpm/cpa) is required";
+      if (!body.rate_per_unit) return "rate_per_unit is required";
       break;
     case "per_apply":
       if (!body.cost_per_apply) return "cost_per_apply is required";
       break;
     case "job_slot":
-      if (!body.slot_count)     return "slot_count is required";
-      if (!body.billing_cycle)  return "billing_cycle is required";
+      if (!body.slot_count) return "slot_count is required";
+      if (!body.billing_cycle) return "billing_cycle is required";
       if (!body.price_per_slot) return "price_per_slot is required";
       break;
     case "duration_bundle":
-      if (!body.price)     return "price is required";
-      if (!body.num_posts) return "num_posts is required";
+      if (!body.price) return "price is required";
       if (!body.duration_days) return "duration_days is required";
+      if (body.package_type === "Company" && !body.num_posts)
+        return "num_posts is required";
       break;
     case "cv_credits":
-      if (!body.price)         return "price is required";
+      if (!body.price) return "price is required";
       if (!body.credit_count) return "credit_count is required";
       break;
     case "featured_boost":
-      if (!body.price)               return "price is required";
-      if (!body.boost_type)          return "boost_type is required";
+      if (!body.price) return "price is required";
+      if (!body.boost_type) return "boost_type is required";
       if (!body.boost_duration_days) return "boost_duration_days is required";
       break;
     default:
@@ -197,13 +198,36 @@ const addPackage = (req, res) => {
 
       connection.query(insertSql, values, (err2, result) => {
         if (err2) return res.status(500).json({ error: "Insert failed", details: err2.message });
+        logAudit({
+          tableName: "dbadminhistory",
+          entityType: "package",
+          entityId: result.insertId,
+          action: "ADDED",
+          data: { name: body.name, pricing_model: body.pricing_model, price: body.price },
+          changedBy: userId,
+        });
 
         return res.status(201).json({ success: true, id: result.insertId });
       });
     }
   );
 };
+const getAvailablePackages = (req, res) => {
+  const { pricing_model } = req.query;
 
+  let sql = `SELECT * FROM packages WHERE status = 'Active' AND package_type = 'Company'`;
+  const params = [];
+
+  if (pricing_model) {
+    sql += ` AND pricing_model = ?`;
+    params.push(pricing_model);
+  }
+
+  connection.query(sql, params, (err, results) => {
+    if (err) return res.status(500).json({ error: "DB error", details: err.message });
+    return res.status(200).json({ packages: results });
+  });
+};
 // ─────────────────────────────────────────────
 const getAllPackages = (
   { page = 1, limit = 10, name = "price", search = "", status = "Active", package_type = "" },
@@ -305,91 +329,85 @@ const getCurrencyMap = () =>
   });
 
 
+const validateByType = (data) => {
+  const errors = [];
+  if (!data.package_type) errors.push("package_type is required");
+  if (!data.pricing_model) errors.push("pricing_model is required");
+  if (!data.currency_id) errors.push("currency_id is required");
+  return errors;
+};
 // ─────────────────────────────────────────────
 const editPackage = (req, res) => {
   const { id } = req.params;
   const userId = req.user.userId;
+  const body = req.body;
 
-  const validationErrors = validateByType(req.body);
+  const validationErrors = validateByType(body);
   if (validationErrors.length) {
     return res.status(400).json({ error: validationErrors.join(", ") });
+  }
+
+  const modelError = validateByModel(body.pricing_model, body);
+  if (modelError) {
+    return res.status(400).json({ error: modelError });
   }
 
   connection.query("SELECT * FROM packages WHERE id = ?", [id], (err, results) => {
     if (err) return res.status(500).json({ error: "Database error" });
     if (!results.length) return res.status(404).json({ error: "Package not found" });
 
-    const existingPackage = results[0];
-    const isRegistration = req.body.package_type === "registration";
+    const updateSql = `
+      UPDATE packages SET
+        name = ?, package_type = ?, pricing_model = ?, currency_id = ?,
+        is_featured = ?, description = ?,
+        daily_budget_cap = ?, billing_model = ?, rate_per_unit = ?,
+        campaign_duration_days = ?, min_daily_budget = ?,
+        sponsor_to_top = ?, email_blast = ?,
+        cost_per_apply = ?, max_applies = ?, budget_ceiling = ?,
+        qualification_filter = ?, slot_count = ?, billing_cycle = ?,
+        price_per_slot = ?, free_views_per_slot = ?, extra_view_charge = ?,
+        swap_allowed = ?, price = ?, duration_days = ?, num_posts = ?,
+        bundle_validity_days = ?, include_views = ?, include_featured_slot = ?,
+        include_analytics = ?, credit_count = ?, credit_expiry_days = ?,
+        unlock_scope = ?, tier2_credits = ?, tier2_price = ?,
+        tier3_credits = ?, tier3_price = ?, boost_type = ?, boost_duration_days = ?
+      WHERE id = ?
+    `;
 
-    connection.query(
-      "SELECT code FROM currencies WHERE id = ?",
-      [req.body.currency_id],
-      (err, currencyResult) => {
-        if (err) return res.status(500).json({ error: "Database error" });
+    const values = [
+      body.name, body.package_type, body.pricing_model, body.currency_id,
+      body.is_featured ? 1 : 0, body.description || null,
+      body.daily_budget_cap ?? null, body.billing_model ?? null, body.rate_per_unit ?? null,
+      body.campaign_duration_days ?? null, body.min_daily_budget ?? null,
+      body.sponsor_to_top ? 1 : 0, body.email_blast ? 1 : 0,
+      body.cost_per_apply ?? null, body.max_applies ?? null, body.budget_ceiling ?? null,
+      body.qualification_filter ?? null, body.slot_count ?? null, body.billing_cycle ?? null,
+      body.price_per_slot ?? null, body.free_views_per_slot ?? null, body.extra_view_charge ?? null,
+      body.swap_allowed === false ? 0 : 1,
+      body.price ?? null, body.duration_days ?? null, body.num_posts ?? null,
+      body.bundle_validity_days ?? null, body.include_views ? 1 : 0,
+      body.include_featured_slot ? 1 : 0, body.include_analytics ? 1 : 0,
+      body.credit_count ?? null, body.credit_expiry_days ?? null, body.unlock_scope ?? null,
+      body.tier2_credits ?? null, body.tier2_price ?? null,
+      body.tier3_credits ?? null, body.tier3_price ?? null,
+      body.boost_type ?? null, body.boost_duration_days ?? null,
+      id,
+    ];
 
-        const currencyCode = currencyResult?.[0]?.code || null;
-        const billing_type = isRegistration ? "none" : "required";
+    connection.query(updateSql, values, (err2) => {
+      if (err2) return res.status(500).json({ error: "Database error", details: err2.message });
 
-        const p = buildPayload(req.body, currencyCode);
+      logAudit({
+        tableName: "dbadminhistory",
+        entityType: "package",
+        entityId: id,
+        action: "UPDATED",
+        data: body,
+        changedBy: userId,
+      });
 
-        const updateSql = `
-          UPDATE packages
-          SET name = ?, duration_unit = ?, duration_value = ?, price = ?,
-              currency = ?, currency_id = ?, description = ?,
-              package_type = ?, is_featured = ?,
-              candidate_limit = ?, location_scope = ?,
-              billing_type = ?, jobs_limit = ?, free_candidate_views = ?,
-              view_charge_type = ?, view_charge_value = ?
-          WHERE id = ?
-        `;
-
-        connection.query(
-          updateSql,
-          [
-            p.name,
-            p.duration_unit,
-            p.duration_value,
-            p.price,
-            p.currency,
-            p.currency_id,
-            p.description,
-            p.package_type,
-            p.is_featured,
-            p.candidate_limit,
-            p.location_scope,
-            billing_type,
-            p.jobs_limit,
-            p.free_candidate_views,
-            p.view_charge_type,
-            p.view_charge_value,
-            id,
-          ],
-          (err2) => {
-            if (err2) {
-              return res.status(500).json({
-                error: "Database error",
-                details: err2.message,
-              });
-            }
-
-            logAudit({
-              tableName: "dbadminhistory",
-              entityType: "package",
-              entityId: id,
-              action: "UPDATED",
-              data: { ...p, billing_type },
-              changedBy: userId,
-            });
-
-            res.status(200).json({
-              success: true,
-              message: "Package updated successfully",
-            });
-          }
-        );
-      }
-    );
+      res.status(200).json({ success: true, message: "Package updated successfully" });
+    });
   });
 };
 
@@ -446,14 +464,14 @@ const getPackagebyCompany = ({ page = 1, limit = 10, name = "price", search = ""
     LEFT JOIN cities ci_town ON ci_town.id = ci.city_id
     WHERE 1=1
   `;
-  
+
   const params = [];
   if (status !== "all") { sql += ` AND c.status = ?`; params.push(status); }
   if (search) {
     sql += ` AND (p.name LIKE ? OR a.username LIKE ? OR ci.company_name LIKE ? OR p.pricing_model LIKE ?)`;
     params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
   }
-  
+
   sql += ` ORDER BY ${name} ASC LIMIT ? OFFSET ?`;
   params.push(limit, offset);
 
@@ -471,8 +489,8 @@ const getPackagebyCompany = ({ page = 1, limit = 10, name = "price", search = ""
     const countParams = [];
     if (status !== "all") { countSql += ` AND c.status = ?`; countParams.push(status); }
     if (search) {
-        countSql += ` AND (p.name LIKE ? OR a.username LIKE ? OR ci.company_name LIKE ?)`;
-        countParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+      countSql += ` AND (p.name LIKE ? OR a.username LIKE ? OR ci.company_name LIKE ?)`;
+      countParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
     connection.query(countSql, countParams, (countErr, countRes) => {
@@ -493,16 +511,16 @@ const getCompanyPackgestatus = (req, res) => {
       WHERE c.account_id = ? AND c.status = 'Active'
       ORDER BY c.id DESC LIMIT 1
     `;
-    
+
     connection.query(query, [userId], (err, results) => {
       if (err) return res.status(500).json({ error: "Internal Server Error" });
       if (results.length === 0) return res.status(404).json({ error: "No active package found for this user" });
-      
-      res.status(200).json({ 
-        userId, 
+
+      res.status(200).json({
+        userId,
         packageStatus: results[0].status,
         packageName: results[0].package_name,
-        model: results[0].pricing_model 
+        model: results[0].pricing_model
       });
     });
   } catch (error) {
@@ -533,11 +551,11 @@ const getPackageDetail = (req, res) => {
     WHERE pay.account_id = ?
     ORDER BY pay.id DESC
   `;
-  
+
   connection.query(query, [companyId], (err, results) => {
-    if (err) { 
-      console.error("SQL Error:", err); 
-      return res.status(500).json({ error: "Internal Server Error" }); 
+    if (err) {
+      console.error("SQL Error:", err);
+      return res.status(500).json({ error: "Internal Server Error" });
     }
     res.json(results);
   });
@@ -552,4 +570,5 @@ module.exports = {
   getPackagebyCompany,
   getCompanyPackgestatus,
   getPackageDetail,
+  getAvailablePackages
 };

@@ -19,6 +19,8 @@ import DashboardHeader from "../layout/dashboard-header";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import AOS from "aos";
 import "aos/dist/aos.css";
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap-icons/font/bootstrap-icons.css';
 
 if (typeof window !== "undefined") {
   require("bootstrap/dist/js/bootstrap");

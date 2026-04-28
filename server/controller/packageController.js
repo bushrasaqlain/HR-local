@@ -10,6 +10,10 @@ const editPackage = (req, res) => {
 const deletePackage = (req, res) => {
     packageModel.deletePackage(req, res);
 }
+
+const getAvailablePackages = (req, res) => {
+  packageModel.getAvailablePackages(req, res);
+};
 // Get all cities
 const getallPackages = (req, res) => {
   const { page = 1, limit = 15, name = "", search = "", status = "Active", package_type = ""  } = req.query;
@@ -49,4 +53,5 @@ module.exports = {
   getPackagebyCompany,
   getCompanyPackgestatus,
   getPackageDetail,
+  getAvailablePackages
 };

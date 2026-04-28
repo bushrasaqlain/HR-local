@@ -28,7 +28,12 @@ const updatePostJob = (req, res) => {
 const subcribePackage = (req, res) => {
   jobModel.subcribePackage(req, res);
 }
-
+const getUserPackages = (req, res) => {
+  jobModel.getUserPackages(req, res);
+}
+const getTransactionHistory = (req, res) => {
+  jobModel.getTransactionHistory(req, res);
+}
 const getJobTitle=(req,res)=>{
   jobModel
   .getJobTitle(req,res);
@@ -62,6 +67,15 @@ const getTotalJobPosts = async (req, res) => {
     res.status(500).json({ msg: "SERVER_ERROR" ,});
   }
 };
+const subcribePackageInternal = async (accountId, packageId) => {
+  try {
+    const result = await jobModel.subcribePackageInternal(accountId, packageId); 
+    return result;
+  } catch (err) {
+    console.error(err);
+    throw new Error("Subscription failed");
+  }
+};
 
 module.exports = {
   getJobbyRegAdmin,
@@ -75,5 +89,8 @@ module.exports = {
   getJobTitle,
   getTopCompanies,
   popularCategories,
-  getTotalJobPosts
+  getTotalJobPosts,
+  getUserPackages,
+  getTransactionHistory,
+  subcribePackageInternal
 }

@@ -41,6 +41,7 @@ const EMPLOYER_ROUTE_MAP = {
   availableCandidates: "/employer/candidates",
   packagesList: "/employer/packages",
   viewpackage: "/employer/pricing",
+  wallet: "/employer/wallet",
 };
 
 const CANDIDATE_ROUTE_MAP = {

@@ -35,7 +35,7 @@ class Payment extends Component {
     const userId = sessionStorage.getItem("userId");
     this.setState({ userId });
     this.getCurrencies();
-    
+
     const { amount, currency } = this.props;
     if (amount && currency) {
       this.setState(prev => ({
@@ -130,48 +130,49 @@ class Payment extends Component {
   handlePayment = async () => {
     if (!this.validate()) return;
 
-    // ✅ ADD: isRegistration prop bhi lo
-    const { packageId, jobId, onPaymentSuccess, isRegistration } = this.props;
+    const { packageId, jobId, onPaymentSuccess, isRegistration, paymentType } = this.props;
+    const { paymentData } = this.state;
 
     try {
       this.setState({ loading: true });
 
-      // ✅ ADD: isRegistration true ho to naya endpoint, warna purana
       if (isRegistration) {
         await axios.post(
           `${process.env.NEXT_PUBLIC_API_BASE_URL}payment/registration/${this.state.userId}`,
           {
-            ...this.state.paymentData,
+            paymentMethod: "Card",
+            cardNumber: paymentData.cardNumber,
+            cardHolder: paymentData.cardHolder,
+            amount: paymentData.amount,
+            currency: paymentData.currency,
             packageId,
           },
-          {
-            headers: {
-              Authorization: `Bearer ${sessionStorage.getItem("token")}`,
-            },
-          }
+          { headers: { Authorization: `Bearer ${sessionStorage.getItem("token")}` } }
         );
       } else {
         await axios.post(
           `${process.env.NEXT_PUBLIC_API_BASE_URL}payment/addpayment/${this.state.userId}`,
           {
-            ...this.state.paymentData,
-            packageId,
-            jobId,
+            paymentDetails: {
+              method: "Card",
+              cardLast4: paymentData.cardNumber,
+              cardName: paymentData.cardHolder,
+              saveForLater: false,
+            },
+            amount: paymentData.amount,
+            currency: paymentData.currency,
+            packageId: packageId || null,
+            jobId: jobId || null,
+            payment_type: paymentType || "job",  
           }
         );
       }
 
-      // Close modal
       this.props.toggle();
-
-      if (onPaymentSuccess) {
-        onPaymentSuccess();
-      }
+      if (onPaymentSuccess) onPaymentSuccess();
 
     } catch (err) {
-      console.error("Payment error:", err.response?.data || err.message);
-      // ✅ ADD: error screen par dikhao
-      this.setState((prev) => ({
+      this.setState(prev => ({
         errors: {
           ...prev.errors,
           general: err.response?.data?.message || "Payment failed. Try again.",

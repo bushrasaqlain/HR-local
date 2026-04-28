@@ -92,12 +92,18 @@ export const companymenuitem = [
       { key: "viewpackage", label: "Pricing"},
     ],
   },
-
-
-  { key: "allApplicants", label: "All Applicants", type: "single" },
-  { key: "shortlistedcandidates", label: "Shortlisted", type: "single" },
-  { key: "approved", label: "Approved", type: "single" },
-  { key: "availableCandidates", label: "Available Candidates", type: "single" },
+  {
+    key: "Applicants",
+    label: "Applicants",
+    type: "dropdown",
+    children: [
+      { key: "allApplicants", label: "All Applicants" },
+  { key: "shortlistedcandidates", label: "Shortlisted" },
+  { key: "approved", label: "Approved"},
+    ],
+  },
+  
+{ key: "wallet", label: "Wallet", type: "single"},
 ];
 
 

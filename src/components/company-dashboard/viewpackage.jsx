@@ -1,6 +1,7 @@
 "use client";
 import React, { Component } from "react";
 import axios from "axios";
+import Head from "next/head";
 
 /* ═══════════════════════════════════════════════════════════════
    COLOUR SYSTEM
@@ -944,6 +945,7 @@ class PaymentModal extends Component {
     paymentMethod: null,
     cardName: "", cardNumber: "", cardExpiry: "", cardCvv: "",
     saveCard: false,
+    savedCards: [],
     qrRef: "", bankRef: "", bankReceipt: null,
   };
 
@@ -1264,26 +1266,34 @@ class PricingPage extends Component {
   selectPackage = (pkg) => this.setState({ selectedPkg: pkg, showModal: true });
   closeModal    = ()    => this.setState({ showModal: false, selectedPkg: null });
 
-  submitPayment = async (formState) => {
-    const { selectedPkg, userId } = this.state;
-    if (!selectedPkg) return;
-    try {
-      await axios.put(`${this.APIBASEURL}job/subcribepackage`, {
+submitPayment = async (formState) => {
+  const { selectedPkg, userId } = this.state;
+  if (!selectedPkg) return;
+
+  try {
+    await axios.post(                              // ✅ POST not PUT
+      `${this.APIBASEURL}payment/addpayment/${userId}`,  // ✅ correct endpoint
+      {
+        amount: selectedPkg.price,                // ✅ was missing
+        currency: selectedPkg.currency || "PKR",  // ✅ was missing
         packageId: selectedPkg.id,
-        userId,
+        jobId: null,
+        reference: null,
         paymentDetails: {
-          method:      formState.paymentMethod,
+          method: formState.paymentMethod,
           saveForLater: formState.saveCard,
-          cardNumber:  formState.cardNumber,
-          cardName:    formState.cardName,
+          cardLast4: formState.cardNumber?.replace(/\s/g, "").slice(-4),
+          cardName: formState.cardName,
         },
-      });
-      this.closeModal();
-      if (this.props.onPaymentSuccess) this.props.onPaymentSuccess();
-    } catch {
-      console.error("Payment failed");
-    }
-  };
+      }
+    );
+
+    this.closeModal();
+    if (this.props.onPaymentSuccess) this.props.onPaymentSuccess();
+  } catch (err) {
+    console.error("Payment failed", err);
+  }
+};
 
   render() {
     const {
@@ -1304,11 +1314,14 @@ class PricingPage extends Component {
     const totalCount = packages.length;
 
     return (
+      
       <div style={{
         minHeight: "100vh", background: THEME.bg,
         fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
       }}>
-
+<Head>
+        <title>View All Packages</title>
+      </Head>
         {/* ── HERO ── */}
         <div style={{
           background: THEME.surface,
