@@ -3,6 +3,7 @@
 import Speciality from "./speciality.jsx";
 import City from "./city.jsx";
 import Jobtype from "./jobtypes.jsx";
+import Industry from "./industry.jsx";
 import Skills from "./skills.jsx";
 import Country from "./country";
 import DegreeType from "./degreetype.jsx";
@@ -72,6 +73,8 @@ const DashboardArea = ({ activeTab }) => {
         return <Speciality />;
       case "bank":
         return <Bank />;
+      case "industry":
+        return <Industry />;
       case "changepassword":
         return <ChangePasswordForm />;
       default:

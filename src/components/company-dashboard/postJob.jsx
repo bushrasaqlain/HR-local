@@ -420,6 +420,7 @@ class PostBoxForm extends Component {
       jobLanguage: "English",
       langModalLoading: false,
       showAddCardModal: false,
+      
       values: {
         job_title: "",
         job_description: "",
@@ -434,6 +435,7 @@ class PostBoxForm extends Component {
         max_experience: "",
         speciality_id: null,
         degree_id: null,
+        degreefields_id: null,
         application_deadline: "",
         screening_start: "",
         screening_end: "",
@@ -444,6 +446,7 @@ class PostBoxForm extends Component {
         no_of_positions: "",
         industry: "",
         currency_id: null,
+        salary_period: "monthly",
       },
       initialDistricts: [],
       selectedCountry: null,
@@ -591,7 +594,16 @@ class PostBoxForm extends Component {
       this.loadSkills().then(() => this.loadJobDetails(this.props.jobId));
     }
   }
-
+loadIndustry = async (inputValue) => {
+  try {
+    const res = await axios.get(`${this.apiBaseUrl}industry/getallindustry`, {
+      params: { search: inputValue || "", page: 1, limit: 50, status: "Active" },
+    });
+    return res.data.industry.map((c) => ({ label: c.name, value: c.id }));
+  } catch {
+    return [];
+  }
+};
   /* ── Loaders ── */
   loadJobDetails = async (jobId) => {
     try {
@@ -632,9 +644,11 @@ class PostBoxForm extends Component {
           degree_id: job.degree_id
             ? { label: job.degree, value: job.degree_id }
             : null,
+          degreefields_id: job.degreefields_id
+  ? { label: job.degreefield, value: job.degreefields_id }
+  : null,
           application_deadline: job.application_deadline?.split("T")[0] || "",
           no_of_positions: job.no_of_positions || "",
-          industry: job.industry || "",
         },
         selectedCountry: job.country_id
           ? { label: job.country, value: job.country_id }
@@ -645,6 +659,9 @@ class PostBoxForm extends Component {
         selectedCity: job.city_id
           ? [{ label: job.city, value: job.city_id }]
           : [],
+        industry: job.industry_id
+      ? { label: job.industry_name, value: job.industry_id }
+      : null, 
       });
     } catch (err) {
       console.error("Failed to load job details", err);
@@ -695,6 +712,12 @@ class PostBoxForm extends Component {
       return [];
     }
   };
+  formatSalary = (value) => {
+  const num = value.replace(/[^0-9]/g, "");
+  return num ? Number(num).toLocaleString() : "";
+};
+
+parseSalary = (value) => value.replace(/[^0-9]/g, "");
   fetchCities = async () => {
     const { selectedDistrict } = this.state;
     if (!selectedDistrict?.length) return [];
@@ -773,7 +796,31 @@ class PostBoxForm extends Component {
       return [];
     }
   };
+loadDegreeFields = async (degreeId, inputValue) => {
+  console.log("🔥 API CALL TRIGGERED", degreeId, inputValue);
 
+  try {
+    const res = await axios.get(
+      `${this.apiBaseUrl}getallDegreeFields`,
+      {
+        params: {
+          degree_type_id: Number(degreeId), // ✅ FIX HERE
+          search: inputValue || "",
+          page: 1,
+          limit: 550,
+        },
+      }
+    );
+
+    return (res.data.degreefields || []).map((d) => ({
+      label: d.name,
+      value: d.id,
+    }));
+  } catch (err) {
+    console.log("API ERROR", err);
+    return [];
+  }
+};
   loadCurrency = async (inputValue) => {
     try {
       const res = await axios.get(`${this.apiBaseUrl}getallcurrencies`, {
@@ -792,7 +839,7 @@ class PostBoxForm extends Component {
     const { name, value } = e.target;
 
     // ✅ Don't capitalize select/enum fields
-    const skipCapitalize = ["industry", "job_location_type"];
+    const skipCapitalize = ["industry", "job_location_type", "job_description", "salary_period", "min_experience", "max_experience",];
     const capitalized = skipCapitalize.includes(name)
       ? value
       : this.capitalizeWords(value);
@@ -816,7 +863,14 @@ class PostBoxForm extends Component {
       }));
       return;
     }
-
+if (name === "min_salary" || name === "max_salary") {
+  const raw = value.replace(/[^0-9]/g, "");
+  this.setState((prev) => ({
+    values: { ...prev.values, [name]: raw },
+    errors: { ...prev.errors, [name]: undefined },
+  }));
+  return;
+}
     this.setState((prevState) => ({
       values: { ...prevState.values, [name]: capitalized },
       errors: { ...prevState.errors, [name]: undefined },
@@ -879,6 +933,8 @@ class PostBoxForm extends Component {
       errors.max_experience = "Maximum experience is required.";
     if (!values.speciality_id) errors.speciality_id = "Speciality is required.";
     if (!values.degree_id) errors.degree_id = "Qualification is required.";
+    if (!values.degreefields_id)
+  errors.degreefields_id = "Degree field is required.";
     if (!values.no_of_positions)
       errors.no_of_positions = "Number of positions is required.";
     if (!values.application_deadline) {
@@ -922,6 +978,7 @@ class PostBoxForm extends Component {
       currency_id: values.currency_id?.value,
       speciality_id: values.speciality_id?.value,
       degree_id: values.degree_id?.value,
+      degreefields_id: values.degreefields_id?.value,
       skill_ids: values.skill_ids.map((s) => s.value),
       application_deadline: new Date(values.application_deadline)
         .toISOString()
@@ -935,6 +992,7 @@ class PostBoxForm extends Component {
       chosen_package_id: chosenPackageId || null,
       daily_budget: this.state.dailyBudget || 0, // ← add
       chosen_daily_package_id: this.state.chosenPackageId || null, // ← add
+      industry: values.industry?.value ?? values.industry ?? null,
       // chosen_package_id: chosenPackageId || null,
     };
 
@@ -1073,7 +1131,51 @@ class PostBoxForm extends Component {
       console.error("Failed to fetch user packages", err);
     }
   };
+generateTimeOptions = () => {
+  const slots = [
+    {v:'06:00',l:'06:00 AM'},{v:'06:30',l:'06:30 AM'},
+    {v:'07:00',l:'07:00 AM'},{v:'07:30',l:'07:30 AM'},
+    {v:'08:00',l:'08:00 AM'},{v:'08:30',l:'08:30 AM'},
+    {v:'09:00',l:'09:00 AM'},{v:'09:30',l:'09:30 AM'},
+    {v:'10:00',l:'10:00 AM'},{v:'10:30',l:'10:30 AM'},
+    {v:'11:00',l:'11:00 AM'},{v:'11:30',l:'11:30 AM'},
+    {v:'12:00',l:'12:00 PM'},{v:'12:30',l:'12:30 PM'},
+    {v:'13:00',l:'01:00 PM'},{v:'13:30',l:'01:30 PM'},
+    {v:'14:00',l:'02:00 PM'},{v:'14:30',l:'02:30 PM'},
+    {v:'15:00',l:'03:00 PM'},{v:'15:30',l:'03:30 PM'},
+    {v:'16:00',l:'04:00 PM'},{v:'16:30',l:'04:30 PM'},
+    {v:'17:00',l:'05:00 PM'},{v:'17:30',l:'05:30 PM'},
+    {v:'18:00',l:'06:00 PM'},{v:'18:30',l:'06:30 PM'},
+    {v:'19:00',l:'07:00 PM'},{v:'19:30',l:'07:30 PM'},
+    {v:'20:00',l:'08:00 PM'},{v:'20:30',l:'08:30 PM'},
+    {v:'21:00',l:'09:00 PM'},{v:'21:30',l:'09:30 PM'},
+    {v:'22:00',l:'10:00 PM'},{v:'22:30',l:'10:30 PM'},
+    {v:'23:00',l:'11:00 PM'},{v:'23:30',l:'11:30 PM'},
+    {v:'00:00',l:'12:00 AM'},{v:'00:30',l:'12:30 AM'},
+    {v:'01:00',l:'01:00 AM'},{v:'01:30',l:'01:30 AM'},
+    {v:'02:00',l:'02:00 AM'},{v:'02:30',l:'02:30 AM'},
+  ];
+  return slots.map(s => <option key={s.v} value={s.v}>{s.l}</option>);
+};
 
+fmt12 = (v) => {
+  if (!v) return '';
+  const [h, m] = v.split(':').map(Number);
+  const ampm = h < 12 ? 'AM' : 'PM';
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${String(h12).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ampm}`;
+};
+
+calcHours = (from, to) => {
+  if (!from || !to) return '';
+  const [fh, fm] = from.split(':').map(Number);
+  const [th, tm] = to.split(':').map(Number);
+  let mins = (th * 60 + tm) - (fh * 60 + fm);
+  if (mins <= 0) mins += 24 * 60;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h}h ${m}m shift` : `${h}h shift`;
+};
   resetForm = () => {
     this.setState({
       currentPage: 1,
@@ -1100,6 +1202,7 @@ class PostBoxForm extends Component {
         interview_start: "",
         interview_end: "",
         expected_joining_date: "",
+         salary_period: "monthly",
       },
       selectedCountry: null,
       selectedDistrict: [],
@@ -1128,7 +1231,7 @@ class PostBoxForm extends Component {
     );
   };
 
-  renderPage1 = () => {
+renderPage1 = () => {
     const { values, errors, selectedCountry, selectedDistrict, selectedCity } =
       this.state;
     const isRemote = values.job_location_type === "remote";
@@ -1197,6 +1300,7 @@ class PostBoxForm extends Component {
               />
             </Field>
           </div>
+
           <div style={s.row2}>
             <Field label="Job type" required error={errors.job_type_id}>
               <AsyncSelect
@@ -1212,7 +1316,6 @@ class PostBoxForm extends Component {
               />
             </Field>
 
-            {/* ✅ New field */}
             <Field
               label="Job location type"
               required
@@ -1233,49 +1336,35 @@ class PostBoxForm extends Component {
                 <option value="hybrid">Hybrid</option>
               </select>
             </Field>
+
             <Field
-              label="Industry / Facility type"
-              required
-              error={errors.industry}
-            >
-              <select
-                name="industry"
-                value={values.industry}
-                onChange={this.handleInputChange}
-                style={{
-                  ...s.select,
-                  borderColor: errors.industry ? RED : BORDER,
-                }}
-              >
-                <option value="">Select industry</option>
-                <option value="hospital_small">
-                  Hospital (Small, &lt;50 beds)
-                </option>
-                <option value="hospital_medium">
-                  Hospital (Medium, 50–200 beds)
-                </option>
-                <option value="hospital_large">
-                  Hospital (Large, 200+ beds)
-                </option>
-                <option value="clinic">Clinic</option>
-                <option value="diagnostic_center">Diagnostic Center</option>
-                <option value="medical_laboratory">Medical Laboratory</option>
-                <option value="rehabilitation_center">
-                  Rehabilitation Center
-                </option>
-                <option value="medical_equipment_supplier">
-                  Medical Equipment Supplier
-                </option>
-              </select>
-            </Field>
+  label="Industry / Facility type"
+  required
+  error={errors.industry}
+>
+  <AsyncSelect
+    cacheOptions
+    defaultOptions
+    loadOptions={this.loadIndustry}
+    value={values.industry || null}
+    onChange={(option) =>
+  this.setState((prev) => ({
+    values: { ...prev.values, industry: option || null },
+    errors: { ...prev.errors, industry: undefined },
+  }))
+}
+    placeholder="Select industry..."
+    styles={indeedSelectStyles}
+  />
+</Field>
           </div>
         </div>
 
-        {/* Location */}
+        {/* Location & Working Hours */}
         <div style={s.card}>
           <div style={s.cardTitle}>Location & working hours</div>
 
-          {/* District + City — same row */}
+          {/* District + City */}
           <div style={{ ...s.row2, marginBottom: "16px" }}>
             <Field
               label="Districts"
@@ -1326,52 +1415,73 @@ class PostBoxForm extends Component {
             </Field>
           </div>
 
-          {/* Working hours — new row */}
-          {/* Working hours — new row */}
-          <div>
-            <Field
-              label="Working hours"
-              required
-              error={errors.time_from || errors.time_to}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  gap: "8px",
-                  alignItems: "center",
-                  flexWrap: "wrap", // ✅ wraps on small screens
-                }}
-              >
-                <input
-                  type="time"
+          {/* Working Hours */}
+          <Field
+            label="Working hours"
+            required
+            error={errors.time_from || errors.time_to}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: "1", minWidth: "140px" }}>
+                <span style={{ fontSize: "11px", color: TEXT_SECONDARY }}>Start time</span>
+                <select
                   name="time_from"
                   value={values.time_from}
                   onChange={this.handleInputChange}
-                  style={{ ...s.input, flex: "1 1 120px", minWidth: "120px" }} // ✅ flex-basis + minWidth
-                  onFocus={(e) => (e.target.style.borderColor = BLUE)}
-                  onBlur={(e) => (e.target.style.borderColor = BORDER)}
-                />
-                <span style={{ ...s.timeSep, flexShrink: 0 }}>to</span>
-                <input
-                  type="time"
+                  style={{ ...s.select, borderColor: errors.time_from ? RED : BORDER }}
+                >
+                  <option value="">Select start</option>
+                  {this.generateTimeOptions()}
+                </select>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", paddingTop: "18px" }}>
+                <div style={{ width: "1px", height: "12px", background: BORDER }} />
+                <span style={{ fontSize: "12px", color: TEXT_SECONDARY }}>to</span>
+                <div style={{ width: "1px", height: "12px", background: BORDER }} />
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: "1", minWidth: "140px" }}>
+                <span style={{ fontSize: "11px", color: TEXT_SECONDARY }}>End time</span>
+                <select
                   name="time_to"
                   value={values.time_to}
                   onChange={this.handleInputChange}
-                  style={{ ...s.input, flex: "1 1 120px", minWidth: "120px" }} // ✅ flex-basis + minWidth
-                  onFocus={(e) => (e.target.style.borderColor = BLUE)}
-                  onBlur={(e) => (e.target.style.borderColor = BORDER)}
-                />
+                  style={{ ...s.select, borderColor: errors.time_to ? RED : BORDER }}
+                >
+                  <option value="">Select end</option>
+                  {this.generateTimeOptions()}
+                </select>
               </div>
-            </Field>
-          </div>
+            </div>
+
+            {values.time_from && values.time_to && (
+              <div style={{ marginTop: "12px", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <span style={{
+                  fontSize: "12px", fontWeight: 500, padding: "5px 12px",
+                  borderRadius: "20px", background: "#f3f4f6", color: TEXT_SECONDARY,
+                  border: `0.5px solid ${BORDER}`
+                }}>
+                  {this.fmt12(values.time_from)} — {this.fmt12(values.time_to)}
+                </span>
+                <span style={{
+                  fontSize: "12px", fontWeight: 500, padding: "5px 12px",
+                  borderRadius: "20px", background: BLUE_LIGHT, color: "#0C447C"
+                }}>
+                  {this.calcHours(values.time_from, values.time_to)}
+                </span>
+              </div>
+            )}
+            <div style={s.hint}>For overnight shifts, end time can be earlier than start time</div>
+          </Field>
         </div>
 
-        {/* Salary */}
+        {/* Compensation */}
         <div style={s.card}>
           <div style={s.cardTitle}>Compensation</div>
           <Field
             label="Salary range"
-            hint="Monthly salary. Min and max required to proceed."
+            hint="Enter min and max salary with currency and period."
             error={
               errors.salary ||
               errors.min_salary ||
@@ -1379,41 +1489,35 @@ class PostBoxForm extends Component {
               errors.currency_id
             }
           >
-            <div style={s.row3}>
+            <div style={{ ...s.row3, gridTemplateColumns: "1fr 1fr 120px 130px" }}>
               <input
-                type="number"
+                type="text"
                 name="min_salary"
-                value={values.min_salary}
+                value={values.min_salary ? Number(values.min_salary).toLocaleString() : ""}
                 placeholder="Minimum"
                 onChange={this.handleInputChange}
-                min="0"
                 style={{
                   ...s.input,
                   borderColor: errors.min_salary ? RED : BORDER,
                 }}
                 onFocus={(e) => (e.target.style.borderColor = BLUE)}
                 onBlur={(e) =>
-                  (e.target.style.borderColor = errors.min_salary
-                    ? RED
-                    : BORDER)
+                  (e.target.style.borderColor = errors.min_salary ? RED : BORDER)
                 }
               />
               <input
-                type="number"
+                type="text"
                 name="max_salary"
-                value={values.max_salary}
+                value={values.max_salary ? Number(values.max_salary).toLocaleString() : ""}
                 placeholder="Maximum"
                 onChange={this.handleInputChange}
-                min="0"
                 style={{
                   ...s.input,
                   borderColor: errors.max_salary ? RED : BORDER,
                 }}
                 onFocus={(e) => (e.target.style.borderColor = BLUE)}
                 onBlur={(e) =>
-                  (e.target.style.borderColor = errors.max_salary
-                    ? RED
-                    : BORDER)
+                  (e.target.style.borderColor = errors.max_salary ? RED : BORDER)
                 }
               />
               <AsyncSelect
@@ -1427,6 +1531,18 @@ class PostBoxForm extends Component {
                 placeholder="Currency"
                 styles={indeedSelectStyles}
               />
+              <select
+                name="salary_period"
+                value={values.salary_period}
+                onChange={this.handleInputChange}
+                style={s.select}
+              >
+                <option value="hourly">Hourly</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+              </select>
             </div>
           </Field>
         </div>
@@ -1570,17 +1686,52 @@ class PostBoxForm extends Component {
               error={errors.degree_id}
             >
               <AsyncSelect
-                cacheOptions
-                defaultOptions
-                loadOptions={this.loadDegree}
-                value={values.degree_id}
-                onChange={(option) =>
-                  this.handleSelectChange("degree_id", option)
-                }
-                placeholder="Select degree..."
-                styles={indeedSelectStyles}
-              />
+      cacheOptions
+      defaultOptions
+      loadOptions={this.loadDegree}
+      value={values.degree_id}
+      onChange={(option) =>
+        this.setState((prev) => ({
+          values: {
+            ...prev.values,
+            degree_id: option,
+            degreefields_id: null, // reset dependent field
+          },
+          errors: {
+            ...prev.errors,
+            degree_id: undefined,
+          },
+        }))
+      }
+      placeholder="Select degree..."
+      styles={indeedSelectStyles}
+    />
             </Field>
+            <Field
+    label="Degree Field"
+    required
+    error={errors.degreefields_id}
+  >
+ <AsyncSelect
+  key={values.degree_id?.value || "degree-field"}  // 👈 MAGIC LINE
+  cacheOptions
+  defaultOptions
+ loadOptions={(inputValue) => {
+  const degreeId = this.state.values.degree_id?.value;
+
+  if (!degreeId) return [];
+
+  return this.loadDegreeFields(degreeId, inputValue);
+}}
+  value={values.degreefields_id}
+  onChange={(option) =>
+    this.handleSelectChange("degreefields_id", option)
+  }
+  isDisabled={!values.degree_id}
+  placeholder="Select degree field..."
+  styles={indeedSelectStyles}
+/>
+  </Field>
           </div>
         </div>
 
@@ -1759,7 +1910,7 @@ class PostBoxForm extends Component {
             onMouseEnter={(e) => (e.target.style.background = "#36565f")}
             onMouseLeave={(e) => (e.target.style.background = BLUE)}
           >
-            Review & Post →
+            Review & Post
           </button>
         </div>
       </div>
@@ -1785,7 +1936,7 @@ class PostBoxForm extends Component {
       ["Job Title", values.job_title],
       ["Job Type", values.job_type_id?.label],
       ["Location Type", values.job_location_type || "—"],
-      ["Industry", values.industry?.replace(/_/g, " ")],
+      ["Industry", values.industry?.label ?? "—"],
       ["Location", location],
       [
         "Working Hours",

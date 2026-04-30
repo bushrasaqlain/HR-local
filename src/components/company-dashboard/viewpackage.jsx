@@ -41,51 +41,46 @@ const THEME = {
 const getPurchaseState = (pkg, wallet) => {
   const model = pkg.pricing_model;
 
-  // Single-post duration_bundle — visible but never purchaseable here
-  if (
-    model === "duration_bundle" &&
-    (pkg.num_posts === 1 || pkg.num_posts == null)
-  ) {
+  const allActive = [
+    
+    ...(wallet?.activeJobSlots || []),
+    ...(wallet?.activeCvCredits || []),
+    ...(wallet?.activeDailyBudgets || []),
+    ...(wallet?.activeFeaturedBoosts || []),
+  ];
+
+  const isOwned = allActive.some(p => String(p.package?.id) === String(pkg.id));
+  if (isOwned) return "owned";
+
+  if (model === "duration_bundle" && (pkg.num_posts === 1 || pkg.num_posts == null))
     return "blocked";
-  }
 
-  // Per-job billing options — shown for awareness, configured at job posting time
-  if (model === "daily_budget" || model === "per_apply") {
-    return "info_only";
-  }
+  if (model === "daily_budget" || model === "per_apply") return "info_only";
 
-  // job_slot needs an active duration_bundle OR cv_credits
-  if (model === "job_slot") {
-    const hasBase =
-      (wallet?.activeDurationBundles?.length || 0) > 0 ||
-      (wallet?.activeCvCredits?.length || 0) > 0;
-    return hasBase ? "available" : "locked";
-  }
+if (model === "job_slot") {
+  return "available";
+}
 
-  // featured_boost needs any active package
   if (model === "featured_boost") {
     const hasAnyActive =
-      (wallet?.activeDurationBundles?.length || 0) > 0 ||
+      (wallet?.activeJobSlots?.length || 0) > 0 ||
       (wallet?.activeCvCredits?.length || 0) > 0 ||
-      (wallet?.activeDailyBudgets?.length || 0) > 0 ||
-      (wallet?.activePerApply?.length || 0) > 0;
+      (wallet?.activeDailyBudgets?.length || 0) > 0;
     return hasAnyActive ? "available" : "locked";
   }
 
-  // duration_bundle (multi-post) and cv_credits → always purchaseable
   return "available";
 };
-
 /* ═══════════════════════════════════════════════════════════════
    MODEL CONFIG
 ═══════════════════════════════════════════════════════════════ */
 const MODEL_CONFIG = {
-  duration_bundle: {
-    label: "Job Bundle",
-    accent: THEME.accent,
-    light: THEME.accentLight,
-    icon: "◈",
-    ctaLabel: "Buy Bundle",
+  job_slot: {
+    label: "Job Slot",
+    accent: THEME.purple,
+    light: THEME.purpleLight,
+    icon: "▣",
+    ctaLabel: "Get Slots",
     infoOnly: false,
   },
   cv_credits: {
@@ -103,22 +98,6 @@ const MODEL_CONFIG = {
     icon: "◎",
     ctaLabel: null,
     infoOnly: true,
-  },
-  per_apply: {
-    label: "Pay Per Apply",
-    accent: THEME.teal,
-    light: THEME.tealLight,
-    icon: "◐",
-    ctaLabel: null,
-    infoOnly: true,
-  },
-  job_slot: {
-    label: "Job Slot",
-    accent: THEME.purple,
-    light: THEME.purpleLight,
-    icon: "▣",
-    ctaLabel: "Get Slots",
-    infoOnly: false,
   },
   featured_boost: {
     label: "Boost",
@@ -144,9 +123,10 @@ const getModelConfig = (model) =>
    SECTION META
 ═══════════════════════════════════════════════════════════════ */
 const SECTION_META = {
-  duration_bundle: {
-    title: "Job Bundle Packages",
-    subtitle: "Buy multiple job posts upfront — activate any time within the validity window",
+
+  job_slot: {
+    title: "Job Slot Subscriptions",
+    subtitle: "Keep N live job slots active simultaneously — swap roles anytime",
     tag: null,
   },
   cv_credits: {
@@ -156,19 +136,10 @@ const SECTION_META = {
   },
   daily_budget: {
     title: "Budget Campaigns",
-    subtitle: "Set a daily spend cap and pay per click, impression, or apply — configured when posting a job",
+    subtitle: "Set a daily spend cap and pay per View, impression, or apply — configured when posting a job",
     tag: "ℹ Available at job posting",
   },
-  per_apply: {
-    title: "Pay Per Application",
-    subtitle: "Only charged when a qualified candidate applies — no upfront cost, set up at job posting",
-    tag: "ℹ Available at job posting",
-  },
-  job_slot: {
-    title: "Job Slot Subscriptions",
-    subtitle: "Keep N live job slots active simultaneously — swap roles anytime",
-    tag: null,
-  },
+  
   featured_boost: {
     title: "Featured Boost Add-ons",
     subtitle: "Top placement, homepage feature, or email blast — add to any active job",
@@ -180,11 +151,9 @@ const SECTION_META = {
    SECTION ORDER
 ═══════════════════════════════════════════════════════════════ */
 const SECTION_ORDER = [
-  "duration_bundle",
+   "job_slot",
   "cv_credits",
   "daily_budget",
-  "per_apply",
-  "job_slot",
   "featured_boost",
 ];
 
@@ -227,41 +196,41 @@ const InfoIcon = ({ color }) => (
 );
 
 const CardIcon  = () => <Icon size={18} d="M2 5h20v14H2zM2 10h20" />;
-const QrIcon    = () => <Icon size={18} d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM19 14v3M17 19h3M14 19v2" />;
-const BankIcon  = () => <Icon size={18} d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M8 10v11M12 10v11M16 10v11M20 10v11" />;
+// const QrIcon    = () => <Icon size={18} d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM19 14v3M17 19h3M14 19v2" />;
+// const BankIcon  = () => <Icon size={18} d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M8 10v11M12 10v11M16 10v11M20 10v11" />;
 const CloseIcon = () => <Icon size={16} d="M18 6L6 18M6 6l12 12" />;
 
 /* ═══════════════════════════════════════════════════════════════
    QR PLACEHOLDER
 ═══════════════════════════════════════════════════════════════ */
-const QRPlaceholder = ({ amount, currency }) => (
-  <svg viewBox="0 0 200 200" width="156" height="156"
-    xmlns="http://www.w3.org/2000/svg"
-    style={{ display: "block", margin: "0 auto" }}>
-    <rect width="200" height="200" fill="#fff" rx="8" />
-    <rect x="12" y="12" width="52" height="52" rx="4" fill="none" stroke="#111" strokeWidth="5" />
-    <rect x="24" y="24" width="28" height="28" rx="2" fill="#111" />
-    <rect x="136" y="12" width="52" height="52" rx="4" fill="none" stroke="#111" strokeWidth="5" />
-    <rect x="148" y="24" width="28" height="28" rx="2" fill="#111" />
-    <rect x="12" y="136" width="52" height="52" rx="4" fill="none" stroke="#111" strokeWidth="5" />
-    <rect x="24" y="148" width="28" height="28" rx="2" fill="#111" />
-    {[80, 92, 104, 116, 128].map((x, i) =>
-      [80, 92, 104, 116, 128].map((y, j) =>
-        (i + j) % 2 === 0
-          ? <rect key={`${i}-${j}`} x={x} y={y} width="8" height="8" rx="1" fill="#111" />
-          : null
-      )
-    )}
-    <rect x="136" y="92" width="8" height="8" rx="1" fill="#111" />
-    <rect x="148" y="80" width="8" height="8" rx="1" fill="#111" />
-    <rect x="160" y="92" width="8" height="8" rx="1" fill="#111" />
-    <rect x="148" y="104" width="8" height="8" rx="1" fill="#111" />
-    <rect x="136" y="128" width="8" height="8" rx="1" fill="#111" />
-    <text x="100" y="190" textAnchor="middle" fontSize="11" fill="#777" fontFamily="system-ui">
-      {currency} {Number(amount).toLocaleString()}
-    </text>
-  </svg>
-);
+// const QRPlaceholder = ({ amount, currency }) => (
+//   <svg viewBox="0 0 200 200" width="156" height="156"
+//     xmlns="http://www.w3.org/2000/svg"
+//     style={{ display: "block", margin: "0 auto" }}>
+//     <rect width="200" height="200" fill="#fff" rx="8" />
+//     <rect x="12" y="12" width="52" height="52" rx="4" fill="none" stroke="#111" strokeWidth="5" />
+//     <rect x="24" y="24" width="28" height="28" rx="2" fill="#111" />
+//     <rect x="136" y="12" width="52" height="52" rx="4" fill="none" stroke="#111" strokeWidth="5" />
+//     <rect x="148" y="24" width="28" height="28" rx="2" fill="#111" />
+//     <rect x="12" y="136" width="52" height="52" rx="4" fill="none" stroke="#111" strokeWidth="5" />
+//     <rect x="24" y="148" width="28" height="28" rx="2" fill="#111" />
+//     {[80, 92, 104, 116, 128].map((x, i) =>
+//       [80, 92, 104, 116, 128].map((y, j) =>
+//         (i + j) % 2 === 0
+//           ? <rect key={`${i}-${j}`} x={x} y={y} width="8" height="8" rx="1" fill="#111" />
+//           : null
+//       )
+//     )}
+//     <rect x="136" y="92" width="8" height="8" rx="1" fill="#111" />
+//     <rect x="148" y="80" width="8" height="8" rx="1" fill="#111" />
+//     <rect x="160" y="92" width="8" height="8" rx="1" fill="#111" />
+//     <rect x="148" y="104" width="8" height="8" rx="1" fill="#111" />
+//     <rect x="136" y="128" width="8" height="8" rx="1" fill="#111" />
+//     <text x="100" y="190" textAnchor="middle" fontSize="11" fill="#777" fontFamily="system-ui">
+//       {currency} {Number(amount).toLocaleString()}
+//     </text>
+//   </svg>
+// );
 
 /* ═══════════════════════════════════════════════════════════════
    CARD BADGES
@@ -412,7 +381,7 @@ const PackageDetails = ({ pkg }) => {
                 ? "/ click"
                 : pkg.billing_model === "cpm"
                 ? "/ 1k views"
-                : "/ apply"}
+                : "/ View"}
             </span>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap" }}>
@@ -529,10 +498,11 @@ class PackageCard extends Component {
     const { hovered } = this.state;
 
     const purchaseState = getPurchaseState(pkg, wallet);
-    const isBlocked    = purchaseState === "blocked";
-    const isLocked     = purchaseState === "locked";
-    const isInfoOnly   = purchaseState === "info_only";
-    const isAvailable  = purchaseState === "available";
+    const isBlocked   = purchaseState === "blocked";
+    const isLocked    = purchaseState === "locked";
+    const isInfoOnly  = purchaseState === "info_only";
+    const isAvailable = purchaseState === "available";
+    const isOwned     = purchaseState === "owned";
 
     const featured = pkg.is_featured === 1 && isAvailable;
     const cfg      = getModelConfig(pkg.pricing_model);
@@ -541,9 +511,8 @@ class PackageCard extends Component {
       ? pkg.description.split("\n").map(l => l.trim()).filter(Boolean)
       : [];
 
-    /* ── Price display ── */
     const priceDisplay = () => {
-      const textColor  = featured ? "#fff" : isBlocked ? THEME.muted : THEME.text;
+      const textColor  = featured ? "#fff" : (isBlocked || isOwned) ? THEME.muted : THEME.text;
       const mutedColor = featured ? "rgba(255,255,255,0.5)" : THEME.muted;
 
       switch (pkg.pricing_model) {
@@ -551,7 +520,7 @@ class PackageCard extends Component {
           const unit =
             pkg.billing_model === "cpc" ? "/click"
             : pkg.billing_model === "cpm" ? "/1k views"
-            : "/apply";
+            : "/ View";
           return (
             <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 4 }}>
               <span style={{ fontSize: 11, color: mutedColor }}>{pkg.currency}</span>
@@ -569,7 +538,7 @@ class PackageCard extends Component {
               <span style={{ fontSize: 26, fontWeight: 700, lineHeight: 1, color: textColor }}>
                 {Number(pkg.cost_per_apply || 0).toLocaleString()}
               </span>
-              <span style={{ fontSize: 11, color: mutedColor }}>/apply</span>
+              <span style={{ fontSize: 11, color: mutedColor }}>/ View</span>
             </div>
           );
         case "cv_credits":
@@ -583,11 +552,7 @@ class PackageCard extends Component {
           );
         default:
           if (pkg.price == null)
-            return (
-              <p style={{ fontSize: 13, color: mutedColor, marginBottom: 4 }}>
-                Usage-based pricing
-              </p>
-            );
+            return <p style={{ fontSize: 13, color: mutedColor, marginBottom: 4 }}>Usage-based pricing</p>;
           return (
             <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 4 }}>
               <span style={{ fontSize: 11, color: mutedColor }}>{pkg.currency}</span>
@@ -599,44 +564,44 @@ class PackageCard extends Component {
       }
     };
 
-    /* ── Badge config by state ── */
-    const badgeBg = isBlocked    ? "#F1EFE8"
-      : isInfoOnly  ? cfg.light
-      : isLocked    ? THEME.warningLight
-      : featured    ? "rgba(255,255,255,0.12)"
+    const badgeBg = isOwned     ? THEME.successLight
+      : isBlocked  ? "#F1EFE8"
+      : isInfoOnly ? cfg.light
+      : isLocked   ? THEME.warningLight
+      : featured   ? "rgba(255,255,255,0.12)"
       : cfg.light;
 
-    const badgeColor = isBlocked    ? THEME.muted
-      : isInfoOnly  ? cfg.accent
-      : isLocked    ? THEME.warning
-      : featured    ? "#fff"
+    const badgeColor = isOwned     ? THEME.success
+      : isBlocked  ? THEME.muted
+      : isInfoOnly ? cfg.accent
+      : isLocked   ? THEME.warning
+      : featured   ? "#fff"
       : cfg.accent;
 
-    const badgeIcon  = isBlocked  ? "✕"
+    const badgeIcon = isOwned     ? "✓"
+      : isBlocked  ? "✕"
       : isInfoOnly ? cfg.icon
       : isLocked   ? "🔒"
       : cfg.icon;
 
-    const badgeLabel = isBlocked    ? "Single post only"
-      : isInfoOnly  ? cfg.label
-      : isLocked    ? "Requires base package"
-      : featured    ? "Most Popular"
+    const badgeLabel = isOwned     ? "Active"
+      : isBlocked  ? "Single post only"
+      : isInfoOnly ? cfg.label
+      : isLocked   ? "Requires base package"
+      : featured   ? "Most Popular"
       : cfg.label;
 
-    /* ── Card border by state ── */
     const cardBorder = () => {
+      if (isOwned)    return `1.5px solid ${THEME.success}55`;
       if (isBlocked)  return `1px solid ${THEME.border}`;
-      if (isInfoOnly) return hovered
-        ? `1.5px solid ${cfg.accent}44`
-        : `1px solid ${THEME.border}`;
-      if (isLocked)   return hovered
-        ? `1.5px solid ${THEME.warning}55`
-        : `1px solid ${THEME.warning}33`;
+      if (isInfoOnly) return hovered ? `1.5px solid ${cfg.accent}44` : `1px solid ${THEME.border}`;
+      if (isLocked)   return hovered ? `1.5px solid ${THEME.warning}55` : `1px solid ${THEME.warning}33`;
       if (featured)   return `2px solid ${THEME.featured}`;
       return hovered  ? `1.5px solid ${cfg.accent}44` : `1px solid ${THEME.border}`;
     };
 
-    const topBarColor = isBlocked  ? THEME.muted
+    const topBarColor = isOwned     ? THEME.success
+      : isBlocked  ? THEME.muted
       : isInfoOnly ? cfg.accent
       : isLocked   ? THEME.warning
       : cfg.accent;
@@ -653,10 +618,12 @@ class PackageCard extends Component {
           display: "flex",
           flexDirection: "column",
           transition: "box-shadow 0.2s, border-color 0.2s, transform 0.2s",
-          boxShadow: hovered && !isBlocked
+          boxShadow: hovered && !isBlocked && !isOwned
             ? featured
               ? "0 12px 40px rgba(0,0,0,0.22)"
               : `0 8px 24px ${cfg.accent}18`
+            : isOwned
+            ? `0 2px 12px ${THEME.success}18`
             : "0 1px 4px rgba(0,0,0,0.04)",
           transform: hovered && isAvailable ? "translateY(-2px)" : "translateY(0)",
           opacity: isBlocked ? 0.55 : 1,
@@ -741,8 +708,9 @@ class PackageCard extends Component {
                 lineHeight: 1.45,
               }}>
                 <CheckIcon color={
-                  isBlocked  ? THEME.muted
-                  : featured ? "#60A5FA"
+                  isOwned    ? THEME.success
+                  : isBlocked ? THEME.muted
+                  : featured  ? "#60A5FA"
                   : cfg.accent
                 } />
                 {f}
@@ -751,37 +719,72 @@ class PackageCard extends Component {
           </ul>
         )}
 
-        {/* ── CTA BLOCK — 4 distinct states ── */}
+        {/* CTA BLOCK */}
         <div style={{ marginTop: "auto" }}>
 
-          {/* INFO ONLY — daily_budget / per_apply */}
+          {/* OWNED */}
+          {isOwned && (
+            <>
+              <div style={{
+                padding: "0.65rem 1rem", borderRadius: 9,
+                background: THEME.successLight,
+                border: `1px solid ${THEME.success}33`,
+                display: "flex", alignItems: "center", gap: 8,
+                marginBottom: 10,
+              }}>
+                <span style={{ fontSize: 15, color: THEME.success }}>✓</span>
+                <p style={{ fontSize: 12, color: THEME.success, margin: 0, fontWeight: 600 }}>
+                  Currently active — expires on{" "}
+                  {(() => {
+                    const allActive = [
+                      ...(wallet?.activeDurationBundles || []),
+                      ...(wallet?.activeCvCredits || []),
+                      ...(wallet?.activeJobSlots || []),
+                      ...(wallet?.activeFeaturedBoosts || []),
+                    ];
+                    const match = allActive.find(p => p.package?.id === pkg.id);
+                    if (!match?.end_date) return "—";
+                    return new Date(match.end_date).toLocaleDateString("en-PK", {
+                      day: "numeric", month: "short", year: "numeric",
+                    });
+                  })()}
+                </p>
+              </div>
+              <button disabled style={{
+                width: "100%", padding: "0.7rem 1rem",
+                borderRadius: 9, fontSize: 13.5, fontWeight: 600,
+                cursor: "not-allowed",
+                border: `1.5px solid ${THEME.success}44`,
+                background: THEME.successLight, color: THEME.success,
+                opacity: 0.75,
+              }}>
+                ✓ Already owned
+              </button>
+            </>
+          )}
+
+          {/* INFO ONLY */}
           {isInfoOnly && (
             <div style={{
-              padding: "0.75rem 1rem",
-              borderRadius: 9,
-              background: cfg.light,
-              border: `1px dashed ${cfg.accent}55`,
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 8,
+              padding: "0.75rem 1rem", borderRadius: 9,
+              background: cfg.light, border: `1px dashed ${cfg.accent}55`,
+              display: "flex", alignItems: "flex-start", gap: 8,
             }}>
               <InfoIcon color={cfg.accent} />
               <p style={{ fontSize: 12, color: cfg.accent, margin: 0, lineHeight: 1.55 }}>
-                This billing option is available when you post a job.
-                No upfront purchase needed.
+                This billing option is available when you post a job. No upfront purchase needed.
               </p>
             </div>
           )}
 
-          {/* BLOCKED — single-post duration_bundle */}
+          {/* BLOCKED */}
           {isBlocked && (
             <>
               <p style={{
                 fontSize: 12, color: THEME.muted,
                 fontStyle: "italic", marginBottom: 10, lineHeight: 1.5,
               }}>
-                Single-post listings cannot be purchased directly.
-                Choose a multi-post bundle instead.
+                Single-post listings cannot be purchased directly. Choose a multi-post bundle instead.
               </p>
               <button disabled style={{
                 width: "100%", padding: "0.7rem 1rem",
@@ -795,12 +798,11 @@ class PackageCard extends Component {
             </>
           )}
 
-          {/* LOCKED — job_slot or featured_boost without base */}
+          {/* LOCKED */}
           {isLocked && (
             <>
               <p style={{
-                fontSize: 12, color: THEME.warning,
-                marginBottom: 10, lineHeight: 1.55,
+                fontSize: 12, color: THEME.warning, marginBottom: 10, lineHeight: 1.55,
               }}>
                 {pkg.pricing_model === "job_slot"
                   ? "Purchase a Job Bundle or CV Credits first to unlock slot subscriptions."
@@ -818,7 +820,7 @@ class PackageCard extends Component {
             </>
           )}
 
-          {/* AVAILABLE — normal purchase */}
+          {/* AVAILABLE */}
           {isAvailable && (
             <button
               onClick={() => onSelect(pkg)}
@@ -842,7 +844,6 @@ class PackageCard extends Component {
     );
   }
 }
-
 /* ═══════════════════════════════════════════════════════════════
    SECTION COMPONENT
 ═══════════════════════════════════════════════════════════════ */
@@ -942,32 +943,241 @@ const FilterTabs = ({ models, active, onChange }) => (
 ═══════════════════════════════════════════════════════════════ */
 class PaymentModal extends Component {
   state = {
-    paymentMethod: null,
-    cardName: "", cardNumber: "", cardExpiry: "", cardCvv: "",
-    saveCard: false,
+    paymentMethod: "card",          // default to card tab always
+    // ── saved card selection ──
     savedCards: [],
-    qrRef: "", bankRef: "", bankReceipt: null,
+    savedCardsLoading: true,
+    selectedSavedCardId: null,      // null = "enter new card"
+    showNewCardForm: false,         // toggled by "Use a different card"
+    // ── new card fields ──
+    cardName: "",
+    cardNumber: "",
+    cardExpiry: "",
+    cardCvv: "",
+    saveCard: false,
+    // ── qr / bank ──
+    // qrRef: "",
+    // bankRef: "",
+    // bankReceipt: null,
   };
 
+  componentDidMount() {
+    this.fetchSavedCards();
+  }
+
+  fetchSavedCards = async () => {
+    const { userId } = this.props;
+    if (!userId) {
+      this.setState({ savedCardsLoading: false });
+      return;
+    }
+    try {
+      const APIBASEURL = process.env.NEXT_PUBLIC_API_BASE_URL;
+      const res = await axios.get(`${APIBASEURL}payment/getsavedcards/${userId}`);
+      const cards = res.data.cards || [];
+      this.setState({
+        savedCards: cards,
+        savedCardsLoading: false,
+        // auto-select first saved card
+        selectedSavedCardId: cards.length > 0 ? cards[0].id : null,
+        showNewCardForm: cards.length === 0,   // no saved card → show form immediately
+      });
+    } catch {
+      this.setState({ savedCardsLoading: false, showNewCardForm: true });
+    }
+  };
+
+  /* ── brand logo src ── */
+  brandSrc = (brand) => {
+    const map = {
+      visa: "/images/visa.png",
+      mastercard: "/images/master.png",
+      amex: "/images/amex.png",
+      unionpay: "/images/unionpay.png",
+      paypak: "/images/paypak_card.png",
+    };
+    return map[(brand || "").toLowerCase()] || null;
+  };
+
+  /* ── method tab button ── */
   methodBtn(id, icon, label) {
     const active = this.state.paymentMethod === id;
     return (
-      <button key={id} onClick={() => this.setState({ paymentMethod: id })} style={{
-        flex: "1 1 0", padding: "0.7rem 0.4rem",
-        borderRadius: 10, cursor: "pointer",
-        border: active ? `2px solid ${THEME.accent}` : `1.5px solid ${THEME.border}`,
-        background: active ? THEME.accentLight : "#FAFAF9",
-        color: active ? THEME.accent : THEME.muted,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        gap: 6, fontSize: 12.5, fontWeight: active ? 700 : 400,
-        transition: "all 0.15s",
-      }}>
+      <button
+        key={id}
+        onClick={() => this.setState({ paymentMethod: id })}
+        style={{
+          flex: "1 1 0", padding: "0.7rem 0.4rem",
+          borderRadius: 10, cursor: "pointer",
+          border: active ? `2px solid ${THEME.accent}` : `1.5px solid ${THEME.border}`,
+          background: active ? THEME.accentLight : "#FAFAF9",
+          color: active ? THEME.accent : THEME.muted,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          gap: 6, fontSize: 12.5, fontWeight: active ? 700 : 400,
+          transition: "all 0.15s",
+        }}
+      >
         {icon} {label}
       </button>
     );
   }
 
-  renderCard() {
+  /* ══════════════════════════════
+     SAVED CARD SELECTOR
+  ══════════════════════════════ */
+  renderSavedCardSelector() {
+    const {
+      savedCards, selectedSavedCardId, showNewCardForm, savedCardsLoading,
+    } = this.state;
+
+    if (savedCardsLoading) {
+      return (
+        <div style={{ display: "flex", gap: 6, padding: "1rem 0", alignItems: "center" }}>
+          {[0, 1, 2].map(i => (
+            <div key={i} style={{
+              width: 7, height: 7, borderRadius: "50%",
+              background: THEME.accent,
+              animation: "bounce 1.2s infinite ease-in-out",
+              animationDelay: `${i * 0.2}s`,
+            }} />
+          ))}
+          <span style={{ fontSize: 12, color: THEME.muted, marginLeft: 6 }}>Loading saved cards…</span>
+          <style>{`@keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}`}</style>
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        {/* ── SAVED CARDS LIST ── */}
+        {savedCards.length > 0 && !showNewCardForm && (
+          <div style={{ marginBottom: 16 }}>
+            <p style={{
+              fontSize: 10, fontWeight: 700, color: "#bbb",
+              marginBottom: 10, textTransform: "uppercase", letterSpacing: 1,
+            }}>
+              Saved cards
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {savedCards.map(card => {
+                const selected = selectedSavedCardId === card.id;
+                const logo = this.brandSrc(card.card_brand);
+                return (
+                  <div
+                    key={card.id}
+                    onClick={() => this.setState({ selectedSavedCardId: card.id })}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 12,
+                      padding: "0.75rem 1rem", borderRadius: 10, cursor: "pointer",
+                      border: selected
+                        ? `2px solid ${THEME.accent}`
+                        : `1.5px solid ${THEME.border}`,
+                      background: selected ? THEME.accentLight : "#FAFAF9",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    {/* Radio dot */}
+                    <div style={{
+                      width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
+                      border: selected
+                        ? `5px solid ${THEME.accent}`
+                        : `2px solid ${THEME.border}`,
+                      background: "#fff",
+                      transition: "border 0.15s",
+                    }} />
+
+                    {/* Brand logo */}
+                    {logo && (
+                      <div style={{
+                        width: 40, padding: "2px 6px", borderRadius: 5,
+                        background: "#fff", border: "1px solid rgba(0,0,0,0.07)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}>
+                        <img src={logo} alt={card.card_brand}
+                          style={{ height: 18, objectFit: "contain", display: "block" }} />
+                      </div>
+                    )}
+
+                    {/* Card info */}
+                    <div style={{ flex: 1 }}>
+                      <p style={{
+                        margin: 0, fontSize: 13, fontWeight: 600,
+                        color: selected ? THEME.accent : THEME.text,
+                      }}>
+                        {(card.card_brand || "Card").charAt(0).toUpperCase() +
+                          (card.card_brand || "card").slice(1)}&ensp;
+                        •••• {card.card_last4}
+                      </p>
+                      {card.card_holder && (
+                        <p style={{ margin: 0, fontSize: 11, color: THEME.muted }}>
+                          {card.card_holder}
+                        </p>
+                      )}
+                    </div>
+
+                    {selected && (
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, color: THEME.accent,
+                        background: THEME.accentLight,
+                        padding: "2px 8px", borderRadius: 20,
+                      }}>
+                        Selected
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Use different card link */}
+            <button
+              onClick={() => this.setState({ showNewCardForm: true, selectedSavedCardId: null })}
+              style={{
+                marginTop: 12, background: "none", border: "none",
+                color: THEME.accent, fontSize: 12.5, fontWeight: 600,
+                cursor: "pointer", padding: 0, display: "flex",
+                alignItems: "center", gap: 5,
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="1" y="4" width="22" height="16" rx="2" />
+                <line x1="1" y1="10" x2="23" y2="10" />
+              </svg>
+              Use a different card
+            </button>
+          </div>
+        )}
+
+        {/* ── NEW CARD FORM ── */}
+        {showNewCardForm && (
+          <div>
+            {savedCards.length > 0 && (
+              <button
+                onClick={() => this.setState({
+                  showNewCardForm: false,
+                  selectedSavedCardId: savedCards[0].id,
+                })}
+                style={{
+                  marginBottom: 14, background: "none", border: "none",
+                  color: THEME.muted, fontSize: 12, fontWeight: 500,
+                  cursor: "pointer", padding: 0, display: "flex",
+                  alignItems: "center", gap: 5,
+                }}
+              >
+                ← Back to saved cards
+              </button>
+            )}
+            {this.renderNewCardForm()}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* ── New card form (extracted so it can be reused) ── */
+  renderNewCardForm() {
     const { cardName, cardNumber, cardExpiry, cardCvv, saveCard } = this.state;
     const isAmex = cardNumber.startsWith("34") || cardNumber.startsWith("37");
     return (
@@ -992,6 +1202,7 @@ class PaymentModal extends Component {
             onChange={e =>
               this.setState({ cardCvv: e.target.value.replace(/\D/g, "").slice(0, isAmex ? 4 : 3) })
             } />
+          {/* Save card checkbox */}
           <div
             style={{
               flex: "1 1 100%", display: "flex", alignItems: "center",
@@ -1023,76 +1234,88 @@ class PaymentModal extends Component {
     );
   }
 
-  renderQr() {
-    const { qrRef } = this.state;
-    const { pkg } = this.props;
-    return (
-      <div style={{ textAlign: "center" }}>
-        <p style={{ fontSize: 13, color: THEME.muted, marginBottom: 16 }}>
-          Scan with <strong style={{ color: THEME.text }}>EasyPaisa</strong> or
-          any QR-enabled banking app
-        </p>
-        <div style={{
-          display: "inline-block", padding: 16,
-          border: `1px solid ${THEME.border}`, borderRadius: 12,
-          background: "#fff", marginBottom: 20,
-        }}>
-          <QRPlaceholder amount={pkg.price} currency={pkg.currency} />
-        </div>
-        <div style={{ maxWidth: 340, margin: "0 auto", textAlign: "left" }}>
-          <Field label="Transaction reference" placeholder="e.g. EP-2024XXXXXXXX"
-            value={qrRef} onChange={e => this.setState({ qrRef: e.target.value })} />
-        </div>
-      </div>
-    );
-  }
+  // renderQr() {
+  //   const { qrRef } = this.state;
+  //   const { pkg } = this.props;
+  //   return (
+  //     <div style={{ textAlign: "center" }}>
+  //       <p style={{ fontSize: 13, color: THEME.muted, marginBottom: 16 }}>
+  //         Scan with <strong style={{ color: THEME.text }}>EasyPaisa</strong> or
+  //         any QR-enabled banking app
+  //       </p>
+  //       <div style={{
+  //         display: "inline-block", padding: 16,
+  //         border: `1px solid ${THEME.border}`, borderRadius: 12,
+  //         background: "#fff", marginBottom: 20,
+  //       }}>
+  //         <QRPlaceholder amount={pkg.price} currency={pkg.currency} />
+  //       </div>
+  //       <div style={{ maxWidth: 340, margin: "0 auto", textAlign: "left" }}>
+  //         <Field label="Transaction reference" placeholder="e.g. EP-2024XXXXXXXX"
+  //           value={qrRef} onChange={e => this.setState({ qrRef: e.target.value })} />
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
-  renderBank() {
-    const { bankRef } = this.state;
-    return (
-      <div>
-        <div style={{
-          background: "#F7F9FC",
-          border: "1px solid rgba(55,138,221,0.18)",
-          borderRadius: 10, padding: "1rem 1.2rem",
-          marginBottom: 18, fontSize: 13,
-        }}>
-          <p style={{
-            fontWeight: 700, marginBottom: 8, color: THEME.text,
-            fontSize: 12, textTransform: "uppercase", letterSpacing: 0.5,
-          }}>
-            Transfer to
-          </p>
-          {[
-            ["Bank",    "Meezan Bank"],
-            ["Account", "Your Company Pvt Ltd"],
-            ["IBAN",    "PK36MEZN0001234567890123"],
-            ["Branch",  "Islamabad Main"],
-          ].map(([k, v]) => (
-            <div key={k} style={{ display: "flex", gap: 8, marginBottom: 5 }}>
-              <span style={{ width: 80, color: THEME.muted, fontSize: 12 }}>{k}</span>
-              <span style={{ color: THEME.text, fontWeight: 600, fontSize: 12 }}>{v}</span>
-            </div>
-          ))}
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-          <Field label="Transaction / reference ID" placeholder="e.g. TRX-00123456"
-            value={bankRef} onChange={e => this.setState({ bankRef: e.target.value })} />
-          <div style={{ flex: "1 1 100%" }}>
-            <label style={{
-              display: "block", fontSize: 11, fontWeight: 600,
-              color: THEME.muted, marginBottom: 5,
-              textTransform: "uppercase", letterSpacing: 0.5,
-            }}>
-              Upload receipt (optional)
-            </label>
-            <input type="file" accept="image/*,application/pdf"
-              onChange={e => this.setState({ bankReceipt: e.target.files[0] })}
-              style={{ fontSize: 13, color: THEME.muted }} />
-          </div>
-        </div>
-      </div>
-    );
+  // renderBank() {
+  //   const { bankRef } = this.state;
+  //   return (
+  //     <div>
+  //       <div style={{
+  //         background: "#F7F9FC",
+  //         border: "1px solid rgba(55,138,221,0.18)",
+  //         borderRadius: 10, padding: "1rem 1.2rem",
+  //         marginBottom: 18, fontSize: 13,
+  //       }}>
+  //         <p style={{
+  //           fontWeight: 700, marginBottom: 8, color: THEME.text,
+  //           fontSize: 12, textTransform: "uppercase", letterSpacing: 0.5,
+  //         }}>
+  //           Transfer to
+  //         </p>
+  //         {[
+  //           ["Bank",    "Meezan Bank"],
+  //           ["Account", "Your Company Pvt Ltd"],
+  //           ["IBAN",    "PK36MEZN0001234567890123"],
+  //           ["Branch",  "Islamabad Main"],
+  //         ].map(([k, v]) => (
+  //           <div key={k} style={{ display: "flex", gap: 8, marginBottom: 5 }}>
+  //             <span style={{ width: 80, color: THEME.muted, fontSize: 12 }}>{k}</span>
+  //             <span style={{ color: THEME.text, fontWeight: 600, fontSize: 12 }}>{v}</span>
+  //           </div>
+  //         ))}
+  //       </div>
+  //       <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+  //         <Field label="Transaction / reference ID" placeholder="e.g. TRX-00123456"
+  //           value={bankRef} onChange={e => this.setState({ bankRef: e.target.value })} />
+  //         <div style={{ flex: "1 1 100%" }}>
+  //           <label style={{
+  //             display: "block", fontSize: 11, fontWeight: 600,
+  //             color: THEME.muted, marginBottom: 5,
+  //             textTransform: "uppercase", letterSpacing: 0.5,
+  //           }}>
+  //             Upload receipt (optional)
+  //           </label>
+  //           <input type="file" accept="image/*,application/pdf"
+  //             onChange={e => this.setState({ bankReceipt: e.target.files[0] })}
+  //             style={{ fontSize: 13, color: THEME.muted }} />
+  //         </div>
+  //       </div>
+  //     </div>
+  //   );
+  // }
+
+  /* ── Is the Pay button enabled? ── */
+  canPay() {
+    const { paymentMethod, selectedSavedCardId, showNewCardForm, cardNumber } = this.state;
+    if (paymentMethod === "card") {
+      // saved card selected OR new card has a number entered
+      return selectedSavedCardId != null || (showNewCardForm && cardNumber.replace(/\s/g, "").length >= 13);
+    }
+    // if (paymentMethod === "qr")   return true;   // reference optional
+    // if (paymentMethod === "bank") return true;
+    return false;
   }
 
   render() {
@@ -1160,13 +1383,9 @@ class PaymentModal extends Component {
             </button>
           </div>
 
-          <hr style={{
-            border: "none",
-            borderTop: `1px solid ${THEME.border}`,
-            margin: "0 0 20px",
-          }} />
+          <hr style={{ border: "none", borderTop: `1px solid ${THEME.border}`, margin: "0 0 20px" }} />
 
-          {/* Method tabs */}
+          {/* Method tabs — ALWAYS shown */}
           <p style={{
             fontSize: 10, fontWeight: 700, color: "#bbb",
             marginBottom: 10, textTransform: "uppercase", letterSpacing: 1,
@@ -1175,32 +1394,35 @@ class PaymentModal extends Component {
           </p>
           <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
             {this.methodBtn("card", <CardIcon />, "Card")}
-            {this.methodBtn("qr",   <QrIcon />,  "QR / EasyPaisa")}
-            {this.methodBtn("bank", <BankIcon />, "Bank Transfer")}
+            {/* {this.methodBtn("qr",   <QrIcon />,  "QR / EasyPaisa")}
+            {this.methodBtn("bank", <BankIcon />, "Bank Transfer")} */}
           </div>
 
-          {paymentMethod === "card" && this.renderCard()}
-          {paymentMethod === "qr"   && this.renderQr()}
-          {paymentMethod === "bank" && this.renderBank()}
+          {/* Method content */}
+          {paymentMethod === "card" && this.renderSavedCardSelector()}
+          {/* {paymentMethod === "qr"   && this.renderQr()} */}
+          {/* {paymentMethod === "bank" && this.renderBank()} */}
 
-          {paymentMethod && (
-            <button
-              onClick={() => onSubmit({ ...this.state })}
-              style={{
-                marginTop: 24, width: "100%", padding: "0.9rem 1rem",
-                borderRadius: 10, border: "none",
-                background: `linear-gradient(135deg, ${cfg.accent} 0%, ${THEME.accentMid} 100%)`,
-                color: "#fff", fontSize: 15, fontWeight: 700,
-                cursor: "pointer",
-                boxShadow: `0 4px 18px ${cfg.accent}44`,
-                transition: "opacity 0.15s", letterSpacing: 0.2,
-              }}
-              onMouseEnter={e => { e.currentTarget.style.opacity = "0.87"; }}
-              onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
-            >
-              Pay {pkg.currency} {Number(pkg.price || 0).toLocaleString()}
-            </button>
-          )}
+          {/* Pay button — always rendered, disabled when can't pay */}
+          <button
+            onClick={() => this.canPay() && onSubmit({ ...this.state })}
+            style={{
+              marginTop: 24, width: "100%", padding: "0.9rem 1rem",
+              borderRadius: 10, border: "none",
+              background: this.canPay()
+                ? `linear-gradient(135deg, ${cfg.accent} 0%, ${THEME.accentMid} 100%)`
+                : "#E5E5E3",
+              color: this.canPay() ? "#fff" : THEME.muted,
+              fontSize: 15, fontWeight: 700,
+              cursor: this.canPay() ? "pointer" : "not-allowed",
+              boxShadow: this.canPay() ? `0 4px 18px ${cfg.accent}44` : "none",
+              transition: "all 0.15s", letterSpacing: 0.2,
+            }}
+            onMouseEnter={e => { if (this.canPay()) e.currentTarget.style.opacity = "0.87"; }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
+          >
+            Pay {pkg.currency} {Number(pkg.price || 0).toLocaleString()}
+          </button>
         </div>
       </>
     );
@@ -1217,6 +1439,7 @@ class PricingPage extends Component {
     this.state = {
       packages: [],
       loading: true,
+      wallet: null,
       error: null,
       activeFilter: "All",
       userId: typeof window !== "undefined"
@@ -1227,8 +1450,37 @@ class PricingPage extends Component {
     };
   }
 
-  componentDidMount() { this.loadPackages(); }
+  componentDidMount() { 
+    this.loadPackages(); 
+    this.loadUserPackages();
+  }
+loadUserPackages = async () => {
+  const { userId } = this.state;
+  if (!userId) return;
+  try {
+    const res = await axios.get(`${this.APIBASEURL}job/getuserpackages/${userId}`);
+    const packages = res.data;
 
+    console.log("RAW packages:", packages); // ← add this
+    
+    const active = packages.filter(p => p.status?.toLowerCase() === "active");
+    console.log("ACTIVE packages:", active); // ← and this
+
+    const wallet = {
+      activeDurationBundles: active.filter(p => p.pricing_model === "duration_bundle"),
+      activeCvCredits:        active.filter(p => p.pricing_model === "cv_credits"),
+      activeDailyBudgets:     active.filter(p => p.pricing_model === "daily_budget"),
+      activePerApply:         active.filter(p => p.pricing_model === "per_apply"),
+      activeJobSlots:         active.filter(p => p.pricing_model === "job_slot"),
+      activeFeaturedBoosts:   active.filter(p => p.pricing_model === "featured_boost"),
+    };
+
+    console.log("WALLET:", wallet); // ← and this
+    this.setState({ wallet });
+  } catch (err) {
+    console.error("Failed to load user packages", err);
+  }
+};
   loadPackages = async () => {
     try {
       const res = await axios.get(`${this.APIBASEURL}packages/getallpackages`, {
@@ -1270,25 +1522,32 @@ submitPayment = async (formState) => {
   const { selectedPkg, userId } = this.state;
   if (!selectedPkg) return;
 
+  const usingSavedCard = !formState.showNewCardForm && formState.selectedSavedCardId;
+
   try {
-    await axios.post(                              // ✅ POST not PUT
-      `${this.APIBASEURL}payment/addpayment/${userId}`,  // ✅ correct endpoint
+    await axios.post(
+      `${this.APIBASEURL}payment/addpayment/${userId}`,
       {
-        amount: selectedPkg.price,                // ✅ was missing
-        currency: selectedPkg.currency || "PKR",  // ✅ was missing
+        amount: selectedPkg.price,
+        currency: selectedPkg.currency || "PKR",
         packageId: selectedPkg.id,
         jobId: null,
         reference: null,
         paymentDetails: {
           method: formState.paymentMethod,
           saveForLater: formState.saveCard,
-          cardLast4: formState.cardNumber?.replace(/\s/g, "").slice(-4),
-          cardName: formState.cardName,
+          ...(usingSavedCard
+            ? { savedCardId: formState.selectedSavedCardId }   // ← saved card path
+            : {
+                cardLast4: formState.cardNumber?.replace(/\s/g, "").slice(-4),
+                cardName: formState.cardName,
+              }
+          ),
         },
       }
     );
-
     this.closeModal();
+    this.loadUserPackages();
     if (this.props.onPaymentSuccess) this.props.onPaymentSuccess();
   } catch (err) {
     console.error("Payment failed", err);
@@ -1298,9 +1557,9 @@ submitPayment = async (formState) => {
   render() {
     const {
       packages, loading, error,
-      activeFilter, selectedPkg, showModal,
+      activeFilter, selectedPkg, showModal, wallet
     } = this.state;
-    const { wallet } = this.props;
+    // const { wallet } = this.props;
 
     const grouped = this.groupPackages(packages);
     const models  = Object.keys(grouped);
@@ -1396,7 +1655,7 @@ submitPayment = async (formState) => {
                 {[
                   ["Active plans",    totalCount],
                   ["Package types",   models.length],
-                  ["Payment options", 3],
+                  ["Payment options", 1],
                 ].map(([label, val]) => (
                   <div key={label} style={{ textAlign: "center" }}>
                     <div style={{ fontSize: 24, fontWeight: 800, color: THEME.text }}>
@@ -1498,6 +1757,7 @@ submitPayment = async (formState) => {
         {showModal && selectedPkg && (
           <PaymentModal
             pkg={selectedPkg}
+            userId={this.state.userId}
             onClose={this.closeModal}
             onSubmit={this.submitPayment}
           />

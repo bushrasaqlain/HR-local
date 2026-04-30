@@ -45,6 +45,7 @@ export const dbadminmenuitem = [
       { key: "businessentitytypes", label: "Business Entities" },
       { key: "jobtypes", label: "Job Types" },
       { key: "jobtitles", label: "Job Titles" },
+      {key: "industry", label: "Industry"},
       { key: "packages", label: "Packages" },
       { key: "licensetypes", label: "License Types" },
     ],
@@ -69,7 +70,7 @@ export const regadminmenuitem = [
 export const companymenuitem = [
   {
     key: "profileGroup",
-    label: "Profile",
+    label: "Dashboard",
     type: "dropdown",
     children: [
       { key: "profile", label: "Profile" },

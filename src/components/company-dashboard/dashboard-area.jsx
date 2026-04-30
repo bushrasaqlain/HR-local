@@ -20,7 +20,7 @@ const JobsLayout = ({ activeTab, onTabChange }) => {
   const tabs = [
     { key: "jobList", label: "Job List" },
     { key: "postJob", label: "Post Job" },
-    { key: "packagesList", label: "Packages" },
+    // { key: "packagesList", label: "Packages" },
     { key: "viewpackage", label: "Pricing" },
   ];
 
@@ -28,8 +28,8 @@ const JobsLayout = ({ activeTab, onTabChange }) => {
     switch (activeTab) {
       case "postJob":
         return <PostJob />;
-      case "packagesList":
-        return <PackagesList />;
+      // case "packagesList":
+      //   return <PackagesList />;
       case "viewpackage":
         return <PricingForm2 />;
       case "jobList":

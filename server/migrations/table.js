@@ -48,6 +48,7 @@ const candidateModel = require("../models/candidateModel");
 const degreeFieldModel = require("../models/degreeFieldModel");
 const businessentitytypeModel = require("../models/businessentitytypeModel");
 const jobtypeModel = require("../models/jobtypeModel");
+const industryModel = require("../models/industryModel");
 const bankModel = require("../models/bankModel");
 const packageModel = require("../models/packageModel");
 const emplyeeModel = require("../models/companyModel");
@@ -80,6 +81,7 @@ function Database() {
   degreeFieldModel.createDegreeFieldsTable();
   businessentitytypeModel.createbusiness_entity_typeTable();
   jobtypeModel.createJobTypeTable();
+  industryModel.createIndustryTable();
   bankModel.createBankTable();
   packageModel.createPackagesTable();
   licensetypesModel.createLicenseTypesTable();
