@@ -101,40 +101,40 @@ class FormContent extends Component {
       return;
     }
 
-   try {
-  const formData = new FormData();
-  Object.entries(values).forEach(([key, value]) =>
-    formData.append(key, value)
-  );
-  formData.append("accountType", accountType);
-  formData.append("isActive", "Inactive");
+    try {
+      const formData = new FormData();
+      Object.entries(values).forEach(([key, value]) =>
+        formData.append(key, value)
+      );
+      formData.append("accountType", accountType);
+      formData.append("isActive", "Inactive");
 
-  const res = await axios.post(this.apiBaseUrl, formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+      const res = await axios.post(this.apiBaseUrl, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
-  // Always check res.data.success instead of res.status
-  if (res.data && res.data.success) {
-  this.props.setUserId?.(res.data.accountId);
-  this.props.setAccountType?.(accountType);
+      // Always check res.data.success instead of res.status
+      if (res.data && res.data.success) {
+        this.props.setUserId?.(res.data.accountId);
+        this.props.setAccountType?.(accountType);
 
-  // Show success message
-  this.setState({ successMessage: "Registration successful!" });
+        // Show success message
+        this.setState({ successMessage: "Registration successful!" });
 
-  // Redirect to login after 1 second
-  setTimeout(() => {
-    window.location.href = "/?page=login";
-  }, 1000);
-}
-else {
-    this.setState({ successMessage: "Registration failed. Try again." });
-  }
-} catch (err) {
-  console.error(err.response?.data || err.message);
-  this.setState({
-    successMessage: "Registration failed. Try again.",
-  });
-}
+        // Redirect to login after 1 second
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 1000);
+      }
+      else {
+        this.setState({ successMessage: "Registration failed. Try again." });
+      }
+    } catch (err) {
+      console.error(err.response?.data || err.message);
+      this.setState({
+        successMessage: "Registration failed. Try again.",
+      });
+    }
 
   };
 
@@ -155,18 +155,16 @@ else {
         <Form onSubmit={this.handleSubmit}>
           <div className="d-flex mb-3">
             <Button
-              color={accountType === "candidate" ? "secondary" : "transparent"}
-              outline={accountType !== "candidate"}
-              className="me-2 w-50"
+              className={`me-2 w-50 ${accountType === "candidate" ? "account-type-btn" : "account-type-btn outline"
+                }`}
               onClick={() => this.setState({ accountType: "candidate" })}
             >
               Candidate
             </Button>
 
             <Button
-              color={accountType === "employer" ? "secondary" : "transparent"}
-              outline={accountType !== "employer"}
-              className="w-50"
+              className={`w-50 ${accountType === "employer" ? "account-type-btn" : "account-type-btn outline"
+                }`}
               onClick={() => this.setState({ accountType: "employer" })}
             >
               Employer
@@ -206,8 +204,12 @@ else {
                 onChange={this.handleChange}
                 invalid={!!errors.password}
               />
-              <Button outline onClick={() => this.togglePassword("password")}>
-                {showPassword ? "Hide" : "Show"}
+              <Button
+                outline
+                type="button"
+                onClick={() => this.togglePassword("password")}
+              >
+                <i className={`las ${showPassword ? "la-eye-slash" : "la-eye"}`}></i>
               </Button>
               <FormFeedback>{errors.password}</FormFeedback>
             </InputGroup>
@@ -225,15 +227,16 @@ else {
               />
               <Button
                 outline
+                type="button"
                 onClick={() => this.togglePassword("confirmPassword")}
               >
-                {showConfirmPassword ? "Hide" : "Show"}
+                <i className={`las ${showConfirmPassword ? "la-eye-slash" : "la-eye"}`}></i>
               </Button>
               <FormFeedback>{errors.confirmPassword}</FormFeedback>
             </InputGroup>
           </FormGroup>
 
-          <Button type="submit" className="w-100 p-2 mt-2" color="dark">
+          <Button type="submit" className="theme-btn w-100 mt-3">
             Register
           </Button>
         </Form>

@@ -207,7 +207,7 @@ span.badge.badge-inactive-custom {
 
 /* 🔥 HOVER EFFECT */
 .about-card:hover {
-  background: linear-gradient(135deg, #116dc2, #2b6fd4);
+  background: linear-gradient(135deg, #5a838f, #36565f);
   transform: translateY(-10px) scale(1.03);
 }
 
@@ -220,7 +220,7 @@ span.badge.badge-inactive-custom {
 /* ICON STYLE */
 .about-card .icon {
   font-size: 35px;
-  color: #116dc2;
+  color: #36565f;
   transition: 0.3s;
 }
 
@@ -233,7 +233,7 @@ span.badge.badge-inactive-custom {
 /* 🔷 STEP ICON */
 .step-icon {
   font-size: 30px;
-  color: #116dc2;
+  color: #36565f;
   margin-bottom: 10px;
   transition: 0.3s;
 }
@@ -294,13 +294,13 @@ span.badge.badge-inactive-custom {
 
 /* ACTIVE */
 .custom-accordion .accordion-button:not(.collapsed) {
-  background: linear-gradient(135deg, #116dc2, #2b6fd4);
+  background: linear-gradient(135deg, #36565f, #36565f);
   color: #fff;
 }
 
 /* ICON */
 .custom-accordion .icon {
-  color: #116dc2;
+  color: #36565f;
 }
 
 .custom-accordion .accordion-button:not(.collapsed) .icon {
@@ -356,7 +356,7 @@ span.badge.badge-inactive-custom {
 /* 🔥 HOVER EFFECT */
 .terms-card:hover {
   transform: translateY(-5px);
-  background: linear-gradient(135deg, #116dc2, #2b6fd4);
+  background: linear-gradient(135deg, #36565f, #36565f);
 }
 
 /* TEXT COLOR CHANGE */
@@ -385,7 +385,7 @@ span.badge.badge-inactive-custom {
 
 /* 🔷 TOP */
 .footer-top {
-  background: #1a1a1a;
+  background: #2a4249;
 }
 
 /* 🔷 TEXT */
@@ -427,30 +427,78 @@ span.badge.badge-inactive-custom {
   color: #2b6fd4;
 }
 
-/* 🔷 SOCIAL */
-.social-icons a {
-  display: inline-block;
-  margin: 0 8px;
-  background: #222;
-  width: 36px;
-  height: 36px;
-  line-height: 36px;
+.footer-left p {
+  color: #ffffff;
+  /* 🔥 pure white */
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.footer-left p svg {
+  color: white;
+  /* 🔥 blue icons */
+  margin-right: 8px;
+}
+.right-box .love-item .icon {
+  color: #36565f;
+  background-color: white;
+  padding: 15px;
   border-radius: 50%;
-  color: #fff;
+  font-size: 45px;
+}
+
+.left-box .love-item .icon {
+  color: #36565f;
+  background-color: white;
+  padding: 15px;
+  border-radius: 50%;
+  font-size: 45px;
+}
+/* 🔷 SOCIAL */
+.social-icons {
+  display: flex;
+  justify-content: flex-end;
+  /* right side align */
+  gap: 10px;
+}
+
+.social-icons a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #121a1d;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  color: white;
+  /* 🔥 ICON BLUE */
+  font-size: 14px;
   transition: 0.3s;
 }
 
 .social-icons a:hover {
-  background: #2b6fd4;
+  background: #537785;
+  color: #fff;
+  /* hover white */
   transform: scale(1.1);
 }
 
 /* 🔷 BOTTOM */
-.footer-bottom {
-  background: #2e2e2e;
-  padding: 15px;
-  font-size: 14px;
+.footer-bottom2 {
+  background: #121a1d;
+
+  font-size: 12px;
   color: #bbb;
+  line-height: 1;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 50px;
+}
+
+.footer-bottom2 p {
+  margin: 0;
 }
 
 /* 🔷 NEW HERO */
@@ -479,7 +527,7 @@ span.badge.badge-inactive-custom {
 
 /* 🔷 BUTTON */
 .terms-btn {
-  background: linear-gradient(135deg, #2b6fd4, #2b6fd4);
+  background: linear-gradient(135deg, #36565f, #36565f);
   border: none;
   padding: 10px 22px;
   color: #fff;
@@ -501,7 +549,7 @@ span.badge.badge-inactive-custom {
 .custom-btn {
   display: inline-block;
   border: 2px solid #000;
-  background-color: #000;
+  background-color: #000; 
   color: #fff;
   padding: 10px 30px;
   font-size: 16px;
@@ -526,7 +574,7 @@ span.badge.badge-inactive-custom {
 
 /* 🔷 Top Employers */
 .top-employers {
-  background: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)),
+background: linear-gradient(rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.9)),
     url('/images/background/4.jpg');
   background-size: cover;
   background-position: center;
@@ -605,7 +653,7 @@ span.badge.badge-inactive-custom {
 }
 
 .show-all-btn {
-  background: #790fcf;
+  background: #0e54bd;
   color: #fff;
   padding: 10px 25px;
   border-radius: 25px;
@@ -615,7 +663,7 @@ span.badge.badge-inactive-custom {
 }
 
 .show-all-btn:hover {
-  background: #dae903;
+  background: #1cebfa;
 }
 
 .change-password-wrapper {
@@ -670,4 +718,150 @@ input {
 .update-btn:hover {
   transform: scale(1.03);
   opacity: 0.9;
+}
+
+/* 🔷 CENTER MENU */
+.footer-menu {
+  list-style: none;
+  padding: 0;
+  margin-top: 10;
+  color: #5f8190;
+}
+
+.footer-menu li {
+  display: inline-block;
+  margin-left: 15px;
+}
+
+.footer-left {
+  text-align: left;
+}
+
+/* RIGHT ALIGN */
+.footer-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.footer-menu a {
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 14px;
+  transition: 0.3s;
+}
+
+.footer-menu a:hover {
+  color: #fff;
+  font-weight: bold;
+}
+
+/* 🔷 CENTER ALIGN EVERYTHING */
+.footer-column {
+  text-align: center;
+}
+
+.love-section {
+  padding: 80px 0;
+}
+
+.love-box {
+  padding: 40px;
+  border-radius: 10px;
+}
+
+.left-box {
+  background: #f8fafc;
+}
+
+.right-box {
+  background: #cde6fa;
+}
+
+.small-text {
+  font-size: 14px;
+  color: #6b7280;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.love-box h2 {
+  font-weight: 700;
+  margin-bottom: 25px;
+}
+
+.love-item {
+  display: flex;
+  // align-items: flex-start;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.love-item .icon {
+  font-size: 16px;
+  color: #2e2f35;
+  background: #cff4ff;
+  padding: 12px;
+  border-radius: 50%;
+  margin-right: 12px;
+  min-width: 40px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.right-box .icon {
+  background: #fce7f3;
+  color: #9333ea;
+}
+
+.love-item p {
+  margin: 0;
+  font-size: 14px;
+  color: #374151;
+}
+
+.btns {
+  margin-top: 22px;
+}
+
+.btn-light {
+  border: 1px solid #ddd;
+  background: #fff;
+  padding: 8px 18px;
+  border-radius: 8px;
+  margin-right: 10px;
+  text-decoration: none;
+  color: #000;
+  display: inline-block;
+}
+
+.btn-dark {
+  background: #000;
+  color: #fff;
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: none;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn-light:hover {
+  color: #000;
+  background: #f5f5f5;
+}
+
+.btn-dark:hover {
+  background: #222;
+  color: #fff;
+}
+
+.love-box {
+  transition: 0.4s;
+}
+
+.love-box:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
 }

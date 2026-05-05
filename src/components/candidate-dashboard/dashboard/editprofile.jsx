@@ -1,5 +1,6 @@
 import Head from "next/head";
 import React, { Component } from "react";
+// import * as faceapi from "face-api.js";
 // import Select from "react-select";
 import AsyncSelect from "react-select/async";
 // import { toast } from "react-toastify";
@@ -30,6 +31,8 @@ import {
   Progress,
 } from "reactstrap";
 import api from "../../lib/api";
+let faceapi = null;
+let faceapiLoaded = false;
 const CustomOption = (props) => (
   <components.Option {...props}>
     <span style={{ marginRight: 8 }}>{props.data.icon}</span>
@@ -90,10 +93,33 @@ class EditProfile extends Component {
   ];
 
   componentDidMount() {
-    this.fetchCandidateInfo();
-    this.loadCountries();
-    this.loadLicenseTypes();
+    this.loadFaceModels().then(() => {
+      this.fetchCandidateInfo();
+      this.loadCountries();
+      this.loadLicenseTypes();
+    });
   }
+  loadFaceModels = async () => {
+    if (faceapiLoaded) return; // already loaded, skip
+
+    // Dynamically import so it only runs in the browser
+    faceapi = await import("face-api.js");
+    faceapiLoaded = true;
+
+    const MODEL_URL = "/models";
+    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+  };
+
+  detectFace = async (file) => {
+    const img = await faceapi.bufferToImage(file);
+
+    const detections = await faceapi.detectAllFaces(
+      img,
+      new faceapi.TinyFaceDetectorOptions()
+    );
+
+    return detections.length > 0;
+  };
 
   loadLicenseTypes = async () => {
     try {
@@ -136,20 +162,23 @@ class EditProfile extends Component {
       return;
     }
 
+    const id = typeof countryId === "object" ? countryId?.id : countryId;
+    if (!id) return;
+
     try {
       const res = await api.get("/getalldistricts", {
-        params: { country_id: countryId }, // pass country filter if API supports it
+        params: { country_id: id, limit: 1000 },
       });
 
-      const districts = Array.isArray(res.data)
-        ? res.data
-        : res.data.districts || res.data.results || [];
+      const districts = Array.isArray(res.data.districts)
+        ? res.data.districts
+        : Array.isArray(res.data)
+          ? res.data
+          : [];
 
-      this.setState({ districts, cities: [] }); // reset cities too
+      this.setState({ districts, cities: [] });
     } catch (err) {
       console.error("Failed to load districts", err);
-      this.setState({ errorMessage: "Could not load districts" });
-      setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
@@ -496,29 +525,53 @@ class EditProfile extends Component {
     }
   };
 
-  handleProfilePhotoChange = (e) => {
+  handleProfilePhotoChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+    const MAX_SIZE = 5 * 1024 * 1024;
 
-    // ❌ Size validation
     if (file.size > MAX_SIZE) {
-      this.setState({
-        passportPhotoError: "Passport photo must be less than 5 MB",
-      });
-
-      // reset input so same file can be reselected
+      this.setState({ passportPhotoError: "Passport photo must be less than 5 MB" });
       e.target.value = "";
       return;
     }
 
-    // ✅ Clear error
+    // ✅ FACE VALIDATION
+    this.setState({ loading: true });
+
+    const hasFace = await this.detectFace(file);
+
+    if (!hasFace) {
+      this.setState({
+        passportPhotoError: "Only face images are allowed",
+        loading: false,
+      });
+      e.target.value = "";
+      return;
+    }
+
+    // ✅ OPTIONAL: multiple faces check (strict validation)
+    const img = await faceapi.bufferToImage(file);
+    const detections = await faceapi.detectAllFaces(
+      img,
+      new faceapi.TinyFaceDetectorOptions()
+    );
+
+    if (detections.length > 1) {
+      this.setState({
+        passportPhotoError: "Only single face image is allowed",
+        loading: false,
+      });
+      e.target.value = "";
+      return;
+    }
+
+    // ✅ Continue your existing code (preview + API call)
     this.setState({ passportPhotoError: "" });
 
-    // Preview
     const reader = new FileReader();
-    reader.onloadend = () => {
+    reader.onloadend = async () => {
       this.setState((prevState) => ({
         formData: {
           ...prevState.formData,
@@ -526,6 +579,32 @@ class EditProfile extends Component {
           passport_photoPreview: reader.result,
         },
       }));
+
+      try {
+        const token = localStorage.getItem("token");
+        const accountId = this.state.formData.account_id;
+
+        const formData = new FormData();
+        formData.append("passport_photo", file);
+
+        await api.put(`/candidateProfile/${accountId}`, formData, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        });
+
+        this.setState({
+          successMessage: "Photo updated successfully",
+          loading: false,
+        });
+
+      } catch (err) {
+        this.setState({
+          errorMessage: "Failed to upload photo",
+          loading: false,
+        });
+      }
     };
 
     reader.readAsDataURL(file);
@@ -1005,6 +1084,81 @@ class EditProfile extends Component {
       case 4:
         return (
           <div ref={this.sectionsRef.experience}>
+
+            {/* ✅ Fresher Toggle */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "12px 14px",
+                borderRadius: 10,
+                border: `1.5px solid ${this.state.formData?.is_fresher ? "#1D9E75" : "#e5e7eb"}`,
+                background: this.state.formData?.is_fresher ? "#E1F5EE" : "#f8fafb",
+                cursor: "pointer",
+                marginBottom: "1.2rem",
+                transition: "all 0.2s",
+              }}
+              onClick={async () => {
+                const newVal = !this.state.formData?.is_fresher;
+
+                // ✅ Update local state
+                this.setState((prev) => ({
+                  formData: { ...prev.formData, is_fresher: newVal },
+                }));
+
+                // ✅ Save to DB immediately
+                try {
+                  const token = localStorage.getItem("token");
+                  const accountId = this.state.formData.account_id;
+                  const fd = new FormData();
+                  fd.append("is_fresher", newVal ? "1" : "0");
+
+                  await api.put(`/candidateProfile/${accountId}`, fd, {
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                      "Content-Type": "multipart/form-data",
+                    },
+                  });
+
+                  this.setState({ successMessage: newVal ? "Marked as Fresher" : "Fresher status removed" });
+                  setTimeout(() => this.setState({ successMessage: "" }), 2000);
+                } catch (err) {
+                  console.error("Fresher update failed:", err);
+                  this.setState({ errorMessage: "Failed to update fresher status" });
+                  setTimeout(() => this.setState({ errorMessage: "" }), 3000);
+                  // Revert on error
+                  this.setState((prev) => ({
+                    formData: { ...prev.formData, is_fresher: !newVal },
+                  }));
+                }
+              }}
+            >
+              {/* Toggle switch */}
+              <div style={{
+                width: 36, height: 20, borderRadius: 10,
+                background: this.state.formData?.is_fresher ? "#1D9E75" : "#d1d5db",
+                position: "relative", flexShrink: 0, transition: "background 0.2s",
+              }}>
+                <div style={{
+                  width: 16, height: 16, borderRadius: "50%", background: "#fff",
+                  position: "absolute", top: 2,
+                  left: this.state.formData?.is_fresher ? 18 : 2,
+                  transition: "left 0.2s",
+                }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 500, color: this.state.formData?.is_fresher ? "#0F6E56" : "#1a1a1a" }}>
+                  I am a Fresher
+                </div>
+                <div style={{ fontSize: 11, color: "#6b7280", marginTop: 1 }}>
+                  {this.state.formData?.is_fresher
+                    ? "✅ Marked as fresher — no work experience required"
+                    : "Check this if you have no work experience"}
+                </div>
+              </div>
+            </div>
+
             <ExperienceStep />
           </div>
         );
@@ -1386,7 +1540,7 @@ class EditProfile extends Component {
                       <select
                         className="form-select"
                         value={formData.country?.id || ""}
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const selected = this.state.countries.find(
                             (c) => c.id.toString() === e.target.value,
                           );
@@ -1394,12 +1548,20 @@ class EditProfile extends Component {
                             formData: {
                               ...prev.formData,
                               country: selected || null,
+                              district: null,
+                              city: null,
                             },
+                            districts: [],
+                            cities: [],
                             personalInfoErrors: {
                               ...prev.personalInfoErrors,
                               country: "",
                             },
                           }));
+
+                          if (selected?.id) {
+                            await this.loadDistricts(selected.id);
+                          }
                         }}
                       >
                         <option value="">Select Country</option>
@@ -1421,7 +1583,7 @@ class EditProfile extends Component {
                       <select
                         className="form-select"
                         value={formData.district?.id || ""}
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const selected = this.state.districts.find(
                             (d) => d.id.toString() === e.target.value,
                           );
@@ -1429,12 +1591,18 @@ class EditProfile extends Component {
                             formData: {
                               ...prev.formData,
                               district: selected || null,
+                              city: null,
                             },
+                            cities: [],
                             personalInfoErrors: {
                               ...prev.personalInfoErrors,
                               district: "",
                             },
                           }));
+
+                          if (selected?.id) {
+                            await this.loadCities(selected.id);
+                          }
                         }}
                       >
                         <option value="">Select District</option>
@@ -1593,7 +1761,7 @@ class EditProfile extends Component {
                     </div>
 
                     <div className="mb-2">
-                      <Label>Total Experience</Label>
+                      <Label>Total Experience (Optional)</Label>
                       <Input
                         value={formData.total_experience || ""}
                         onChange={(e) =>

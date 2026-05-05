@@ -1,5 +1,6 @@
 
 const candidateModel = require("../models/candidateModel");
+const { get } = require("../routes/accountRoutes");
 
 
 const addCandidateInfo = (req, res) => {
@@ -26,7 +27,9 @@ const getCandidateInfo = (req, res) => {
     candidateModel.getCandidateInfo(req, res);
 }
 const editCandidateInfo = (req, res) => {
-    if (req.files?.passport_photo?.[0]) {
+    if (req.file) {
+        req.passportPhotoPath = req.file.path;
+    } else if (req.files?.passport_photo?.[0]) {
         req.passportPhotoPath = req.files.passport_photo[0].path;
     }
 
@@ -60,6 +63,45 @@ const addResume = (req, res) => {
     const userId = req.user.userId;
     candidateModel.addResume(userId, req.resumePath, res);
 };
+
+// ============ BOOST CONTROLLERS ============
+
+const getBoostPackages = (req, res) => {
+    candidateModel.getBoostPackages(req, res);
+};
+const placeBoostOrder = (req, res) => {
+    candidateModel.placeBoostOrder(req, res);
+};
+const getMyBoostStatus = (req, res) => {
+    candidateModel.getMyBoostStatus(req, res);
+};
+const getBoostOrders = (req, res) => {
+    candidateModel.getBoostOrders(req, res);
+};
+const activateBoost = (req, res) => {
+    candidateModel.activateBoost(req, res);
+};
+const rejectBoost = (req, res) => {
+    candidateModel.rejectBoost(req, res);
+};
+const getCandidatesForJob = (req, res) => {
+    candidateModel.getCandidatesForJob(req, res);
+};
+const getMatchingJobsForCandidate = (req, res) => {
+  candidateModel.getMatchingJobsForCandidate(req, res);
+};
+const getAllCandidatesForEmployer = (req, res) => {
+  candidateModel.getAllCandidatesForEmployer(req, res);
+};
+const parseCVAndSave = (req, res) => {
+    const resumeFile = req.file;
+    if (!resumeFile) {
+        return res.status(400).json({ error: "No CV file uploaded" });
+    }
+    req.cvFile = resumeFile;
+    candidateModel.parseCVAndSave(req, res);
+};
+
 module.exports = {
     getAllCandidates,
     updateStatus,
@@ -71,5 +113,16 @@ module.exports = {
     getCandidateLogobyId,
     getCandidateFullProfilebyId,
     getCandidateInfobyAccountType,
-    addResume
+    addResume,
+
+    getBoostPackages,
+    placeBoostOrder,
+    getMyBoostStatus,
+    getBoostOrders,
+    activateBoost,
+    rejectBoost,
+    getCandidatesForJob,
+    getMatchingJobsForCandidate,
+    getAllCandidatesForEmployer,
+    parseCVAndSave,
 }

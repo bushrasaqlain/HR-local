@@ -4,8 +4,29 @@ import TopCompany from "./TopCompany";
 import Partner from "./Partner";
 import Hero4 from "./hero";
 import Link from "next/link";
+import {
+  FaUserCheck,
+  FaSearch,
+  FaCheckCircle,
+  FaComments,
+  FaBriefcase,
+  FaUsers,
+  FaFilter,
+  FaCalendarCheck,
+} from "react-icons/fa";
+import AOS from "aos";
+import "aos/dist/aos.css";
+import { useEffect } from "react";
+
 
 const index = () => {
+  useEffect(() => {
+    AOS.init({
+      duration: 1000,
+      once: true,
+    });
+  }, []);
+
   return (
     <>
       <Hero4 />
@@ -73,20 +94,84 @@ const index = () => {
       </section>
       {/* <!-- End Top Companies --> */}
 
-      <section className="top-companies style-two">
-        <div className="auto-container">
-          <div className="sec-title text-center">
-            <h2>Popular Job Categories</h2>
-            <div className="text">2020 jobs live - 293 added today.</div>
-          </div>
+      <section className="love-section">
+        <div className="container">
+          <div className="row"
+          style={{background: "white"}}>
 
-          <div
-            className="row "
-            data-aos="fade-up"
-            data-aos-anchor-placement="top-bottom"
-          >
-            {/* <!-- Category Block --> */}
-            {/* <JobCategorie1 /> */}
+            {/* 🔷 LEFT SIDE - CANDIDATES */}
+            <div className="col-md-6 love-box left-box" box-shadow data-aos="fade-right" style={{background: "#c1c9cc", color: "white"}}>
+              <span className="small-text text-black">Looking for a Job?</span>
+              <h2 className="text-black">Why Candidates Choose Us</h2>
+
+              <div className="love-item" data-aos="fade-up" data-aos-delay="100">
+                <FaUserCheck className="icon" />
+                <p className="text-black">Easy registration with admin approval for secure access.</p>
+              </div>
+
+              <div className="love-item" data-aos="fade-up" data-aos-delay="100">
+                <FaSearch className="icon" />
+                <p className="text-black">Get matched with jobs based on your profile and skills.</p>
+              </div>
+
+              <div className="love-item" data-aos="fade-up" data-aos-delay="100">
+                <FaCheckCircle className="icon" />
+                <p className="text-black">Track shortlisted status and interview schedules easily.</p>
+              </div>
+
+              <div className="love-item" data-aos="fade-up" data-aos-delay="100">
+                <FaComments className="icon" />
+                <p className="text-black">Communicate directly with employers through messaging.</p>
+              </div>
+
+              <div className="btn">
+                <Link href="/about" className="btn-light">
+                  Learn More
+                </Link>
+
+                <Link href="/register" className="btn border-3 text-white " style={{background: "#121a1d"}}>
+                  Sign Up
+                </Link>
+              </div>
+            </div>
+
+            {/* 🔷 RIGHT SIDE - EMPLOYERS */}
+            <div className="col-md-6 love-box text-white right-box" data-aos="fade-left"
+            style={{background: "#4f6168"}}>
+              <span className="small-text text-white">Hiring Talent?</span>
+              <h2>Why Employers Trust Us</h2>
+
+              <div className="love-item" text-white data-aos="fade-up" data-aos-delay="100">
+                <FaBriefcase className="icon" />
+                <p className="text-white">Post jobs easily with flexible package options.</p>
+              </div>
+
+              <div className="love-item"  text-white data-aos="fade-up" data-aos-delay="100">
+                <FaUsers className="icon" />
+                <p className="text-white">Access a pool of verified and approved candidates.</p>
+              </div>
+
+              <div className="love-item"  text-white data-aos="fade-up" data-aos-delay="100">
+                <FaFilter className="icon" />
+                <p className="text-white">Filter and shortlist candidates based on job criteria.</p>
+              </div>
+
+              <div className="love-item" data-aos="fade-up" data-aos-delay="100">
+                <FaCalendarCheck className="icon" />
+                <p className="text-white">Schedule interviews and manage communication in one place.</p>
+              </div>
+
+              <div className="btns">
+                <Link href="/about" className="btn-light">
+                  Learn More
+                </Link>
+
+                <Link href="/register" className="btn border-3 text-white " style={{background: "#121a1d"}}>
+                  Sign Up
+                </Link>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>

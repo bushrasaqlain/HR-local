@@ -510,7 +510,7 @@ handleSort = (key) => {
                       }}
                       onChange={(e) => this.handleFilterChange('title', e.target.value)}
                     />
-                    <span style={{ position: 'absolute', left: '12px', top: '8px', color: '#94a3b8' }}>🔍</span>
+                    {/* <span style={{ position: 'absolute', left: '12px', top: '8px', color: '#94a3b8' }}>🔍</span> */}
                   </div>
                 </div>
                
@@ -718,8 +718,8 @@ handleSort = (key) => {
                                 </DropdownItem>
 
                                 <DropdownItem
-                                  disabled={job.status === "InActive"}
-                                  onClick={() => this.handleStatusChange(job.id, "InActive")}
+                                  disabled={job.status === "Inactive"}
+                                  onClick={() => this.handleStatusChange(job.id, "Inactive")}
                                 >
                                   <i className="la la-times-circle me-2" style={{ color: '#ef4444' }} /> Deactivate
                                 </DropdownItem>

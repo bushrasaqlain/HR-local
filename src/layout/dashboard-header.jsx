@@ -30,6 +30,62 @@ import CompanyDashboardArea from "../components/company-dashboard/dashboard-area
 import CandidateDashboardArea from "../components/candidate-dashboard/dashboard-area";
 import DashboardFooter from "./dashboard-footer";
 
+const EMPLOYER_ROUTE_MAP = {
+  profile: "/employer",
+  companyProfile: "/employer/update-profile",
+  postJob: "/employer/post-job",
+  jobList: "/employer/job-list",
+  allApplicants: "/employer/applicants",
+  shortlistedcandidates: "/employer/shortlisted",
+  approved: "/employer/approved",
+  availableCandidates: "/employer/candidates",
+  packagesList: "/employer/packages",
+  viewpackage: "/employer/pricing",
+  wallet: "/employer/wallet",
+};
+
+const CANDIDATE_ROUTE_MAP = {
+  profile: "/candidate",
+  lists: "/candidate/job-list",
+  appliedJobs: "/candidate/applied-jobs",
+  register: "/candidate/register",
+};
+
+const DB_ADMIN_ROUTE_MAP = {
+  country: "/admin/countries",
+  district: "/admin/districts",
+  city: "/admin/cities",
+  institute: "/admin/institutes",
+  degreetype: "/admin/degree-types",
+  degreefields: "/admin/degree-fields",
+  skills: "/admin/skills",
+  speciality: "/admin/specialties",
+  businessentitytypes: "/admin/business-entities",
+  jobtypes: "/admin/job-types",
+  jobtitles: "/admin/job-titles",
+  packages: "/admin/packages",
+  licensetypes: "/admin/license-types",
+  bank: "/admin/banks",
+  currency: "/admin/currencies",
+};
+
+const REG_ADMIN_ROUTE_MAP = {
+  company: "/admin/companies",
+  candidate: "/admin/candidates",
+  job: "/admin/jobs",
+  boosts: "/admin/boosts",
+};
+
+function getRouteMap(accountType) {
+  switch (accountType) {
+    case "employer": return EMPLOYER_ROUTE_MAP;
+    case "candidate": return CANDIDATE_ROUTE_MAP;
+    case "db_admin": return DB_ADMIN_ROUTE_MAP;
+    case "reg_admin": return REG_ADMIN_ROUTE_MAP;
+    default: return {};
+  }
+}
+
 class DashboardHeader extends Component {
   constructor(props) {
     super(props);
@@ -37,13 +93,13 @@ class DashboardHeader extends Component {
       navbar: false,
       userDropdownOpen: false,
       menuDropdownOpen: false,
-      isOpen: false, // for mobile menu collaps
-      isMobileMenuOpen: false, // add this
-      openMobileDropdown: null, // also add
+      isOpen: false,
+      isMobileMenuOpen: false,
+      openMobileDropdown: null,
       activeTab: null,
       profileGroup: false,
       jobsGroup: false,
-      userInfo: { userId: null, displayName: "User", accountType: null },
+      userInfo: { userId: null, displayName: "User", accountType: null, profileCompleted: false },
       jobListFilterStatus: null,
       openDesktopDropdown: null,
     };
@@ -56,25 +112,55 @@ class DashboardHeader extends Component {
     const profileCompleted =
       sessionStorage.getItem("profile_completed") === "true";
 
-    if (!accountType)
-      // optional: redirect to login
-      return;
-
     const savedTab = sessionStorage.getItem("activeTab");
 
+    if (!accountType) return;
 
-    // ✅ Set all user info at once
+    const validTabs = [
+      "profile",
+      "postJob",
+      "companyProfile",
+      "allApplicants",
+      "jobList",
+      "packagesList",
+      "viewpackage",
+      "shortlistedcandidates",
+      "approved",
+      "chatBox",
+      "changepassword",
+    ];
+
+    const safeTab =
+      savedTab && validTabs.includes(savedTab)
+        ? savedTab
+        : accountType === "db_admin"
+          ? "country"
+          : accountType === "reg_admin"
+            ? "company"
+            : accountType === "employer"
+              ? "profile"
+              : accountType === "candidate"
+                ? profileCompleted
+                  ? "profile"
+                  : "register"
+                : null;
+
     this.setState({
       userInfo: { userId, displayName, accountType, profileCompleted },
-      activeTab: savedTab || (  
-        accountType === "db_admin" ? "country"
-          : accountType === "reg_admin" ? "company"
-            : accountType === "employer" ? "profile"
-              : accountType === "candidate"
-                ? profileCompleted ? "profile" : "register"
-                : null
-      ),
+      activeTab: safeTab,
     });
+
+    if (safeTab && typeof window !== "undefined") {
+      const routeMap = getRouteMap(accountType);
+      const path = routeMap[safeTab];
+      if (path) {
+        window.history.replaceState(
+          { ...window.history.state, tabKey: safeTab },
+          "",
+          path
+        );
+      }
+    }
 
     window.addEventListener("scroll", this.changeBackground);
   }
@@ -82,13 +168,15 @@ class DashboardHeader extends Component {
   componentWillUnmount() {
     window.removeEventListener("scroll", this.changeBackground);
   }
+
   toggleNavbar = () => {
     this.setState((prev) => ({ isOpen: !prev.isOpen }));
   };
+
   toggleMobileMenu = () => {
     this.setState((prev) => ({
       isMobileMenuOpen: !prev.isMobileMenuOpen,
-      openMobileDropdown: null, // close any open dropdowns
+      openMobileDropdown: null,
     }));
   };
 
@@ -103,6 +191,7 @@ class DashboardHeader extends Component {
   toggleMenuDropdown = () => {
     this.setState({ menuDropdownOpen: !this.state.menuDropdownOpen });
   };
+
   handleProfileComplete = () => {
     sessionStorage.setItem("profile_completed", "true");
 
@@ -129,14 +218,27 @@ class DashboardHeader extends Component {
     this.setState({ userDropdownOpen: false });
   };
 
-  // Add this method to handle tab changes from child components
   handleTabChange = (tabKey, filterStatus = null) => {
     sessionStorage.setItem("activeTab", tabKey);
     this.setState({
       activeTab: tabKey,
       jobListFilterStatus: filterStatus,
     });
+
+    if (typeof window !== "undefined") {
+      const accountType = sessionStorage.getItem("accountType");
+      const routeMap = getRouteMap(accountType);
+      const path = routeMap[tabKey];
+      if (path && window.history) {
+        window.history.replaceState(
+          { ...window.history.state, tabKey },
+          "",
+          path
+        );
+      }
+    }
   };
+
   renderMenuItems = (isMobile) => {
     const { userInfo, activeTab, openMobileDropdown } = this.state;
     const accountType = userInfo?.accountType;
@@ -144,16 +246,58 @@ class DashboardHeader extends Component {
 
     if (!accountType) return null;
 
+    if (accountType === "employer") {
+      const hasPackage = sessionStorage.getItem("has_package") === "true";
+      // if (!profileCompleted) {
+      //   // Sirf Update Profile button
+      //   return (
+      //     <NavItem key="update-profile">
+      //       <Button
+      //         color="custom-progress-bar"
+      //         outline
+      //         className="text-white border-bottom border-white border-2"
+      //         onClick={() => { window.location.href = "/company-profile"; }}
+      //       >
+      //         <i className="las la-user-edit me-1"></i>
+      //         Update Profile
+      //       </Button>
+      //     </NavItem>
+      //   );
+      // }
+
+      // if (!hasPackage) {
+      //   // Sirf Buy Package button
+      //   return (
+      //     <NavItem key="buy-package">
+      //       <Button
+      //         color="custom-progress-bar"
+      //         outline
+      //         className="text-white border-bottom border-white border-2"
+      //         onClick={() => { window.location.href = "/company-packages"; }}
+      //       >
+      //         <i className="las la-box me-1"></i>
+      //         Buy Package
+      //       </Button>
+      //     </NavItem>
+      //   );
+      // }
+    }
+
     let items = [];
     if (accountType === "db_admin") items = dbadminmenuitem;
     else if (accountType === "reg_admin") items = regadminmenuitem;
-    else if (accountType === "employer") items = companymenuitem;
-    else if (accountType === "candidate") {
+    else if (accountType === "employer") {
+      if (!profileCompleted) {
+        return null;
+      }
+      items = companymenuitem;
+    } else if (accountType === "candidate") {
       items = profileCompleted
         ? candidatesmenuitem.filter(
           (item) =>
             item.key === "profile" ||
             item.key === "lists" ||
+            item.key === "appliedJobs" ||
             item.key === "chatbox",
         )
         : candidatesmenuitem.filter((item) => item.key === "register");
@@ -172,10 +316,8 @@ class DashboardHeader extends Component {
                   window.history.back();
                   return;
                 }
-                // ✅ Tab save karo
-                sessionStorage.setItem("activeTab", item.key);
+                this.handleTabChange(item.key);
                 this.setState({
-                  activeTab: item.key,
                   isMobileMenuOpen: false,
                   openMobileDropdown: null,
                 });
@@ -240,10 +382,8 @@ class DashboardHeader extends Component {
                     window.history.back();
                     return;
                   }
-                  // ✅ Tab save karo
-                  sessionStorage.setItem("activeTab", child.key);
+                  this.handleTabChange(child.key);
                   this.setState({
-                    activeTab: child.key,
                     isMobileMenuOpen: false,
                     openMobileDropdown: null,
                     openDesktopDropdown: null,
@@ -269,7 +409,7 @@ class DashboardHeader extends Component {
     const { headerOnly } = this.props;
     const { navbar, userDropdownOpen, menuDropdownOpen, activeTab, userInfo } =
       this.state;
-    const { accountType, displayName, userId } = userInfo;
+    const { accountType, displayName, userId, profileCompleted } = userInfo;
 
     if (!accountType) {
       return (
@@ -319,7 +459,6 @@ class DashboardHeader extends Component {
                 </div>
               </span>
 
-              {/* Desktop icon dropdown */}
               {/* User icon */}
               <Dropdown
                 isOpen={userDropdownOpen}
@@ -403,6 +542,8 @@ class DashboardHeader extends Component {
                   activeTab={activeTab}
                   onTabChange={this.handleTabChange}
                   jobListFilterStatus={this.state.jobListFilterStatus}
+                  profileCompleted={profileCompleted}
+                  onProfileComplete={this.handleProfileComplete}
                 />
               )}
               {accountType === "candidate" && (
@@ -421,4 +562,9 @@ class DashboardHeader extends Component {
   }
 }
 
-export default DashboardHeader;
+function DashboardHeaderWrapper(props) {
+  const router = useRouter();
+  return <DashboardHeader {...props} router={router} />;
+}
+
+export default DashboardHeaderWrapper;

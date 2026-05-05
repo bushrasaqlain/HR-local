@@ -171,7 +171,7 @@ class ShortlistedCandidates extends Component {
 
     try {
       const res = await axios.get(
-        `${this.apiBaseUrl}applicantsData/${this.userId}`,
+        `${this.apiBaseUrl}applicant/applicantsData/${this.userId}`,
         {
           params: {
             skill_id: selectedSkillId,

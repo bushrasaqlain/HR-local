@@ -95,9 +95,14 @@ const register = (req, res) => {
 
         // ✅ Employer logic
       } else if (accountType === "employer") {
-        const companySql = `INSERT INTO company_info (account_id) VALUES (?)`;
-        connection.query(companySql, [accountId], (err2) => {
-          if (err2) return res.status(500).json({ error: "Failed to create company info" });
+  const companySql = `
+    INSERT INTO company_info (account_id, subscription_status)
+    VALUES (?, 'pending')
+  `;
+
+  connection.query(companySql, [accountId], (err2) => {
+    if (err2)
+      return res.status(500).json({ error: "Failed to create company info" });
 
           logAudit({
             tableName: "history",
@@ -221,8 +226,10 @@ const login = (req, res) => {
         a.accountType,
         a.isActive,
         ci.profile_completed,
-        ci.full_name,
-        comp.company_name
+        comp.company_name,
+        comp.profile_completed AS company_profile_completed,
+        comp.has_package,
+        comp.subscription_status
       FROM account a
       LEFT JOIN candidate_info ci ON a.id = ci.account_id
       LEFT JOIN company_info comp ON a.id = comp.account_id
@@ -256,9 +263,9 @@ const login = (req, res) => {
 
       // Admins can login even if not Active
       const adminTypes = ["db_admin", "reg_admin"];
-      if (user.accountType === "employer" && isActiveNormalized !== "Active") {
-        return res.json({ success: false, error: "Admin has not granted permissions yet...." });
-      }
+      // if (user.accountType === "employer" && isActiveNormalized !== "Active") {
+      //   return res.json({ success: false, error: "Admin has not granted permissions yet...." });
+      // }
 
       const token = generateToken(user); // your JWT function
 
@@ -276,13 +283,48 @@ const login = (req, res) => {
       }
 
       // Admin or Employer login
-      if (user.accountType === "employer" || adminTypes.includes(user.accountType)) {
+     if (user.accountType === "employer") {
+  
+  // ✅ 1. Allow login if profile NOT completed
+  if (!user.company_profile_completed) {
+    return res.json({
+      success: true,
+      token,
+      userId: user.id,
+      displayName,
+      accountType: user.accountType,
+      isActive: isActiveNormalized,
+      profile_completed: false
+    });
+  }
+
+  // 🚫 2. AFTER profile completion → apply restriction
+  if (isActiveNormalized !== "Active") {
+    return res.json({
+      success: false,
+      error: "Your profile is under review. Please wait for admin approval.",
+      profile_completed: true
+    });
+  }
+
+  // ✅ 3. Approved → allow full access
+  return res.json({
+    success: true,
+    token,
+    userId: user.id,
+    displayName,
+    accountType: user.accountType,
+    isActive: isActiveNormalized,
+    profile_completed: true
+  });
+}
+
+      if (user.accountType === "db_admin" || user.accountType === "reg_admin") {
         return res.json({
           success: true,
           token,
           userId: user.id,
-          displayName,      // ✅ use displayName here
-          username: user.username,
+          displayName: user.username,
           accountType: user.accountType,
           isActive: isActiveNormalized,
         });

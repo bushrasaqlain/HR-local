@@ -1,3 +1,4 @@
+require("dotenv").config();
 const path = require("path");
 const express = require("express");
 const bodyParser = require("body-parser");
@@ -34,6 +35,7 @@ const applicantRoute = require("./routes/applicantRoutes")
 const packages = require("./routes/packagesRoutes");
 const cart = require("./routes/cartRoutes");
 const jobRoutes = require("./routes/jobRoutes");
+const industryRoutes = require("./routes/industryRoutes");
 const licensetypesRoutes = require("./routes/licensetypesRoutes");
 const speciality = require("./routes/specialityRoutes");
 const instituteRoutes = require("./routes/instituteRoutes")
@@ -51,6 +53,7 @@ const projects = require("./routes/projectsRoutes");
 const certificateAwards = require("./routes/certificateawardRoutes");
 const jobs = require("./routes/candidatejobsRoutes")
 const dbAdminHistory = require("./routes/dbHistoryRoutes");
+const jobtitlesRoutes = require("./routes/jobtitlesRoutes");
 
 
 const candidatejobs = require("./routes/candidatejobsRoutes")
@@ -94,10 +97,12 @@ app.use("/candidateCertificate", candidatecertificateRoutes)
 
 app.use("/company-info", companyRoute);
 app.use("/job", jobRoutes);
-app.use("/", applicantRoute)
+app.use("/industry", industryRoutes);
+app.use("/applicant", applicantRoute)
 app.use('/message', messages)
 app.use("/payment", paymentRoutes)
 app.use("/", dashboardRoutes);
+app.use("/", jobtitlesRoutes);
 
 
 

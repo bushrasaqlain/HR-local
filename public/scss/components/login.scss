@@ -216,19 +216,12 @@ Login Section
 ***/
 
 .login-section {
-  position: relative;
-  min-height: 100vh;
-  display: -webkit-box;
-  display: -ms-flexbox;
+  height: 100vh;
+  overflow: hidden;
+  background: linear-gradient(135deg, #537785, rgb(169, 209, 214));
   display: flex;
-  -webkit-box-align: center;
-  -ms-flex-align: center;
   align-items: center;
-  -webkit-box-pack: center;
-  -ms-flex-pack: center;
   justify-content: center;
-  padding: 120px 0 50px;
-  overflow: auto;
 }
 
 .login-section .image-layer {
@@ -444,6 +437,7 @@ Login Section
 
   &:hover {
     background: var(--primary-color);
+
     &::before {
       color: #fff;
     }
@@ -454,6 +448,7 @@ Login Section
 .modal-header {
   border: none;
 }
+
 .login-modal {
   max-width: 500px;
   box-shadow: 0px 6px 15px rgba(64, 79, 104, 0.05);
@@ -462,4 +457,130 @@ Login Section
   .modal-body {
     padding: 0;
   }
+}
+
+.avatar-circle {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: #184046;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  position: absolute;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.form-inner {
+  position: relative;
+  padding-top: 200px; /* increase space */
+}
+
+.avatar-circle i {
+  font-size: 40px;
+  color: #fff;
+}
+
+/* Heading */
+.form-inner h3 {
+  color: #fff;
+  margin-bottom: 20px;
+}
+
+/* Inputs */
+.form-control {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255,255,255,0.5);
+  border-radius: 0;
+  color: #fff;
+}
+
+.min-vh-100 {
+  min-height: auto !important;
+}
+
+.form-control::placeholder {
+  color: #ddd;
+}
+
+.form-control:focus {
+  border-bottom: 1px solid #fff;
+  box-shadow: none;
+}
+
+/* Input icons */
+.input-icon {
+  background: transparent;
+  border: none;
+  color: #fff;
+}
+
+/* Options */
+.options {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #fff;
+  margin: 10px 0 20px;
+}
+
+.options a {
+  color: #fff;
+  text-decoration: none;
+}
+
+/* Button */
+.theme-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #2c6668, #184046);
+  color: #fff;
+  border-radius: 6px;
+  height: 45px;
+  border: none;
+  font-weight: 600;
+  transition: 0.3s;
+}
+
+.theme-btn:hover {
+  background: linear-gradient(135deg, #2f6f73, #3e8386);
+}
+
+/* Error */
+.error-text {
+  color: #ff6b6b;
+  font-size: 13px;
+}
+
+.pwd {
+  color: #000000 !important;
+  opacity: 0.8;
+  text-decoration: none;
+}
+
+// .pwd:hover {
+//   opacity: 1;
+//   text-decoration: underline;
+// }
+
+.signup {
+  color: #000 !important;
+  font-weight: 600;
+  opacity: 0.8;
+  text-decoration: none !important;
+}
+
+.signup:hover {
+  text-decoration: none;
+}
+
+.bottom-text {
+  margin-top: 40px;
+  padding-bottom: 20px;
+  text-align: center;
+  color: #424242;
 }

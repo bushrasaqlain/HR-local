@@ -87,11 +87,12 @@ class Hero extends Component {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.6, duration: 0.5 }}
               >
-                <Link href="/?page=login">
+                <Link href="/register">
                   <motion.a
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
                     className="btn-lg rounded-pill ms-2 custom-btn d-inline-block text-center"
+                    style={{backgroundColor: "#1e2a2e", border: "#1e2a2e"}}
                   >
                     Register
                   </motion.a>

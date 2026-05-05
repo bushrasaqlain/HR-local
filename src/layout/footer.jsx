@@ -12,92 +12,60 @@ import {
 
 const Footer = () => {
   return (
-    <footer className="main-footer position-relative">
+    <footer className="main-footer">
 
-      {/* 🔷 TOP SECTION */}
       <div className="footer-top">
         <Container className="py-5">
-          <Row>
 
-            {/* 🔷 LEFT (LOGO + INFO) */}
-            <Col xl="3" lg="3" md="6" className="mb-4">
-              <div className="footer-column">
-                <div className="logo mb-3">
-                  <Image
-                    width={140}
-                    height={45}
-                    src="/images/logo-2.svg"
-                    alt="brand"
-                  />
-                </div>
+          <Row className="align-items-center">
 
-                <p className="footer-desc">
-                  Connecting employers with top talent and helping candidates find the right jobs.
-                </p>
-
-                <p><FaPhone /> 0314-8744587</p>
-                <p><FaMapMarkerAlt /> Westridge 1, Rawalpindi</p>
-                <p><FaEnvelope /> support@superio.com</p>
+            
+            <Col md="6" className="footer-left">
+              <div className="logo mb-3">
+                <Image
+                  width={140}
+                  height={45}
+                  src="/images/logo-2.svg"
+                  alt="brand"
+                />
               </div>
+
+              <p className="footer-desc">
+                Connecting employers with top talent and helping candidates find the right jobs.
+              </p>
+
+              <p><FaPhone /> 0314-8744587</p>
+              <p><FaMapMarkerAlt /> Westridge 1, Rawalpindi</p>
+              <p><FaEnvelope /> support@superio.com</p>
             </Col>
 
-            {/* 🔷 QUICK LINKS */}
-            <Col xl="3" lg="3" md="6" className="mb-4">
-              <div className="footer-column">
-                <h5>Quick Links</h5>
-                <ul className="footer-links">
-                  <li><a href="/">Home</a></li>
-                  <li><a href="/?page=about">About</a></li>
-                  <li><a href="/?page=faq">FAQ's</a></li>
-                  <li><a href="/?page=terms">Terms</a></li>
-                </ul>
-              </div>
-            </Col>
+            
+            <Col md="6" className="footer-right text-md-end mt-4 mt-md-0">
 
-            {/* 🔷 EMPLOYERS */}
-            <Col xl="3" lg="3" md="6" className="mb-4">
-              <div className="footer-column">
-                <h5>For Employers</h5>
-                <ul className="footer-links">
-                  <li><a href="/?page=login">Post Job</a></li>
-                  <li><a href="#">Browse Candidates</a></li>
-                  <li><a href="#">Packages</a></li>
-                  <li><a href="#">Dashboard</a></li>
-                </ul>
-              </div>
-            </Col>
-
-            {/* 🔷 CANDIDATES */}
-            <Col xl="3" lg="3" md="6" className="mb-4">
-              <div className="footer-column">
-                <h5>For Candidates</h5>
-                <ul className="footer-links">
-                  <li><a href="#">Browse Jobs</a></li>
-                  <li><a href="#">Upload CV</a></li>
-                  <li><a href="#">Saved Jobs</a></li>
-                  <li><a href="#">Profile</a></li>
-                </ul>
-              </div>
-            </Col>
-
-          </Row>
-
-          {/* 🔷 SOCIAL ICONS */}
-          <Row className="mt-4">
-            <Col className="text-center">
-              <div className="social-icons">
+              
+              <div className="social-icons mb-3">
                 <a href="#"><FaFacebookF /></a>
                 <a href="#"><FaTwitter /></a>
                 <a href="#"><FaLinkedinIn /></a>
               </div>
+
+              
+              <ul className="footer-menu">
+                <li><a href="/">Home</a></li>
+                <li><a href="/about">About</a></li>
+                <li><a href="/faq">FAQ's</a></li>
+                <li><a href="/terms">Terms</a></li>
+              </ul>
+
             </Col>
+
           </Row>
 
         </Container>
       </div>
 
       {/* 🔷 BOTTOM */}
-      <div className="footer-bottom text-center">
+      <div className="footer-bottom2 text-center fw-bold">
         © {new Date().getFullYear()} Superio. All Rights Reserved.
       </div>
 

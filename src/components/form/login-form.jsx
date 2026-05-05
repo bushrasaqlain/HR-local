@@ -108,6 +108,7 @@ class FormContent extends Component {
       sessionStorage.setItem("accountType", res.data.accountType);
       sessionStorage.setItem("displayName", res.data.displayName);
       sessionStorage.setItem("profile_completed", res.data.profile_completed);
+      sessionStorage.setItem("has_package", res.data.has_package ? "true" : "false");
       dispatch(setUser(res.data));
       this.setState({ successMessage: "Login successfully!" });
       setTimeout(() => this.setState({ successMessage: "" }), 3000);
@@ -115,15 +116,45 @@ class FormContent extends Component {
 
       // ✅ Role-based routing
       const { accountType, profile_completed } = res.data;
+      console.log("LOGIN RESPONSE:", {
+        accountType,
+        profile_completed,
+        has_package: res.data.has_package,
+      });
 
       if (accountType === "candidate") {
         if (profile_completed) {
-          router.push("/dashboard-header"); // candidate dashboard
+          router.push("/dashboard-header");
         } else {
-          router.push("/dashboard-header"); // complete profile
+          router.push("/candidate-profile");
         }
-      } else {
-        router.push("/dashboard-header"); // other account types
+      }
+else if (accountType === "employer") {
+  const { profile_completed, approval_status } = res.data;
+
+  sessionStorage.setItem("profile_completed", profile_completed);
+  sessionStorage.setItem("approval_status", approval_status);
+
+  // 🧩 1. Profile incomplete → go complete it
+  if (!profile_completed) {
+    router.push("/company-profile");
+  }
+
+  // ⏳ 2. Profile completed but not approved
+  else if (approval_status !== "approved") {
+    this.setState({
+      loginError: "Your profile is under review. Please wait for admin approval."
+    });
+  }
+
+  // 🚀 3. Approved → dashboard
+  else {
+    router.push("/dashboard-header");
+  }
+}
+
+      else {
+        router.push("/dashboard-header");
       }
 
     } catch (err) {
@@ -137,6 +168,9 @@ class FormContent extends Component {
 
     return (
       <div className="form-inner">
+        <div className="avatar-circle">
+          <i className="las la-user"></i>
+        </div>
         <h3 className="text-center mb-4">Login to Superio</h3>
 
         <Form onSubmit={this.handleSubmit}>
@@ -161,7 +195,7 @@ class FormContent extends Component {
               />
             </Alert>
           )}
-          {loginError && <Alert color="danger">{loginError}</Alert>}
+          {/* {loginError && <Alert color="danger">{loginError}</Alert>} */}
 
           {/* Email */}
           <FormGroup>
@@ -213,8 +247,7 @@ class FormContent extends Component {
           {/* Submit */}
           <FormGroup>
             <Button
-              color="primary"
-              className="w-100 theme-btn btn-style-one"
+              className="w-100 theme-btn"
               type="submit"
             >
               Log In
@@ -227,10 +260,10 @@ class FormContent extends Component {
           <div className="divider my-3">
             <span>or</span>
           </div>
-          <div className="text mb-3">
+          <div className="bottom-text mt-4">
             Don&apos;t have an account?{" "}
-            <Link href="/?page=register">
-              <span className="signup">Signup</span>
+            <Link href="/register" className="signup">
+              Signup
             </Link>
           </div>
         </div>

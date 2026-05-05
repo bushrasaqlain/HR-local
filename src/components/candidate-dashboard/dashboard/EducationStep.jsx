@@ -7,8 +7,9 @@ const emptyDraft = {
   degree: "",
   degreeTitle: "",
   degreeTitle_label: "",
-  institutes: "",
-  institutes: "",
+  institute: "",
+  institute_label: "",
+  instituteObj: null,
   startDate: "",
   endDate: "",
   ongoing: false,
@@ -50,6 +51,8 @@ class EducationStep extends Component {
     }
   };
   loadDegreeTitles = (degreeId) => async (inputValue) => {
+    console.log("🔥 API CALL TRIGGERED", degreeId, inputValue);
+
     if (!degreeId) return [];
 
     const res = await api.get("/getDegreeFieldsDropdown", {
@@ -58,6 +61,7 @@ class EducationStep extends Component {
         degree_type_id: degreeId,
       },
     });
+    console.log("DATA", res.data);
 
     return (res.data.degreefields || []).map((t) => ({
       value: t.id,
@@ -364,7 +368,7 @@ class EducationStep extends Component {
         <button
           className="btn custom-progress-bar text-white"
           onClick={() =>
-            this.setState({ showEducationModal: true, educationDraft: {} })
+            this.setState({ showEducationModal: true, educationDraft: { ...emptyDraft }, })
           }
         >
           + Add Qualification
@@ -393,9 +397,22 @@ class EducationStep extends Component {
                     <select
                       className="form-control"
                       value={educationDraft.degree || ""}
-                      onChange={(e) =>
-                        this.handleDraftChange("degree", e.target.value)
-                      }
+                      onChange={(e) => {
+                        const degreeId = e.target.value;
+                        const selectedDegree = this.state.degreeFieldData.find(
+                          (d) => String(d.id) === String(degreeId)
+                        ); 
+
+                        this.setState((prev) => ({
+                          educationDraft: {
+                            ...prev.educationDraft,
+                            degree: degreeId,
+                            degree_label: selectedDegree?.name || "",
+                            degreeTitle: "",
+                            degreeTitleObj: null,
+                          },
+                        }));
+                      }}
                     >
                       <option value="">Select Degree</option>
                       {degreeFieldData.map((d) => (
@@ -411,15 +428,21 @@ class EducationStep extends Component {
                   <div className="mb-3">
                     <label>Degree Title</label>
                     <AsyncSelect
+                      key={educationDraft.degree}
                       cacheOptions
                       defaultOptions
-                      loadOptions={this.loadDegreeTitles(
-                        Number(educationDraft.degree),
-                      )}
+                      loadOptions={(inputValue) => {
+                        const degreeId = Number(educationDraft.degree);
+
+                        console.log("👉 Passing DegreeId:", degreeId);
+
+                        if (!degreeId || isNaN(degreeId)) return [];
+
+                        return this.loadDegreeTitles(degreeId)(inputValue);
+                      }}
                       value={educationDraft.degreeTitleObj || null}
-                      onChange={
-                        (opt) =>
-                          this.handleDraftChange("degreeTitle", opt, "select") // stores value (ID) correctly
+                      onChange={(opt) =>
+                        this.handleDraftChange("degreeTitle", opt, "select")
                       }
                       placeholder="Select Degree Title"
                     />
@@ -434,7 +457,7 @@ class EducationStep extends Component {
                       loadOptions={this.loadInstitutes}
                       value={educationDraft.instituteObj || null}
                       onChange={(opt) =>
-                        this.handleDraftChange("institutes", opt, "select")
+                        this.handleDraftChange("institute", opt, "select")
                       }
                       placeholder="Select Institute"
                     />

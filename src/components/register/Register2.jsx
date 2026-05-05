@@ -8,42 +8,38 @@ import Link from "next/link";
 const Register2 = ({ setShowNext, setUserId, setAccountType }) => {
 
   return (
-    
+
     <Row
-  className="justify-content-center mt-5 p-5 mb-5"
-  style={{
-    backgroundImage: "url('/images/background/bg-1.png')",
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    backgroundRepeat: "no-repeat",
-    minHeight: "100vh"
-  }}
->
+      className="justify-content-center align-items-center"
+      style={{
+        background: "linear-gradient(135deg, #537785, rgb(169, 209, 214))",
+        minHeight: "100vh",
+      }}
+    >
+      <Col lg="4" md="6" sm="10">
 
-      <Col  className="justify-content-center d-flex overflow-hidden rounded-5" 
-  lg="8" 
-  md="10" 
-  sm="12">
-         <Card className="register-card w-75 rounded-5">
-        <CardBody>
-          <CardTitle tag="h3" className="m-5 text-center">
-            Create a Free Superio Account
-          </CardTitle>
+        {/* Avatar */}
+        <div className="avatar-circle">
+          <i className="las la-user"></i>
+        </div>
 
-        <FormContent
-  setShowNext={setShowNext}
-  setUserId={setUserId}
-  setAccountType={setAccountType}
-/>
+        <div className="form-inner">
+          <h3>Create Account</h3>
 
-          <div className="mt-5 text-center">
+          <FormContent
+            setShowNext={setShowNext}
+            setUserId={setUserId}
+            setAccountType={setAccountType}
+          />
+
+          <div className="bottom-text mt-4">
             Already have an account?{" "}
-            <Link href="/?page=login">
-              <span className="login-link">Log In</span>
+            <Link href="/login" className="login">
+              Log In
             </Link>
           </div>
-        </CardBody>
-      </Card>
+        </div>
+
       </Col>
     </Row>
   );

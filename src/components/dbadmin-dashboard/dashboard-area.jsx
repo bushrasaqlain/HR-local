@@ -3,6 +3,7 @@
 import Speciality from "./speciality.jsx";
 import City from "./city.jsx";
 import Jobtype from "./jobtypes.jsx";
+import Industry from "./industry.jsx";
 import Skills from "./skills.jsx";
 import Country from "./country";
 import DegreeType from "./degreetype.jsx";
@@ -14,7 +15,8 @@ import Packages from "./packages.jsx";
 import LicenseType from "./licensetypes.jsx";
 import Institute from "./institute.jsx";
 import Bank from "./bank.jsx";
-import ChangePasswordForm from "../form/changepassword/changepasswordform.jsx"
+import ChangePasswordForm from "../form/changepassword/changepasswordform.jsx";
+import JobTitle from "./jobtitles.jsx";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useSelector } from "react-redux";
@@ -61,6 +63,8 @@ const DashboardArea = ({ activeTab }) => {
         return <BusinessEntityTypes />;
       case "jobtypes":
         return <Jobtype />;
+      case "jobtitles":
+        return <JobTitle />;
       case "packages":
         return <Packages />;
       case "licensetypes":
@@ -69,6 +73,8 @@ const DashboardArea = ({ activeTab }) => {
         return <Speciality />;
       case "bank":
         return <Bank />;
+      case "industry":
+        return <Industry />;
       case "changepassword":
         return <ChangePasswordForm />;
       default:

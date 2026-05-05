@@ -48,12 +48,14 @@ const candidateModel = require("../models/candidateModel");
 const degreeFieldModel = require("../models/degreeFieldModel");
 const businessentitytypeModel = require("../models/businessentitytypeModel");
 const jobtypeModel = require("../models/jobtypeModel");
+const industryModel = require("../models/industryModel");
 const bankModel = require("../models/bankModel");
 const packageModel = require("../models/packageModel");
 const emplyeeModel = require("../models/companyModel");
 const historyModel = require("../models/historyModel")
 const applicantModel = require("../models/applicantModel")
 const jobModel = require("../models/jobModel")
+const jobtitleModel = require("../models/jobtitleModel")
 const messageModel = require("../models/messageModel")
 const licensetypesModel=require("../models/licensetypesModel")
 const specialityModel=require("../models/specialityModel")
@@ -79,6 +81,7 @@ function Database() {
   degreeFieldModel.createDegreeFieldsTable();
   businessentitytypeModel.createbusiness_entity_typeTable();
   jobtypeModel.createJobTypeTable();
+  industryModel.createIndustryTable();
   bankModel.createBankTable();
   packageModel.createPackagesTable();
   licensetypesModel.createLicenseTypesTable();
@@ -92,13 +95,19 @@ currency.createCurrenciesTable();
   candidateModel.createCandidateTable();
   candidateModel.createCandidateSpecialityTable();
   candidateModel.createCandidatePreferredCitiesTable();
+  candidateModel.createBoostPackagesTable();
+  candidateModel.createBoostOrdersTable();
+  candidateModel.addBoostColumnsToCandidateInfo();
   // candidateModel.createsaveJobsTableQuery();
   jobModel.createJobPostTable()
+  jobModel.createCompanyPackagesTable();
   paymentModel.createPaymentTable()
+  paymentModel.createSaveCardTable()
   applicantModel.createApplicantsTable();
   applicantModel.createCandidateSearchImpressionsTable();
   historyModel.createHistoryTable();
   messageModel.createMessagesTable();
+  jobtitleModel.createJobTitlesTable();
   candidateeducationModel.createEducationTable();
   candidateexperience.createExperienceTable();
   candidateAvailabilityModel.createCandidateAvailabilityTable();

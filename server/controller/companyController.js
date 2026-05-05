@@ -28,6 +28,10 @@ const getAllCompaniesList = (req, res) => {
   companyModel.getAllCompaniesList(req, res);
 };
 
+const getCompanyPackageStatus = (req, res) => {
+  companyModel.getCompanyPackageStatus(req, res);
+};
+
 
 
 module.exports = {
@@ -38,5 +42,6 @@ module.exports = {
   updateCompanySatus,
   getCount,
   getTopCompanies,
-  getAllCompaniesList
+  getAllCompaniesList,
+  getCompanyPackageStatus,
 };

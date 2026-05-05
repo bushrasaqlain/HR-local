@@ -4,6 +4,9 @@ const jobModel = require("../models/jobModel");
 const getJobbyRegAdmin = (req, res) => {
   jobModel.getJobbyRegAdmin(req, res);
 }
+const approveJob = (req, res) => {
+  jobModel.approveJob(req, res);
+}
 const updateJobPostStatus = (req, res) => {
   jobModel.updateJobPostStatus(req, res);
 }
@@ -28,7 +31,12 @@ const updatePostJob = (req, res) => {
 const subcribePackage = (req, res) => {
   jobModel.subcribePackage(req, res);
 }
-
+const getUserPackages = (req, res) => {
+  jobModel.getUserPackages(req, res);
+}
+const getTransactionHistory = (req, res) => {
+  jobModel.getTransactionHistory(req, res);
+}
 const getJobTitle=(req,res)=>{
   jobModel
   .getJobTitle(req,res);
@@ -62,7 +70,13 @@ const getTotalJobPosts = async (req, res) => {
     res.status(500).json({ msg: "SERVER_ERROR" ,});
   }
 };
+const viewCandidate = (req, res) => {
+  jobModel.viewCandidate(req, res);
+}
 
+const resetDailyBudgets = (req, res) => {
+  jobModel.resetDailyBudgets(req, res);
+}
 module.exports = {
   getJobbyRegAdmin,
   updateJobPostStatus,
@@ -75,5 +89,10 @@ module.exports = {
   getJobTitle,
   getTopCompanies,
   popularCategories,
-  getTotalJobPosts
+  getTotalJobPosts,
+  getUserPackages,
+  getTransactionHistory,
+  approveJob,
+  resetDailyBudgets,
+  viewCandidate 
 }

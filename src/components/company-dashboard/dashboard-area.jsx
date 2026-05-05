@@ -1,11 +1,10 @@
 "use client";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { useSelector } from "react-redux";
+
 import AllApplicants from "./applicants/allApplicants.jsx";
 import CompanyProfile from "./companyProfile.jsx";
-import ChangePasswordForm from "../form/changepassword/changepasswordform.jsx"
+import ChangePasswordForm from "../form/changepassword/changepasswordform.jsx";
 import ChatBox from "./messages/chatBox.jsx";
 import JobListings from "./jobList.jsx";
 import PackagesList from "./packagesList.jsx";
@@ -14,104 +13,213 @@ import Profile from "./dashboard/profile.jsx";
 import TopCardBlock from "./dashboard/TopCardBlock.jsx";
 import ShortlistedCandidates from "./shortlistedcandidates.jsx";
 import ApprovedCandidates from "./approved.jsx";
-import PricingForm from "./pricingform.jsx";
+import CompanyWallet from "./wallet.jsx";
+import PricingForm2 from "./viewpackage.jsx";
 
-const CompanyDashboardArea = ({ activeTab, onTabChange, jobListFilterStatus }) => {
-    const router = useRouter();
-    const [userInfo, setUserInfo] = useState({ userId: null, token: null });
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-    
-    useEffect(() => {
-        if (typeof window !== "undefined") {
-            const userId = sessionStorage.getItem("userId");
-            const token = sessionStorage.getItem("token");
-            if (!token) {
-                router.replace("/login");
-                return;
-            }
+const JobsLayout = ({ activeTab, onTabChange }) => {
+  const tabs = [
+    { key: "jobList", label: "Job List" },
+    { key: "postJob", label: "Post Job" },
+    // { key: "packagesList", label: "Packages" },
+    { key: "viewpackage", label: "Pricing" },
+  ];
 
-            setUserInfo({ userId, token });
-        }
-    }, [router]);
+  const renderTab = () => {
+    switch (activeTab) {
+      case "postJob":
+        return <PostJob />;
+      // case "packagesList":
+      //   return <PackagesList />;
+      case "viewpackage":
+        return <PricingForm2 />;
+      case "jobList":
+      default:
+        return <JobListings />;
+    }
+  };
 
-    const [hasActivePackage, setHasActivePackage] = useState(false);
-    useEffect(() => {
-        const fetchUserPackageStatus = async () => {
-            try {
-                if (!userInfo.userId) {
-                    console.error('User ID is undefined.');
-                    return;
-                }
+  return (
+    <div>
+      <div
+        style={{
+          display: "flex",
+          borderBottom: "2px solid #e0e0e0",
+          marginBottom: 24,
+          background: "#fff",
+          borderRadius: "8px 8px 0 0",
+          padding: "0 16px",
+        }}
+      >
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => onTabChange(tab.key)}
+            style={{
+              padding: "12px 20px",
+              fontWeight: 600,
+              fontSize: 14,
+              background: "none",
+              border: "none",
+              borderBottom:
+                activeTab === tab.key
+                  ? "2px solid #36565f"
+                  : "2px solid transparent",
+              color: activeTab === tab.key ? "#36565f" : "#595959",
+              cursor: "pointer",
+              marginBottom: -2,
+              transition: "all 0.15s",
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      {renderTab()}
+    </div>
+  );
+};
+// 1. Define ApplicantsLayout here, inside the same file
+const ApplicantsLayout = ({ activeTab, onTabChange }) => {
+  const tabs = [
+    { key: "allApplicants", label: "All Applicants" },
+    { key: "shortlistedcandidates", label: "Shortlisted" },
+    { key: "approved", label: "Approved" },
+  ];
 
-                const response = await fetch(`${apiBaseUrl}packages/checkCompanyPackageStatus/${userInfo.userId}`);
-                if (!response.ok) {
-                    console.error(`Error: ${response.status} - ${response.statusText}`);
-                    return;
-                }
+  const renderTab = () => {
+    switch (activeTab) {
+      case "allApplicants":
+        return <AllApplicants />;
+      case "shortlistedcandidates":
+        return <ShortlistedCandidates />;
+      case "approved":
+        return <ApprovedCandidates />;
+      default:
+        return <AllApplicants />;
+    }
+  };
 
-                const data = await response.json();
-                console.log('API Response:', data);
+  return (
+    <div>
+      <div
+        style={{
+          display: "flex",
+          borderBottom: "2px solid #e0e0e0",
+          marginBottom: 24,
+          background: "#fff",
+          borderRadius: "8px 8px 0 0",
+          padding: "0 16px",
+        }}
+      >
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => onTabChange(tab.key)}
+            style={{
+              padding: "12px 20px",
+              fontWeight: 600,
+              fontSize: 14,
+              background: "none",
+              border: "none",
+              borderBottom:
+                activeTab === tab.key
+                  ? "2px solid #36565f"
+                  : "2px solid transparent",
+              color: activeTab === tab.key ? "#36565f" : "#595959",
+              cursor: "pointer",
+              marginBottom: -2,
+              transition: "all 0.15s",
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      {renderTab()}
+    </div>
+  );
+};
 
-                setHasActivePackage(data.packageStatus === "Active");
-            } catch (error) {
-                console.error('Error checking user package status:', error);
-            }
-        };
+const CompanyDashboardArea = ({
+  activeTab,
+  onTabChange,
+  jobListFilterStatus,
+  profileCompleted,
+  onProfileComplete,
+}) => {
+  const router = useRouter();
 
-        if (userInfo.userId) {
-           // fetchUserPackageStatus();
-        }
-    }, [userInfo.userId]);
+  const [ready, setReady] = useState(false);
+  // const [profileCompleted, setProfileCompleted] = useState(false);
 
-    if (!userInfo.userId) return <div>Loading dashboard…</div>;
+  useEffect(() => {
+    const token = sessionStorage.getItem("token");
 
-    const renderContent = () => {
-        switch (activeTab) {
-            case "profile":
-                return <Profile />
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
 
-            case "postJob":
-                return <PostJob />
-            case "companyProfile":
-                return <CompanyProfile />;
+    // const completed =
+    //   sessionStorage.getItem("profile_completed") === "true";
 
-            case "allApplicants":
-                return <AllApplicants />
-            case "jobList":
-                return <JobListings filterStatus={jobListFilterStatus} />;
+    // setProfileCompleted(completed);
+    setReady(true);
+  }, []);
 
-            case "packagesList":
-                return <PackagesList />;
-            case "pricingform":
-                return <PricingForm />;
-            case "shortlistedcandidates":
-                return <ShortlistedCandidates />;
-            case "approved":
-                return <ApprovedCandidates />;
-            case "chatBox":
-                return <ChatBox />;
+  if (!ready) return <div>Loading dashboard…</div>;
 
-            case "changepassword":
-                return <ChangePasswordForm />
-
-            default:
-                return <Profile />
-        }
-    };
-
+  // 🔥 SAME STYLE AS CANDIDATE (hard gate)
+  if (!profileCompleted) {
     return (
-        <section className="user-dashboard py-2 my-4">
-            <div className="container">
-                {/* Add TopCardBlock here - it will hide itself when not on profile tab */}
-                <TopCardBlock 
-                    onTabChange={onTabChange} 
-                    activeTab={activeTab} 
-                />
-                
-                <div className="profile__tab-content p-3">{renderContent()}</div>
-            </div>
-        </section>
+      <div className="container">
+        <CompanyProfile onComplete={onProfileComplete} />
+      </div>
     );
+  }
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case "profile":
+        return <Profile />;
+
+      case "companyProfile":
+        return <CompanyProfile />;
+
+      case "allApplicants":
+      case "shortlistedcandidates":
+      case "approved":
+        return (
+          <ApplicantsLayout activeTab={activeTab} onTabChange={onTabChange} />
+        );
+
+      case "jobList":
+      case "postJob":
+      case "packagesList":
+      case "viewpackage":
+        return <JobsLayout activeTab={activeTab} onTabChange={onTabChange} />;
+
+      case "chatBox":
+        return <ChatBox />;
+      case "wallet":
+        return <CompanyWallet />;
+
+      case "changepassword":
+        return <ChangePasswordForm />;
+
+      default:
+        return <div>Select a menu option</div>;
+    }
+  };
+
+  return (
+    <section className="user-dashboard py-2 my-4">
+      <div className="container">
+        <TopCardBlock onTabChange={onTabChange} activeTab={activeTab} />
+        {renderContent()}
+      </div>
+    </section>
+  );
 };
 
 export default CompanyDashboardArea;

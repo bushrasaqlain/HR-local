@@ -13,7 +13,7 @@ router.post("/", authMiddleware, checkRole("db_admin"),packageController.addPack
 router.put("/:id", authMiddleware, checkRole("db_admin"),packageController.editPackage);
 
 router.delete("/deletepackage/:id", authMiddleware, checkRole("db_admin"),packageController.deletePackage);
-
+router.get("/getAvailablePackages", packageController.getAvailablePackages)
 router.get("/getPackagebyCompany",packageController.getPackagebyCompany)
 
 router.get("/checkCompanyPackageStatus/:userId",packageController.getCompanyPackgestatus)

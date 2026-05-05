@@ -259,7 +259,7 @@ class ResearchStep extends Component {
 
                     {/* Show existing file link if available */}
                     {newResearch.filePreviewUrl && !newResearch.file && (
-                      <div className="mb-1 custom-progress-bar">
+                      <div className="mb-1 ">
                         <a
                           href={newResearch.filePreviewUrl}
                           target="_blank"

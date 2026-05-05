@@ -221,23 +221,25 @@
 
     {/* Action Buttons */}
     <div className="d-flex flex-wrap gap-2 w-100 w-md-auto mt-2 mt-md-0">
-      <ApplicantCard
+<ApplicantCard
   candidate={candidateData}
-  onStatusChange={(candidateId, status, interviewDay, interviewTime) => {  // ✅ add params
+  onStatusChange={(candidateId, status, interviewDay, interviewTime) => {
     const { selectedJobId } = this.props;
     api
-      .post(`/updatestatus`, { 
-        candidateId, 
-        jobId: selectedJobId, 
+      .post(`/updatestatus`, {
+        candidateId,
+        jobId: selectedJobId,
         status,
-        ...(interviewDay && { interviewDay }),    // ✅
-        ...(interviewTime && { interviewTime }),  // ✅
+        ...(interviewDay && { interview_day: interviewDay }),    // ✅ snake_case
+        ...(interviewTime && { interview_time: interviewTime }), // ✅ snake_case
       })
       .then(() => {
         this.setState({
           candidateData: {
             ...candidateData,
             candidateStatus: status,
+            interview_day: interviewDay,   // ✅ also update local state
+            interview_time: interviewTime,
           },
         });
       })

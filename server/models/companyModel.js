@@ -20,6 +20,11 @@ const createCompanyInfoTable = () => {
   NTN VARCHAR(20),
   size_of_company INT,
   established_date VARCHAR(100),
+  profile_completed BOOLEAN DEFAULT FALSE,
+  has_package BOOLEAN DEFAULT FALSE,
+  subscription_status ENUM('pending','trial','active','expired','locked') DEFAULT 'pending',
+  trial_start DATETIME NULL,
+  trial_end DATETIME NULL,
   FOREIGN KEY (account_id) REFERENCES account(id),
   FOREIGN KEY (Business_entity_type_id) REFERENCES business_entity_type(id),
   FOREIGN KEY (country_id) REFERENCES countries(id),
@@ -275,6 +280,14 @@ const updateCompanyinfo = async (req, res) => {
     connection.query(sql, params, (err, result) => {
       if (err) return res.status(500).json({ error: err });
 
+      const markProfileComplete = `
+        UPDATE company_info 
+        SET profile_completed = TRUE 
+        WHERE account_id = ?
+      `;
+
+      connection.query(markProfileComplete, [accountId]);
+
       // update account table if needed
       if (username || email) {
         let updatedFields = [];
@@ -300,7 +313,7 @@ const updateCompanyinfo = async (req, res) => {
         entityType: "employer",
         entityId: accountId,
         action: "UPDATED",
-        data: { ...req.body },
+        data: { event: "Company profile updated", company_name, city_id, country_id },
         changedBy: accountId,
       });
 
@@ -397,26 +410,53 @@ const updateCompanySatus = (id, status, userId, res) => {
 
   connection.query(query, [status, id], (err, result) => {
     if (err) {
-      console.error("Update company status error:", err);
       return res.status(500).json({ success: false, message: "Server error" });
     }
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: "Company not found" });
     }
+
+    // ✅ ONLY WHEN ACTIVATED → START TRIAL
+    if (status === "Active") {
+      const trialSql = `
+        UPDATE company_info
+        SET 
+          subscription_status = 'trial',
+          trial_start = NOW(),
+          trial_end = DATE_ADD(NOW(), INTERVAL 30 DAY)
+        WHERE account_id = ?
+      `;
+
+      connection.query(trialSql, [id]);
+    }
+
+    // ❌ If deactivated
+    if (status === "Inactive") {
+      const lockSql = `
+        UPDATE company_info
+        SET subscription_status = 'locked'
+        WHERE account_id = ?
+      `;
+
+      connection.query(lockSql, [id]);
+    }
+
     logAudit({
       tableName: "history",
       entityType: "employer",
       entityId: id,
-      action: status === "Active" ? "ACTIVE" : "INACTIVE",  // ✅ fix
+      action: status === "Active" ? "ACTIVE" : "INACTIVE",
       data: { status },
       changedBy: userId,
     });
 
-    return res.status(200).json({ success: true, message: `Company status updated to ${status}` });
+    return res.status(200).json({
+      success: true,
+      message: `Company status updated to ${status}`,
+    });
   });
 };
-
 const getCount = (req, res) => {
   const userId = req.params.userId;
 
@@ -543,6 +583,31 @@ const getAllCompaniesList = (req, res) => {
   });
 };
 
+const getCompanyPackageStatus = (req, res) => {
+  const accountId = parseInt(req.params.userId);
+
+  if (!Number.isInteger(accountId)) {
+    return res.status(400).json({ error: "Invalid userId" });
+  }
+
+  const sql = `
+    SELECT has_package, profile_completed 
+    FROM company_info 
+    WHERE account_id = ?
+    LIMIT 1
+  `;
+
+  connection.query(sql, [accountId], (err, results) => {
+    if (err) return res.status(500).json({ error: "Database error" });
+    if (results.length === 0) return res.status(404).json({ error: "Company not found" });
+
+    return res.json({
+      has_package: !!results[0].has_package,
+      profile_completed: !!results[0].profile_completed,
+    });
+  });
+};
+
 
 
 module.exports = {
@@ -554,5 +619,6 @@ module.exports = {
   updateCompanySatus,
   getCount,
   getTopCompanies,
-  getAllCompaniesList
+  getAllCompaniesList,
+  getCompanyPackageStatus,
 };
