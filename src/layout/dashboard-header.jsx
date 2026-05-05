@@ -29,6 +29,8 @@ import RegAdminDashboardArea from "../components/regadmin-dashboard/dashboard-ar
 import CompanyDashboardArea from "../components/company-dashboard/dashboard-area";
 import CandidateDashboardArea from "../components/candidate-dashboard/dashboard-area";
 import DashboardFooter from "./dashboard-footer";
+import { NotificationCenter } from "../components/company-dashboard/wallet";
+import axios from "axios";
 
 const EMPLOYER_ROUTE_MAP = {
   profile: "/employer",
@@ -102,6 +104,13 @@ class DashboardHeader extends Component {
       userInfo: { userId: null, displayName: "User", accountType: null, profileCompleted: false },
       jobListFilterStatus: null,
       openDesktopDropdown: null,
+      packages: [],
+      alertSettings: {
+        lowCredits: { enabled: true, threshold: 20 },
+        packageExpiry: { enabled: true, daysBefore: 7 },
+        budgetThreshold: { enabled: false, threshold: 80 },
+        unusualSpending: { enabled: true, sensitivity: "medium" },
+      },
     };
   }
 
@@ -161,6 +170,9 @@ class DashboardHeader extends Component {
         );
       }
     }
+    if (accountType === "employer") {
+      this.fetchPackagesForNotifications(userId);
+    }
 
     window.addEventListener("scroll", this.changeBackground);
   }
@@ -178,6 +190,71 @@ class DashboardHeader extends Component {
       isMobileMenuOpen: !prev.isMobileMenuOpen,
       openMobileDropdown: null,
     }));
+  };
+
+  fetchPackagesForNotifications = async (userId) => {
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    try {
+      const res = await axios.get(`${apiBaseUrl}job/getUserPackages/${userId}`);
+
+      const subPackages = res.data
+        .filter(p => !p.is_daily_budget)
+        .map((p) => {
+          const pkg = (() => {
+            try { return typeof p.package === "string" ? JSON.parse(p.package) : (p.package || {}); }
+            catch { return {}; }
+          })();
+          const total = pkg.pricing_model === "featured_boost" ? pkg.boost_duration_days || 0
+            : pkg.pricing_model === "job_slot" ? pkg.slot_count || 0
+              : pkg.pricing_model === "cv_credits" ? pkg.credit_count || 0
+                : pkg.num_posts || pkg.slot_count || pkg.credit_count || 0;
+          const used = p.used_posts || p.used_credits || p.used_slots || 0;
+          return {
+            id: p.subscription_id,
+            name: pkg.name || "Package",
+            type: pkg.pricing_model || "bundle",
+            total, used,
+            remaining: Math.max(total - used, 0),
+            price: pkg.price || 0,
+            status: p.status || "active",
+            expiresRaw: p.end_date || null,
+            isDailyBudget: false,
+          };
+        });
+
+      const dailyPackages = res.data
+        .filter(p => p.is_daily_budget)
+        .map((p) => {
+          const pkg = p.package || {};
+          return {
+            id: p.subscription_id,
+            name: pkg.name || "Job Post",
+            type: "daily_budget",
+            total: pkg.daily_budget_cap || 0,
+            used: pkg.total_spend || 0,
+            remaining: Math.max((pkg.daily_budget_cap || 0) - (pkg.total_spend || 0), 0),
+            price: pkg.total_spend || 0,
+            status: p.status,
+            expiresRaw: p.end_date || null,
+            isDailyBudget: true,
+            billingModel: pkg.billing_model,
+            ratePerUnit: pkg.rate_per_unit,
+            dailyCapToday: pkg.daily_budget_cap,
+            dailySpendToday: pkg.daily_spend_today || 0,
+          };
+        });
+
+      try {
+        const alertRes = await axios.get(`${apiBaseUrl}alert-settings/get/${userId}`);
+        if (alertRes.data.success && alertRes.data.data) {
+          this.setState({ alertSettings: alertRes.data.data });
+        }
+      } catch (e) { /* default settings use honge */ }
+
+      this.setState({ packages: [...subPackages, ...dailyPackages] });
+    } catch (err) {
+      console.error("Notification packages fetch failed:", err);
+    }
   };
 
   changeBackground = () => {
@@ -213,7 +290,7 @@ class DashboardHeader extends Component {
       sessionStorage.removeItem("profile_completed");
       window.location.href = "/";
     } else {
-      this.setState({ activeTab: item.tabKey });
+      this.handleTabChange(item.tabKey);
     }
     this.setState({ userDropdownOpen: false });
   };
@@ -453,6 +530,12 @@ class DashboardHeader extends Component {
           <div className="d-flex align-items-center flex-nowrap ms-auto">
             {/* Welcome text */}
             <div className="d-none d-md-flex d-lg-flex align-items-center gap-2">
+              {accountType === "employer" && profileCompleted && (
+                <NotificationCenter
+                  packages={this.state.packages}
+                  alertSettings={this.state.alertSettings}
+                />
+              )}
               <span className="text-white text-end">
                 <div>
                   <strong>{displayName || "Admin"}</strong>
@@ -468,7 +551,7 @@ class DashboardHeader extends Component {
                   <i className="las la-user-circle fs-2 text-white cursor-pointer"></i>
                 </DropdownToggle>
                 <DropdownMenu end>
-                  {dropdownItem(userId).map((item) => (
+                  {dropdownItem(userId, accountType).map((item) => (
                     <DropdownItem
                       key={item.id}
                       onClick={() => this.handleUserActionClick(item)}
@@ -506,7 +589,7 @@ class DashboardHeader extends Component {
 
               {/* Mobile user actions */}
               <div className="mt-3">
-                {dropdownItem(userId).map((item) => (
+                {dropdownItem(userId, accountType).map((item) => (
                   <div
                     key={item.id}
                     className="p-2 text-white cursor-pointer"

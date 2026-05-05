@@ -9,30 +9,31 @@ import { Formik, Field, ErrorMessage, FieldArray } from "formik";
 import * as Yup from "yup";
 import api from "../../lib/api";
 import "bootstrap-icons/font/bootstrap-icons.css";
+import axios from "axios";
 
 let faceapi = null;
 let faceapiLoaded = false;
 
 const T = {
-  primary:   "#1D9E75",
-  primary2:  "#0F6E56",
-  primary3:  "#E1F5EE",
-  primary4:  "#9FE1CB",
-  slate:     "#36565F",
-  slateLight:"#EEF3F4",
-  danger:    "#D85A30",
-  text:      "#1a1a1a",
+  primary: "#1D9E75",
+  primary2: "#0F6E56",
+  primary3: "#E1F5EE",
+  primary4: "#9FE1CB",
+  slate: "#36565F",
+  slateLight: "#EEF3F4",
+  danger: "#D85A30",
+  text: "#1a1a1a",
   textMuted: "#6b7280",
   textLight: "#9ca3af",
-  border:    "#e5e7eb",
-  borderFocus:"#1D9E75",
-  bg:        "#f8fafb",
-  bgCard:    "#ffffff",
+  border: "#e5e7eb",
+  borderFocus: "#1D9E75",
+  bg: "#f8fafb",
+  bgCard: "#ffffff",
   bgSection: "#f4f7f8",
-  radius:    "10px",
-  radiusSm:  "7px",
-  shadow:    "0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04)",
-  shadowMd:  "0 4px 16px rgba(0,0,0,0.08)",
+  radius: "10px",
+  radiusSm: "7px",
+  shadow: "0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04)",
+  shadowMd: "0 4px 16px rgba(0,0,0,0.08)",
 };
 
 const S = {
@@ -73,7 +74,7 @@ const S = {
     left: "50%",
     width: "100%",
     height: 2,
-    background: done ? T.primary : T.border,
+    background: done ? T.slate : T.border,
     zIndex: 0,
     transition: "background 0.3s",
   }),
@@ -94,14 +95,14 @@ const S = {
     justifyContent: "center",
     fontSize: 13,
     fontWeight: 500,
-    background: active ? T.primary : done ? T.primary3 : "#fff",
-    border: `2px solid ${active ? T.primary : done ? T.primary : T.border}`,
-    color: active ? "#fff" : done ? T.primary2 : T.textMuted,
+    background: active ? T.slate : done ? T.textLight : "#fff",
+    border: `2px solid ${active ? T.slate : done ? T.slate : T.border}`,
+    color: active ? "#fff" : done ? T.slate : T.textMuted,
     transition: "all 0.25s",
   }),
   stepLabel: (active) => ({
     fontSize: 11,
-    color: active ? T.primary2 : T.textMuted,
+    color: active ? T.slate : T.textMuted,
     fontWeight: active ? 500 : 400,
     textAlign: "center",
     lineHeight: 1.3,
@@ -120,7 +121,7 @@ const S = {
   progressFill: (pct) => ({
     height: "100%",
     width: `${pct}%`,
-    background: T.primary,
+    background: T.slate,
     transition: "width 0.4s",
   }),
   cardHeader: {
@@ -134,7 +135,7 @@ const S = {
     width: 32,
     height: 32,
     borderRadius: 8,
-    background: T.primary3,
+    background: T.border,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -160,15 +161,15 @@ const S = {
     padding: "1rem 1.1rem",
     background: T.bgSection,
     borderRadius: T.radius,
-    border: `1.5px dashed ${T.primary4}`,
+    border: `1.5px dashed ${T.textLight}`,
     marginBottom: "1.4rem",
   },
   photoCircle: {
     width: 68,
     height: 68,
     borderRadius: "50%",
-    background: T.primary3,
-    border: `2px solid ${T.primary4}`,
+    background: T.border,
+    border: `2px solid ${T.textLight}`,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -216,8 +217,8 @@ const S = {
     boxSizing: "border-box",
   },
   fieldInputFocus: {
-    borderColor: T.primary,
-    boxShadow: `0 0 0 3px ${T.primary}22`,
+    borderColor: T.slate,
+    boxShadow: `0 0 0 3px ${T.slate}22`,
   },
   fieldInputReadonly: {
     background: T.bgSection,
@@ -255,7 +256,7 @@ const S = {
   btnNext: {
     padding: "8px 22px",
     borderRadius: T.radiusSm,
-    background: T.primary,
+    background: T.slate,
     border: "none",
     color: "#fff",
     fontSize: 13,
@@ -269,9 +270,9 @@ const S = {
   btnAdd: {
     padding: "7px 16px",
     borderRadius: T.radiusSm,
-    background: T.primary3,
-    border: `1px solid ${T.primary4}`,
-    color: T.primary2,
+    background: T.border,
+    border: `1px solid ${T.textLight}`,
+    color: T.slate,
     fontSize: 13,
     fontWeight: 500,
     cursor: "pointer",
@@ -290,9 +291,9 @@ const S = {
   btnInfo: {
     padding: "5px 10px",
     borderRadius: T.radiusSm,
-    background: T.primary3,
-    border: `1px solid ${T.primary4}`,
-    color: T.primary2,
+    background: T.border,
+    border: `1px solid ${T.textLight}`,
+    color: T.slate,
     fontSize: 12,
     cursor: "pointer",
     fontFamily: "inherit",
@@ -344,8 +345,8 @@ const S = {
     gap: 12,
     padding: "12px 14px",
     borderRadius: T.radius,
-    border: `1.5px solid ${on ? T.primary : T.border}`,
-    background: on ? T.primary3 : T.bgSection,
+    border: `1.5px solid ${on ? T.slate : T.border}`,
+    background: on ? T.border : T.bgSection,
     cursor: "pointer",
     marginBottom: "1.2rem",
     transition: "all 0.2s",
@@ -381,8 +382,8 @@ const S = {
     display: "inline-block",
     padding: "3px 9px",
     borderRadius: 20,
-    background: T.primary3,
-    color: T.primary2,
+    background: T.border,
+    color: T.slate,
     fontSize: 12,
     fontWeight: 500,
   },
@@ -390,7 +391,7 @@ const S = {
   /* type selection cards */
   typeCard: (hover) => ({
     background: "#fff",
-    border: `2px solid ${hover ? T.primary : T.border}`,
+    border: `2px solid ${hover ? T.slate : T.border}`,
     borderRadius: 14,
     padding: "1.8rem 1.4rem",
     cursor: "pointer",
@@ -401,11 +402,11 @@ const S = {
 
   /* cv upload */
   cvDropzone: {
-    border: `2px dashed ${T.primary4}`,
+    border: `2px dashed ${T.textLight}`,
     borderRadius: T.radius,
     padding: "3rem 2rem",
     textAlign: "center",
-    background: T.primary3,
+    background: T.border,
     maxWidth: 480,
     margin: "0 auto",
   },
@@ -816,7 +817,7 @@ class CandidateRegisterForm extends Component {
       payload.append("mode", step === 5 ? "submit" : "save");
       payload.append("current_step", step);
 
-      const fields = ["full_name","phone","email","date_of_birth","gender","marital_status","license_type","license_number","total_experience","speciality","country","district","city","address","current_salary","expected_salary"];
+      const fields = ["full_name", "phone", "email", "date_of_birth", "gender", "marital_status", "license_type", "license_number", "total_experience", "speciality", "country", "district", "city", "address", "current_salary", "expected_salary"];
       fields.forEach((field) => {
         const value = values[field];
         if (value !== undefined && value !== null && value !== "") payload.append(field, value);
@@ -852,7 +853,7 @@ class CandidateRegisterForm extends Component {
     }
   };
 
-  handleCVUpload = async (e) => {
+ handleCVUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const maxSize = 3 * 1024 * 1024;
@@ -887,7 +888,7 @@ class CandidateRegisterForm extends Component {
         const formData = new FormData();
         formData.append("mode", "save");
         formData.append("current_step", step);
-        const fields = ["full_name","phone","date_of_birth","gender","marital_status","license_type","license_number","total_experience","country","district","city","otherPreferredCities","address","current_salary","expected_salary"];
+        const fields = ["full_name", "phone", "date_of_birth", "gender", "marital_status", "license_type", "license_number", "total_experience", "country", "district", "city", "otherPreferredCities", "address", "current_salary", "expected_salary"];
         fields.forEach((field) => {
           const value = values[field];
           if (Array.isArray(value)) formData.append(field, JSON.stringify(value));
@@ -1051,7 +1052,7 @@ class CandidateRegisterForm extends Component {
         default: return false;
       }
     };
-    const stepNames = ["Personal Details","Education","Work Experience","Upload Resume","Availability"];
+    const stepNames = ["Personal Details", "Education", "Work Experience", "Upload Resume", "Availability"];
     return (
       <div style={S.stepper}>
         {stepNames.map((name, index) => {
@@ -1099,7 +1100,7 @@ class CandidateRegisterForm extends Component {
         <div style={S.photoCircle}>
           {values.passport_photoPreview
             ? <img src={values.passport_photoPreview} alt="Profile" style={S.photoImg} />
-            : <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            : <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={T.slate} strokeWidth="1.5"><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" /></svg>
           }
         </div>
         <div>
@@ -1111,7 +1112,7 @@ class CandidateRegisterForm extends Component {
               onChange={async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
-                const allowedTypes = ["image/jpeg","image/jpg","image/png"];
+                const allowedTypes = ["image/jpeg", "image/jpg", "image/png"];
                 if (!allowedTypes.includes(file.type)) {
                   this.setState({ photoMessage: { type: "error", text: "Only JPG or PNG image is allowed!" } });
                   e.target.value = ""; return;
@@ -1411,7 +1412,7 @@ class CandidateRegisterForm extends Component {
                 </FieldWrap>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: 22 }}>
                   <Field type="checkbox" name="education.0.ongoing"
-                    style={{ width: 16, height: 16, accentColor: T.primary, cursor: "pointer" }} />
+                    style={{ width: 16, height: 16, accentColor: T.slate, cursor: "pointer" }} />
                   <label style={{ fontSize: 13, color: T.textMuted, cursor: "pointer" }}>Ongoing</label>
                 </div>
               </div>
@@ -1439,7 +1440,7 @@ class CandidateRegisterForm extends Component {
                 <table style={S.table}>
                   <thead>
                     <tr>
-                      {["Degree","Title","Institute","Start","End",""].map((h) => (
+                      {["Degree", "Title", "Institute", "Start", "End", ""].map((h) => (
                         <th key={h} style={S.th}>{h}</th>
                       ))}
                     </tr>
@@ -1492,11 +1493,11 @@ class CandidateRegisterForm extends Component {
                 setFieldValue("isFresher", !values.isFresher);
                 if (!values.isFresher) setFieldValue("experience", [{}]);
               }}>
-              <div style={{ width: 36, height: 20, borderRadius: 10, background: values.isFresher ? T.primary : T.border, position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
+              <div style={{ width: 36, height: 20, borderRadius: 10, background: values.isFresher ? T.slate : T.border, position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
                 <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: values.isFresher ? 18 : 2, transition: "left 0.2s" }} />
               </div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 500, color: values.isFresher ? T.primary2 : T.text }}>I am a Fresher</div>
+                <div style={{ fontSize: 13, fontWeight: 500, color: values.isFresher ? T.slate : T.text }}>I am a Fresher</div>
                 <div style={{ fontSize: 11, color: T.textMuted, marginTop: 1 }}>
                   {values.isFresher ? "Work experience section will be skipped" : "Check this if you have no work experience"}
                 </div>
@@ -1532,7 +1533,7 @@ class CandidateRegisterForm extends Component {
                   <Field type="date" name="experience.0.endDate" style={S.fieldInput} disabled={draft.ongoing} max={new Date().toISOString().split("T")[0]} />
                 </FieldWrap>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: 22 }}>
-                  <Field type="checkbox" name="experience.0.ongoing" style={{ width: 16, height: 16, accentColor: T.primary, cursor: "pointer" }} />
+                  <Field type="checkbox" name="experience.0.ongoing" style={{ width: 16, height: 16, accentColor: T.slate, cursor: "pointer" }} />
                   <label style={{ fontSize: 13, color: T.textMuted }}>Ongoing</label>
                 </div>
               </div>
@@ -1576,7 +1577,7 @@ class CandidateRegisterForm extends Component {
               <div style={{ overflowX: "auto" }}>
                 <table style={S.table}>
                   <thead>
-                    <tr>{["Company","Designation","Speciality","Start","End",""].map((h) => <th key={h} style={S.th}>{h}</th>)}</tr>
+                    <tr>{["Company", "Designation", "Speciality", "Start", "End", ""].map((h) => <th key={h} style={S.th}>{h}</th>)}</tr>
                   </thead>
                   <tbody>
                     {values.experience.slice(1).map((exp, i) => (
@@ -1632,7 +1633,7 @@ class CandidateRegisterForm extends Component {
         </div>
       )}
 
-      <div style={{ border: `2px dashed ${T.primary4}`, borderRadius: T.radius, padding: "2.5rem 1.5rem", textAlign: "center", background: T.primary3 }}>
+      <div style={{ border: `2px dashed ${T.textLight}`, borderRadius: T.radius, padding: "2.5rem 1.5rem", textAlign: "center", background: T.border }}>
         <div style={{ fontSize: 36, marginBottom: 8 }}>📄</div>
         <div style={{ fontSize: 15, fontWeight: 500, color: T.text, marginBottom: 4 }}>Click to upload your resume</div>
         <div style={{ fontSize: 12, color: T.textMuted, marginBottom: "1.2rem" }}>PDF, DOC, DOCX — max 3MB</div>
@@ -1645,7 +1646,7 @@ class CandidateRegisterForm extends Component {
               setFieldTouched("resume", true);
               if (file) {
                 const maxSize = 3 * 1024 * 1024;
-                const allowedTypes = ["application/pdf","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+                const allowedTypes = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
                 if (!allowedTypes.includes(file.type)) { setFieldError("resume", "Invalid file type"); setFieldValue("resume", null); }
                 else if (file.size > maxSize) { setFieldError("resume", "File too large — max 3MB"); setFieldValue("resume", null); }
                 else { setFieldValue("resume", file); setFieldError("resume", ""); }
@@ -1724,7 +1725,7 @@ class CandidateRegisterForm extends Component {
         <div style={{ overflowX: "auto" }}>
           <table style={S.table}>
             <thead>
-              <tr>{["Day","Shift","Start","End",""].map((h) => <th key={h} style={S.th}>{h}</th>)}</tr>
+              <tr>{["Day", "Shift", "Start", "End", ""].map((h) => <th key={h} style={S.th}>{h}</th>)}</tr>
             </thead>
             <tbody>
               {this.state.entries.map((e, i) => (
@@ -1763,13 +1764,13 @@ class CandidateRegisterForm extends Component {
   getStepMeta = () => {
     const { step } = this.state;
     const icons = [
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.primary2} strokeWidth="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>,
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.primary2} strokeWidth="1.8"><path d="M12 2l2 7h7l-5.7 4.1 2.2 6.9L12 16l-5.5 4 2.2-6.9L3 9h7z"/></svg>,
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.primary2} strokeWidth="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8a2 2 0 00-2 4h12a2 2 0 00-2-4z"/></svg>,
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.primary2} strokeWidth="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>,
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.primary2} strokeWidth="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.slate} strokeWidth="1.8"><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" /></svg>,
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.slate} strokeWidth="1.8"><path d="M12 2l2 7h7l-5.7 4.1 2.2 6.9L12 16l-5.5 4 2.2-6.9L3 9h7z" /></svg>,
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.slate} strokeWidth="1.8"><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 3H8a2 2 0 00-2 4h12a2 2 0 00-2-4z" /></svg>,
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.slate} strokeWidth="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14,2 14,8 20,8" /></svg>,
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.slate} strokeWidth="1.8"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>,
     ];
-    const titles = ["Personal Details","Education","Work Experience & Skills","Upload Resume","Availability"];
+    const titles = ["Personal Details", "Education", "Work Experience & Skills", "Upload Resume", "Availability"];
     const progress = [20, 40, 60, 80, 100];
     return { icon: icons[step - 1], title: titles[step - 1], progress: progress[step - 1] };
   };
@@ -1820,7 +1821,7 @@ class CandidateRegisterForm extends Component {
                 <li style={{ marginBottom: 6 }}>📂 CV saved to your profile</li>
                 <li style={{ marginBottom: 6 }}>📋 Can complete profile later</li>
               </ul>
-              <button style={{ ...S.btnNext, width: "100%", justifyContent: "center", background: T.slate }}>
+              <button style={{ ...S.btnNext, width: "100%", justifyContent: "center", background: T.primary }}>
                 Upload CV →
               </button>
             </div>
@@ -1854,7 +1855,7 @@ class CandidateRegisterForm extends Component {
 
           <div style={S.cvDropzone}>
             <div style={{ fontSize: 36, marginBottom: 8 }}>📄</div>
-            <div style={{ fontSize: 15, fontWeight: 500, color: T.primary2, marginBottom: 4 }}>Click to upload your CV</div>
+            <div style={{ fontSize: 15, fontWeight: 500, color: T.slate, marginBottom: 4 }}>Click to upload your CV</div>
             <div style={{ fontSize: 12, color: T.textMuted, marginBottom: "1.2rem" }}>PDF, DOC, DOCX — Max 3MB</div>
             <input type="file"
               accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -1871,7 +1872,7 @@ class CandidateRegisterForm extends Component {
 
           <p style={{ textAlign: "center", fontSize: 13, color: T.textMuted, marginTop: "1.5rem" }}>
             Want to fill manually instead?{" "}
-            <button style={{ background: "none", border: "none", color: T.primary, cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}
+            <button style={{ background: "none", border: "none", color: T.slate, cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}
               onClick={() => this.setState({ registrationType: "manual" })}>
               Click here
             </button>
@@ -1886,8 +1887,8 @@ class CandidateRegisterForm extends Component {
     <div style={{ ...S.wrap, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <Helmet><title>Candidate | CV Uploaded</title></Helmet>
       <div style={{ textAlign: "center", maxWidth: 420 }}>
-        <div style={{ width: 72, height: 72, borderRadius: "50%", background: T.primary3, border: `2px solid ${T.primary4}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1.2rem" }}>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="2.5"><polyline points="20,6 9,17 4,12"/></svg>
+        <div style={{ width: 72, height: 72, borderRadius: "50%", background: T.border, border: `2px solid ${T.textLight}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1.2rem" }}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={T.slate} strokeWidth="2.5"><polyline points="20,6 9,17 4,12" /></svg>
         </div>
         <h2 style={{ ...S.pageTitle, marginBottom: 8 }}>CV Uploaded Successfully!</h2>
         <p style={{ fontSize: 14, color: T.textMuted, marginBottom: "2rem" }}>
@@ -1953,14 +1954,14 @@ class CandidateRegisterForm extends Component {
                   /* footer right */
                   step < 5
                     ? <button type="button" style={S.btnNext} onClick={() => this.handleSaveAndNext(values)}>
-                        Save & next
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><polyline points="9,18 15,12 9,6"/></svg>
-                      </button>
+                      Save & next
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><polyline points="9,18 15,12 9,6" /></svg>
+                    </button>
                     : <button type="button" style={{ ...S.btnNext, opacity: this.state.entries.length === 0 ? 0.5 : 1 }}
-                        onClick={() => this.handleSubmit(values, { setSubmitting: () => {} })}
-                        disabled={this.state.entries.length === 0}>
-                        Submit profile ✓
-                      </button>
+                      onClick={() => this.handleSubmit(values, { setSubmitting: () => { } })}
+                      disabled={this.state.entries.length === 0}>
+                      Submit profile ✓
+                    </button>
                 )}
               </Form>
             )}

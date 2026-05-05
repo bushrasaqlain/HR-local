@@ -57,6 +57,7 @@ const jobtitlesRoutes = require("./routes/jobtitlesRoutes");
 
 const candidatejobs = require("./routes/candidatejobsRoutes")
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const alertSettingsRoutes = require("./routes/alertSettingsRoutes");
 
 
 
@@ -101,7 +102,7 @@ app.use('/message', messages)
 app.use("/payment", paymentRoutes)
 app.use("/", dashboardRoutes);
 app.use("/", jobtitlesRoutes);
-
+app.use("/alert-settings", alertSettingsRoutes);
 
 
 module.exports = app;

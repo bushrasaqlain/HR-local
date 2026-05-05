@@ -15,6 +15,7 @@ import ShortlistedCandidates from "./shortlistedcandidates.jsx";
 import ApprovedCandidates from "./approved.jsx";
 import CompanyWallet from "./wallet.jsx";
 import PricingForm2 from "./viewpackage.jsx";
+import AvailableCandidates from "./Available Candidates.jsx";
 
 const JobsLayout = ({ activeTab, onTabChange }) => {
   const tabs = [
@@ -201,6 +202,8 @@ const CompanyDashboardArea = ({
 
       case "chatBox":
         return <ChatBox />;
+      case "availableCandidates":
+        return <AvailableCandidates onTabChange={onTabChange} />;
       case "wallet":
         return <CompanyWallet />;
 

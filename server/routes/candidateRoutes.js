@@ -104,4 +104,8 @@ router.post(
   uploadResume.single("resume"),  // existing middleware use karo
   candidateController.parseCVAndSave
 );
+
+router.post("/save-job", authMiddleware, candidateController.toggleSaveJob);
+router.get("/saved-jobs", authMiddleware, candidateController.getSavedJobs);
+
 module.exports = router;

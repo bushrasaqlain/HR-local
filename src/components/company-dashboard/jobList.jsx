@@ -696,11 +696,11 @@ handleSort = (key) => {
                                   </DropdownItem>
                                 )}
 
-                                {job.approval_status === "Pending Payment" && (
+                                {/* {job.approval_status === "Pending Payment" && (
                                   <DropdownItem onClick={() => this.handlePay(job)}>
                                     <i className="la la-credit-card me-2" style={{ color: '#10b981' }} /> Pay
                                   </DropdownItem>
-                                )}
+                                )} */}
 
                                 {job.approval_status !== "Approved" && job.approval_status !== "Pending" && (
                                   <DropdownItem onClick={() => this.handleDeleteJob(job.id)}>
