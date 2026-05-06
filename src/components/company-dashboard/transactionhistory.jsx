@@ -9,6 +9,7 @@ const TYPE_META = {
   job_slot: { label: "Job Slots", color: "#534AB7", bg: "#EEEDFE" },
   subscription: { label: "Subscription", color: "#0F6E56", bg: "#E1F5EE" },
   bundle: { label: "Bundle", color: "#854F0B", bg: "#FAEEDA" },
+  duration_bundle: { label: "Bundle", color: "#854F0B", bg: "#FAEEDA" },
   daily_budget: { label: "Daily Budget", color: "#B45309", bg: "#FEF3C7" },
 };
 
@@ -125,7 +126,13 @@ class TransactionHistory extends Component {
   getFiltered() {
     const { transactions, filter, search } = this.state;
     return transactions
-      .filter((t) => filter === "all" ? true : filter === "active" ? t.status === "active" : filter === "expired" ? t.status === "expired" : t.type === filter)
+      .filter((t) => {
+        if (filter === "all") return true;
+        if (filter === "active") return t.status === "active";
+        if (filter === "expired") return t.status === "expired";
+        if (filter === "bundle") return t.type === "bundle" || t.type === "duration_bundle"; // ← FIX
+        return t.type === filter;
+      })
       .filter((t) => !search || (t.name || "").toLowerCase().includes(search.toLowerCase()));
   }
 

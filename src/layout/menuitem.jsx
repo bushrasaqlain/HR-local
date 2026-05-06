@@ -45,6 +45,7 @@ export const dbadminmenuitem = [
       { key: "businessentitytypes", label: "Business Entities" },
       { key: "jobtypes", label: "Job Types" },
       { key: "jobtitles", label: "Job Titles" },
+      {key: "industry", label: "Industry"},
       { key: "packages", label: "Packages" },
       { key: "licensetypes", label: "License Types" },
     ],

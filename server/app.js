@@ -35,6 +35,7 @@ const applicantRoute = require("./routes/applicantRoutes")
 const packages = require("./routes/packagesRoutes");
 const cart = require("./routes/cartRoutes");
 const jobRoutes = require("./routes/jobRoutes");
+const industryRoutes = require("./routes/industryRoutes");
 const licensetypesRoutes = require("./routes/licensetypesRoutes");
 const speciality = require("./routes/specialityRoutes");
 const instituteRoutes = require("./routes/instituteRoutes")
@@ -97,6 +98,7 @@ app.use("/candidateCertificate", candidatecertificateRoutes)
 
 app.use("/company-info", companyRoute);
 app.use("/job", jobRoutes);
+app.use("/industry", industryRoutes);
 app.use("/applicant", applicantRoute)
 app.use('/message', messages)
 app.use("/payment", paymentRoutes)

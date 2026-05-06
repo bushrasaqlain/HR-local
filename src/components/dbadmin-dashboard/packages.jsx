@@ -30,16 +30,16 @@ const PRICING_MODELS = [
     description: "Pay per day the job is promoted",
     hint: "Employer sets a daily spend cap; you charge per click, impression, or application",
   },
-  {
-    value: "per_apply",
-    label: "Pay Per Apply",
-    icon: "bi-hand-index-thumb",
-    badge: "Performance",
-    badgeColor: "#3B6D11",
-    badgeBg: "#EAF3DE",
-    description: "Charged per qualified applicant",
-    hint: "Bill only when a candidate meets your qualification bar",
-  },
+  // {
+  //   value: "per_apply",
+  //   label: "Pay Per Apply",
+  //   icon: "bi-hand-index-thumb",
+  //   badge: "Performance",
+  //   badgeColor: "#3B6D11",
+  //   badgeBg: "#EAF3DE",
+  //   description: "Charged per qualified applicant",
+  //   hint: "Bill only when a candidate meets your qualification bar",
+  // },
   {
     value: "job_slot",
     label: "Job Slot",
@@ -50,16 +50,16 @@ const PRICING_MODELS = [
     description: "Fixed slot — swap jobs freely",
     hint: "Employer buys N simultaneous live job slots on a monthly/annual cycle",
   },
-  {
-    value: "duration_bundle",
-    label: "Duration Bundle",
-    icon: "bi-calendar-range",
-    badge: "Bundle",
-    badgeColor: "#185FA5",
-    badgeBg: "#E6F1FB",
-    description: "30 / 60 / 90 day posting packs",
-    hint: "Buy X posts of a fixed duration; activate within validity window",
-  },
+  // {
+  //   value: "duration_bundle",
+  //   label: "Duration Bundle",
+  //   icon: "bi-calendar-range",
+  //   badge: "Bundle",
+  //   badgeColor: "#185FA5",
+  //   badgeBg: "#E6F1FB",
+  //   description: "30 / 60 / 90 day posting packs",
+  //   hint: "Buy X posts of a fixed duration; activate within validity window",
+  // },
   {
     value: "cv_credits",
     label: "CV Credits",
@@ -93,7 +93,7 @@ const EMPTY_FORM = {
 
   // daily_budget
   daily_budget_cap: "",
-  billing_model: "cpc",
+  billing_model: "ppv",
   rate_per_unit: "",
   campaign_duration_days: "",
   min_daily_budget: "",
@@ -432,7 +432,7 @@ class Packages extends Component {
           is_featured: item.is_featured === 1,
           // daily_budget
           daily_budget_cap: item.daily_budget_cap ?? "",
-          billing_model: item.billing_model || "cpc",
+          billing_model: item.billing_model || "ppv",
           rate_per_unit: item.rate_per_unit ?? "",
           campaign_duration_days: item.campaign_duration_days ?? "",
           min_daily_budget: item.min_daily_budget ?? "",
@@ -672,7 +672,7 @@ class Packages extends Component {
   renderModelSummaryCell = (item) => {
     const pm = item.pricing_model;
     if (pm === "daily_budget")
-      return `${item.billing_model?.toUpperCase() || "CPC"} · Rate: ${item.rate_per_unit ?? "—"}`;
+      return `${item.billing_model?.toUpperCase() || "PPV"} · Rate: ${item.rate_per_unit ?? "—"}`;
     if (pm === "per_apply")
       return `Cap: ${item.max_applies ?? "Unlimited"} applies`;
     if (pm === "job_slot")
@@ -738,9 +738,8 @@ class Packages extends Component {
                 onChange={this.handleInputChange}
                 className="form-select"
               >
-                <option value="cpc">CPC — per click</option>
-                <option value="cpm">CPM — per 1,000 impressions</option>
-                <option value="cpa">CPA — per application</option>
+                <option value="ppv">PPV — Per Profile View</option>
+                <option value="pps">PPS — Per Shortlist</option>
               </select>
             </div>
           </Col>

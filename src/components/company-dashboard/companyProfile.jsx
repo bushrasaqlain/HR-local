@@ -24,8 +24,8 @@ class CompanyProfile extends Component {
         established_date: "",
         logo: "",
       },
-        showConfirmModal: false,
-  pendingSubmit: false,
+      showConfirmModal: false,
+      pendingSubmit: false,
       selectedCountry: null,
       selectedDistrict: null,
       selectedCity: null,
@@ -67,9 +67,9 @@ class CompanyProfile extends Component {
             account_email: data.account_email || "",
             phone: data.phone || "",
             NTN: data.NTN || "",
-            city: data.city_id || "",         // ✅ ID sent to backend
-  country: data.country_id || "",   // ✅ ID sent to backend
-  district: data.district_id || "",
+            city: data.city_id || "",
+            country: data.country_id || "",
+            district: data.district_id || "",
             size_of_company: data.size_of_company || "",
             business_type: data.Business_entity_type_id || "",
             company_address: data.company_address || "",
@@ -209,15 +209,13 @@ class CompanyProfile extends Component {
       },
     }));
   };
+
   validateNTN = (ntn) => {
-    // Remove any spaces
     const cleaned = ntn.replace(/\s/g, "");
-
-    // Regex: 7 digits optionally followed by a dash and 1 digit
     const regex = /^\d{7}(-\d)?$/;
-
     return regex.test(cleaned);
   };
+
   handleInputChange = (e) => {
     const { name, value } = e.target;
 
@@ -244,7 +242,6 @@ class CompanyProfile extends Component {
       formData: { ...prevState.formData, [name]: value },
     }));
   };
-
 
   logoHandler = (file) => {
     if (file) {
@@ -286,63 +283,75 @@ class CompanyProfile extends Component {
 
     return new Blob(byteArrays, { type: contentType });
   };
-handleSubmit = async (e) => {
-  e.preventDefault();
-  this.setState({ showConfirmModal: true }); // show review modal first
-};
-handleConfirmedSubmit = async () => {
-  this.setState({ showConfirmModal: false });
-  const { formData } = this.state;
-  const formDataToSend = new FormData();
 
-  if (formData.logo) {
-    const base64Data = formData.logo.split(",")[1];
-    const logoBlob = this.base64toBlob(base64Data, "image/png");
-    formDataToSend.append("logo", logoBlob, formData.logoName || "logo.png");
-  }
+  handleSubmit = async (e) => {
+    e.preventDefault();
+    this.setState({ showConfirmModal: true });
+  };
 
-  // ✅ Match exact field names the API expects
-  formDataToSend.append("userId", this.userId);
-  formDataToSend.append("account_id", this.userId);
-  formDataToSend.append("username", formData.username || "");
-  formDataToSend.append("email", formData.account_email || "");  // ✅ API expects "email"
-  formDataToSend.append("company_name", formData.company_name || "");
-  formDataToSend.append("business_type", formData.business_type || "");
-  formDataToSend.append("phone", formData.phone || "");
-  formDataToSend.append("country", formData.country || "");
-  formDataToSend.append("district", formData.district || "");
-  formDataToSend.append("city", formData.city || "");
-  formDataToSend.append("company_address", formData.company_address || "");
-  formDataToSend.append("company_website", formData.company_website || "");
-  formDataToSend.append("NTN", formData.NTN || "");
-  formDataToSend.append("size_of_company", formData.size_of_company || "");
-  formDataToSend.append("established_date", formData.established_date || "");
+  handleConfirmedSubmit = async () => {
+    this.setState({ showConfirmModal: false });
+    const { formData } = this.state;
+    const formDataToSend = new FormData();
 
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-  try {
-    const response = await axios.put(
-      `${apiBaseUrl}company-info/updateCompanyinfo`,
-      formDataToSend,
-      { headers: { "Content-Type": "multipart/form-data" } }
-    );
-
-    if (response.status === 200) {
-      sessionStorage.setItem("profile_completed", "true");
-      this.setState({ 
-        successMessage: "Profile saved! Redirecting to login...",
-        showConfirmModal: false 
-      });
-
-      setTimeout(() => {
-        sessionStorage.clear();
-        window.location.href = "/login";
-      }, 2000);
+    if (formData.logo) {
+      const base64Data = formData.logo.split(",")[1];
+      const logoBlob = this.base64toBlob(base64Data, "image/png");
+      formDataToSend.append("logo", logoBlob, formData.logoName || "logo.png");
     }
-  } catch (error) {
-    console.error(error);
-    this.setState({ successMessage: "Error saving profile. Please try again." });
-  }
-};
+
+    formDataToSend.append("userId", this.userId);
+    formDataToSend.append("account_id", this.userId);
+    formDataToSend.append("username", formData.username || "");
+    formDataToSend.append("email", formData.account_email || "");
+    formDataToSend.append("company_name", formData.company_name || "");
+    formDataToSend.append("business_type", formData.business_type || "");
+    formDataToSend.append("phone", formData.phone || "");
+    formDataToSend.append("country", formData.country || "");
+    formDataToSend.append("district", formData.district || "");
+    formDataToSend.append("city", formData.city || "");
+    formDataToSend.append("company_address", formData.company_address || "");
+    formDataToSend.append("company_website", formData.company_website || "");
+    formDataToSend.append("NTN", formData.NTN || "");
+    formDataToSend.append("size_of_company", formData.size_of_company || "");
+    formDataToSend.append("established_date", formData.established_date || "");
+
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    try {
+      const response = await axios.put(
+        `${apiBaseUrl}company-info/updateCompanyinfo`,
+        formDataToSend,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+
+      if (response.status === 200) {
+        const wasAlreadyCompleted = sessionStorage.getItem("profile_completed") === "true";
+        sessionStorage.setItem("profile_completed", "true");
+
+        if (wasAlreadyCompleted) {
+          this.setState({
+            successMessage: "Profile updated successfully!",
+            showConfirmModal: false,
+          });
+          setTimeout(() => {
+            this.setState({ successMessage: "" });
+          }, 3000);
+        } else {
+          this.setState({
+            successMessage: "Profile saved! Redirecting to login...",
+            showConfirmModal: false,
+          });
+          setTimeout(() => {
+            sessionStorage.clear();
+            window.location.href = "/login";
+          }, 2000);
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      this.setState({ successMessage: "Error saving profile. Please try again." });
+    }
+  };
 
   render() {
     const { formData, logoImg, successMessage, countryOptions, districtOptions, cityOptions, businesstypeOptions } =
@@ -355,8 +364,7 @@ handleConfirmedSubmit = async () => {
         </Head>
         <div className="company-profile-page" style={{ paddingTop: "80px" }}>
           {/* Cover Header */}
-          <div className="profile-cover"
-            style={{ background: "#36565F" }}>
+          <div className="profile-cover" style={{ background: "#36565F" }}>
             <div className="profile-info d-flex align-items-center">
               <div className="profile-avatar">
                 {logoImg ? (
@@ -499,14 +507,13 @@ handleConfirmedSubmit = async () => {
                           name="NTN"
                           value={formData.NTN}
                           onChange={this.handleInputChange}
-                          invalid={!!this.state.ntnError} // optional if using reactstrap Form feedback styling
+                          invalid={!!this.state.ntnError}
                         />
                         {this.state.ntnError && (
                           <div className="text-danger mt-1">{this.state.ntnError}</div>
                         )}
                       </FormGroup>
                     </Col>
-
 
                     <Col md={6}>
                       <FormGroup>
@@ -566,111 +573,109 @@ handleConfirmedSubmit = async () => {
             </div>
           </div>
         </div>
-{this.state.showConfirmModal && (
-  <div style={{
-    position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.6)", zIndex: 9999,
-    display: "flex", alignItems: "center", justifyContent: "center",
-    overflowY: "auto", padding: "20px"
-  }}>
-    <div className="card p-4" style={{ maxWidth: "650px", width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
-      
-      <h5 className="mb-1">Review Your Profile</h5>
-      <p className="text-muted small mb-3">
-        Please review all details before submitting. After saving, you will be 
-        logged out and your profile will be sent for admin review.
-      </p>
 
-      {/* Logo preview */}
-      {this.state.logoImg && (
-        <div className="text-center mb-3">
-          <img 
-            src={this.state.logoImg} 
-            alt="Company Logo" 
-            style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "8px" }} 
-          />
-        </div>
-      )}
+        {this.state.showConfirmModal && (
+          <div style={{
+            position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.6)", zIndex: 9999,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            overflowY: "auto", padding: "20px"
+          }}>
+            <div className="card p-4" style={{ maxWidth: "650px", width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
 
-      <table className="table table-sm table-bordered mb-3">
-        <tbody>
-          <tr>
-            <td style={{ width: "40%" }}><strong>Username</strong></td>
-            <td>{this.state.formData.username || <span className="text-muted">—</span>}</td>
-          </tr>
-          <tr>
-            <td><strong>Email</strong></td>
-            <td>{this.state.formData.account_email || <span className="text-muted">—</span>}</td>
-          </tr>
-          <tr>
-            <td><strong>Company Name</strong></td>
-            <td>{this.state.formData.company_name || <span className="text-muted">—</span>}</td>
-          </tr>
-          <tr>
-            <td><strong>Phone</strong></td>
-            <td>{this.state.formData.phone || <span className="text-muted">—</span>}</td>
-          </tr>
-          <tr>
-            <td><strong>NTN</strong></td>
-            <td>{this.state.formData.NTN || <span className="text-muted">—</span>}</td>
-          </tr>
-          <tr>
-            <td><strong>Company Size</strong></td>
-            <td>{this.state.formData.size_of_company || <span className="text-muted">—</span>}</td>
-          </tr>
-          <tr>
-            <td><strong>Business Type</strong></td>
-            <td>{this.state.selectedbusiness_type?.label || <span className="text-muted">—</span>}</td>
-          </tr>
-          <tr>
-            <td><strong>Website</strong></td>
-            <td>{this.state.formData.company_website || <span className="text-muted">—</span>}</td>
-          </tr>
-          <tr>
-            <td><strong>Established Date</strong></td>
-            <td>{this.state.formData.established_date || <span className="text-muted">—</span>}</td>
-          </tr>
-          <tr>
-            <td><strong>Country</strong></td>
-            <td>{this.state.selectedCountry?.label || <span className="text-muted">—</span>}</td>
-          </tr>
-          <tr>
-            <td><strong>District</strong></td>
-            <td>{this.state.selectedDistrict?.label || <span className="text-muted">—</span>}</td>
-          </tr>
-          <tr>
-            <td><strong>City</strong></td>
-            <td>{this.state.selectedCity?.label || <span className="text-muted">—</span>}</td>
-          </tr>
-          <tr>
-            <td><strong>Company Address</strong></td>
-            <td>{this.state.formData.company_address || <span className="text-muted">—</span>}</td>
-          </tr>
-        </tbody>
-      </table>
+              <h5 className="mb-1">Review Your Profile</h5>
+              <p className="text-muted small mb-3">
+                Please review all details before submitting. After saving, you will be
+                logged out and your profile will be sent for admin review.
+              </p>
 
-      <div className="d-flex gap-2 justify-content-end">
-        <Button
-          color="secondary"
-          onClick={() => this.setState({ showConfirmModal: false })}
-        >
-          ← Go Back & Edit
-        </Button>
-        <Button
-          style={{ backgroundColor: "#36565F", border: "none", color: "#fff" }}
-          onClick={this.handleConfirmedSubmit}
-        >
-          ✓ Confirm & Save
-        </Button>
-      </div>
+              {this.state.logoImg && (
+                <div className="text-center mb-3">
+                  <img
+                    src={this.state.logoImg}
+                    alt="Company Logo"
+                    style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "8px" }}
+                  />
+                </div>
+              )}
 
-    </div>
-  </div>
-)}
+              <table className="table table-sm table-bordered mb-3">
+                <tbody>
+                  <tr>
+                    <td style={{ width: "40%" }}><strong>Username</strong></td>
+                    <td>{this.state.formData.username || <span className="text-muted">—</span>}</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Email</strong></td>
+                    <td>{this.state.formData.account_email || <span className="text-muted">—</span>}</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Company Name</strong></td>
+                    <td>{this.state.formData.company_name || <span className="text-muted">—</span>}</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Phone</strong></td>
+                    <td>{this.state.formData.phone || <span className="text-muted">—</span>}</td>
+                  </tr>
+                  <tr>
+                    <td><strong>NTN</strong></td>
+                    <td>{this.state.formData.NTN || <span className="text-muted">—</span>}</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Company Size</strong></td>
+                    <td>{this.state.formData.size_of_company || <span className="text-muted">—</span>}</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Business Type</strong></td>
+                    <td>{this.state.selectedbusiness_type?.label || <span className="text-muted">—</span>}</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Website</strong></td>
+                    <td>{this.state.formData.company_website || <span className="text-muted">—</span>}</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Established Date</strong></td>
+                    <td>{this.state.formData.established_date || <span className="text-muted">—</span>}</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Country</strong></td>
+                    <td>{this.state.selectedCountry?.label || <span className="text-muted">—</span>}</td>
+                  </tr>
+                  <tr>
+                    <td><strong>District</strong></td>
+                    <td>{this.state.selectedDistrict?.label || <span className="text-muted">—</span>}</td>
+                  </tr>
+                  <tr>
+                    <td><strong>City</strong></td>
+                    <td>{this.state.selectedCity?.label || <span className="text-muted">—</span>}</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Company Address</strong></td>
+                    <td>{this.state.formData.company_address || <span className="text-muted">—</span>}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div className="d-flex gap-2 justify-content-end">
+                <Button
+                  color="secondary"
+                  onClick={() => this.setState({ showConfirmModal: false })}
+                >
+                  ← Go Back & Edit
+                </Button>
+                <Button
+                  style={{ backgroundColor: "#36565F", border: "none", color: "#fff" }}
+                  onClick={this.handleConfirmedSubmit}
+                >
+                  ✓ Confirm & Save
+                </Button>
+              </div>
+
+            </div>
+          </div>
+        )}
       </>
-
     );
-
   }
 }
 

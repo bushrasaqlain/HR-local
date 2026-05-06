@@ -18,14 +18,16 @@ CREATE TABLE IF NOT EXISTS job_posts (
   job_type_id INT,
   min_salary INT,
   max_salary INT,
+  salary_period ENUM('hourly','daily','weekly','monthly','yearly') DEFAULT 'monthly',
   currency_id INT,
   min_experience VARCHAR(255),
   max_experience VARCHAR(255),
   speciality_id INT,
   degree_id INT,
+  degreefields_id INT NULL,
   application_deadline TIMESTAMP,
   no_of_positions INT,
-  industry VARCHAR(255),
+  industry INT NULL,
   package_id INT,
   country_id INT,
   district_id JSON,
@@ -58,10 +60,12 @@ CREATE TABLE IF NOT EXISTS job_posts (
   FOREIGN KEY (job_type_id) REFERENCES jobtypes(id), 
   FOREIGN KEY (speciality_id) REFERENCES speciality(id),
   FOREIGN KEY (degree_id) REFERENCES degreetypes(id),
+  FOREIGN KEY (degreefields_id) REFERENCES degreefields(id),
   FOREIGN KEY (currency_id) REFERENCES currencies(id),
   FOREIGN KEY (country_id) REFERENCES countries(id),
   FOREIGN KEY (company_package_id) REFERENCES company_packages(id),
-  FOREIGN KEY (package_id) REFERENCES packages(id)
+  FOREIGN KEY (package_id) REFERENCES packages(id),
+  FOREIGN KEY (industry) REFERENCES industry(id),
 );
 `;
 
@@ -716,9 +720,9 @@ const postJob = (req, res) => {
   const {
     job_title, job_description, skill_ids,
     time_from, time_to, job_type_id,
-    min_salary, max_salary, currency_id,
+    min_salary, max_salary,salary_period, currency_id,
     min_experience, max_experience,
-    speciality_id, degree_id,
+    speciality_id, degree_id, degreefields_id,
     application_deadline, no_of_positions, industry,
     country_id, district_id, city_id,
     daily_budget, cost_per_click,
@@ -813,9 +817,9 @@ const postJob = (req, res) => {
         INSERT INTO job_posts (
           account_id, job_title, job_description, skill_ids,
           time_from, time_to, job_type_id,
-          min_salary, max_salary, currency_id,
+          min_salary, max_salary,salary_period, currency_id,
           min_experience, max_experience,
-          speciality_id, degree_id,
+          speciality_id, degree_id, degreefields_id,
           application_deadline, no_of_positions, industry,
           country_id, district_id, city_id,
           is_sponsored, daily_budget, cost_per_click, spent_amount,
@@ -827,7 +831,7 @@ const postJob = (req, res) => {
           expected_joining_date,
           chosen_daily_package_id
         )
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `;
 
       const params = [
@@ -840,11 +844,13 @@ const postJob = (req, res) => {
         job_type_id,
         min_salary || null,
         max_salary || null,
+        salary_period || "monthly", 
         currency_id || null,
         min_experience,
         max_experience,
         speciality_id,
         degree_id,
+        degreefields_id,
         application_deadline,
         no_of_positions,
         industry,
@@ -1137,60 +1143,73 @@ CREATE TABLE IF NOT EXISTS company_packages (
     console.log("company_packages  table created successfully");
   })
 }
-const subcribePackage = async (req, res) => {
-  const { userId, packageId, jobId, paymentId } = req.body;
+const subcribePackage = (req, res) => {
+  const body = req.body ?? req;
+  const { userId, packageId, jobId, paymentId } = body;
 
-  // jobId ko paymentId ki jagah use karo agar paymentId nahi aaya
   const resolvedPaymentId = paymentId || jobId || 0;
 
   if (!userId || !packageId) {
+    if (typeof res === "function") return res(new Error("userId and packageId required"));
     return res.status(400).json({ error: "userId and packageId required" });
   }
 
-  const getPackageQuery = `SELECT * FROM packages WHERE id = ?`;
+  // ✅ CHECK: block if same package already active and not expired
+  const duplicateCheck = `
+    SELECT id FROM company_packages
+    WHERE account_id = ? AND package_id = ?
+    AND LOWER(status) = 'active'
+    AND end_date >= CURDATE()
+    LIMIT 1
+  `;
 
-  connection.query(getPackageQuery, [packageId], (err, result) => {
-    if (err || !result.length) {
-      return res.status(404).json({ error: "Invalid package" });
+  connection.query(duplicateCheck, [userId, packageId], (errCheck, existing) => {
+    if (errCheck) {
+      if (typeof res === "function") return res(new Error("Duplicate check failed"));
+      return res.status(500).json({ error: "Duplicate check failed" });
     }
 
-    const pkg = result[0];
+    if (existing.length > 0) {
+      if (typeof res === "function") return res(new Error("Package already active. You can repurchase after it expires."));
+      return res.status(409).json({ error: "Package already active. You can repurchase after it expires." });
+    }
 
-    const duration =
-      pkg.duration_days ||
-      pkg.bundle_validity_days ||
-      pkg.credit_expiry_days ||
-      pkg.campaign_duration_days ||
-      30;
-
-    const insertQuery = `
-      INSERT INTO company_packages
-      (account_id, package_id, payment_id, pricing_model, start_date, end_date, package_snapshot)
-      VALUES (?, ?, ?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL ? DAY), ?)
-    `;
-
-    connection.query(
-      insertQuery,
-      [
-        userId,
-        packageId,
-        resolvedPaymentId,  // ← jobId ya paymentId jo bhi aaya
-        pkg.pricing_model,
-        duration,
-        JSON.stringify(pkg),
-      ],
-      (err2, result2) => {
-        if (err2) {
-          console.error("Subscription insert error:", err2);
-          return res.status(500).json({ error: "Subscription failed" });
-        }
-
-        return res.status(201).json({
-          message: "Package subscribed successfully ✅",
-          subscriptionId: result2.insertId,
-        });
+    // proceed with normal subscribe flow
+    connection.query(`SELECT * FROM packages WHERE id = ?`, [packageId], (err, result) => {
+      if (err || !result.length) {
+        if (typeof res === "function") return res(new Error("Invalid package"));
+        return res.status(404).json({ error: "Invalid package" });
       }
-    );
+
+      const pkg = result[0];
+      const duration =
+        pkg.duration_days ||
+        pkg.bundle_validity_days ||
+        pkg.credit_expiry_days ||
+        pkg.campaign_duration_days ||
+        30;
+
+      connection.query(
+        `INSERT INTO company_packages
+         (account_id, package_id, payment_id, pricing_model, start_date, end_date, package_snapshot)
+         VALUES (?, ?, ?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL ? DAY), ?)`,
+        [userId, packageId, resolvedPaymentId, pkg.pricing_model, duration, JSON.stringify(pkg)],
+        (err2, result2) => {
+          if (err2) {
+            console.error("Subscription insert error:", err2);
+            if (typeof res === "function") return res(new Error("Subscription failed"));
+            return res.status(500).json({ error: "Subscription failed" });
+          }
+
+          if (typeof res === "function") return res(null, { subscriptionId: result2.insertId });
+
+          return res.status(201).json({
+            message: "Package subscribed successfully ✅",
+            subscriptionId: result2.insertId,
+          });
+        }
+      );
+    });
   });
 };
 // Sirf internal use ke liye (no res/req)

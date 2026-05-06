@@ -247,7 +247,7 @@ handleSort = (key) => {
 
     return jobs.filter((job) => {
       const jobTitle = job.job_title ? job.job_title.toLowerCase() : "";
-      const jobIndustry = job.industry ? job.industry.toLowerCase() : "";
+      const jobIndustry = job.industry ? job.industry.toString().toLowerCase() : "";
       const jobPositions = job.no_of_positions
         ? job.no_of_positions.toString().toLowerCase()
         : "";

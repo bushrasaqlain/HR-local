@@ -26,7 +26,7 @@ const createPackagesTable = () => {
       -- ── daily_budget ─────────────────────────────────────────────────────
       -- Employer sets a daily spend cap; charged per click / impression / apply
       daily_budget_cap      DECIMAL(10,2) DEFAULT NULL,
-      billing_model         ENUM('cpc','cpm','cpa') DEFAULT NULL,
+      billing_model         ENUM('ppv','pps') DEFAULT NULL,
       rate_per_unit         DECIMAL(10,4) DEFAULT NULL,  -- cost per click / 1k impressions / apply
       campaign_duration_days INT DEFAULT NULL,            -- NULL = open-ended
       min_daily_budget      DECIMAL(10,2) DEFAULT NULL,
@@ -93,7 +93,7 @@ const validateByModel = (pricing_model, body) => {
   switch (pricing_model) {
     case "daily_budget":
       if (!body.daily_budget_cap) return "daily_budget_cap is required";
-      if (!body.billing_model) return "billing_model (cpc/cpm/cpa) is required";
+      if (!body.billing_model) return "billing_model (ppv/pps) is required";
       if (!body.rate_per_unit) return "rate_per_unit is required";
       break;
     case "per_apply":
