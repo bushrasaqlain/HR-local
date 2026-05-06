@@ -102,6 +102,14 @@ const parseCVAndSave = (req, res) => {
     candidateModel.parseCVAndSave(req, res);
 };
 
+const toggleSaveJob = (req, res) => {
+  candidateModel.toggleSaveJob(req, res); 
+};
+
+const getSavedJobs = (req, res) => {
+  candidateModel.getSavedJobs(req, res);   
+};
+
 module.exports = {
     getAllCandidates,
     updateStatus,
@@ -125,4 +133,6 @@ module.exports = {
     getMatchingJobsForCandidate,
     getAllCandidatesForEmployer,
     parseCVAndSave,
+    toggleSaveJob,
+    getSavedJobs,
 }

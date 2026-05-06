@@ -68,18 +68,10 @@ export const regadminmenuitem = [
 ];
 
 export const companymenuitem = [
-  {
-    key: "profileGroup",
-    label: "Dashboard",
-    type: "dropdown",
-    children: [
-      { key: "profile", label: "Profile" },
-      { key: "companyProfile", label: "Update Profile" },
-    ],
-  },
-
+  { key: "profile", label: "Profile" },
   { key: "jobList", label: "Jobs" },
   { key: "allApplicants", label: "Applicants" },
+  { key: "availableCandidates", label: "Available Candidates" },
   { key: "wallet", label: "Wallet", type: "single" },
 ];
 

@@ -8,7 +8,6 @@ const pdfParse = require("pdf-parse");
 const mammoth = require("mammoth");
 const axios = require("axios");
 const OpenAI = require("openai");
-
 const createCandidateTable = () => {
   const createCandidateInfoTable = `
   CREATE TABLE IF NOT EXISTS candidate_info (
@@ -1464,11 +1463,11 @@ const getMatchingJobsForCandidate = (req, res) => {
 
   connection.query(candidateSql, [accountId], (err, rows) => {
     if (err) {
-      console.error("candidateSql error:", err); 
+      console.error("candidateSql error:", err);
       return res.status(500).json({ error: "Database error" });
     }
 
-    console.log("candidate rows:", rows); 
+    console.log("candidate rows:", rows);
 
     if (!rows.length) return res.status(404).json({ error: "Candidate not found" });
 
@@ -1480,7 +1479,7 @@ const getMatchingJobsForCandidate = (req, res) => {
         : candidate.skills || [];
     } catch { skills = []; }
 
-    console.log("skills:", skills); 
+    console.log("skills:", skills);
 
     if (!skills.length) {
       return res.json({ success: true, data: [] });
@@ -1515,11 +1514,11 @@ const getMatchingJobsForCandidate = (req, res) => {
       [candidate.id, JSON.stringify(skills)],
       (err2, jobs) => {
         if (err2) {
-          console.error("jobsSql error:", err2); 
+          console.error("jobsSql error:", err2);
           return res.status(500).json({ error: "Database error", details: err2.message });
         }
 
-        console.log("jobs found:", jobs.length); 
+        console.log("jobs found:", jobs.length);
 
         const result = jobs.map(job => ({
           ...job,
@@ -1864,6 +1863,77 @@ ${cvText.slice(0, 3000)}`,
   }
 };
 
+const toggleSaveJob = (req, res) => {
+  const accountId = req.user.userId;
+  const { job_id } = req.body;
+
+  if (!job_id) return res.status(400).json({ error: "job_id is required" });
+
+  connection.query(
+    "SELECT id FROM saved_jobs WHERE account_id = ? AND job_id = ?",
+    [accountId, job_id],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: "Database error" });
+
+      if (rows.length > 0) {
+        connection.query(
+          "DELETE FROM saved_jobs WHERE account_id = ? AND job_id = ?",
+          [accountId, job_id],
+          (err2) => {
+            if (err2) return res.status(500).json({ error: "Database error" });
+            res.json({ success: true, saved: false });
+          }
+        );
+      } else {
+        connection.query(
+          "INSERT INTO saved_jobs (account_id, job_id) VALUES (?, ?)",
+          [accountId, job_id],
+          (err2) => {
+            if (err2) return res.status(500).json({ error: "Database error" });
+            res.json({ success: true, saved: true });
+          }
+        );
+      }
+    }
+  );
+};
+
+const getSavedJobs = (req, res) => {
+  const accountId = req.user.userId;
+
+  connection.query(
+    `SELECT 
+      sj.job_id,
+      jp.job_title,
+      jp.min_salary, jp.max_salary,
+      jp.min_experience, jp.max_experience,
+      jp.status, jp.created_at,
+      jt.name AS job_type,
+      ccy.code AS currency,
+      ci.company_name, ci.logo,
+      c.name AS city_name
+    FROM saved_jobs sj
+    JOIN job_posts jp ON jp.id = sj.job_id
+    LEFT JOIN company_info ci ON ci.account_id = jp.account_id
+    LEFT JOIN cities c ON c.id = jp.city_id
+    LEFT JOIN jobtypes jt ON jt.id = jp.job_type_id
+    LEFT JOIN currencies ccy ON ccy.id = jp.currency_id
+    WHERE sj.account_id = ?
+    ORDER BY sj.id DESC`,
+    [accountId],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: "Database error" });
+
+      const jobs = results.map(job => ({
+        ...job,
+        logo: job.logo ? job.logo.toString("base64") : null,
+      }));
+
+      res.json({ success: true, data: jobs });
+    }
+  );
+};
+
 module.exports = {
   getAllCandidates,
   updateStatus,
@@ -1894,4 +1964,6 @@ module.exports = {
   getMatchingJobsForCandidate,
   getAllCandidatesForEmployer,
   parseCVAndSave,
+  toggleSaveJob,
+  getSavedJobs,
 };

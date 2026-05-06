@@ -1256,7 +1256,7 @@ const getUserPackages = (req, res) => {
 
   const dailyJobsQuery = `
   SELECT 
-    id, job_title, status, billing_model,
+    id, job_title, status,approval_status, billing_model,
     cost_per_click  AS rate_per_unit,      -- your actual column
     daily_budget    AS daily_budget_cap,   -- your actual column
     0               AS daily_spend_today,  -- you don't track this yet
@@ -1276,9 +1276,14 @@ const getUserPackages = (req, res) => {
 
       // format subscription packages (existing logic unchanged)
       const packages = subsResult.map(item => {
-        const pkg = typeof item.package_snapshot === "string"
-          ? JSON.parse(item.package_snapshot)
-          : item.package_snapshot;
+        const pkg = (() => {
+          try {
+            if (!item.package_snapshot) return {};
+            return typeof item.package_snapshot === "string"
+              ? JSON.parse(item.package_snapshot)
+              : item.package_snapshot;
+          } catch { return {}; }
+        })();
 
         return {
           subscription_id: item.subscription_id,
@@ -1295,27 +1300,39 @@ const getUserPackages = (req, res) => {
       });
 
       // format daily_budget jobs to match the same shape
-      const dailyPackages = dailyJobs.map(job => ({
-        subscription_id: `job_${job.id}`,
-        start_date: null,
-        end_date: job.application_deadline,
-        pricing_model: "daily_budget",
-        status: job.status,
-        used_posts: 0,
-        used_credits: 0,
-        used_slots: 0,
-        is_daily_budget: true,
-        package: {
-          name: job.job_title,
+      const dailyPackages = dailyJobs.map(job => {
+        // approval_status + status ko combine karke ek clean status banao
+        let normalizedStatus = "active";
+        if (job.approval_status === "Pending Payment") {
+          normalizedStatus = "pending_payment";
+        } else if (job.approval_status === "Pending") {
+          normalizedStatus = "pending";
+        } else if (job.status === "Inactive") {
+          normalizedStatus = "expired";
+        }
+
+        return {
+          subscription_id: `job_${job.id}`,
+          start_date: null,
+          end_date: job.application_deadline,
           pricing_model: "daily_budget",
-          billing_model: job.billing_model,
-          rate_per_unit: job.rate_per_unit,
-          daily_budget_cap: job.daily_budget_cap,
-          daily_spend_today: job.daily_spend_today,
-          total_spend: job.total_spend,
-          price: job.total_spend, // actual spend so far
-        },
-      }));
+          status: normalizedStatus,
+          used_posts: 0,
+          used_credits: 0,
+          used_slots: 0,
+          is_daily_budget: true,
+          package: {
+            name: job.job_title,
+            pricing_model: "daily_budget",
+            billing_model: job.billing_model,
+            rate_per_unit: job.rate_per_unit,
+            daily_budget_cap: job.daily_budget_cap,
+            daily_spend_today: job.daily_spend_today,
+            total_spend: job.total_spend,
+            price: job.total_spend,
+          },
+        };
+      });
 
       res.json([...packages, ...dailyPackages]);
     });
@@ -1372,33 +1389,33 @@ const getTransactionHistory = (req, res) => {
             : item.package_snapshot || {};
 
         const totalUnits =
-          pkg.num_posts     ||
-          pkg.credit_count  ||
-          pkg.slot_count    ||
-          pkg.daily_budget  ||
+          pkg.num_posts ||
+          pkg.credit_count ||
+          pkg.slot_count ||
+          pkg.daily_budget ||
           pkg.applies_limit ||
           0;
 
         const usedUnits =
-          item.used_posts   ||
+          item.used_posts ||
           item.used_credits ||
-          item.used_slots   ||
+          item.used_slots ||
           item.used_applies ||
           Number(item.used_budget) ||
           0;
 
         return {
-          transaction_id:  item.transaction_id,
-          package_name:    pkg.name         || "Package",
-          package_type:    pkg.type         || item.pricing_model,
-          pricing_model:   item.pricing_model,
-          amount_paid:     pkg.price        || 0,
-          status:          item.status,
-          start_date:      item.start_date,
-          end_date:        item.end_date,
-          purchased_at:    item.created_at,
-          total_units:     totalUnits,
-          used_units:      usedUnits,
+          transaction_id: item.transaction_id,
+          package_name: pkg.name || "Package",
+          package_type: pkg.type || item.pricing_model,
+          pricing_model: item.pricing_model,
+          amount_paid: pkg.price || 0,
+          status: item.status,
+          start_date: item.start_date,
+          end_date: item.end_date,
+          purchased_at: item.created_at,
+          total_units: totalUnits,
+          used_units: usedUnits,
           remaining_units: Math.max(totalUnits - usedUnits, 0),
           is_daily_budget: false,
         };
@@ -1406,21 +1423,21 @@ const getTransactionHistory = (req, res) => {
 
       // Format daily budget jobs to match the same shape
       const dailyTransactions = dailyResults.map((job) => ({
-        transaction_id:  `job_${job.id}`,
+        transaction_id: `job_${job.id}`,
         package_name: job.billing_model.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
-        package_type:    "daily_budget",
-        pricing_model:   "daily_budget",
-        amount_paid:     job.spent_amount || 0,   // actual spend so far
-        status:          job.status,
-        start_date:      job.created_at,
-        end_date:        job.application_deadline,
-        purchased_at:    job.created_at,
-        total_units:     job.daily_budget  || 0,  // the cap they set
-        used_units:      job.spent_amount  || 0,  // what's been spent
+        package_type: "daily_budget",
+        pricing_model: "daily_budget",
+        amount_paid: job.spent_amount || 0,   // actual spend so far
+        status: job.status,
+        start_date: job.created_at,
+        end_date: job.application_deadline,
+        purchased_at: job.created_at,
+        total_units: job.daily_budget || 0,  // the cap they set
+        used_units: job.spent_amount || 0,  // what's been spent
         remaining_units: Math.max((job.daily_budget || 0) - (job.spent_amount || 0), 0),
         is_daily_budget: true,
         // extra detail useful for the UI
-        cost_per_click:  job.cost_per_click || 0,
+        cost_per_click: job.cost_per_click || 0,
       }));
 
       // Merge and sort everything by date descending
@@ -1798,7 +1815,7 @@ cron.schedule("0 0 * * *", () => {
             `INSERT INTO payment (account_id, job_id, card_last4, card_brand, card_holder, amount, currency, payment_type, payment_method, payment_status, payment_reference)
              VALUES (?, ?, ?, ?, ?, ?, 'PKR', 'job', 'Card', 'Paid', ?)`,
             [job.account_id, job.id, job.card_last4, job.card_brand, job.card_holder, job.daily_budget,
-             `daily_cron_job${job.id}_${Date.now()}`]
+            `daily_cron_job${job.id}_${Date.now()}`]
           );
 
           // Reset spent_amount for new day
