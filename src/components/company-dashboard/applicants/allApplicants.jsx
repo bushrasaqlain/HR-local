@@ -285,29 +285,33 @@ class AllApplicants extends Component {
     this.setState({ counts });
   };
 
-  handleApplicationStatus = async (
-    candidateId,
-    jobId,
-    status = "Shortlisted",
-  ) => {
-    if (!jobId) {
-      console.error("Job ID is required to update status");
-      return;
-    }
+handleApplicationStatus = async (
+  candidateId,
+  jobId,
+  status = "Shortlisted",
+  interview_day = null,
+  interview_time = null,
+) => {
+  if (!jobId) {
+    console.error("Job ID is required to update status");
+    return;
+  }
 
-    try {
-      await axios.post(`${this.apiBaseUrl}updatestatus`, {
-        candidateId,
-        jobId,
-        status,
-      });
-      console.log(`Candidate ${status.toLowerCase()} successfully`);
-      this.fetchAllCandidates();
-    } catch (error) {
-      console.error(error.response?.data);
-      console.error("Failed to update status");
-    }
-  };
+  try {
+    await axios.post(`${this.apiBaseUrl}applicant/updatestatus`, {
+      candidateId,
+      jobId,
+      status,
+      ...(interview_day && { interview_day }),
+      ...(interview_time && { interview_time }),
+    });
+    console.log(`Candidate ${status.toLowerCase()} successfully`);
+    this.fetchAllCandidates();
+  } catch (error) {
+    console.error(error.response?.data);
+    console.error("Failed to update status");
+  }
+};
 
   handlePageChange = (page) => {
     this.setState({ currentPage: page });

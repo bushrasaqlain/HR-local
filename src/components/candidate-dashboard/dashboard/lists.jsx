@@ -109,7 +109,7 @@ class JobList extends Component {
 
     try {
       await axios.post(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}updatestatus`,
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}applicant/updatestatus`,
         {
           candidateId: selectedConfirmCompany.candidate_id,
           jobId: selectedConfirmCompany.job_id,
@@ -175,7 +175,7 @@ class JobList extends Component {
 
     try {
       await axios.post(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}updatestatus`,
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}applicant/updatestatus`,
         {
           candidateId: selectedRescheduleCompany.candidate_id,
           jobId: selectedRescheduleCompany.job_id,
