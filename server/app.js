@@ -59,10 +59,9 @@ const jobtitlesRoutes = require("./routes/jobtitlesRoutes");
 const candidatejobs = require("./routes/candidatejobsRoutes")
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const alertSettingsRoutes = require("./routes/alertSettingsRoutes");
+const creditRoutes = require("./routes/creditRoutes");
 
-
-
-
+app.use("/credit", creditRoutes);
 
 app.use("/", accountRoutes);
 app.use("/", countries);

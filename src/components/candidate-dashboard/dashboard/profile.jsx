@@ -359,7 +359,10 @@ class Profile extends Component {
                       <small className="text-muted ms-2">Based on your skills</small>
                     </div>
                     <button
-                      onClick={() => this.props.onTabChange && this.props.onTabChange("savedJobs")}
+                      onClick={() => {
+                        console.log("clicked");
+                        this.props.onTabChange && this.props.onTabChange("savedJobs");
+                      }}
                       style={{
                         background: "#fff", color: "#36565F",
                         border: "1.5px solid #36565F",
