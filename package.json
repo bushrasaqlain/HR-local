@@ -61,7 +61,7 @@
     "pdf-poppler": "^0.2.3",
     "pdf2json": "^4.0.3",
     "pdf2pic": "^3.2.0",
-    "pdfjs-dist": "^3.4.120",
+    "pdfjs-dist": "^3.11.174",
     "pdfmake": "^0.2.20",
     "photoswipe": "^5.3.4",
     "pizzip": "^3.2.0",

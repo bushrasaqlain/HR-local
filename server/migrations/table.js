@@ -73,6 +73,8 @@ const skills = require("../models/skillsModel")
 const candidateexperience = require("../models/candidateexperienceModel")
 const candidateAvailabilityModel = require("../models/candidateAvailabilityModel");
 const alertSettingsModel = require("../models/alertSettingsModel");
+const creditModel = require("../models/creditModel");
+
 function Database() {
 
   countryModel.createCountriesTable();
@@ -116,6 +118,7 @@ function Database() {
   candidatecertificateModel.createCertificatesTable();
   alertSettingsModel.createAlertSettingsTable();
   alertSettingsModel.createNotificationsTable();
+  creditModel.createCandidateUnlocksTable();
 
 
   // adding extra column in job_posts table
