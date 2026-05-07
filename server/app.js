@@ -7,6 +7,9 @@ const cors = require("cors");
 const connection = require("./connection");
 require("./cron"); 
 
+const { startAlertCron } = require("./alertCron"); // adjust path if needed
+startAlertCron();
+
 const app = express();
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 

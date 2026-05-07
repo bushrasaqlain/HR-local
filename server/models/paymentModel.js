@@ -18,6 +18,7 @@ const createPaymentTable = () => {
     card_last4 VARCHAR(4),
     card_brand VARCHAR(20),
     card_holder VARCHAR(100),
+    card_expiry VARCHAR(7),
 
     -- 💳 GENERIC PAYMENT
     payment_reference VARCHAR(255),
@@ -56,6 +57,7 @@ const createSaveCardTable = () => {
   card_brand VARCHAR(20),
   accepted_types JSON NULL,
   card_holder VARCHAR(100),
+  card_expiry VARCHAR(7),
   payment_token VARCHAR(255) NULL, 
 
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -80,7 +82,7 @@ const addPayment = (req, res) => {
     packageId, jobId, reference, payment_type,
   } = req.body;
 
-  const { method, cardLast4, cardName, saveForLater, acceptedTypes } = paymentDetails || {};
+  const { method, cardLast4, cardName, saveForLater, acceptedTypes, cardExpiry } = paymentDetails || {};
 
   let last4 = null;
   let brand = null;
@@ -108,12 +110,12 @@ const addPayment = (req, res) => {
 
         if (rows.length === 0) {
           const insertCard = `
-            INSERT INTO saved_cards (account_id, card_last4, card_brand, card_holder, accepted_types, payment_token)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO saved_cards (account_id, card_last4, card_brand, card_holder, card_expiry,  accepted_types, payment_token)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
           `;
           connection.query(
             insertCard,
-            [userId, last4, brand, cardName || null, JSON.stringify(acceptedTypes || []), payment_token],
+            [userId, last4, brand, cardName || null, cardExpiry || null, JSON.stringify(acceptedTypes || []), payment_token],
             (errInsert) => {
               if (errInsert) return res.status(500).json({ success: false, message: "Saving card failed" });
               return res.status(201).json({ success: true, message: "Card saved successfully ✅" });
@@ -136,11 +138,11 @@ const addPayment = (req, res) => {
     const paymentQuery = `
       INSERT INTO payment
       (account_id, job_id, package_id,
-       card_last4, card_brand, card_holder,
+       card_last4, card_brand, card_holder, card_expiry,
        amount, currency,
        payment_type, payment_method, payment_status,
        payment_reference)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Paid', ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Paid', ?)
     `;
 
     connection.query(
@@ -169,12 +171,12 @@ const addPayment = (req, res) => {
               if (errCheck) return connection.rollback(() => res.status(500).json({ success: false, message: "Card check failed" }));
               if (rows.length === 0) {
                 const insertCard = `
-                  INSERT INTO saved_cards (account_id, card_last4, card_brand, card_holder, accepted_types, payment_token)
-                  VALUES (?, ?, ?, ?, ?, ?)
+                  INSERT INTO saved_cards (account_id, card_last4, card_brand, card_holder, card_expiry, accepted_types, payment_token)
+                  VALUES (?, ?, ?, ?, ?, ?, ?)
                 `;
                 connection.query(
                   insertCard,
-                  [userId, last4, brand, cardName || null, JSON.stringify(acceptedTypes || []), payment_token],
+                  [userId, last4, brand, cardName || null, cardExpiry || null, JSON.stringify(acceptedTypes || []), payment_token],
                   (errInsert) => {
                     if (errInsert) return connection.rollback(() => res.status(500).json({ success: false, message: "Saving card failed" }));
                     cb();

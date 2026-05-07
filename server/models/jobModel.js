@@ -114,7 +114,19 @@ const getAllJobs = (req, res) => {
       jp.approval_status,
       jp.status,
       jp.created_at,
-      jp.updated_at
+      jp.updated_at,
+        
+    jp.company_package_id,
+    jp.package_id,
+    cp.status           AS package_status,
+    cp.start_date       AS package_start,
+    cp.end_date         AS package_end,
+    cp.used_posts,
+    cp.used_slots,
+    cp.used_credits,
+    p.name              AS package_name,
+    p.pricing_model     AS package_type,
+    cp.package_snapshot
     FROM job_posts jp
     LEFT JOIN account a ON jp.account_id = a.id
     LEFT JOIN jobtypes jt ON jp.job_type_id = jt.id
@@ -122,6 +134,8 @@ const getAllJobs = (req, res) => {
     LEFT JOIN speciality spec ON jp.speciality_id = spec.id
     LEFT JOIN degreetypes deg ON jp.degree_id = deg.id
     LEFT JOIN countries co ON jp.country_id = co.id
+    LEFT JOIN company_packages cp ON jp.company_package_id = cp.id
+  LEFT JOIN packages p          ON jp.package_id         = p.id
     WHERE jp.account_id = ?
     ORDER BY jp.created_at DESC
   `;
@@ -219,6 +233,15 @@ const getAllJobs = (req, res) => {
           districts: districts.map((d) => ({ id: d.id, name: d.name })),
           city_id: cityIds,
           cities: cities.map((c) => ({ id: c.id, name: c.name })),
+            package: job.package_snapshot
+    ? (() => {
+        try {
+          return typeof job.package_snapshot === "string"
+            ? JSON.parse(job.package_snapshot)
+            : job.package_snapshot;
+        } catch { return null; }
+      })()
+    : null,
         };
       })
     );

@@ -16,7 +16,7 @@ import Head from "next/head";
 
 class JobList extends Component {
   state = {
-    selected: this.props.selectedType || "",
+    selected: this.props.selectedType || "shortlisted",
     shortlistedList: [],
     approvedList: [],
     loading: true,
@@ -761,11 +761,31 @@ class JobList extends Component {
         <Card className="mt-5">
           <CardHeader>Select Category</CardHeader>
           <CardBody>
-            <Input type="select" value={selected} onChange={this.handleChange}>
-              <option value="">Select</option>
-              <option value="shortlisted">Shortlisted</option>
-              <option value="approved">Approved</option>
-            </Input>
+<div style={{ borderBottom: "2px solid #e0e0e0", marginBottom: "1rem", display: "flex", gap: "0" }}>
+  {["shortlisted", "approved"].map((tab) => (
+    <button
+      key={tab}
+      onClick={() => this.setState({ selected: tab })}
+      style={{
+        padding: "10px 24px",
+        border: "none",
+        background: "transparent",
+        cursor: "pointer",
+        fontWeight: selected === tab ? "600" : "400",
+        color: selected === tab ? "#36565f" : "#6c757d",
+        borderBottom: selected === tab ? "3px solid #36565f" : "3px solid transparent",
+        marginBottom: "-2px",
+        textTransform: "capitalize",
+        fontSize: "15px",
+        transition: "all 0.2s",
+      }}
+    >
+      {tab === "shortlisted" ? "Shortlisted" : "Approved"}
+    </button>
+  ))}
+</div>
+
+
 
             {selected && this.renderTable(lists[selected])}
 

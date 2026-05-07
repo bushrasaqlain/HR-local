@@ -40,7 +40,7 @@ export const dbadminmenuitem = [
   },
   {
     key: "businessGroup",
-    label: "Business",
+    label: "Business",  
     children: [
       { key: "businessentitytypes", label: "Business Entities" },
       { key: "jobtypes", label: "Job Types" },

@@ -516,7 +516,7 @@ class AvailableCandidates extends Component {
                             {/* Lock strip */}
                             {(!hasActiveJob || candidates.length > VISIBLE_FREE) && (
                                 <div style={styles.lockStrip}>
-                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="#6A1AA8">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="#36565f">
                                         <path d="M18 8h-1V6A5 5 0 007 6v2H6a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V10a2 2 0 00-2-2zm-6 9a2 2 0 110-4 2 2 0 010 4zm3.1-9H8.9V6a3.1 3.1 0 016.2 0v2z" />
                                     </svg>
                                     <span>
@@ -613,8 +613,8 @@ const styles = {
         display: "flex", alignItems: "center", justifyContent: "center",
         flexShrink: 0,
     },
-    ctaBannerTitle: { fontSize: 14, fontWeight: 600, color: "#1A4A30", margin: "0 0 3px" },
-    ctaBannerSub: { fontSize: 12, color: "#2E7D5E", margin: 0 },
+    ctaBannerTitle: { fontSize: 14, fontWeight: 600, color: "#36565f", margin: "0 0 3px" },
+    ctaBannerSub: { fontSize: 12, color: "#36565f", margin: 0 },
 
     // Stats
     statsRow: {
@@ -744,18 +744,18 @@ const styles = {
         display: "flex", alignItems: "center", justifyContent: "center",
     },
     lockLabel: {
-        fontSize: 11, fontWeight: 600, color: "#2E7D5E",
+        fontSize: 11, fontWeight: 600, color: "#36565f",
         textAlign: "center", margin: 0,
     },
 
     // Lock strip
     lockStrip: {
         display: "flex", alignItems: "center", gap: 8,
-        background: "#FAF5FF",
-        border: "1px solid #D6BCFA",
+        background: "#e2f0f0",
+        border: "1px solid #a2a4a5",
         borderRadius: 8,
         padding: "10px 14px",
-        fontSize: 13, color: "#553C9A",
+        fontSize: 13, color: "#525252",
         marginBottom: 20,
     },
 
@@ -783,21 +783,21 @@ const styles = {
         transition: "all 0.2s",
     },
     pageBtnActive: {
-        background: "#2E7D5E",
+        background: "#36565f",
         color: "#fff",
-        border: "1px solid #2E7D5E",
+        border: "1px solid #36565f",
     },
 
     // Bottom CTA
     bottomCta: {
-        background: "#F3E8FD",
-        border: "1px solid #C8A8F0",
+        background: "#e2f0f0",
+        border: "1px solid #e2f0f0",
         borderRadius: 14,
         padding: "28px 24px",
         textAlign: "center",
     },
-    bottomCtaTitle: { fontSize: 17, fontWeight: 600, color: "#3C1A6A", marginBottom: 8 },
-    bottomCtaSub: { fontSize: 13, color: "#6A1AA8", lineHeight: 1.7, marginBottom: 20 },
+    bottomCtaTitle: { fontSize: 17, fontWeight: 600, color: "#36565f", marginBottom: 8 },
+    bottomCtaSub: { fontSize: 13, color: "#36565f", lineHeight: 1.7, marginBottom: 20 },
     btnRow: { display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" },
 
     // Buttons
@@ -808,12 +808,12 @@ const styles = {
         cursor: "pointer", whiteSpace: "nowrap",
     },
     btnOutlinePurple: {
-        border: "1px solid #6A1AA8", color: "#6A1AA8",
+        border: "1px solid #36565f", color: "#36565f",
         background: "transparent", padding: "10px 20px",
         borderRadius: 8, fontSize: 13, cursor: "pointer",
     },
     btnFillPurple: {
-        background: "#6A1AA8", color: "#F3E8FD",
+        background: "#36565f", color: "#F3E8FD",
         border: "none", padding: "10px 22px",
         borderRadius: 8, fontSize: 13, fontWeight: 600,
         cursor: "pointer",

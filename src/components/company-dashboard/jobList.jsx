@@ -49,7 +49,7 @@ class JobListings extends Component {
     
     this.tableHeaders = [
       { key: "job_title", label: "Job Title", placeholder: "Filter by Title", minWidth: "200px" },
-      { key: "industry", label: "Industry",  placeholder: "Filter by Industry", minWidth: "150px" },
+      { key: "Model", label: "Package",  placeholder: "Filter by Package", minWidth: "150px" },
       { key: "no_of_positions", label: "Positions",  placeholder: "No. of Positions", minWidth: "100px" },
       { key: "application_deadline", label: "Deadline", placeholder: "Filter Deadline", minWidth: "130px" },
       { key: "approval_status", label: "Approval",  placeholder: "Filter Approval", minWidth: "120px" },
@@ -630,7 +630,7 @@ handleSort = (key) => {
                           </td>
                           <td className="text-start" style={{ padding: '18px 20px', color: '#475569' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              {job.industry}
+                              {job.billing_model}
                             </div>
                           </td>
                           <td className="text-center" style={{ padding: '18px 20px' }}>

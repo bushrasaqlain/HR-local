@@ -29,7 +29,7 @@ import RegAdminDashboardArea from "../components/regadmin-dashboard/dashboard-ar
 import CompanyDashboardArea from "../components/company-dashboard/dashboard-area";
 import CandidateDashboardArea from "../components/candidate-dashboard/dashboard-area";
 import DashboardFooter from "./dashboard-footer";
-import { NotificationCenter } from "../components/company-dashboard/wallet";
+import  NotificationCenter  from "../components/company-dashboard/Notificationcenter";
 import axios from "axios";
 
 const EMPLOYER_ROUTE_MAP = {
@@ -532,9 +532,9 @@ class DashboardHeader extends Component {
             <div className="d-none d-md-flex d-lg-flex align-items-center gap-2">
               {accountType === "employer" && profileCompleted && (
                 <NotificationCenter
-                  packages={this.state.packages}
-                  alertSettings={this.state.alertSettings}
-                />
+  userId={this.state.userInfo.userId}
+  apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
+/>
               )}
               <span className="text-white text-end">
                 <div>

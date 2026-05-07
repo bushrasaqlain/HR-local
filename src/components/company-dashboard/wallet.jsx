@@ -13,6 +13,7 @@ import {
 import { Doughnut, Bar } from "react-chartjs-2";
 import PricingPage from "./viewpackage";
 import TransactionHistory from "./transactionhistory";
+import NotificationCenter from "./NotificationCenter";
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
@@ -729,7 +730,7 @@ function PaymentMethodCard({ method, onAdd, onChange }) {
             <div>
               <div className="aw-pm-num">•••• •••• •••• {method.last4}</div>
               <div className="aw-pm-exp">
-                {method.holder || ""} · {method.brand?.toUpperCase() || "CARD"}
+                {method.holder || ""} · {method.brand?.toUpperCase() || "CARD"} · {method.expiry || ""}
               </div>
             </div>
             <span style={{ fontSize: 11, background: "#f0f0f0", color: "#595959", padding: "2px 8px", borderRadius: 3, fontWeight: 700 }}>
@@ -857,6 +858,7 @@ function AddCardForm({ onSave, onBrowse }) {
       holder: holder.trim(),
       acceptedTypes: accepted,
       saveForLater,
+      expiry,
     });
   };
 
@@ -1660,329 +1662,329 @@ function SetUsageAlerts({ packages, onSave, initialSettings }) {
   );
 }
 
-// ─── Notification Center Component ──────────────────────────────────────────
-function NotificationCenter({ packages, alertSettings }) {
-  const [notifications, setNotifications] = React.useState([]);
-  const [showDropdown, setShowDropdown] = React.useState(false);
-  const lastCheckRef = React.useRef({});
+// // ─── Notification Center Component ──────────────────────────────────────────
+// function NotificationCenter({ packages, alertSettings }) {
+//   const [notifications, setNotifications] = React.useState([]);
+//   const [showDropdown, setShowDropdown] = React.useState(false);
+//   const lastCheckRef = React.useRef({});
 
-  // Helper function to check if alert already exists (avoid duplicates)
-  const alertExists = (type, packageName) => {
-    const key = `${type}-${packageName}`;
-    const lastCheck = lastCheckRef.current[key];
-    if (lastCheck && (Date.now() - lastCheck) < 3600000) { // 1 hour
-      return true;
-    }
-    lastCheckRef.current[key] = Date.now();
-    return false;
-  };
+//   // Helper function to check if alert already exists (avoid duplicates)
+//   const alertExists = (type, packageName) => {
+//     const key = `${type}-${packageName}`;
+//     const lastCheck = lastCheckRef.current[key];
+//     if (lastCheck && (Date.now() - lastCheck) < 3600000) { // 1 hour
+//       return true;
+//     }
+//     lastCheckRef.current[key] = Date.now();
+//     return false;
+//   };
 
-  // Check for alerts based on package data
-  const checkAlerts = React.useCallback(() => {
-    if (!alertSettings) return;
+//   // Check for alerts based on package data
+//   const checkAlerts = React.useCallback(() => {
+//     if (!alertSettings) return;
 
-    const newAlerts = [];
-    const now = new Date();
+//     const newAlerts = [];
+//     const now = new Date();
 
-    // 1. Low Credits Check
-    if (alertSettings.lowCredits?.enabled) {
-      packages.forEach(pkg => {
-        const total = pkg.total || 1;
-        const used = pkg.used || 0;
-        const usagePct = (used / total) * 100;
-        if (usagePct >= alertSettings.lowCredits.threshold && pkg.remaining > 0) {
-          if (!alertExists("low_credits", pkg.name)) {
-            newAlerts.push({
-              id: `low-${pkg.id}-${Date.now()}-${Math.random()}`,
-              type: "low_credits",
-              title: "⚠️ Low Credits Alert",
-              message: `${pkg.name} is ${Math.round(usagePct)}% used. Only ${pkg.remaining} ${pkg.type === 'cv_credits' ? 'credits' : 'units'} remaining.`,
-              packageName: pkg.name,
-              severity: "warning",
-              timestamp: new Date(),
-              read: false,
-            });
-          }
-        }
-      });
-    }
+//     // 1. Low Credits Check
+//     if (alertSettings.lowCredits?.enabled) {
+//       packages.forEach(pkg => {
+//         const total = pkg.total || 1;
+//         const used = pkg.used || 0;
+//         const usagePct = (used / total) * 100;
+//         if (usagePct >= alertSettings.lowCredits.threshold && pkg.remaining > 0) {
+//           if (!alertExists("low_credits", pkg.name)) {
+//             newAlerts.push({
+//               id: `low-${pkg.id}-${Date.now()}-${Math.random()}`,
+//               type: "low_credits",
+//               title: "⚠️ Low Credits Alert",
+//               message: `${pkg.name} is ${Math.round(usagePct)}% used. Only ${pkg.remaining} ${pkg.type === 'cv_credits' ? 'credits' : 'units'} remaining.`,
+//               packageName: pkg.name,
+//               severity: "warning",
+//               timestamp: new Date(),
+//               read: false,
+//             });
+//           }
+//         }
+//       });
+//     }
 
-    // 2. Package Expiry Check
-    if (alertSettings.packageExpiry?.enabled) {
-      packages.forEach(pkg => {
-        if (pkg.expiresRaw) {
-          const daysLeft = Math.ceil((new Date(pkg.expiresRaw) - now) / (1000 * 60 * 60 * 24));
-          if (daysLeft <= alertSettings.packageExpiry.daysBefore && daysLeft > 0) {
-            if (!alertExists("expiry", pkg.name)) {
-              newAlerts.push({
-                id: `expiry-${pkg.id}-${Date.now()}-${Math.random()}`,
-                type: "expiry",
-                title: "⏰ Package Expiring Soon",
-                message: `${pkg.name} will expire in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}. Renew now to avoid interruption.`,
-                packageName: pkg.name,
-                severity: daysLeft <= 3 ? "critical" : "warning",
-                timestamp: new Date(),
-                read: false,
-              });
-            }
-          }
-        }
-      });
-    }
+//     // 2. Package Expiry Check
+//     if (alertSettings.packageExpiry?.enabled) {
+//       packages.forEach(pkg => {
+//         if (pkg.expiresRaw) {
+//           const daysLeft = Math.ceil((new Date(pkg.expiresRaw) - now) / (1000 * 60 * 60 * 24));
+//           if (daysLeft <= alertSettings.packageExpiry.daysBefore && daysLeft > 0) {
+//             if (!alertExists("expiry", pkg.name)) {
+//               newAlerts.push({
+//                 id: `expiry-${pkg.id}-${Date.now()}-${Math.random()}`,
+//                 type: "expiry",
+//                 title: "⏰ Package Expiring Soon",
+//                 message: `${pkg.name} will expire in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}. Renew now to avoid interruption.`,
+//                 packageName: pkg.name,
+//                 severity: daysLeft <= 3 ? "critical" : "warning",
+//                 timestamp: new Date(),
+//                 read: false,
+//               });
+//             }
+//           }
+//         }
+//       });
+//     }
 
-    // 3. Budget Threshold Check (for daily budget packages)
-    if (alertSettings.budgetThreshold?.enabled) {
-      packages.filter(p => p.isDailyBudget).forEach(pkg => {
-        const usedPct = (pkg.used / pkg.total) * 100;
-        if (usedPct >= alertSettings.budgetThreshold.threshold) {
-          if (!alertExists("budget", pkg.name)) {
-            newAlerts.push({
-              id: `budget-${pkg.id}-${Date.now()}-${Math.random()}`,
-              type: "budget",
-              title: "💰 Budget Alert",
-              message: `${pkg.name} has used ${Math.round(usedPct)}% of your daily budget.`,
-              packageName: pkg.name,
-              severity: "warning",
-              timestamp: new Date(),
-              read: false,
-            });
-          }
-        }
-      });
-    }
-    if (newAlerts.length > 0) {
-      setNotifications(prev => {
-        // Remove any duplicate alerts before adding
-        const existingIds = new Set(prev.map(n => n.id));
-        const uniqueNewAlerts = newAlerts.filter(a => !existingIds.has(a.id));
-        const allAlerts = [...uniqueNewAlerts, ...prev];
-        return allAlerts.slice(0, 50); // Keep last 50 notifications
-      });
-    }
-  }, [packages, alertSettings]);
+//     // 3. Budget Threshold Check (for daily budget packages)
+//     if (alertSettings.budgetThreshold?.enabled) {
+//       packages.filter(p => p.isDailyBudget).forEach(pkg => {
+//         const usedPct = (pkg.used / pkg.total) * 100;
+//         if (usedPct >= alertSettings.budgetThreshold.threshold) {
+//           if (!alertExists("budget", pkg.name)) {
+//             newAlerts.push({
+//               id: `budget-${pkg.id}-${Date.now()}-${Math.random()}`,
+//               type: "budget",
+//               title: "💰 Budget Alert",
+//               message: `${pkg.name} has used ${Math.round(usedPct)}% of your daily budget.`,
+//               packageName: pkg.name,
+//               severity: "warning",
+//               timestamp: new Date(),
+//               read: false,
+//             });
+//           }
+//         }
+//       });
+//     }
+//     if (newAlerts.length > 0) {
+//       setNotifications(prev => {
+//         // Remove any duplicate alerts before adding
+//         const existingIds = new Set(prev.map(n => n.id));
+//         const uniqueNewAlerts = newAlerts.filter(a => !existingIds.has(a.id));
+//         const allAlerts = [...uniqueNewAlerts, ...prev];
+//         return allAlerts.slice(0, 50); // Keep last 50 notifications
+//       });
+//     }
+//   }, [packages, alertSettings]);
 
-  // Check for alerts every 60 seconds (instead of 30)
-  React.useEffect(() => {
-    if (packages.length > 0 && alertSettings) {
-      checkAlerts();
-      const interval = setInterval(checkAlerts, 60000); // 1 minute
-      return () => clearInterval(interval);
-    }
-  }, [checkAlerts, packages.length, alertSettings]);
+//   // Check for alerts every 60 seconds (instead of 30)
+//   React.useEffect(() => {
+//     if (packages.length > 0 && alertSettings) {
+//       checkAlerts();
+//       const interval = setInterval(checkAlerts, 60000); // 1 minute
+//       return () => clearInterval(interval);
+//     }
+//   }, [checkAlerts, packages.length, alertSettings]);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+//   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const markAsRead = (id) => {
-    setNotifications(prev =>
-      prev.map(n => n.id === id ? { ...n, read: true } : n)
-    );
-  };
+//   const markAsRead = (id) => {
+//     setNotifications(prev =>
+//       prev.map(n => n.id === id ? { ...n, read: true } : n)
+//     );
+//   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  };
+//   const markAllAsRead = () => {
+//     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+//   };
 
-  const getSeverityColor = (severity) => {
-    switch (severity) {
-      case 'critical': return '#ef4444';
-      case 'warning': return '#f59e0b';
-      default: return '#3b82f6';
-    }
-  };
+//   const getSeverityColor = (severity) => {
+//     switch (severity) {
+//       case 'critical': return '#ef4444';
+//       case 'warning': return '#f59e0b';
+//       default: return '#3b82f6';
+//     }
+//   };
 
-  const formatTime = (timestamp) => {
-    const diff = Date.now() - new Date(timestamp);
-    const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes} min ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
-    const days = Math.floor(hours / 24);
-    return `${days} day${days !== 1 ? 's' : ''} ago`;
-  };
+//   const formatTime = (timestamp) => {
+//     const diff = Date.now() - new Date(timestamp);
+//     const minutes = Math.floor(diff / 60000);
+//     if (minutes < 1) return 'Just now';
+//     if (minutes < 60) return `${minutes} min ago`;
+//     const hours = Math.floor(minutes / 60);
+//     if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+//     const days = Math.floor(hours / 24);
+//     return `${days} day${days !== 1 ? 's' : ''} ago`;
+//   };
 
-  return (
-    <div style={{ position: "relative" }}>
-      {/* Bell Icon with Badge */}
-      <button
-        onClick={() => setShowDropdown(!showDropdown)}
-        style={{
-          position: "relative",
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          padding: "8px",
-          borderRadius: "8px",
-          background: showDropdown ? "#f0f0f0" : "transparent",
-          transition: "background 0.15s",
-        }}
-      >
-        <span style={{ fontSize: 20 }}>🔔</span>
-        {unreadCount > 0 && (
-          <span style={{
-            position: "absolute",
-            top: -2,
-            right: -2,
-            background: "#ef4444",
-            color: "#fff",
-            fontSize: 10,
-            fontWeight: 700,
-            padding: "2px 6px",
-            borderRadius: "10px",
-            minWidth: "18px",
-          }}>
-            {unreadCount > 9 ? "9+" : unreadCount}
-          </span>
-        )}
-      </button>
+//   return (
+//     <div style={{ position: "relative" }}>
+//       {/* Bell Icon with Badge */}
+//       <button
+//         onClick={() => setShowDropdown(!showDropdown)}
+//         style={{
+//           position: "relative",
+//           background: "none",
+//           border: "none",
+//           cursor: "pointer",
+//           padding: "8px",
+//           borderRadius: "8px",
+//           background: showDropdown ? "#f0f0f0" : "transparent",
+//           transition: "background 0.15s",
+//         }}
+//       >
+//         <span style={{ fontSize: 20 }}>🔔</span>
+//         {unreadCount > 0 && (
+//           <span style={{
+//             position: "absolute",
+//             top: -2,
+//             right: -2,
+//             background: "#ef4444",
+//             color: "#fff",
+//             fontSize: 10,
+//             fontWeight: 700,
+//             padding: "2px 6px",
+//             borderRadius: "10px",
+//             minWidth: "18px",
+//           }}>
+//             {unreadCount > 9 ? "9+" : unreadCount}
+//           </span>
+//         )}
+//       </button>
 
-      {/* Dropdown */}
-      {showDropdown && (
-        <>
-          <div
-            onClick={() => setShowDropdown(false)}
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 998,
-            }}
-          />
-          <div style={{
-            position: "absolute",
-            top: "100%",
-            right: 0,
-            width: 380,
-            maxHeight: 500,
-            background: "#fff",
-            borderRadius: 12,
-            boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.02)",
-            zIndex: 999,
-            overflow: "hidden",
-            marginTop: 8,
-          }}>
-            <div style={{
-              padding: "12px 16px",
-              borderBottom: "1px solid #e0e0e0",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              background: "#f9fafb",
-            }}>
-              <div style={{ fontWeight: 700, fontSize: 14, color: "#1a1a1a" }}>
-                Notifications
-                {unreadCount > 0 && (
-                  <span style={{
-                    marginLeft: 8,
-                    fontSize: 11,
-                    background: "#ef4444",
-                    color: "#fff",
-                    padding: "2px 8px",
-                    borderRadius: 12,
-                  }}>
-                    {unreadCount} new
-                  </span>
-                )}
-              </div>
-              {unreadCount > 0 && (
-                <button
-                  onClick={markAllAsRead}
-                  style={{
-                    fontSize: 11,
-                    color: "#3b82f6",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                  }}
-                >
-                  Mark all as read
-                </button>
-              )}
-            </div>
+//       {/* Dropdown */}
+//       {showDropdown && (
+//         <>
+//           <div
+//             onClick={() => setShowDropdown(false)}
+//             style={{
+//               position: "fixed",
+//               top: 0,
+//               left: 0,
+//               right: 0,
+//               bottom: 0,
+//               zIndex: 998,
+//             }}
+//           />
+//           <div style={{
+//             position: "absolute",
+//             top: "100%",
+//             right: 0,
+//             width: 380,
+//             maxHeight: 500,
+//             background: "#fff",
+//             borderRadius: 12,
+//             boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.02)",
+//             zIndex: 999,
+//             overflow: "hidden",
+//             marginTop: 8,
+//           }}>
+//             <div style={{
+//               padding: "12px 16px",
+//               borderBottom: "1px solid #e0e0e0",
+//               display: "flex",
+//               justifyContent: "space-between",
+//               alignItems: "center",
+//               background: "#f9fafb",
+//             }}>
+//               <div style={{ fontWeight: 700, fontSize: 14, color: "#1a1a1a" }}>
+//                 Notifications
+//                 {unreadCount > 0 && (
+//                   <span style={{
+//                     marginLeft: 8,
+//                     fontSize: 11,
+//                     background: "#ef4444",
+//                     color: "#fff",
+//                     padding: "2px 8px",
+//                     borderRadius: 12,
+//                   }}>
+//                     {unreadCount} new
+//                   </span>
+//                 )}
+//               </div>
+//               {unreadCount > 0 && (
+//                 <button
+//                   onClick={markAllAsRead}
+//                   style={{
+//                     fontSize: 11,
+//                     color: "#3b82f6",
+//                     background: "none",
+//                     border: "none",
+//                     cursor: "pointer",
+//                   }}
+//                 >
+//                   Mark all as read
+//                 </button>
+//               )}
+//             </div>
 
-            <div style={{ overflowY: "auto", maxHeight: 420 }}>
-              {notifications.length === 0 ? (
-                <div style={{
-                  padding: "40px 20px",
-                  textAlign: "center",
-                  color: "#9e9e9e",
-                  fontSize: 13,
-                }}>
-                  <div style={{ fontSize: 32, marginBottom: 8 }}>🔕</div>
-                  No notifications yet
-                </div>
-              ) : (
-                notifications.map(notification => (
-                  <div
-                    key={notification.id}
-                    onClick={() => markAsRead(notification.id)}
-                    style={{
-                      padding: "12px 16px",
-                      borderBottom: "1px solid #f0f0f0",
-                      background: notification.read ? "#fff" : "#fef3c7",
-                      cursor: "pointer",
-                      transition: "background 0.15s",
-                    }}
-                  >
-                    <div style={{ display: "flex", gap: 10 }}>
-                      <div style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: "50%",
-                        background: `${getSeverityColor(notification.severity)}20`,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 16,
-                      }}>
-                        {notification.type === "low_credits" && "⚡"}
-                        {notification.type === "expiry" && "⏰"}
-                        {notification.type === "budget" && "💰"}
-                        {notification.type === "unusual" && "📊"}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: "#1a1a1a",
-                          marginBottom: 2,
-                        }}>
-                          {notification.title}
-                        </div>
-                        <div style={{
-                          fontSize: 12,
-                          color: "#595959",
-                          marginBottom: 4,
-                        }}>
-                          {notification.message}
-                        </div>
-                        <div style={{
-                          fontSize: 10,
-                          color: "#9e9e9e",
-                          display: "flex",
-                          gap: 12,
-                        }}>
-                          <span>
-                            {formatTime(notification.timestamp)}
-                          </span>
-                          {!notification.read && (
-                            <span style={{ color: "#f59e0b" }}>● Unread</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
+//             <div style={{ overflowY: "auto", maxHeight: 420 }}>
+//               {notifications.length === 0 ? (
+//                 <div style={{
+//                   padding: "40px 20px",
+//                   textAlign: "center",
+//                   color: "#9e9e9e",
+//                   fontSize: 13,
+//                 }}>
+//                   <div style={{ fontSize: 32, marginBottom: 8 }}>🔕</div>
+//                   No notifications yet
+//                 </div>
+//               ) : (
+//                 notifications.map(notification => (
+//                   <div
+//                     key={notification.id}
+//                     onClick={() => markAsRead(notification.id)}
+//                     style={{
+//                       padding: "12px 16px",
+//                       borderBottom: "1px solid #f0f0f0",
+//                       background: notification.read ? "#fff" : "#fef3c7",
+//                       cursor: "pointer",
+//                       transition: "background 0.15s",
+//                     }}
+//                   >
+//                     <div style={{ display: "flex", gap: 10 }}>
+//                       <div style={{
+//                         width: 32,
+//                         height: 32,
+//                         borderRadius: "50%",
+//                         background: `${getSeverityColor(notification.severity)}20`,
+//                         display: "flex",
+//                         alignItems: "center",
+//                         justifyContent: "center",
+//                         fontSize: 16,
+//                       }}>
+//                         {notification.type === "low_credits" && "⚡"}
+//                         {notification.type === "expiry" && "⏰"}
+//                         {notification.type === "budget" && "💰"}
+//                         {notification.type === "unusual" && "📊"}
+//                       </div>
+//                       <div style={{ flex: 1 }}>
+//                         <div style={{
+//                           fontSize: 13,
+//                           fontWeight: 600,
+//                           color: "#1a1a1a",
+//                           marginBottom: 2,
+//                         }}>
+//                           {notification.title}
+//                         </div>
+//                         <div style={{
+//                           fontSize: 12,
+//                           color: "#595959",
+//                           marginBottom: 4,
+//                         }}>
+//                           {notification.message}
+//                         </div>
+//                         <div style={{
+//                           fontSize: 10,
+//                           color: "#9e9e9e",
+//                           display: "flex",
+//                           gap: 12,
+//                         }}>
+//                           <span>
+//                             {formatTime(notification.timestamp)}
+//                           </span>
+//                           {!notification.read && (
+//                             <span style={{ color: "#f59e0b" }}>● Unread</span>
+//                           )}
+//                         </div>
+//                       </div>
+//                     </div>
+//                   </div>
+//                 ))
+//               )}
+//             </div>
+//           </div>
+//         </>
+//       )}
+//     </div>
+//   );
+// }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 class CompanyWallet extends Component {
@@ -2130,6 +2132,7 @@ class CompanyWallet extends Component {
             brand: cards[0].card_brand,
             holder: cards[0].card_holder,
             acceptedTypes: cards[0].accepted_types,
+            expiry: cards[0].card_expiry,
             token: cards[0].payment_token,  // ← add this
           }
         });
@@ -2171,27 +2174,47 @@ class CompanyWallet extends Component {
     if (error) return <div className="aw-error">{error}</div>;
 
     // ── Shared topbar (always the same) ──
-    const Topbar = (
-      <div className="aw-topbar">
-        <div className="aw-topbar-tabs">
-          {["overview", "transactions", "packages"].map((tab) => (
-            <button
-              key={tab}
-              className={`aw-topbar-tab${activeTab === tab ? " active" : ""}`}
-              onClick={() => this.setState({ activeTab: tab })}
-            >
-              {tab === "overview" ? "Overview" : tab === "transactions" ? "Transaction History" : "Packages"}
-            </button>
-          ))}
-        </div>
-        <div className="aw-topbar-right">
-          <button className="aw-btn-ghost" onClick={this.fetchPackages}>Refresh</button>
-          <button className="aw-btn-primary" onClick={() => this.setState({ activeTab: "packages" })}>
-            <IconPlus /> Buy Packages
-          </button>
-        </div>
-      </div>
-    );
+   // ─── In CompanyWallet.render() ────────────────────────────────────────────────
+// Replace your existing `const Topbar = (...)` block with this.
+// The only change is adding <NotificationCenter> into .aw-topbar-right.
+
+const Topbar = (
+  <div className="aw-topbar">
+    <div className="aw-topbar-tabs">
+      {["overview", "transactions", "packages"].map((tab) => (
+        <button
+          key={tab}
+          className={`aw-topbar-tab${activeTab === tab ? " active" : ""}`}
+          onClick={() => this.setState({ activeTab: tab })}
+        >
+          {tab === "overview"
+            ? "Overview"
+            : tab === "transactions"
+            ? "Transaction History"
+            : "Packages"}
+        </button>
+      ))}
+    </div>
+
+    <div className="aw-topbar-right">
+      {/* ← ADD THIS — bell icon wired to your backend */}
+      <NotificationCenter
+        userId={this.userId}
+        apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
+      />
+
+      <button className="aw-btn-ghost" onClick={this.fetchPackages}>
+        Refresh
+      </button>
+      <button
+        className="aw-btn-primary"
+        onClick={() => this.setState({ activeTab: "packages" })}
+      >
+        <IconPlus /> Buy Packages
+      </button>
+    </div>
+  </div>
+);
 
     // ── Empty state (no packages yet) ──
     if (!packages.length) return (
@@ -2311,7 +2334,7 @@ class CompanyWallet extends Component {
                         await axios.post(`${apiBaseUrl}payment/addpayment/${this.userId}`, {
                           paymentDetails: {
                             method: "card", cardLast4: cardInput.last4,
-                            cardName: cardInput.holder, saveForLater: cardInput.saveForLater,
+                            cardName: cardInput.holder, saveForLater: cardInput.saveForLater, expiry: cardInput.expiry,
                             acceptedTypes: cardInput.acceptedTypes,
                           },
                           amount: 0, currency: "PKR", packageId: null, jobId: null,
@@ -2320,7 +2343,8 @@ class CompanyWallet extends Component {
                           cardSaved: true,
                           savedMethod: {
                             last4: cardInput.last4, brand: cardInput.brand,
-                            holder: cardInput.holder, acceptedTypes: cardInput.acceptedTypes,
+                            holder: cardInput.holder, expiry: cardInput.expiry, acceptedTypes: cardInput.acceptedTypes,
+
                           },
                         });
                       } catch (err) {
@@ -2430,6 +2454,7 @@ class CompanyWallet extends Component {
                             cardLast4: cardInput.last4,
                             cardName: cardInput.holder,
                             saveForLater: cardInput.saveForLater,
+                            expiry: cardInput.expiry,
                             acceptedTypes: cardInput.acceptedTypes,
                           },
                           amount: 0, currency: "PKR", packageId: null, jobId: null,
@@ -2440,6 +2465,7 @@ class CompanyWallet extends Component {
                             last4: cardInput.last4,
                             brand: cardInput.brand,
                             holder: cardInput.holder,
+                            expiry: cardInput.expiry,
                             acceptedTypes: cardInput.acceptedTypes,
                           },
                         });
@@ -2557,4 +2583,4 @@ class CompanyWallet extends Component {
 }
 
 export default CompanyWallet;
-export { AddCardForm, NotificationCenter };
+export { AddCardForm};
