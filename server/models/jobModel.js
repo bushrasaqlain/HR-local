@@ -219,6 +219,15 @@ const getAllJobs = (req, res) => {
           districts: districts.map((d) => ({ id: d.id, name: d.name })),
           city_id: cityIds,
           cities: cities.map((c) => ({ id: c.id, name: c.name })),
+          package: job.package_snapshot
+            ? (() => {
+              try {
+                return typeof job.package_snapshot === "string"
+                  ? JSON.parse(job.package_snapshot)
+                  : job.package_snapshot;
+              } catch { return null; }
+            })()
+            : null,
         };
       })
     );
@@ -720,7 +729,7 @@ const postJob = (req, res) => {
   const {
     job_title, job_description, skill_ids,
     time_from, time_to, job_type_id,
-    min_salary, max_salary,salary_period, currency_id,
+    min_salary, max_salary, salary_period, currency_id,
     min_experience, max_experience,
     speciality_id, degree_id, degreefields_id,
     application_deadline, no_of_positions, industry,
@@ -844,7 +853,7 @@ const postJob = (req, res) => {
         job_type_id,
         min_salary || null,
         max_salary || null,
-        salary_period || "monthly", 
+        salary_period || "monthly",
         currency_id || null,
         min_experience,
         max_experience,
@@ -1289,7 +1298,8 @@ const getUserPackages = (req, res) => {
           used_posts: item.used_posts,
           used_credits: item.used_credits,
           used_slots: item.used_slots,
-          package: pkg,
+          package: { ...pkg, id: pkg.id },
+          remaining_credits: Math.max((pkg.credit_count || 0) - (item.used_credits || 0), 0),
           is_daily_budget: false,
         };
       });
