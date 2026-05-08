@@ -8,6 +8,7 @@ import JobList from "./dashboard/lists.jsx";
 import CandidateRegisterForm from "./dashboard/register.jsx";
 import CompanyInfo from "./dashboard/companyinfo.jsx";
 import AppliedJobs from "./dashboard/AppliedJobs.jsx";
+import SavedJobsPage from "./dashboard/saved-jobs.jsx";
 
 const CandidateDashboardArea = ({ activeTab: parentActiveTab }) => {
   const router = useRouter();
@@ -75,6 +76,12 @@ const CandidateDashboardArea = ({ activeTab: parentActiveTab }) => {
               setActiveTab(tabKey);
               setListsType(type || "shortlisted");
             }}
+          />
+        );
+      case "savedJobs":
+        return (
+          <SavedJobsPage
+            onBack={() => setActiveTab("profile")}
           />
         );
       case "editprofile":

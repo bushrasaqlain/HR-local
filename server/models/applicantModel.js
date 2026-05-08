@@ -63,21 +63,28 @@ const createCandidateSearchImpressionsTable = () => {
 const openai = require("../lib/openai");
 const getAllApplicants = async (req, res) => {
   try {
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 50;
+    const page   = parseInt(req.query.page,  10) || 1;
+    const limit  = parseInt(req.query.limit, 10) || 50;
     const offset = (page - 1) * limit;
 
     const jobId = req.query.job_id ? Number(req.query.job_id) : null;
     if (!jobId) return res.status(400).json({ error: "job_id is required" });
 
-    // ── Get job details ──
+    // ─────────────────────────────────────────────────────────────────
+    // STEP 1: Fetch job — including billing fields
+    // ─────────────────────────────────────────────────────────────────
     const job = await new Promise((resolve, reject) => {
       connection.query(
         `SELECT jp.speciality_id, jp.skill_ids, jp.min_salary, jp.max_salary,
                 jp.min_experience, jp.max_experience,
                 jp.country_id, jp.district_id, jp.city_id,
-                jp.account_id, jp.package_id,
-                jp.degree_id, jp.degreefields_id 
+                jp.account_id, jp.package_id, jp.company_package_id,
+                jp.degree_id, jp.degreefields_id,
+                jp.billing_model,
+                jp.daily_budget,
+                jp.spent_amount,
+                jp.cost_per_click,
+                jp.status
          FROM job_posts jp
          WHERE jp.id = ?`,
         [jobId],
@@ -89,7 +96,28 @@ const getAllApplicants = async (req, res) => {
 
     const companyId = job.account_id;
 
-    // ── Parse job city ids (from city_id column, NOT district_id) ──
+    // ─────────────────────────────────────────────────────────────────
+    // STEP 2: Daily budget cap check — stop early if exhausted
+    // ─────────────────────────────────────────────────────────────────
+    if (job.billing_model === "daily_budget") {
+      const dailyCap = parseFloat(job.daily_budget  || 0);
+      const spent    = parseFloat(job.spent_amount  || 0);
+
+      if (dailyCap > 0 && spent >= dailyCap) {
+        return res.status(200).json({
+          summary: { total: 0, strong: 0, good: 0, weak: 0, from_main_city: 0, from_preferred_city: 0 },
+          page,
+          limit,
+          candidate:        [],
+          budget_exhausted: true,
+          message:          "Daily budget cap reached. Candidates are hidden until the budget is increased or resets tomorrow.",
+        });
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // STEP 3: Parse city IDs
+    // ─────────────────────────────────────────────────────────────────
     let jobCityIds = [];
     try {
       const parsed = typeof job.city_id === "string"
@@ -99,11 +127,13 @@ const getAllApplicants = async (req, res) => {
     } catch { jobCityIds = []; }
 
     console.log("=== JOB CITY DEBUG ===");
-    console.log("job.city_id raw:", job.city_id);
+    console.log("job.city_id raw:",    job.city_id);
     console.log("job.district_id raw:", job.district_id);
-    console.log("parsed jobCityIds:", jobCityIds);
+    console.log("parsed jobCityIds:",  jobCityIds);
 
-    // ── Build WHERE — city is the hard SQL filter ──
+    // ─────────────────────────────────────────────────────────────────
+    // STEP 4: Build WHERE clause
+    // ─────────────────────────────────────────────────────────────────
     const whereConditions = [
       `a.accountType = 'candidate'`,
       `a.isActive = 'Active'`,
@@ -112,10 +142,6 @@ const getAllApplicants = async (req, res) => {
     const values = [];
 
     if (jobCityIds.length > 0) {
-      // Include candidate if:
-      // - their main city matches job city_id, OR
-      // - their preferred cities overlap with job city_id, OR
-      // - they already applied to this job (always show pipeline candidates)
       whereConditions.push(`(
         c.city IN (?)
         OR JSON_OVERLAPS(c.otherPreferredCities, CAST(? AS JSON))
@@ -126,7 +152,6 @@ const getAllApplicants = async (req, res) => {
       )`);
       values.push(jobCityIds, JSON.stringify(jobCityIds), jobId);
     } else {
-      // No city on job — only show candidates who already applied
       whereConditions.push(`
         EXISTS (
           SELECT 1 FROM applications ap
@@ -138,7 +163,9 @@ const getAllApplicants = async (req, res) => {
 
     const whereClause = `WHERE ${whereConditions.join(" AND ")}`;
 
-    // ── Fetch candidates ──
+    // ─────────────────────────────────────────────────────────────────
+    // STEP 5: Fetch candidates
+    // ─────────────────────────────────────────────────────────────────
     const candidateQuery = `
       SELECT
         a.id AS account_id,
@@ -280,21 +307,122 @@ const getAllApplicants = async (req, res) => {
 
     const candidateIds = candidatesRaw.map((c) => c.candidate_id);
 
-    // ── Log impressions ──
+    // ─────────────────────────────────────────────────────────────────
+    // STEP 6: Log impressions + trigger billing
+    // ─────────────────────────────────────────────────────────────────
     if (candidateIds.length > 0 && companyId) {
+
+      // 6a — Log impressions
       const impressionValues = candidateIds.map((candidateId) => [
         companyId, candidateId, jobId,
       ]);
       connection.query(
         `INSERT IGNORE INTO candidate_search_impressions (company_id, candidate_id, job_id) VALUES ?`,
         [impressionValues],
-        (err) => {
-          if (err) console.error("Failed to log search impressions:", err);
-        }
+        (err) => { if (err) console.error("Failed to log search impressions:", err); }
       );
+
+      // 6b — CV Credits: deduct 1 per profile viewed
+      if (job.billing_model === "cv_credits" && job.company_package_id) {
+        connection.query(
+          `SELECT used_credits, package_snapshot FROM company_packages WHERE id = ?`,
+          [job.company_package_id],
+          (err, pkgRows) => {
+            if (err || !pkgRows.length) return;
+
+            const pkgRow  = pkgRows[0];
+            const snapshot = (() => {
+              try {
+                return typeof pkgRow.package_snapshot === "string"
+                  ? JSON.parse(pkgRow.package_snapshot)
+                  : (pkgRow.package_snapshot || {});
+              } catch { return {}; }
+            })();
+
+            const totalCredits = snapshot.credit_count || 0;
+            const usedCredits  = pkgRow.used_credits   || 0;
+            const viewCount    = candidateIds.length;
+
+            if (usedCredits < totalCredits) {
+              // Only deduct up to what's available
+              const toDeduct = Math.min(viewCount, totalCredits - usedCredits);
+              connection.query(
+                `UPDATE company_packages
+                 SET used_credits = used_credits + ?
+                 WHERE id = ? AND used_credits + ? <= ?`,
+                [toDeduct, job.company_package_id, toDeduct, totalCredits],
+                (err2) => {
+                  if (err2) {
+                    console.error("Failed to deduct CV credits:", err2);
+                  } else {
+                    console.log(`✅ Deducted ${toDeduct} CV credit(s) for package ${job.company_package_id}`);
+                  }
+                }
+              );
+            } else {
+              console.warn(`⚠️ CV credits exhausted for package ${job.company_package_id}`);
+            }
+          }
+        );
+      }
+
+      // 6c — Daily budget: charge cost_per_click, enforce cap, auto-pause if exhausted
+      if (job.billing_model === "daily_budget") {
+        const dailyCap   = parseFloat(job.daily_budget   || 0);
+        const spentSoFar = parseFloat(job.spent_amount   || 0);
+        const cpc        = parseFloat(job.cost_per_click || 0);
+        const viewCount  = candidateIds.length;
+
+        if (cpc > 0 && dailyCap > 0) {
+          const totalCharge     = cpc * viewCount;
+          const remainingBudget = dailyCap - spentSoFar;
+          const chargeAmount    = Math.min(totalCharge, remainingBudget);
+
+          if (chargeAmount > 0) {
+            connection.query(
+              `UPDATE job_posts
+               SET spent_amount = LEAST(spent_amount + ?, daily_budget)
+               WHERE id = ?`,
+              [chargeAmount, jobId],
+              (err2) => {
+                if (err2) {
+                  console.error("Failed to update daily spend:", err2);
+                } else {
+                  console.log(`✅ Charged PKR ${chargeAmount} against daily budget for job ${jobId}`);
+
+                  // Auto-pause job if budget now exhausted
+                  const newSpent = spentSoFar + chargeAmount;
+                  if (newSpent >= dailyCap) {
+                    connection.query(
+                      `UPDATE job_posts SET status = 'Paused' WHERE id = ? AND spent_amount >= daily_budget`,
+                      [jobId],
+                      (err3) => {
+                        if (err3) {
+                          console.error("Failed to pause job after budget exhaustion:", err3);
+                        } else {
+                          console.warn(`⚠️ Job ${jobId} auto-paused — daily budget cap reached (PKR ${dailyCap})`);
+                        }
+                      }
+                    );
+                  }
+                }
+              }
+            );
+          } else {
+            // Budget already at cap — pause the job
+            console.warn(`⚠️ Job ${jobId} — daily budget already exhausted, pausing.`);
+            connection.query(
+              `UPDATE job_posts SET status = 'Paused' WHERE id = ? AND spent_amount >= daily_budget`,
+              [jobId]
+            );
+          }
+        }
+      }
     }
 
-    // ── Fetch related data in batch ──
+    // ─────────────────────────────────────────────────────────────────
+    // STEP 7: Fetch related data in batch
+    // ─────────────────────────────────────────────────────────────────
     const [
       experienceRows,
       educationRows,
@@ -319,9 +447,9 @@ const getAllApplicants = async (req, res) => {
               `SELECT ed.*, df.name AS degreefield_name, dt.name AS degreetype_name,
                       ins.name AS institute_name
                FROM candidate_education ed
-               LEFT JOIN degreefields df ON ed.degree_id = df.id
-               LEFT JOIN degreetypes dt ON df.degree_type_id = dt.id
-               LEFT JOIN institute ins ON ed.institute_id = ins.id
+               LEFT JOIN degreefields df  ON ed.degree_id    = df.id
+               LEFT JOIN degreetypes dt   ON df.degree_type_id = dt.id
+               LEFT JOIN institute ins    ON ed.institute_id  = ins.id
                WHERE ed.candidate_id IN (?)`,
               [candidateIds],
               (err, res) => (err ? reject(err) : resolve(res))
@@ -338,8 +466,7 @@ const getAllApplicants = async (req, res) => {
       candidateIds.length
         ? new Promise((resolve, reject) =>
             connection.query(
-              `SELECT * FROM candidate_certificates WHERE candidate_id IN (?)
-               ORDER BY created_at DESC`,
+              `SELECT * FROM candidate_certificates WHERE candidate_id IN (?) ORDER BY created_at DESC`,
               [candidateIds],
               (err, res) => (err ? reject(err) : resolve(res))
             ))
@@ -347,15 +474,16 @@ const getAllApplicants = async (req, res) => {
       candidateIds.length
         ? new Promise((resolve, reject) =>
             connection.query(
-              `SELECT * FROM candidate_research WHERE candidate_id IN (?)
-               ORDER BY created_at DESC`,
+              `SELECT * FROM candidate_research WHERE candidate_id IN (?) ORDER BY created_at DESC`,
               [candidateIds],
               (err, res) => (err ? reject(err) : resolve(res))
             ))
         : Promise.resolve([]),
     ]);
 
-    // ── Map skills & cities ──
+    // ─────────────────────────────────────────────────────────────────
+    // STEP 8: Map skills & cities
+    // ─────────────────────────────────────────────────────────────────
     const allSkillIds = [];
     const allCityIds  = [];
 
@@ -402,7 +530,9 @@ const getAllApplicants = async (req, res) => {
       cityRows.forEach((c) => (cityMapObj[c.id] = c.name));
     }
 
-    // ── Build candidate objects ──
+    // ─────────────────────────────────────────────────────────────────
+    // STEP 9: Build candidate objects
+    // ─────────────────────────────────────────────────────────────────
     const candidates = candidatesRaw.map((c) => {
       const city_name = cityMapObj[c.city] || "-";
 
@@ -410,10 +540,10 @@ const getAllApplicants = async (req, res) => {
         ...c,
         skills: c.skills.map((id) => ({ id, name: skillsMap[id] || "" })),
         city_name,
-        is_boosted: !!c.is_boosted,
-        has_applied: !!c.has_applied,
-        boost_expires_at: c.boost_expires_at || null,
-        is_hired_elsewhere: !!c.is_hired_elsewhere,
+        is_boosted:          !!c.is_boosted,
+        has_applied:         !!c.has_applied,
+        boost_expires_at:    c.boost_expires_at || null,
+        is_hired_elsewhere:  !!c.is_hired_elsewhere,
         otherPreferredCities: (c.otherPreferredCities || []).map((city) => {
           const cityId = typeof city === "object" ? city.id : city;
           return { id: cityId, name: cityMapObj[cityId] || "" };
@@ -421,34 +551,36 @@ const getAllApplicants = async (req, res) => {
         experience: experienceRows
           .filter((e) => e.candidate_id === c.candidate_id)
           .map((e) => ({
-            id: e.id,
-            company_name: e.company_name || "-",
-            designation: e.designation || "-",
+            id:               e.id,
+            company_name:     e.company_name     || "-",
+            designation:      e.designation      || "-",
             total_experience: e.total_experience || "-",
-            start_date: e.start_date || null,
-            end_date: e.end_date || null,
-            speciality: e.speciality_id
+            start_date:       e.start_date       || null,
+            end_date:         e.end_date         || null,
+            speciality:       e.speciality_id
               ? { id: e.speciality_id, name: e.speciality_name }
               : null,
           })),
         education: educationRows
           .filter((ed) => ed.candidate_id === c.candidate_id)
           .map((ed) => ({
-            id: ed.id,
-            degreefield: { id: ed.degree_id, name: ed.degreefield_name },
-            degreetype: { id: ed.degree_type_id, name: ed.degreetype_name },
-            institute: { id: ed.institute_id, name: ed.institute_name },
-            is_ongoing: ed.is_ongoing,
-            start_date: ed.start_date,
-            end_date: ed.end_date,
+            id:          ed.id,
+            degreefield: { id: ed.degree_id,      name: ed.degreefield_name },
+            degreetype:  { id: ed.degree_type_id, name: ed.degreetype_name  },
+            institute:   { id: ed.institute_id,   name: ed.institute_name   },
+            is_ongoing:  ed.is_ongoing,
+            start_date:  ed.start_date,
+            end_date:    ed.end_date,
           })),
         availability: availabilityRows.filter((a) => a.candidate_id === c.candidate_id),
         certificates: certificatesRows.filter((cert) => cert.candidate_id === c.candidate_id),
-        research: researchRows.filter((r) => r.candidate_id === c.candidate_id),
+        research:     researchRows.filter((r) => r.candidate_id === c.candidate_id),
       };
     });
 
-    // ── Parse job requirements for scoring ──
+    // ─────────────────────────────────────────────────────────────────
+    // STEP 10: Parse job requirements for scoring
+    // ─────────────────────────────────────────────────────────────────
     let jobSkillIds = [];
     try {
       jobSkillIds = Array.isArray(job.skill_ids)
@@ -456,13 +588,15 @@ const getAllApplicants = async (req, res) => {
         : JSON.parse(job.skill_ids || "[]").map(Number);
     } catch { jobSkillIds = []; }
 
-    const jobMinSalary = parseFloat(job.min_salary || 0);
-    const jobMaxSalary = parseFloat(job.max_salary || 0);
+    const jobMinSalary = parseFloat(job.min_salary    || 0);
+    const jobMaxSalary = parseFloat(job.max_salary    || 0);
     const jobMinExp    = parseInt(job.min_experience) || 0;
     const jobMaxExp    = parseInt(job.max_experience) || 50;
     const tierOrder    = { strong: 0, good: 1, weak: 2 };
 
-    // ── Score + tier each candidate ──
+    // ─────────────────────────────────────────────────────────────────
+    // STEP 11: Score + tier each candidate
+    // ─────────────────────────────────────────────────────────────────
     const tieredCandidates = candidates
       .map((c) => {
         const matched = [];
@@ -470,33 +604,31 @@ const getAllApplicants = async (req, res) => {
         let score = 0;
 
         // ── Location ──
-        const candidateCity = Number(c.city);
+        const candidateCity    = Number(c.city);
         const preferredCityIds = (c.otherPreferredCities || []).map((city) =>
           typeof city === "object" ? Number(city.id) : Number(city)
         );
 
         const mainCityMatch      = jobCityIds.includes(candidateCity);
         const preferredCityMatch = jobCityIds.some((id) => preferredCityIds.includes(id));
-
-        const locationScore = mainCityMatch ? 10 : preferredCityMatch ? 6 : 0;
+        const locationScore      = mainCityMatch ? 10 : preferredCityMatch ? 6 : 0;
         score += locationScore;
 
         const location_type = mainCityMatch
           ? "main_city"
           : preferredCityMatch
           ? "preferred_city"
-          : "pipeline"; // applied but city doesn't match
+          : "pipeline";
 
         // ── Skills (30pts) ──
         const candidateSkillIds = c.skills.map((s) => Number(s.id));
         let skillScore = 0;
-        let matchedSkillCount = 0;
 
         if (jobSkillIds.length === 0) {
           skillScore = 30;
           matched.push("Skills");
         } else {
-          matchedSkillCount = jobSkillIds.filter((id) =>
+          const matchedSkillCount = jobSkillIds.filter((id) =>
             candidateSkillIds.includes(id)
           ).length;
           skillScore = Math.round((matchedSkillCount / jobSkillIds.length) * 30);
@@ -548,76 +680,50 @@ const getAllApplicants = async (req, res) => {
         score += specScore;
 
         // ── Degree (10pts) ──
-const candidateEducation = c.education || [];
-const hasDegree = candidateEducation.length > 0;
+        const candidateEducation = c.education || [];
+        const hasDegree          = candidateEducation.length > 0;
+        let degreeScore          = 0;
 
-let degreeScore = 0;
+        if (!job.degree_id && !job.degreefields_id) {
+          degreeScore = hasDegree ? 10 : 0;
+          if (hasDegree) matched.push("Education");
+          else missing.push("Education");
+        } else {
+          const jobDegreeTypeId  = job.degree_id      ? Number(job.degree_id)      : null;
+          const jobDegreeFieldId = job.degreefields_id ? Number(job.degreefields_id) : null;
 
-if (!job.degree_id && !job.degreefields_id) {
-  // Job has no degree requirement — full points if candidate has any education
-  degreeScore = hasDegree ? 10 : 0;
-  if (hasDegree) matched.push("Education");
-  else missing.push("Education");
-} else {
-  // Job requires a specific degree type and/or field
-  const jobDegreeTypeId  = job.degree_id       ? Number(job.degree_id)       : null;
-  const jobDegreeFieldId = job.degreefields_id  ? Number(job.degreefields_id) : null;
+          const degreeTypeMatch  = candidateEducation.some(
+            (ed) => jobDegreeTypeId  && ed.degreetype?.id  === jobDegreeTypeId
+          );
+          const degreeFieldMatch = candidateEducation.some(
+            (ed) => jobDegreeFieldId && ed.degreefield?.id === jobDegreeFieldId
+          );
 
-  const degreeTypeMatch = candidateEducation.some(
-    (ed) => jobDegreeTypeId && ed.degreetype?.id === jobDegreeTypeId
-  );
-  const degreeFieldMatch = candidateEducation.some(
-    (ed) => jobDegreeFieldId && ed.degreefield?.id === jobDegreeFieldId
-  );
+          if (jobDegreeFieldId && jobDegreeTypeId) {
+            if (degreeFieldMatch && degreeTypeMatch) {
+              degreeScore = 10; matched.push("Education (degree & field match)");
+            } else if (degreeTypeMatch || degreeFieldMatch) {
+              degreeScore = 5;  matched.push(`Education (partial: ${degreeTypeMatch ? "type" : "field"} matched)`);
+            } else if (hasDegree) {
+              degreeScore = 2;  missing.push("Education (wrong degree type & field)");
+            } else {
+              degreeScore = 0;  missing.push("Education (none)");
+            }
+          } else if (jobDegreeFieldId) {
+            if (degreeFieldMatch)   { degreeScore = 10; matched.push("Education (field match)"); }
+            else if (hasDegree)     { degreeScore = 3;  missing.push("Education (wrong field)"); }
+            else                    { degreeScore = 0;  missing.push("Education (none)"); }
+          } else if (jobDegreeTypeId) {
+            if (degreeTypeMatch)    { degreeScore = 10; matched.push("Education (degree type match)"); }
+            else if (hasDegree)     { degreeScore = 3;  missing.push("Education (wrong degree type)"); }
+            else                    { degreeScore = 0;  missing.push("Education (none)"); }
+          }
+        }
+        score += degreeScore;
 
-  if (jobDegreeFieldId && jobDegreeTypeId) {
-    // Both required
-    if (degreeFieldMatch && degreeTypeMatch) {
-      degreeScore = 10;
-      matched.push("Education (degree & field match)");
-    } else if (degreeTypeMatch || degreeFieldMatch) {
-      degreeScore = 5;
-      matched.push(`Education (partial: ${degreeTypeMatch ? "type" : "field"} matched)`);
-    } else if (hasDegree) {
-      degreeScore = 2;
-      missing.push("Education (wrong degree type & field)");
-    } else {
-      degreeScore = 0;
-      missing.push("Education (none)");
-    }
-  } else if (jobDegreeFieldId) {
-    // Only field required
-    if (degreeFieldMatch) {
-      degreeScore = 10;
-      matched.push("Education (field match)");
-    } else if (hasDegree) {
-      degreeScore = 3;
-      missing.push("Education (wrong field)");
-    } else {
-      degreeScore = 0;
-      missing.push("Education (none)");
-    }
-  } else if (jobDegreeTypeId) {
-    // Only type required
-    if (degreeTypeMatch) {
-      degreeScore = 10;
-      matched.push("Education (degree type match)");
-    } else if (hasDegree) {
-      degreeScore = 3;
-      missing.push("Education (wrong degree type)");
-    } else {
-      degreeScore = 0;
-      missing.push("Education (none)");
-    }
-  }
-}
+        const degreeMatched = degreeScore >= 5;
 
-score += degreeScore;
-
-// Update degreeMatched for tier calculation
-const degreeMatched = degreeScore >= 5;
-
-        // ── Salary (15pts — never filters, only scores) ──
+        // ── Salary (15pts) ──
         const candSalary = parseFloat(c.expected_salary || 0);
         let salaryScore  = 15;
         let salaryOver   = false;
@@ -640,67 +746,63 @@ const degreeMatched = degreeScore >= 5;
         }
         score += salaryScore;
 
-        // ── Tier — based ONLY on core criteria, NOT location, NOT salary ──
-        const skillsMatched = skillScore >= 20;
-        const expMatched    = expScore >= 20;
-        const specMatched   = specScore === 20;
-        // const degreeMatched = hasDegree;
+        // ── Tier ──
+        const skillsMatched = skillScore  >= 20;
+        const expMatched    = expScore    >= 20;
+        const specMatched   = specScore   === 20;
 
-        const coreCriteriaCount = [
-          skillsMatched,
-          expMatched,
-          specMatched,
-          degreeMatched,
-        ].filter(Boolean).length;
+        const coreCriteriaCount = [skillsMatched, expMatched, specMatched, degreeMatched]
+          .filter(Boolean).length;
 
-        // Filter out candidates with zero core criteria matches
         if (coreCriteriaCount === 0) return null;
 
         let tier, tier_label, tier_color;
 
-        if (coreCriteriaCount === 4) {
-          tier = "strong"; tier_label = "Strong Match"; tier_color = "green";
-        } else if (coreCriteriaCount >= 2) {
-          tier = "good"; tier_label = "Good Match"; tier_color = "blue";
-        } else {
-          tier = "weak"; tier_label = "Partial Match"; tier_color = "amber";
-        }
+        if      (coreCriteriaCount === 4) { tier = "strong"; tier_label = "Strong Match"; tier_color = "green"; }
+        else if (coreCriteriaCount >= 2)  { tier = "good";   tier_label = "Good Match";   tier_color = "blue";  }
+        else                              { tier = "weak";   tier_label = "Partial Match"; tier_color = "amber"; }
 
-        // Salary over budget: pulls strong → good only
         if (salaryOver && tier === "strong") {
           tier = "good"; tier_label = "Good Match"; tier_color = "blue";
         }
 
         return {
           ...c,
-          ai_score: Math.min(100, score),
+          ai_score:      Math.min(100, score),
           tier,
           tier_label,
           tier_color,
-          location_type, // main_city | preferred_city | pipeline
+          location_type,
           matched,
           missing,
+          // ── Billing context sent to frontend ──
+          billing_info: {
+            model:           job.billing_model,
+            daily_budget:    job.billing_model === "daily_budget" ? parseFloat(job.daily_budget  || 0) : null,
+            spent_amount:    job.billing_model === "daily_budget" ? parseFloat(job.spent_amount  || 0) : null,
+            remaining_today: job.billing_model === "daily_budget"
+              ? Math.max(0, parseFloat(job.daily_budget || 0) - parseFloat(job.spent_amount || 0))
+              : null,
+          },
         };
       })
       .filter(Boolean)
       .sort((a, b) => {
-        // 1. Tier (strong → good → weak)
         if (tierOrder[a.tier] !== tierOrder[b.tier])
           return tierOrder[a.tier] - tierOrder[b.tier];
 
-        // 2. Within same tier: main city → preferred city → pipeline
         const locOrder = { main_city: 0, preferred_city: 1, pipeline: 2 };
         if (locOrder[a.location_type] !== locOrder[b.location_type])
           return locOrder[a.location_type] - locOrder[b.location_type];
 
-        // 3. Boosted within same tier + location type
         if (b.is_boosted !== a.is_boosted) return b.is_boosted ? 1 : -1;
 
-        // 4. Score
         return b.ai_score - a.ai_score;
       });
 
-    // ── Summary ──
+    // ─────────────────────────────────────────────────────────────────
+    // STEP 12: Summary + response
+    // ─────────────────────────────────────────────────────────────────
     const summary = {
       total:               tieredCandidates.length,
       strong:              tieredCandidates.filter((c) => c.tier === "strong").length,
@@ -710,11 +812,25 @@ const degreeMatched = degreeScore >= 5;
       from_preferred_city: tieredCandidates.filter((c) => c.location_type === "preferred_city").length,
     };
 
+    // Include budget status in response for frontend awareness
+    const budgetStatus = job.billing_model === "daily_budget"
+      ? {
+          model:           "daily_budget",
+          daily_cap:       parseFloat(job.daily_budget  || 0),
+          spent_today:     parseFloat(job.spent_amount  || 0),
+          remaining_today: Math.max(0, parseFloat(job.daily_budget || 0) - parseFloat(job.spent_amount || 0)),
+          is_exhausted:    parseFloat(job.spent_amount || 0) >= parseFloat(job.daily_budget || 0),
+        }
+      : job.billing_model === "cv_credits"
+      ? { model: "cv_credits" }
+      : { model: job.billing_model || "package" };
+
     res.status(200).json({
       summary,
       page,
       limit,
-      candidate: tieredCandidates,
+      budget_status: budgetStatus,
+      candidate:     tieredCandidates,
     });
 
   } catch (err) {

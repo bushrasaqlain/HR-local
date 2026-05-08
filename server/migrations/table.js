@@ -57,21 +57,24 @@ const applicantModel = require("../models/applicantModel")
 const jobModel = require("../models/jobModel")
 const jobtitleModel = require("../models/jobtitleModel")
 const messageModel = require("../models/messageModel")
-const licensetypesModel=require("../models/licensetypesModel")
-const specialityModel=require("../models/specialityModel")
-const instituteModel=require("../models/instituteModel")
-const dbadminhistory =require("../models/dbHistoryModel")
-const paymentModel=require("../models/paymentModel")
-const candidateeducationModel=require("../models/candidateeducationModel")
-const candidateresearchModel=require("../models/candidateresearchModel")
-const candidatecertificateModel=require("../models/candidatecertificateModel")
+const licensetypesModel = require("../models/licensetypesModel")
+const specialityModel = require("../models/specialityModel")
+const instituteModel = require("../models/instituteModel")
+const dbadminhistory = require("../models/dbHistoryModel")
+const paymentModel = require("../models/paymentModel")
+const candidateeducationModel = require("../models/candidateeducationModel")
+const candidateresearchModel = require("../models/candidateresearchModel")
+const candidatecertificateModel = require("../models/candidatecertificateModel")
 
-const accountModel=require("../models/accountModel")
-const currency=require ("../models/currencyModel");
-const skills=require("../models/skillsModel")
+const accountModel = require("../models/accountModel")
+const currency = require("../models/currencyModel");
+const skills = require("../models/skillsModel")
 
-const candidateexperience=require("../models/candidateexperienceModel")
+const candidateexperience = require("../models/candidateexperienceModel")
 const candidateAvailabilityModel = require("../models/candidateAvailabilityModel");
+const alertSettingsModel = require("../models/alertSettingsModel");
+const creditModel = require("../models/creditModel");
+
 function Database() {
 
   countryModel.createCountriesTable();
@@ -89,7 +92,7 @@ function Database() {
   instituteModel.createInstituteTable();
   dbadminhistory.createDbAdminHistoryTable();
   skills.createSkillsTable();
-currency.createCurrenciesTable();
+  currency.createCurrenciesTable();
   accountModel.createAccountTable();
   emplyeeModel.createCompanyInfoTable();
   candidateModel.createCandidateTable();
@@ -113,6 +116,9 @@ currency.createCurrenciesTable();
   candidateAvailabilityModel.createCandidateAvailabilityTable();
   candidateresearchModel.createResearchTable();
   candidatecertificateModel.createCertificatesTable();
+  alertSettingsModel.createAlertSettingsTable();
+  alertSettingsModel.createNotificationsTable();
+  creditModel.createCandidateUnlocksTable();
 
 
   // adding extra column in job_posts table

@@ -7,6 +7,9 @@ const cors = require("cors");
 const connection = require("./connection");
 require("./cron"); 
 
+const { startAlertCron } = require("./alertCron"); // adjust path if needed
+startAlertCron();
+
 const app = express();
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
@@ -58,10 +61,10 @@ const jobtitlesRoutes = require("./routes/jobtitlesRoutes");
 
 const candidatejobs = require("./routes/candidatejobsRoutes")
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const alertSettingsRoutes = require("./routes/alertSettingsRoutes");
+const creditRoutes = require("./routes/creditRoutes");
 
-
-
-
+app.use("/credit", creditRoutes);
 
 app.use("/", accountRoutes);
 app.use("/", countries);
@@ -103,7 +106,7 @@ app.use('/message', messages)
 app.use("/payment", paymentRoutes)
 app.use("/", dashboardRoutes);
 app.use("/", jobtitlesRoutes);
-
+app.use("/alert-settings", alertSettingsRoutes);
 
 
 module.exports = app;

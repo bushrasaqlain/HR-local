@@ -366,7 +366,7 @@ class Industry extends Component {
                   onClick={() => this.toggleForm()}
                   className="add-institute-btn"
                 >
-                  Add JobType
+                  Add Industry
                 </Button>
 
                 {/* Import Excel */}

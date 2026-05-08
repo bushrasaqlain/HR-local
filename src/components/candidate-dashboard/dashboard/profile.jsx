@@ -6,6 +6,7 @@ import api from "../../lib/api";
 import EditProfile from "./editprofile";
 import JobList from "./lists";
 import Payment from "../../company-dashboard/payment";
+import { withRouter } from "next/router";
 class Profile extends Component {
   constructor(props) {
     super(props);
@@ -18,6 +19,7 @@ class Profile extends Component {
       showJobModal: false,
       passport_photo: "",
       formData: {},
+      savedJobIds: [],
       dashboardStats: {
         shortlisted: 0,
         viewed: 0,
@@ -26,6 +28,7 @@ class Profile extends Component {
         boostStatus: null,
         showBoostModal: false,
       },
+      boostStatus: null,
     };
   }
 
@@ -73,6 +76,40 @@ class Profile extends Component {
     }
   };
 
+  fetchSavedJobIds = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await api.get("/candidateProfile/saved-jobs", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = res.data.data || [];
+      this.setState({ savedJobIds: data.map(j => j.job_id) });
+    } catch (err) {
+      console.error("Saved jobs fetch failed", err);
+    }
+  };
+
+  handleToggleSave = async (e, jobId) => {
+    e.stopPropagation();
+    const token = localStorage.getItem("token");
+    try {
+      const res = await api.post(
+        "/candidateProfile/save-job",
+        { job_id: jobId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.saved) {
+        this.setState(prev => ({ savedJobIds: [...prev.savedJobIds, jobId] }));
+      } else {
+        this.setState(prev => ({
+          savedJobIds: prev.savedJobIds.filter(id => id !== jobId),
+        }));
+      }
+    } catch (err) {
+      console.error("Toggle save failed", err);
+    }
+  };
+
   handleApply = async (jobId) => {
     this.setState({ applyingJobId: jobId });
     try {
@@ -107,6 +144,7 @@ class Profile extends Component {
     this.router = require("next/router").default;
     this.fetchCandidateInfo();
     this.fetchMatchingJobs();
+    this.fetchSavedJobIds();
   }
   handleEditProfile = () => {
     if (this.props.onEdit) this.props.onEdit();
@@ -315,9 +353,26 @@ class Profile extends Component {
               {/* Matching Jobs */}
               <div className="col-12">
                 <Card>
-                  <CardHeader>
-                    <strong>Jobs Matching Your Profile</strong>
-                    <small className="text-muted ms-2">Based on your skills</small>
+                  <CardHeader className="d-flex justify-content-between align-items-center">
+                    <div>
+                      <strong>Jobs Matching Your Profile</strong>
+                      <small className="text-muted ms-2">Based on your skills</small>
+                    </div>
+                    <button
+                      onClick={() => {
+                        console.log("clicked");
+                        this.props.onTabChange && this.props.onTabChange("savedJobs");
+                      }}
+                      style={{
+                        background: "#fff", color: "#36565F",
+                        border: "1.5px solid #36565F",
+                        borderRadius: "8px", padding: "5px 14px",
+                        fontSize: "12px", fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      ❤️ Saved Jobs ({this.state.savedJobIds.length})
+                    </button>
                   </CardHeader>
                   {/* 🔍 Search Bar */}
                   <div style={{
@@ -368,68 +423,137 @@ class Profile extends Component {
                       </p>
                     ) : (
                       <div className="d-flex flex-column gap-3">
-                        {filteredJobs.map(job => (
-                          <div key={job.id} className="d-flex align-items-center justify-content-between p-3"
-                            style={{ border: "1px solid #e5e7eb", borderRadius: "10px", cursor: "pointer" }}
-                            onClick={() => this.handleJobClick(job.id)}>
+                        {filteredJobs.map(job => {
+                          const isSaved = this.state.savedJobIds.includes(job.id);
 
-                            <div className="d-flex align-items-center gap-3">
-                              {job.logo ? (
-                                <img src={`data:image/png;base64,${job.logo}`} alt={job.company_name}
-                                  style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover" }} />
-                              ) : (
-                                <div style={{
-                                  width: 40, height: 40, borderRadius: 8, background: "#f3f4f6",
-                                  display: "flex", alignItems: "center", justifyContent: "center",
-                                  fontSize: 18, color: "#9ca3af"
-                                }}>🏢</div>
-                              )}
-                              <div>
-                                <div style={{ fontWeight: 600, fontSize: 14 }}>{job.job_title}</div>
-                                <div style={{ fontSize: 12, color: "#6b7280" }}>
-                                  {job.company_name} • {job.city_name}
-                                </div>
-                                {job.min_salary && (
-                                  <div style={{ fontSize: 12, color: "#059669" }}>
-                                    {job.currency} {job.min_salary} - {job.max_salary}
+                          return (
+                            <div
+                              key={job.id}
+                              className="d-flex align-items-center justify-content-between p-3"
+                              style={{
+                                border: "1px solid #e5e7eb",
+                                borderRadius: "10px",
+                                cursor: "pointer"
+                              }}
+                              onClick={() => this.handleJobClick(job.id)}
+                            >
+
+                              {/* LEFT SIDE */}
+                              <div className="d-flex align-items-center gap-3">
+                                {job.logo ? (
+                                  <img
+                                    src={`data:image/png;base64,${job.logo}`}
+                                    alt={job.company_name}
+                                    style={{
+                                      width: 40,
+                                      height: 40,
+                                      borderRadius: 8,
+                                      objectFit: "cover"
+                                    }}
+                                  />
+                                ) : (
+                                  <div style={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: 8,
+                                    background: "#f3f4f6",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: 18,
+                                    color: "#9ca3af"
+                                  }}>
+                                    🏢
                                   </div>
+                                )}
+
+                                <div>
+                                  {/* Job Title + Save */}
+                                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                    <div style={{ fontWeight: 600, fontSize: 14 }}>
+                                      {job.job_title}
+                                    </div>
+
+                                    <button
+                                      onClick={(e) => this.handleToggleSave(e, job.id)}
+                                      style={{
+                                        background: "none",
+                                        border: "none",
+                                        cursor: "pointer",
+                                        fontSize: "15px",
+                                        padding: "2px",
+                                        color: isSaved ? "#ef4444" : "#d1d5db",
+                                      }}
+                                      title={isSaved ? "Remove from saved" : "Save job"}
+                                    >
+                                      {isSaved ? "❤️" : "🤍"}
+                                    </button>
+                                  </div>
+
+                                  {/* Company + City */}
+                                  <div style={{ fontSize: 12, color: "#6b7280" }}>
+                                    {job.company_name} • {job.city_name}
+                                  </div>
+
+                                  {/* Salary */}
+                                  {job.min_salary && (
+                                    <div style={{ fontSize: 12, color: "#059669" }}>
+                                      {job.currency} {job.min_salary} - {job.max_salary}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* RIGHT SIDE */}
+                              <div onClick={(e) => e.stopPropagation()}>
+                                {job.already_applied ? (
+                                  <span
+                                    className="badge"
+                                    style={{ background: "#d1fae5", color: "#065f46" }}
+                                  >
+                                    ✓ Applied
+                                  </span>
+                                ) : !this.state.boostStatus?.isBoosted ? (
+                                  <span
+                                    style={{
+                                      fontSize: 11,
+                                      color: "#a16207",
+                                      background: "#fffbeb",
+                                      border: "1px solid #f59e0b",
+                                      borderRadius: 8,
+                                      padding: "6px 10px",
+                                      display: "inline-block",
+                                      maxWidth: 120,
+                                      textAlign: "center",
+                                      lineHeight: "1.3"
+                                    }}
+                                  >
+                                    Boost your profile to apply
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => this.handleApply(job.id)}
+                                    disabled={this.state.applyingJobId === job.id}
+                                    style={{
+                                      background: "#36565F",
+                                      color: "#fff",
+                                      border: "none",
+                                      borderRadius: 8,
+                                      padding: "8px 16px",
+                                      fontSize: 13,
+                                      fontWeight: 600,
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    {this.state.applyingJobId === job.id
+                                      ? "Applying..."
+                                      : "Apply"}
+                                  </button>
                                 )}
                               </div>
                             </div>
-
-                            <div onClick={(e) => e.stopPropagation()}>
-                              {job.already_applied ? (
-                                <span className="badge" style={{ background: "#d1fae5", color: "#065f46" }}>
-                                  ✓ Applied
-                                </span>
-                              ) : !this.state.boostStatus?.isBoosted ? (
-
-                                <span style={{
-                                  fontSize: 11, color: "#a16207", background: "#fffbeb",
-                                  border: "1px solid #f59e0b", borderRadius: 8,
-                                  padding: "6px 10px", display: "inline-block",
-                                  maxWidth: 120, textAlign: "center", lineHeight: "1.3"
-                                }}>
-                                  Boost your profile to apply
-                                </span>
-                              ) : (
-                                <button
-                                  onClick={() => this.handleApply(job.id)}
-                                  disabled={this.state.applyingJobId === job.id}
-                                  style={{
-                                    background: "#36565F", color: "#fff",
-                                    border: "none", borderRadius: 8,
-                                    padding: "8px 16px", fontSize: 13,
-                                    fontWeight: 600, cursor: "pointer",
-                                  }}
-                                >
-                                  {this.state.applyingJobId === job.id ? "Applying..." : "Apply"}
-                                </button>
-                              )}
-                            </div>
-
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </CardBody>
@@ -916,4 +1040,4 @@ class BoostModal extends React.Component {
   }
 }
 
-export default Profile;
+export default withRouter(Profile);

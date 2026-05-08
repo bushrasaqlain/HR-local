@@ -20,7 +20,7 @@ class FormContent extends Component {
     this.state = {
       accountType: "candidate",
       values: {
-        username: "",
+        // username: "",
         email: "",
         password: "",
         confirmPassword: "",
@@ -53,14 +53,14 @@ class FormContent extends Component {
       errors: { ...prev.errors, [name]: "" },
     }));
 
-    if (name === "username" && !/^[A-Za-z0-9\s]+$/.test(value)) {
-      this.setState((prev) => ({
-        errors: {
-          ...prev.errors,
-          username: "Username can only contain letters and numbers",
-        },
-      }));
-    }
+    // if (name === "username" && !/^[A-Za-z0-9\s]+$/.test(value)) {
+    //   this.setState((prev) => ({
+    //     errors: {
+    //       ...prev.errors,
+    //       username: "Username can only contain letters and numbers",
+    //     },
+    //   }));
+    // }
   };
 
   checkEmailExists = async (email) => {
@@ -78,8 +78,8 @@ class FormContent extends Component {
     const { values, accountType } = this.state;
     const validationErrors = {};
 
-    if (!values.username.trim())
-      validationErrors.username = "Username is required";
+    // if (!values.username.trim())
+    //   validationErrors.username = "Username is required";
     if (!values.email.trim()) validationErrors.email = "Email is required";
     if (!values.password.trim())
       validationErrors.password = "Password is required";
@@ -171,7 +171,7 @@ class FormContent extends Component {
             </Button>
           </div>
 
-          <FormGroup>
+          {/* <FormGroup>
             <Label>Username</Label>
             <Input
               name="username"
@@ -180,7 +180,7 @@ class FormContent extends Component {
               invalid={!!errors.username}
             />
             <FormFeedback>{errors.username}</FormFeedback>
-          </FormGroup>
+          </FormGroup> */}
 
           <FormGroup>
             <Label>Email</Label>

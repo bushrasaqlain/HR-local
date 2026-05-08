@@ -3,7 +3,7 @@ const router = express.Router();
 const connection = require("../connection");
 const authMiddleware = require("../middleware/auth");
 const logAudit = require("../utils/auditLogger");
-const { subcribePackage } = require("./jobModel");
+const { subcribePackageInternal } = require("./jobModel");
 
 
 const createPaymentTable = () => {
@@ -18,6 +18,7 @@ const createPaymentTable = () => {
     card_last4 VARCHAR(4),
     card_brand VARCHAR(20),
     card_holder VARCHAR(100),
+    card_expiry VARCHAR(7),
 
     -- 💳 GENERIC PAYMENT
     payment_reference VARCHAR(255),
@@ -56,6 +57,7 @@ const createSaveCardTable = () => {
   card_brand VARCHAR(20),
   accepted_types JSON NULL,
   card_holder VARCHAR(100),
+  card_expiry VARCHAR(7),
   payment_token VARCHAR(255) NULL, 
 
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -75,31 +77,18 @@ const createSaveCardTable = () => {
 
 const addPayment = (req, res) => {
   const { userId } = req.params;
-
   const {
-    paymentDetails,
-    amount,
-    currency,
-    packageId,
-    jobId,
-    reference,
-    payment_type,
+    paymentDetails, amount, currency,
+    packageId, jobId, reference, payment_type,
   } = req.body;
 
-  const {
-    method,
-    cardLast4,
-    cardName,
-    saveForLater,
-    acceptedTypes,
-  } = paymentDetails || {};
+  const { method, cardLast4, cardName, saveForLater, acceptedTypes, cardExpiry } = paymentDetails || {};
 
   let last4 = null;
   let brand = null;
 
   if (method?.toLowerCase() === "card") {
     last4 = cardLast4 ? cardLast4.slice(-4) : null;
-
     if (cardLast4?.startsWith("4")) brand = "visa";
     else if (cardLast4?.startsWith("5")) brand = "mastercard";
     else if (cardLast4?.startsWith("3")) brand = "amex";
@@ -107,43 +96,67 @@ const addPayment = (req, res) => {
     else brand = "unknown";
   }
 
-  const payment_token = method?.toLowerCase() === "card" && last4    // ← add this
+  const payment_token = method?.toLowerCase() === "card" && last4
     ? `tok_dummy_${Date.now()}_${last4}`
     : null;
 
-  connection.beginTransaction((err) => {
-    if (err) {
-      return res.status(500).json({ success: false, message: "Transaction failed" });
+  const isCardSaveOnly = (!amount || Number(amount) === 0) && !packageId && !jobId;
+
+  if (isCardSaveOnly) {
+    if (method?.toLowerCase() === "card" && saveForLater && last4) {
+      const checkQuery = `SELECT id FROM saved_cards WHERE account_id = ? AND card_last4 = ? AND card_brand = ?`;
+      connection.query(checkQuery, [userId, last4, brand], (errCheck, rows) => {
+        if (errCheck) return res.status(500).json({ success: false, message: "Card check failed" });
+
+        if (rows.length === 0) {
+          const insertCard = `
+            INSERT INTO saved_cards (account_id, card_last4, card_brand, card_holder, card_expiry,  accepted_types, payment_token)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+          `;
+          connection.query(
+            insertCard,
+            [userId, last4, brand, cardName || null, cardExpiry || null, JSON.stringify(acceptedTypes || []), payment_token],
+            (errInsert) => {
+              if (errInsert) return res.status(500).json({ success: false, message: "Saving card failed" });
+              return res.status(201).json({ success: true, message: "Card saved successfully ✅" });
+            }
+          );
+        } else {
+          return res.status(200).json({ success: true, message: "Card already saved" });
+        }
+      });
+    } else {
+      return res.status(400).json({ success: false, message: "No card data provided" });
     }
+    return; 
+  }
+
+  // ── Normal payment flow (amount > 0) ──
+  connection.beginTransaction((err) => {
+    if (err) return res.status(500).json({ success: false, message: "Transaction failed" });
 
     const paymentQuery = `
       INSERT INTO payment
       (account_id, job_id, package_id,
-      card_last4, card_brand, card_holder,
-      amount, currency,
-      payment_type, payment_method, payment_status,
-      payment_reference)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Paid', ?)
+       card_last4, card_brand, card_holder, card_expiry,
+       amount, currency,
+       payment_type, payment_method, payment_status,
+       payment_reference)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Paid', ?)
     `;
 
     connection.query(
       paymentQuery,
       [
-        userId,
-        jobId || null,
-        packageId || null,
-        last4,
-        brand,
-        cardName || null,
-        amount,
-        currency || "PKR",
-        payment_type || "job",
-        method,
+        userId, jobId || null, packageId || null,
+        last4, brand, cardName || null,
+        amount, currency || "PKR",
+        payment_type || "job", method,
         reference || null,
       ],
       (err1, paymentResult) => {
         if (err1) {
-          console.error("❌ Payment INSERT error:", err1.message, err1.sqlMessage);
+          console.error("Payment INSERT error:", err1.message);
           return connection.rollback(() =>
             res.status(500).json({ success: false, message: "Payment failed" })
           );
@@ -151,49 +164,29 @@ const addPayment = (req, res) => {
 
         const paymentId = paymentResult.insertId;
 
-        // 💳 SAVE CARD
         const saveCardIfNeeded = (cb) => {
           if (method?.toLowerCase() === "card" && saveForLater && last4) {
-            const checkQuery = `
-              SELECT id FROM saved_cards
-              WHERE account_id = ? AND card_last4 = ? AND card_brand = ?
-            `;
-
+            const checkQuery = `SELECT id FROM saved_cards WHERE account_id = ? AND card_last4 = ? AND card_brand = ?`;
             connection.query(checkQuery, [userId, last4, brand], (errCheck, rows) => {
-              if (errCheck) {
-                return connection.rollback(() =>
-                  res.status(500).json({ success: false, message: "Card check failed" })
-                );
-              }
-
+              if (errCheck) return connection.rollback(() => res.status(500).json({ success: false, message: "Card check failed" }));
               if (rows.length === 0) {
                 const insertCard = `
-                  INSERT INTO saved_cards (account_id, card_last4, card_brand, card_holder, accepted_types, payment_token)
-                  VALUES (?, ?, ?, ?, ?, ?)
+                  INSERT INTO saved_cards (account_id, card_last4, card_brand, card_holder, card_expiry, accepted_types, payment_token)
+                  VALUES (?, ?, ?, ?, ?, ?, ?)
                 `;
-
                 connection.query(
                   insertCard,
-                  [userId, last4, brand, cardName || null, JSON.stringify(acceptedTypes || []), payment_token],
+                  [userId, last4, brand, cardName || null, cardExpiry || null, JSON.stringify(acceptedTypes || []), payment_token],
                   (errInsert) => {
-                    if (errInsert) {
-                      return connection.rollback(() =>
-                        res.status(500).json({ success: false, message: "Saving card failed" })
-                      );
-                    }
+                    if (errInsert) return connection.rollback(() => res.status(500).json({ success: false, message: "Saving card failed" }));
                     cb();
                   }
                 );
-              } else {
-                cb();
-              }
+              } else { cb(); }
             });
-          } else {
-            cb();
-          }
+          } else { cb(); }
         };
 
-        // 🎁 SUBSCRIBE PACKAGE
         saveCardIfNeeded(() => {
           if (!packageId) {
             return connection.commit((err4) => {
@@ -205,32 +198,15 @@ const addPayment = (req, res) => {
           if (payment_type === "candidate_boost") {
             return connection.commit((err4) => {
               if (err4) return connection.rollback(() => res.status(500).json({ success: false, message: "Commit failed" }));
-              return res.status(201).json({
-                success: true,
-                message: "Boost payment successful",
-                payment_id: paymentId,
-              });
+              return res.status(201).json({ success: true, message: "Boost payment successful", payment_id: paymentId });
             });
           }
 
-          // only runs when actually buying a package
-          subcribePackage(
-            { userId, packageId, paymentId },
-            (err2, subResult) => {
-              if (err2) {
-                return connection.rollback(() =>
-                  res.status(500).json({ success: false, message: err2.message })
-                );
-              }
-
+          subcribePackageInternal({ userId, packageId, paymentId })
+            .then((subResult) => {
               const finalize = () => {
                 connection.commit((err4) => {
-                  if (err4) {
-                    return connection.rollback(() =>
-                      res.status(500).json({ success: false, message: "Commit failed" })
-                    );
-                  }
-
+                  if (err4) return connection.rollback(() => res.status(500).json({ success: false, message: "Commit failed" }));
                   return res.status(201).json({
                     success: true,
                     message: "Payment + Subscription successful 🚀",
@@ -240,32 +216,26 @@ const addPayment = (req, res) => {
                 });
               };
 
-              // 🧩 OPTIONAL JOB UPDATE
               if (jobId) {
-                const updateJob = `
-                  UPDATE job_posts
-                  SET approval_status = 'Pending'
-                  WHERE id = ? AND account_id = ?
-                `;
-
-                connection.query(updateJob, [jobId, userId], (err3) => {
-                  if (err3) {
-                    return connection.rollback(() =>
-                      res.status(500).json({ success: false, message: "Job update failed" })
-                    );
+                connection.query(
+                  `UPDATE job_posts SET approval_status = 'Pending' WHERE id = ? AND account_id = ?`,
+                  [jobId, userId],
+                  (err3) => {
+                    if (err3) return connection.rollback(() => res.status(500).json({ success: false, message: "Job update failed" }));
+                    finalize();
                   }
-                  finalize();
-                });
-              } else {
-                finalize();
-              }
-            }
-          );
+                );
+              } else { finalize(); }
+            })
+            .catch((err2) => {
+              return connection.rollback(() => res.status(500).json({ success: false, message: err2.message }));
+            });
         });
       }
     );
   });
 };
+
 const getSavedCards = (req, res) => {
   const { userId } = req.params;
 

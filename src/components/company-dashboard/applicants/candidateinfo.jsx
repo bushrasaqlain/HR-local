@@ -53,7 +53,7 @@
       try {
         const token = localStorage.getItem("token");
         await api.post(
-          `/updatestatus`,
+          `applicant/updatestatus`,
           { candidateId: candidateData.id, status: newStatus },
           { headers: { Authorization: `Bearer ${token}` } },
         );
@@ -87,7 +87,7 @@
         const token = localStorage.getItem("token");
 
         await api.post(
-          `/updatestatus`,
+          `applicant/updatestatus`,
           {
             candidateId: candidateData.id || candidateData.candidate_id, // ✅ candidate ID
             jobId: candidateData.job_id || selectedJobId, // ✅ job ID
@@ -128,7 +128,7 @@
       try {
         const token = localStorage.getItem("token");
         await api.post(
-          "/updatestatus", // or your endpoint for notes
+          "applicant/updatestatus", // or your endpoint for notes
           {
             candidateId,
             jobId,
@@ -226,7 +226,7 @@
   onStatusChange={(candidateId, status, interviewDay, interviewTime) => {
     const { selectedJobId } = this.props;
     api
-      .post(`/updatestatus`, {
+      .post(`applicant/updatestatus`, {
         candidateId,
         jobId: selectedJobId,
         status,

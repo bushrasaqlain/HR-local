@@ -70,6 +70,15 @@ const getTotalJobPosts = async (req, res) => {
     res.status(500).json({ msg: "SERVER_ERROR" ,});
   }
 };
+const subcribePackageInternal = async (accountId, packageId) => {
+  try {
+    const result = await jobModel.subcribePackageInternal(accountId, packageId); 
+    return result;
+  } catch (err) {
+    console.error(err);
+    throw new Error("Subscription failed");
+  }
+};
 const viewCandidate = (req, res) => {
   jobModel.viewCandidate(req, res);
 }
@@ -92,6 +101,7 @@ module.exports = {
   getTotalJobPosts,
   getUserPackages,
   getTransactionHistory,
+  subcribePackageInternal,
   approveJob,
   resetDailyBudgets,
   viewCandidate 

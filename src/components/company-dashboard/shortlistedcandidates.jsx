@@ -332,7 +332,7 @@ class ShortlistedCandidates extends Component {
     }
 
     try {
-      await axios.post(`${this.apiBaseUrl}updatestatus`, {
+      await axios.post(`${this.apiBaseUrl}applicant/updatestatus`, {
         candidateId,
         jobId,
         status,
@@ -369,7 +369,7 @@ class ShortlistedCandidates extends Component {
       this.setState({ loading: true });
 
       await axios.post(
-        `${this.apiBaseUrl}updatestatus`,
+        `${this.apiBaseUrl}applicant/updatestatus`,
         {
           candidateId: candidate.candidate_id,
           jobId: jobId,
@@ -1324,6 +1324,7 @@ class ShortlistedCandidates extends Component {
 
                                             {(candidate.candidate_response === "Accepted" ||
                                               candidate.candidate_response === "Confirmed" ||
+                                              candidate.candidate_response === "Reschedule Requested" ||
                                               candidate.company_status === "confirmed") && (
                                                 <button
                                                   className="message-button"
