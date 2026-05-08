@@ -5,77 +5,7 @@ const logAudit = require("../utils/auditLogger.js");
 const { CompanyModule } = require("@faker-js/faker");
 
 
-const createJobPostTable = () => {
-  const createjob_postsTableQuery = `
-CREATE TABLE IF NOT EXISTS job_posts (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  account_id INT, 
-  job_title VARCHAR(255),
-  job_description TEXT,
-  skill_ids JSON,
-  time_from TIME,
-  time_to TIME,
-  job_type_id INT,
-  min_salary INT,
-  max_salary INT,
-  salary_period ENUM('hourly','daily','weekly','monthly','yearly') DEFAULT 'monthly',
-  currency_id INT,
-  min_experience VARCHAR(255),
-  max_experience VARCHAR(255),
-  speciality_id INT,
-  degree_id INT,
-  degreefields_id INT NULL,
-  application_deadline TIMESTAMP,
-  no_of_positions INT,
-  industry INT NULL,
-  package_id INT,
-  country_id INT,
-  district_id JSON,
-  city_id JSON,
-  company_package_id INT NULL,
-  billing_model ENUM(
-    'duration_bundle',
-    'job_slot',
-    'cv_credits',
-    'daily_budget',
-    'per_apply',
-    'featured_boost',
-    'free'
-  ) DEFAULT NULL,
-  is_sponsored TINYINT DEFAULT 0,
-  daily_budget DECIMAL(10,2) DEFAULT 0,
-  cost_per_click DECIMAL(10,2) DEFAULT 0,
-  spent_amount DECIMAL(10,2) DEFAULT 0,
-  job_location_type VARCHAR(50),
-  screening_start DATE,
-  screening_end DATE,
-  interview_start DATE,
-  interview_end DATE,
-  expected_joining_date DATE,
-  approval_status ENUM('Pending','Pending Payment','Approved','UnApproved') DEFAULT 'Pending',
-  status ENUM('Active','Inactive') DEFAULT 'Active',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (account_id) REFERENCES account(id),
-  FOREIGN KEY (job_type_id) REFERENCES jobtypes(id), 
-  FOREIGN KEY (speciality_id) REFERENCES speciality(id),
-  FOREIGN KEY (degree_id) REFERENCES degreetypes(id),
-  FOREIGN KEY (degreefields_id) REFERENCES degreefields(id),
-  FOREIGN KEY (currency_id) REFERENCES currencies(id),
-  FOREIGN KEY (country_id) REFERENCES countries(id),
-  FOREIGN KEY (company_package_id) REFERENCES company_packages(id),
-  FOREIGN KEY (package_id) REFERENCES packages(id),
-  FOREIGN KEY (industry) REFERENCES industry(id),
-);
-`;
 
-  connection.query(createjob_postsTableQuery, function (err, results, fields) {
-    if (err) {
-      return console.error(err.message);
-    }
-    console.log("job_posts table created successfully");
-  });
-};
 
 const getAllJobs = (req, res) => {
   const userId = req.params.userId;
