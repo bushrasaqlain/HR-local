@@ -42,7 +42,7 @@ const getPurchaseState = (pkg, wallet) => {
   const model = pkg.pricing_model;
 
   const allActive = [
-    
+
     ...(wallet?.activeJobSlots || []),
     ...(wallet?.activeCvCredits || []),
     ...(wallet?.activeDailyBudgets || []),
@@ -50,16 +50,49 @@ const getPurchaseState = (pkg, wallet) => {
   ];
 
   const isOwned = allActive.some(p => String(p.package?.id) === String(pkg.id));
-  if (isOwned) return "owned";
+
+  if (isOwned) {
+    const match = allActive.find(p => String(p.package?.id) === String(pkg.id));
+
+    if (pkg.pricing_model === "cv_credits") {
+      const totalCredits = match?.package?.credit_count || 0;
+      const usedCredits = match?.used_credits || 0;
+      if (totalCredits > 0 && usedCredits >= totalCredits) return "expired";
+    }
+
+    if (pkg.pricing_model === "job_slot") {
+      const snapshot = match?.package || {};
+      const totalSlots = snapshot.slot_count || 0;
+      const usedSlots = match?.used_slots || 0;
+      if (totalSlots > 0 && usedSlots >= totalSlots) return "expired";
+    }
+
+    if (pkg.pricing_model === "duration_bundle") {
+      const snapshot = match?.package || {};
+      const totalPosts = snapshot.num_posts || 0;
+      const usedPosts = match?.used_posts || 0;
+      if (totalPosts > 0 && usedPosts >= totalPosts) return "expired";
+    }
+
+    if (match?.end_date && new Date(match.end_date) < new Date()) {
+      return "expired";
+    }
+
+    if (match?.status?.toLowerCase() === "expired") {
+      return "expired";
+    }
+
+    return "owned";
+  }
 
   if (model === "duration_bundle" && (pkg.num_posts === 1 || pkg.num_posts == null))
     return "blocked";
 
   if (model === "daily_budget" || model === "per_apply") return "info_only";
 
-if (model === "job_slot") {
-  return "available";
-}
+  if (model === "job_slot") {
+    return "available";
+  }
 
   if (model === "featured_boost") {
     const hasAnyActive =
@@ -139,7 +172,7 @@ const SECTION_META = {
     subtitle: "Set a daily spend cap and pay per View, impression, or apply — configured when posting a job",
     tag: "ℹ Available at job posting",
   },
-  
+
   featured_boost: {
     title: "Featured Boost Add-ons",
     subtitle: "Top placement, homepage feature, or email blast — add to any active job",
@@ -151,7 +184,7 @@ const SECTION_META = {
    SECTION ORDER
 ═══════════════════════════════════════════════════════════════ */
 const SECTION_ORDER = [
-   "job_slot",
+  "job_slot",
   "cv_credits",
   "daily_budget",
   "featured_boost",
@@ -195,7 +228,7 @@ const InfoIcon = ({ color }) => (
   </svg>
 );
 
-const CardIcon  = () => <Icon size={18} d="M2 5h20v14H2zM2 10h20" />;
+const CardIcon = () => <Icon size={18} d="M2 5h20v14H2zM2 10h20" />;
 // const QrIcon    = () => <Icon size={18} d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM19 14v3M17 19h3M14 19v2" />;
 // const BankIcon  = () => <Icon size={18} d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M8 10v11M12 10v11M16 10v11M20 10v11" />;
 const CloseIcon = () => <Icon size={16} d="M18 6L6 18M6 6l12 12" />;
@@ -238,18 +271,18 @@ const CloseIcon = () => <Icon size={16} d="M18 6L6 18M6 6l12 12" />;
 const CardBadges = ({ cardNumber = "" }) => {
   const clean = cardNumber.replace(/\s/g, "");
   let type = null;
-  if (/^4/.test(clean))        type = "visa";
+  if (/^4/.test(clean)) type = "visa";
   else if (/^5[1-5]/.test(clean)) type = "mastercard";
-  else if (/^3[47]/.test(clean))  type = "amex";
-  else if (/^62/.test(clean))     type = "unionpay";
+  else if (/^3[47]/.test(clean)) type = "amex";
+  else if (/^62/.test(clean)) type = "unionpay";
   else if (/^220[0-4]/.test(clean)) type = "paypak";
 
   const cards = [
-    { id: "visa",       src: "/images/visa.png" },
+    { id: "visa", src: "/images/visa.png" },
     { id: "mastercard", src: "/images/master.png" },
-    { id: "unionpay",   src: "/images/unionpay.png" },
-    { id: "paypak",     src: "/images/paypak_card.png" },
-    { id: "1link",      src: "/images/1link.png" },
+    { id: "unionpay", src: "/images/unionpay.png" },
+    { id: "paypak", src: "/images/paypak_card.png" },
+    { id: "1link", src: "/images/1link.png" },
   ];
 
   return (
@@ -336,9 +369,9 @@ const PackageDetails = ({ pkg }) => {
             {pkg.bundle_validity_days && (
               <Tag>Activate within {pkg.bundle_validity_days} days</Tag>
             )}
-            {pkg.include_views         ? <Tag>View analytics</Tag>     : null}
-            {pkg.include_featured_slot ? <Tag>Featured slot</Tag>      : null}
-            {pkg.include_analytics     ? <Tag>Advanced analytics</Tag> : null}
+            {pkg.include_views ? <Tag>View analytics</Tag> : null}
+            {pkg.include_featured_slot ? <Tag>Featured slot</Tag> : null}
+            {pkg.include_analytics ? <Tag>Advanced analytics</Tag> : null}
           </div>
         </div>
       );
@@ -360,8 +393,8 @@ const PackageDetails = ({ pkg }) => {
               ? <Tag>Expire in {pkg.credit_expiry_days} days</Tag>
               : <Tag>Never expires</Tag>
             }
-            {pkg.unlock_scope   && <Tag>Unlocks {pkg.unlock_scope} profile</Tag>}
-            {pkg.tier2_credits  && <Tag>+{pkg.tier2_credits} bonus at tier 2</Tag>}
+            {pkg.unlock_scope && <Tag>Unlocks {pkg.unlock_scope} profile</Tag>}
+            {pkg.tier2_credits && <Tag>+{pkg.tier2_credits} bonus at tier 2</Tag>}
           </div>
         </div>
       );
@@ -380,8 +413,8 @@ const PackageDetails = ({ pkg }) => {
               {pkg.billing_model === "cpc"
                 ? "/ click"
                 : pkg.billing_model === "cpm"
-                ? "/ 1k views"
-                : "/ View"}
+                  ? "/ 1k views"
+                  : "/ View"}
             </span>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap" }}>
@@ -395,7 +428,7 @@ const PackageDetails = ({ pkg }) => {
               <Tag>{pkg.campaign_duration_days}-day campaign</Tag>
             )}
             {pkg.sponsor_to_top ? <Tag>Top placement</Tag> : null}
-            {pkg.email_blast    ? <Tag>Email blast</Tag>   : null}
+            {pkg.email_blast ? <Tag>Email blast</Tag> : null}
           </div>
         </div>
       );
@@ -439,8 +472,8 @@ const PackageDetails = ({ pkg }) => {
             </span>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap" }}>
-            {pkg.billing_cycle   && <Tag>{pkg.billing_cycle} billing</Tag>}
-            {pkg.price_per_slot  && (
+            {pkg.billing_cycle && <Tag>{pkg.billing_cycle} billing</Tag>}
+            {pkg.price_per_slot && (
               <Tag>{pkg.currency} {Number(pkg.price_per_slot).toLocaleString()} / slot</Tag>
             )}
             {pkg.free_views_per_slot && (
@@ -466,10 +499,10 @@ const PackageDetails = ({ pkg }) => {
               : "One-time boost"}
           </p>
           <div style={{ display: "flex", flexWrap: "wrap" }}>
-            {pkg.boost_type === "top"         && <Tag>Top of search results</Tag>}
+            {pkg.boost_type === "top" && <Tag>Top of search results</Tag>}
             {pkg.boost_type === "highlighted" && <Tag>Highlighted listing</Tag>}
-            {pkg.boost_type === "homepage"    && <Tag>Homepage featured</Tag>}
-            {pkg.boost_type === "email"       && <Tag>Email blast</Tag>}
+            {pkg.boost_type === "homepage" && <Tag>Homepage featured</Tag>}
+            {pkg.boost_type === "email" && <Tag>Email blast</Tag>}
             {pkg.sponsor_to_top ? <Tag>Pinned to top</Tag> : null}
           </div>
         </div>
@@ -498,29 +531,30 @@ class PackageCard extends Component {
     const { hovered } = this.state;
 
     const purchaseState = getPurchaseState(pkg, wallet);
-    const isBlocked   = purchaseState === "blocked";
-    const isLocked    = purchaseState === "locked";
-    const isInfoOnly  = purchaseState === "info_only";
+    const isBlocked = purchaseState === "blocked";
+    const isLocked = purchaseState === "locked";
+    const isInfoOnly = purchaseState === "info_only";
     const isAvailable = purchaseState === "available";
-    const isOwned     = purchaseState === "owned";
+    const isOwned = purchaseState === "owned";
+    const isExpired = purchaseState === "expired";
 
     const featured = pkg.is_featured === 1 && isAvailable;
-    const cfg      = getModelConfig(pkg.pricing_model);
+    const cfg = getModelConfig(pkg.pricing_model);
 
     const features = pkg.description
       ? pkg.description.split("\n").map(l => l.trim()).filter(Boolean)
       : [];
 
     const priceDisplay = () => {
-      const textColor  = featured ? "#fff" : (isBlocked || isOwned) ? THEME.muted : THEME.text;
+      const textColor = featured ? "#fff" : (isBlocked || isOwned) ? THEME.muted : THEME.text;
       const mutedColor = featured ? "rgba(255,255,255,0.5)" : THEME.muted;
 
       switch (pkg.pricing_model) {
         case "daily_budget": {
           const unit =
             pkg.billing_model === "cpc" ? "/click"
-            : pkg.billing_model === "cpm" ? "/1k views"
-            : "/ View";
+              : pkg.billing_model === "cpm" ? "/1k views"
+                : "/ View";
           return (
             <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 4 }}>
               <span style={{ fontSize: 11, color: mutedColor }}>{pkg.currency}</span>
@@ -564,47 +598,30 @@ class PackageCard extends Component {
       }
     };
 
-    const badgeBg = isOwned     ? THEME.successLight
-      : isBlocked  ? "#F1EFE8"
-      : isInfoOnly ? cfg.light
-      : isLocked   ? THEME.warningLight
-      : featured   ? "rgba(255,255,255,0.12)"
-      : cfg.light;
+    const badgeBg = isExpired ? THEME.warningLight : isOwned ? THEME.successLight : isBlocked ? "#F1EFE8" : isInfoOnly ? cfg.light : isLocked ? THEME.warningLight : featured ? "rgba(255,255,255,0.12)" : cfg.light;
 
-    const badgeColor = isOwned     ? THEME.success
-      : isBlocked  ? THEME.muted
-      : isInfoOnly ? cfg.accent
-      : isLocked   ? THEME.warning
-      : featured   ? "#fff"
-      : cfg.accent;
+    const badgeColor = isExpired ? THEME.warning : isOwned ? THEME.success : isBlocked ? THEME.muted : isInfoOnly ? cfg.accent : isLocked ? THEME.warning : featured ? "#fff" : cfg.accent;
 
-    const badgeIcon = isOwned     ? "✓"
-      : isBlocked  ? "✕"
-      : isInfoOnly ? cfg.icon
-      : isLocked   ? "🔒"
-      : cfg.icon;
+    const badgeIcon = isExpired ? "↻" : isOwned ? "✓" : isBlocked ? "✕" : isInfoOnly ? cfg.icon : isLocked ? "🔒" : cfg.icon;
 
-    const badgeLabel = isOwned     ? "Active"
-      : isBlocked  ? "Single post only"
-      : isInfoOnly ? cfg.label
-      : isLocked   ? "Requires base package"
-      : featured   ? "Most Popular"
-      : cfg.label;
+    const badgeLabel = isExpired ? "Expired" : isOwned ? "Active" : isBlocked ? "Single post only" : isInfoOnly ? cfg.label : isLocked ? "Requires base package" : featured ? "Most Popular" : cfg.label;
 
     const cardBorder = () => {
-      if (isOwned)    return `1.5px solid ${THEME.success}55`;
-      if (isBlocked)  return `1px solid ${THEME.border}`;
+      if (isExpired) return hovered ? `1.5px solid ${THEME.warning}55` : `1px solid ${THEME.warning}33`;
+      if (isOwned) return `1.5px solid ${THEME.success}55`;
+      if (isBlocked) return `1px solid ${THEME.border}`;
       if (isInfoOnly) return hovered ? `1.5px solid ${cfg.accent}44` : `1px solid ${THEME.border}`;
-      if (isLocked)   return hovered ? `1.5px solid ${THEME.warning}55` : `1px solid ${THEME.warning}33`;
-      if (featured)   return `2px solid ${THEME.featured}`;
-      return hovered  ? `1.5px solid ${cfg.accent}44` : `1px solid ${THEME.border}`;
+      if (isLocked) return hovered ? `1.5px solid ${THEME.warning}55` : `1px solid ${THEME.warning}33`;
+      if (featured) return `2px solid ${THEME.featured}`;
+      return hovered ? `1.5px solid ${cfg.accent}44` : `1px solid ${THEME.border}`;
     };
 
-    const topBarColor = isOwned     ? THEME.success
-      : isBlocked  ? THEME.muted
-      : isInfoOnly ? cfg.accent
-      : isLocked   ? THEME.warning
-      : cfg.accent;
+    const topBarColor = isExpired ? THEME.warning
+      : isOwned ? THEME.success
+        : isBlocked ? THEME.muted
+          : isInfoOnly ? cfg.accent
+            : isLocked ? THEME.warning
+              : cfg.accent;
 
     return (
       <div
@@ -623,10 +640,10 @@ class PackageCard extends Component {
               ? "0 12px 40px rgba(0,0,0,0.22)"
               : `0 8px 24px ${cfg.accent}18`
             : isOwned
-            ? `0 2px 12px ${THEME.success}18`
-            : "0 1px 4px rgba(0,0,0,0.04)",
-          transform: hovered && isAvailable ? "translateY(-2px)" : "translateY(0)",
-          opacity: isBlocked ? 0.55 : 1,
+              ? `0 2px 12px ${THEME.success}18`
+              : "0 1px 4px rgba(0,0,0,0.04)",
+          transform: hovered && (isAvailable || isExpired) ? "translateY(-2px)" : "translateY(0)",
+          opacity: isBlocked ? 0.55 : isExpired ? 0.85 : 1,
           position: "relative",
           overflow: "hidden",
         }}
@@ -672,8 +689,8 @@ class PackageCard extends Component {
           marginBottom: "1.25rem",
         }}>
           {pkg.pricing_model === "duration_bundle" && "one-time payment"}
-          {pkg.pricing_model === "cv_credits"      && "per pack"}
-          {pkg.pricing_model === "job_slot"        && (pkg.billing_cycle || "subscription")}
+          {pkg.pricing_model === "cv_credits" && "per pack"}
+          {pkg.pricing_model === "job_slot" && (pkg.billing_cycle || "subscription")}
         </p>
 
         <hr style={{
@@ -708,10 +725,10 @@ class PackageCard extends Component {
                 lineHeight: 1.45,
               }}>
                 <CheckIcon color={
-                  isOwned    ? THEME.success
-                  : isBlocked ? THEME.muted
-                  : featured  ? "#60A5FA"
-                  : cfg.accent
+                  isOwned ? THEME.success
+                    : isBlocked ? THEME.muted
+                      : featured ? "#60A5FA"
+                        : cfg.accent
                 } />
                 {f}
               </li>
@@ -759,6 +776,44 @@ class PackageCard extends Component {
                 opacity: 0.75,
               }}>
                 ✓ Already owned
+              </button>
+            </>
+          )}
+
+          {/* EXPIRED — Renew */}
+          {isExpired && (
+            <>
+              <div style={{
+                padding: "0.65rem 1rem", borderRadius: 9,
+                background: THEME.warningLight,
+                border: `1px solid ${THEME.warning}33`,
+                display: "flex", alignItems: "center", gap: 8,
+                marginBottom: 10,
+              }}>
+                <span style={{ fontSize: 15 }}>⚠</span>
+                <p style={{ fontSize: 12, color: THEME.warning, margin: 0, fontWeight: 600 }}>
+                  {pkg.pricing_model === "cv_credits"
+                    ? "Your credits have been used up"
+                    : pkg.pricing_model === "job_slot"
+                      ? "All job slots are in use"
+                      : pkg.pricing_model === "duration_bundle"
+                        ? "All job posts have been used"
+                        : "This package has expired"}
+                </p>
+              </div>
+              <button
+                onClick={() => onSelect(pkg)}
+                style={{
+                  width: "100%", padding: "0.7rem 1rem",
+                  borderRadius: 9, fontSize: 13.5, fontWeight: 600,
+                  cursor: "pointer",
+                  border: `1.5px solid ${THEME.warning}`,
+                  background: hovered ? THEME.warningLight : "transparent",
+                  color: THEME.warning,
+                  transition: "all 0.15s",
+                }}
+              >
+                ↻ Renew
               </button>
             </>
           )}
@@ -849,7 +904,7 @@ class PackageCard extends Component {
 ═══════════════════════════════════════════════════════════════ */
 const Section = ({ modelKey, packages, onSelect, wallet }) => {
   const meta = SECTION_META[modelKey] || { title: modelKey, subtitle: "", tag: null };
-  const cfg  = getModelConfig(modelKey);
+  const cfg = getModelConfig(modelKey);
   const isInfoSection = modelKey === "daily_budget" || modelKey === "per_apply";
 
   return (
@@ -1450,37 +1505,42 @@ class PricingPage extends Component {
     };
   }
 
-  componentDidMount() { 
-    this.loadPackages(); 
+  componentDidMount() {
+    this.loadPackages();
     this.loadUserPackages();
   }
-loadUserPackages = async () => {
-  const { userId } = this.state;
-  if (!userId) return;
-  try {
-    const res = await axios.get(`${this.APIBASEURL}job/getuserpackages/${userId}`);
-    const packages = res.data;
+  loadUserPackages = async () => {
+    const { userId } = this.state;
+    if (!userId) return;
+    try {
+      const res = await axios.get(`${this.APIBASEURL}job/getuserpackages/${userId}`);
+      const packages = res.data;
 
-    console.log("RAW packages:", packages); // ← add this
-    
-    const active = packages.filter(p => p.status?.toLowerCase() === "active");
-    console.log("ACTIVE packages:", active); // ← and this
+      console.log("RAW packages:", packages); // ← add this
 
-    const wallet = {
-      activeDurationBundles: active.filter(p => p.pricing_model === "duration_bundle"),
-      activeCvCredits:        active.filter(p => p.pricing_model === "cv_credits"),
-      activeDailyBudgets:     active.filter(p => p.pricing_model === "daily_budget"),
-      activePerApply:         active.filter(p => p.pricing_model === "per_apply"),
-      activeJobSlots:         active.filter(p => p.pricing_model === "job_slot"),
-      activeFeaturedBoosts:   active.filter(p => p.pricing_model === "featured_boost"),
-    };
+      const active = packages.filter(p => p.status?.toLowerCase() === "active");
+      const expired = packages.filter(p =>
+        p.status?.toLowerCase() === "expired" ||
+        (p.end_date && new Date(p.end_date) < new Date())
+      );
+      const activeAndExpired = [...active, ...expired];
+      console.log("CV Credits check:", activeAndExpired.filter(p => p.pricing_model === "cv_credits"));
 
-    console.log("WALLET:", wallet); // ← and this
-    this.setState({ wallet });
-  } catch (err) {
-    console.error("Failed to load user packages", err);
-  }
-};
+      const wallet = {
+        activeJobSlots: activeAndExpired.filter(p => p.pricing_model === "job_slot"),
+        activeCvCredits: activeAndExpired.filter(p => p.pricing_model === "cv_credits"),
+        activeDailyBudgets: active.filter(p => p.pricing_model === "daily_budget"),
+        activePerApply: active.filter(p => p.pricing_model === "per_apply"),
+        activeDurationBundles: activeAndExpired.filter(p => p.pricing_model === "duration_bundle"),
+        activeFeaturedBoosts: active.filter(p => p.pricing_model === "featured_boost"),
+      };
+
+      console.log("WALLET:", wallet); // ← and this
+      this.setState({ wallet });
+    } catch (err) {
+      console.error("Failed to load user packages", err);
+    }
+  };
   loadPackages = async () => {
     try {
       const res = await axios.get(`${this.APIBASEURL}packages/getallpackages`, {
@@ -1516,43 +1576,43 @@ loadUserPackages = async () => {
   };
 
   selectPackage = (pkg) => this.setState({ selectedPkg: pkg, showModal: true });
-  closeModal    = ()    => this.setState({ showModal: false, selectedPkg: null });
+  closeModal = () => this.setState({ showModal: false, selectedPkg: null });
 
-submitPayment = async (formState) => {
-  const { selectedPkg, userId } = this.state;
-  if (!selectedPkg) return;
+  submitPayment = async (formState) => {
+    const { selectedPkg, userId } = this.state;
+    if (!selectedPkg) return;
 
-  const usingSavedCard = !formState.showNewCardForm && formState.selectedSavedCardId;
+    const usingSavedCard = !formState.showNewCardForm && formState.selectedSavedCardId;
 
-  try {
-    await axios.post(
-      `${this.APIBASEURL}payment/addpayment/${userId}`,
-      {
-        amount: selectedPkg.price,
-        currency: selectedPkg.currency || "PKR",
-        packageId: selectedPkg.id,
-        jobId: null,
-        reference: null,
-        paymentDetails: {
-          method: formState.paymentMethod,
-          saveForLater: formState.saveCard,
-          ...(usingSavedCard
-            ? { savedCardId: formState.selectedSavedCardId }   // ← saved card path
-            : {
+    try {
+      await axios.post(
+        `${this.APIBASEURL}payment/addpayment/${userId}`,
+        {
+          amount: selectedPkg.price,
+          currency: selectedPkg.currency || "PKR",
+          packageId: selectedPkg.id,
+          jobId: null,
+          reference: null,
+          paymentDetails: {
+            method: formState.paymentMethod,
+            saveForLater: formState.saveCard,
+            ...(usingSavedCard
+              ? { savedCardId: formState.selectedSavedCardId }   // ← saved card path
+              : {
                 cardLast4: formState.cardNumber?.replace(/\s/g, "").slice(-4),
                 cardName: formState.cardName,
               }
-          ),
-        },
-      }
-    );
-    this.closeModal();
-    this.loadUserPackages();
-    if (this.props.onPaymentSuccess) this.props.onPaymentSuccess();
-  } catch (err) {
-    console.error("Payment failed", err);
-  }
-};
+            ),
+          },
+        }
+      );
+      this.closeModal();
+      this.loadUserPackages();
+      if (this.props.onPaymentSuccess) this.props.onPaymentSuccess();
+    } catch (err) {
+      console.error("Payment failed", err);
+    }
+  };
 
   render() {
     const {
@@ -1562,25 +1622,25 @@ submitPayment = async (formState) => {
     // const { wallet } = this.props;
 
     const grouped = this.groupPackages(packages);
-    const models  = Object.keys(grouped);
+    const models = Object.keys(grouped);
 
     const filtered = activeFilter === "All"
       ? grouped
       : grouped[activeFilter]
-      ? { [activeFilter]: grouped[activeFilter] }
-      : {};
+        ? { [activeFilter]: grouped[activeFilter] }
+        : {};
 
     const totalCount = packages.length;
 
     return (
-      
+
       <div style={{
         minHeight: "100vh", background: THEME.bg,
         fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
       }}>
-<Head>
-        <title>View All Packages</title>
-      </Head>
+        <Head>
+          <title>View All Packages</title>
+        </Head>
         {/* ── HERO ── */}
         <div style={{
           background: THEME.surface,
@@ -1638,11 +1698,11 @@ submitPayment = async (formState) => {
                   </span>
                 )}
                 {(wallet.activeDurationBundles?.length || 0) === 0 &&
-                 (wallet.activeCvCredits?.length || 0) === 0 && (
-                  <span style={{ color: THEME.muted }}>
-                    No active base packages — buy a Bundle or Credits to unlock more
-                  </span>
-                )}
+                  (wallet.activeCvCredits?.length || 0) === 0 && (
+                    <span style={{ color: THEME.muted }}>
+                      No active base packages — buy a Bundle or Credits to unlock more
+                    </span>
+                  )}
               </div>
             )}
 
@@ -1653,8 +1713,8 @@ submitPayment = async (formState) => {
                 gap: "3rem", marginTop: "2rem",
               }}>
                 {[
-                  ["Active plans",    totalCount],
-                  ["Package types",   models.length],
+                  ["Active plans", totalCount],
+                  ["Package types", models.length],
                   ["Payment options", 1],
                 ].map(([label, val]) => (
                   <div key={label} style={{ textAlign: "center" }}>
