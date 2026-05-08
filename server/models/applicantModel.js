@@ -84,7 +84,8 @@ const getAllApplicants = async (req, res) => {
                 jp.daily_budget,
                 jp.spent_amount,
                 jp.cost_per_click,
-                jp.status
+                jp.status,
+                jp.approval_status
          FROM job_posts jp
          WHERE jp.id = ?`,
         [jobId],
@@ -93,6 +94,12 @@ const getAllApplicants = async (req, res) => {
     });
 
     if (!job) return res.status(404).json({ error: "Job not found" });
+    if (job.approval_status !== "Approved") {
+  return res.status(403).json({
+    error: "Job is pending approval",
+    approval_status: job.approval_status
+  });
+}
 
     const companyId = job.account_id;
 

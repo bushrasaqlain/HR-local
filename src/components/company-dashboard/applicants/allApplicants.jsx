@@ -22,6 +22,7 @@ class AllApplicants extends Component {
       speciality: [],
       skills: [],
       jobTypes: [],
+      jobMessage: "",
       currentPage: 1,
       itemsPerPage: 10,
       selectedTabIndex: 0,
@@ -252,13 +253,30 @@ class AllApplicants extends Component {
       });
 
       this.setState(
-        { candidates, selectedStatus: "Pending", allApplicants: candidates },
+        { candidates, selectedStatus: "Pending", allApplicants: candidates, jobMessage: ""  },
         () => this.calculateCounts(candidates),
       );
-    } catch (error) {
-      console.error(error);
-      console.error("Failed to fetch candidates");
-    }
+} catch (error) {
+  console.error(error);
+
+  const apiError = error.response?.data?.error;
+
+  if (
+    apiError === "Job not found" ||
+    apiError === "Job is pending approval"
+  ) {
+    this.setState({
+      candidates: [],
+      allApplicants: [],
+      jobMessage:
+        "This job is pending approval. Candidates will appear once it is approved.",
+    });
+  } else {
+    this.setState({
+      jobMessage: "Something went wrong while loading candidates.",
+    });
+  }
+}
   };
 
   loadCities = async (districtId) => {
@@ -1266,7 +1284,11 @@ class AllApplicants extends Component {
                   ))}
                 </select>
               </div>
-
+{this.state.jobMessage && (
+  <div className="alert alert-warning mt-3">
+    {this.state.jobMessage}
+  </div>
+)}
               {this.state.showFilters && (
                 <>
                   {/* Split View - Desktop/Tablet */}
