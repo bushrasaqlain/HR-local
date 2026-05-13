@@ -61,6 +61,9 @@ const createCandidateSearchImpressionsTable = () => {
 };
 
 const openai = require("../lib/openai");
+// ─────────────────────────────────────────────────────────────────
+// getAllApplicants
+// ─────────────────────────────────────────────────────────────────
 const getAllApplicants = async (req, res) => {
   try {
     const page   = parseInt(req.query.page,  10) || 1;
@@ -95,32 +98,22 @@ const getAllApplicants = async (req, res) => {
 
     if (!job) return res.status(404).json({ error: "Job not found" });
     if (job.approval_status !== "Approved") {
-  return res.status(403).json({
-    error: "Job is pending approval",
-    approval_status: job.approval_status
-  });
-}
+      return res.status(403).json({
+        error: "Job is pending approval",
+        approval_status: job.approval_status,
+      });
+    }
 
     const companyId = job.account_id;
 
     // ─────────────────────────────────────────────────────────────────
-    // STEP 2: Daily budget cap check — stop early if exhausted
+    // STEP 2: For daily_budget — check if budget is exhausted
+    //         (do NOT block the list; we return locked candidates instead)
     // ─────────────────────────────────────────────────────────────────
-    if (job.billing_model === "daily_budget") {
-      const dailyCap = parseFloat(job.daily_budget  || 0);
-      const spent    = parseFloat(job.spent_amount  || 0);
-
-      if (dailyCap > 0 && spent >= dailyCap) {
-        return res.status(200).json({
-          summary: { total: 0, strong: 0, good: 0, weak: 0, from_main_city: 0, from_preferred_city: 0 },
-          page,
-          limit,
-          candidate:        [],
-          budget_exhausted: true,
-          message:          "Daily budget cap reached. Candidates are hidden until the budget is increased or resets tomorrow.",
-        });
-      }
-    }
+    const isDailyBudget = job.billing_model === "daily_budget";
+    const dailyCap      = parseFloat(job.daily_budget   || 0);
+    const spentSoFar    = parseFloat(job.spent_amount   || 0);
+    const budgetExhausted = isDailyBudget && dailyCap > 0 && spentSoFar >= dailyCap;
 
     // ─────────────────────────────────────────────────────────────────
     // STEP 3: Parse city IDs
@@ -134,9 +127,9 @@ const getAllApplicants = async (req, res) => {
     } catch { jobCityIds = []; }
 
     console.log("=== JOB CITY DEBUG ===");
-    console.log("job.city_id raw:",    job.city_id);
+    console.log("job.city_id raw:",     job.city_id);
     console.log("job.district_id raw:", job.district_id);
-    console.log("parsed jobCityIds:",  jobCityIds);
+    console.log("parsed jobCityIds:",   jobCityIds);
 
     // ─────────────────────────────────────────────────────────────────
     // STEP 4: Build WHERE clause
@@ -296,30 +289,35 @@ const getAllApplicants = async (req, res) => {
       );
     });
 
-    console.log("=== CANDIDATES CITY DEBUG ===");
-    console.log("total candidatesRaw:", candidatesRaw.length);
-    candidatesRaw.forEach((c) => {
-      let preferred = [];
-      try {
-        const p = typeof c.otherPreferredCities === "string"
-          ? JSON.parse(c.otherPreferredCities || "[]")
-          : c.otherPreferredCities;
-        preferred = Array.isArray(p) ? p.map((x) => (typeof x === "object" ? x.id : x)) : [];
-      } catch { preferred = []; }
-      console.log(
-        `candidate_id=${c.candidate_id} | city=${c.city} | preferred=${JSON.stringify(preferred)}` +
-        ` | mainMatch=${jobCityIds.includes(Number(c.city))} | preferredMatch=${jobCityIds.some((id) => preferred.map(Number).includes(id))}`
-      );
-    });
-
     const candidateIds = candidatesRaw.map((c) => c.candidate_id);
 
     // ─────────────────────────────────────────────────────────────────
-    // STEP 6: Log impressions + trigger billing
+    // STEP 6: Fetch today's unlocked candidate IDs for this job
+    //         (so already-unlocked candidates are never re-locked)
+    // ─────────────────────────────────────────────────────────────────
+   const unlockedIds = new Set();
+if (isDailyBudget && candidateIds.length) {
+  const unlockRows = await new Promise((resolve, reject) =>
+  connection.query(
+    `SELECT candidate_id FROM candidate_unlocks
+     WHERE employer_account_id = ?
+       AND candidate_id IN (?)
+       AND unlock_scope = 'full'
+       AND job_id = ?`,   // ← this is the fix
+    [companyId, candidateIds, jobId],
+    (err, rows) => (err ? reject(err) : resolve(rows))
+  )
+);
+  unlockRows.forEach((r) => unlockedIds.add(r.candidate_id));
+}
+
+    // ─────────────────────────────────────────────────────────────────
+    // STEP 7: Log impressions + trigger billing (only for non-daily-budget
+    //         OR for unlocked candidates — daily_budget charges per unlock)
     // ─────────────────────────────────────────────────────────────────
     if (candidateIds.length > 0 && companyId) {
 
-      // 6a — Log impressions
+      // 7a — Log impressions
       const impressionValues = candidateIds.map((candidateId) => [
         companyId, candidateId, jobId,
       ]);
@@ -329,15 +327,14 @@ const getAllApplicants = async (req, res) => {
         (err) => { if (err) console.error("Failed to log search impressions:", err); }
       );
 
-      // 6b — CV Credits: deduct 1 per profile viewed
+      // 7b — CV Credits: deduct 1 per profile viewed
       if (job.billing_model === "cv_credits" && job.company_package_id) {
         connection.query(
           `SELECT used_credits, package_snapshot FROM company_packages WHERE id = ?`,
           [job.company_package_id],
           (err, pkgRows) => {
             if (err || !pkgRows.length) return;
-
-            const pkgRow  = pkgRows[0];
+            const pkgRow   = pkgRows[0];
             const snapshot = (() => {
               try {
                 return typeof pkgRow.package_snapshot === "string"
@@ -345,13 +342,10 @@ const getAllApplicants = async (req, res) => {
                   : (pkgRow.package_snapshot || {});
               } catch { return {}; }
             })();
-
             const totalCredits = snapshot.credit_count || 0;
             const usedCredits  = pkgRow.used_credits   || 0;
             const viewCount    = candidateIds.length;
-
             if (usedCredits < totalCredits) {
-              // Only deduct up to what's available
               const toDeduct = Math.min(viewCount, totalCredits - usedCredits);
               connection.query(
                 `UPDATE company_packages
@@ -359,11 +353,8 @@ const getAllApplicants = async (req, res) => {
                  WHERE id = ? AND used_credits + ? <= ?`,
                 [toDeduct, job.company_package_id, toDeduct, totalCredits],
                 (err2) => {
-                  if (err2) {
-                    console.error("Failed to deduct CV credits:", err2);
-                  } else {
-                    console.log(`✅ Deducted ${toDeduct} CV credit(s) for package ${job.company_package_id}`);
-                  }
+                  if (err2) console.error("Failed to deduct CV credits:", err2);
+                  else console.log(`✅ Deducted ${toDeduct} CV credit(s) for package ${job.company_package_id}`);
                 }
               );
             } else {
@@ -373,62 +364,11 @@ const getAllApplicants = async (req, res) => {
         );
       }
 
-      // 6c — Daily budget: charge cost_per_click, enforce cap, auto-pause if exhausted
-      if (job.billing_model === "daily_budget") {
-        const dailyCap   = parseFloat(job.daily_budget   || 0);
-        const spentSoFar = parseFloat(job.spent_amount   || 0);
-        const cpc        = parseFloat(job.cost_per_click || 0);
-        const viewCount  = candidateIds.length;
-
-        if (cpc > 0 && dailyCap > 0) {
-          const totalCharge     = cpc * viewCount;
-          const remainingBudget = dailyCap - spentSoFar;
-          const chargeAmount    = Math.min(totalCharge, remainingBudget);
-
-          if (chargeAmount > 0) {
-            connection.query(
-              `UPDATE job_posts
-               SET spent_amount = LEAST(spent_amount + ?, daily_budget)
-               WHERE id = ?`,
-              [chargeAmount, jobId],
-              (err2) => {
-                if (err2) {
-                  console.error("Failed to update daily spend:", err2);
-                } else {
-                  console.log(`✅ Charged PKR ${chargeAmount} against daily budget for job ${jobId}`);
-
-                  // Auto-pause job if budget now exhausted
-                  const newSpent = spentSoFar + chargeAmount;
-                  if (newSpent >= dailyCap) {
-                    connection.query(
-                      `UPDATE job_posts SET status = 'Paused' WHERE id = ? AND spent_amount >= daily_budget`,
-                      [jobId],
-                      (err3) => {
-                        if (err3) {
-                          console.error("Failed to pause job after budget exhaustion:", err3);
-                        } else {
-                          console.warn(`⚠️ Job ${jobId} auto-paused — daily budget cap reached (PKR ${dailyCap})`);
-                        }
-                      }
-                    );
-                  }
-                }
-              }
-            );
-          } else {
-            // Budget already at cap — pause the job
-            console.warn(`⚠️ Job ${jobId} — daily budget already exhausted, pausing.`);
-            connection.query(
-              `UPDATE job_posts SET status = 'Paused' WHERE id = ? AND spent_amount >= daily_budget`,
-              [jobId]
-            );
-          }
-        }
-      }
+      // NOTE: daily_budget charges happen per-unlock in unlockCandidate(), not here
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // STEP 7: Fetch related data in batch
+    // STEP 8: Fetch related data in batch
     // ─────────────────────────────────────────────────────────────────
     const [
       experienceRows,
@@ -454,9 +394,9 @@ const getAllApplicants = async (req, res) => {
               `SELECT ed.*, df.name AS degreefield_name, dt.name AS degreetype_name,
                       ins.name AS institute_name
                FROM candidate_education ed
-               LEFT JOIN degreefields df  ON ed.degree_id    = df.id
+               LEFT JOIN degreefields df  ON ed.degree_id      = df.id
                LEFT JOIN degreetypes dt   ON df.degree_type_id = dt.id
-               LEFT JOIN institute ins    ON ed.institute_id  = ins.id
+               LEFT JOIN institute ins    ON ed.institute_id   = ins.id
                WHERE ed.candidate_id IN (?)`,
               [candidateIds],
               (err, res) => (err ? reject(err) : resolve(res))
@@ -489,7 +429,7 @@ const getAllApplicants = async (req, res) => {
     ]);
 
     // ─────────────────────────────────────────────────────────────────
-    // STEP 8: Map skills & cities
+    // STEP 9: Map skills & cities
     // ─────────────────────────────────────────────────────────────────
     const allSkillIds = [];
     const allCityIds  = [];
@@ -538,11 +478,10 @@ const getAllApplicants = async (req, res) => {
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // STEP 9: Build candidate objects
+    // STEP 10: Build full candidate objects
     // ─────────────────────────────────────────────────────────────────
     const candidates = candidatesRaw.map((c) => {
       const city_name = cityMapObj[c.city] || "-";
-
       return {
         ...c,
         skills: c.skills.map((id) => ({ id, name: skillsMap[id] || "" })),
@@ -586,7 +525,7 @@ const getAllApplicants = async (req, res) => {
     });
 
     // ─────────────────────────────────────────────────────────────────
-    // STEP 10: Parse job requirements for scoring
+    // STEP 11: Parse job requirements for scoring
     // ─────────────────────────────────────────────────────────────────
     let jobSkillIds = [];
     try {
@@ -602,7 +541,7 @@ const getAllApplicants = async (req, res) => {
     const tierOrder    = { strong: 0, good: 1, weak: 2 };
 
     // ─────────────────────────────────────────────────────────────────
-    // STEP 11: Score + tier each candidate
+    // STEP 12: Score + tier each candidate
     // ─────────────────────────────────────────────────────────────────
     const tieredCandidates = candidates
       .map((c) => {
@@ -615,7 +554,6 @@ const getAllApplicants = async (req, res) => {
         const preferredCityIds = (c.otherPreferredCities || []).map((city) =>
           typeof city === "object" ? Number(city.id) : Number(city)
         );
-
         const mainCityMatch      = jobCityIds.includes(candidateCity);
         const preferredCityMatch = jobCityIds.some((id) => preferredCityIds.includes(id));
         const locationScore      = mainCityMatch ? 10 : preferredCityMatch ? 6 : 0;
@@ -630,30 +568,21 @@ const getAllApplicants = async (req, res) => {
         // ── Skills (30pts) ──
         const candidateSkillIds = c.skills.map((s) => Number(s.id));
         let skillScore = 0;
-
         if (jobSkillIds.length === 0) {
           skillScore = 30;
           matched.push("Skills");
         } else {
-          const matchedSkillCount = jobSkillIds.filter((id) =>
-            candidateSkillIds.includes(id)
-          ).length;
+          const matchedSkillCount = jobSkillIds.filter((id) => candidateSkillIds.includes(id)).length;
           skillScore = Math.round((matchedSkillCount / jobSkillIds.length) * 30);
-
-          if (skillScore >= 20) {
-            matched.push(`Skills (${matchedSkillCount}/${jobSkillIds.length})`);
-          } else if (skillScore > 0) {
-            missing.push(`Skills (${matchedSkillCount}/${jobSkillIds.length} matched)`);
-          } else {
-            missing.push("Skills (none matched)");
-          }
+          if (skillScore >= 20) matched.push(`Skills (${matchedSkillCount}/${jobSkillIds.length})`);
+          else if (skillScore > 0) missing.push(`Skills (${matchedSkillCount}/${jobSkillIds.length} matched)`);
+          else missing.push("Skills (none matched)");
         }
         score += skillScore;
 
         // ── Experience (25pts) ──
         const candExp = parseFloat(c.total_experience || 0);
         let expScore  = 0;
-
         if (jobMinExp === 0 && jobMaxExp === 0) {
           expScore = 25;
         } else if (candExp >= jobMinExp && candExp <= jobMaxExp) {
@@ -661,10 +590,9 @@ const getAllApplicants = async (req, res) => {
         } else if (candExp < jobMinExp) {
           expScore = Math.max(0, 25 - (jobMinExp - candExp) * 4);
         } else {
-          expScore = 20; // over-experienced
+          expScore = 20;
         }
         score += expScore;
-
         if (expScore >= 20) matched.push("Experience");
         else missing.push(`Experience (${candExp} yrs, need ${jobMinExp}-${jobMaxExp})`);
 
@@ -673,7 +601,6 @@ const getAllApplicants = async (req, res) => {
           .map((e) => e.speciality?.id)
           .filter(Boolean)
           .map(Number);
-
         let specScore = 0;
         if (!job.speciality_id) {
           specScore = 20;
@@ -690,32 +617,20 @@ const getAllApplicants = async (req, res) => {
         const candidateEducation = c.education || [];
         const hasDegree          = candidateEducation.length > 0;
         let degreeScore          = 0;
-
         if (!job.degree_id && !job.degreefields_id) {
           degreeScore = hasDegree ? 10 : 0;
           if (hasDegree) matched.push("Education");
           else missing.push("Education");
         } else {
-          const jobDegreeTypeId  = job.degree_id      ? Number(job.degree_id)      : null;
-          const jobDegreeFieldId = job.degreefields_id ? Number(job.degreefields_id) : null;
-
-          const degreeTypeMatch  = candidateEducation.some(
-            (ed) => jobDegreeTypeId  && ed.degreetype?.id  === jobDegreeTypeId
-          );
-          const degreeFieldMatch = candidateEducation.some(
-            (ed) => jobDegreeFieldId && ed.degreefield?.id === jobDegreeFieldId
-          );
-
+          const jobDegreeTypeId  = job.degree_id       ? Number(job.degree_id)       : null;
+          const jobDegreeFieldId = job.degreefields_id  ? Number(job.degreefields_id) : null;
+          const degreeTypeMatch  = candidateEducation.some((ed) => jobDegreeTypeId  && ed.degreetype?.id  === jobDegreeTypeId);
+          const degreeFieldMatch = candidateEducation.some((ed) => jobDegreeFieldId && ed.degreefield?.id === jobDegreeFieldId);
           if (jobDegreeFieldId && jobDegreeTypeId) {
-            if (degreeFieldMatch && degreeTypeMatch) {
-              degreeScore = 10; matched.push("Education (degree & field match)");
-            } else if (degreeTypeMatch || degreeFieldMatch) {
-              degreeScore = 5;  matched.push(`Education (partial: ${degreeTypeMatch ? "type" : "field"} matched)`);
-            } else if (hasDegree) {
-              degreeScore = 2;  missing.push("Education (wrong degree type & field)");
-            } else {
-              degreeScore = 0;  missing.push("Education (none)");
-            }
+            if (degreeFieldMatch && degreeTypeMatch)      { degreeScore = 10; matched.push("Education (degree & field match)"); }
+            else if (degreeTypeMatch || degreeFieldMatch) { degreeScore = 5;  matched.push(`Education (partial: ${degreeTypeMatch ? "type" : "field"} matched)`); }
+            else if (hasDegree)                           { degreeScore = 2;  missing.push("Education (wrong degree type & field)"); }
+            else                                          { degreeScore = 0;  missing.push("Education (none)"); }
           } else if (jobDegreeFieldId) {
             if (degreeFieldMatch)   { degreeScore = 10; matched.push("Education (field match)"); }
             else if (hasDegree)     { degreeScore = 3;  missing.push("Education (wrong field)"); }
@@ -727,21 +642,17 @@ const getAllApplicants = async (req, res) => {
           }
         }
         score += degreeScore;
-
         const degreeMatched = degreeScore >= 5;
 
         // ── Salary (15pts) ──
         const candSalary = parseFloat(c.expected_salary || 0);
         let salaryScore  = 15;
         let salaryOver   = false;
-
         if (jobMinSalary || jobMaxSalary) {
           if (candSalary >= jobMinSalary && candSalary <= jobMaxSalary) {
-            salaryScore = 15;
-            matched.push("Salary");
+            salaryScore = 15; matched.push("Salary");
           } else if (candSalary < jobMinSalary) {
-            salaryScore = 10;
-            matched.push("Salary (expects less)");
+            salaryScore = 10; matched.push("Salary (expects less)");
           } else {
             const overage = ((candSalary - jobMaxSalary) / jobMaxSalary) * 100;
             salaryScore   = overage > 50 ? 0 : overage > 25 ? 5 : 8;
@@ -757,14 +668,10 @@ const getAllApplicants = async (req, res) => {
         const skillsMatched = skillScore  >= 20;
         const expMatched    = expScore    >= 20;
         const specMatched   = specScore   === 20;
-
-        const coreCriteriaCount = [skillsMatched, expMatched, specMatched, degreeMatched]
-          .filter(Boolean).length;
-
+        const coreCriteriaCount = [skillsMatched, expMatched, specMatched, degreeMatched].filter(Boolean).length;
         if (coreCriteriaCount === 0) return null;
 
         let tier, tier_label, tier_color;
-
         if      (coreCriteriaCount === 4) { tier = "strong"; tier_label = "Strong Match"; tier_color = "green"; }
         else if (coreCriteriaCount >= 2)  { tier = "good";   tier_label = "Good Match";   tier_color = "blue";  }
         else                              { tier = "weak";   tier_label = "Partial Match"; tier_color = "amber"; }
@@ -775,19 +682,18 @@ const getAllApplicants = async (req, res) => {
 
         return {
           ...c,
-          ai_score:      Math.min(100, score),
+          ai_score:     Math.min(100, score),
           tier,
           tier_label,
           tier_color,
           location_type,
           matched,
           missing,
-          // ── Billing context sent to frontend ──
           billing_info: {
             model:           job.billing_model,
-            daily_budget:    job.billing_model === "daily_budget" ? parseFloat(job.daily_budget  || 0) : null,
-            spent_amount:    job.billing_model === "daily_budget" ? parseFloat(job.spent_amount  || 0) : null,
-            remaining_today: job.billing_model === "daily_budget"
+            daily_budget:    isDailyBudget ? parseFloat(job.daily_budget  || 0) : null,
+            spent_amount:    isDailyBudget ? parseFloat(job.spent_amount  || 0) : null,
+            remaining_today: isDailyBudget
               ? Math.max(0, parseFloat(job.daily_budget || 0) - parseFloat(job.spent_amount || 0))
               : null,
           },
@@ -795,56 +701,256 @@ const getAllApplicants = async (req, res) => {
       })
       .filter(Boolean)
       .sort((a, b) => {
-        if (tierOrder[a.tier] !== tierOrder[b.tier])
-          return tierOrder[a.tier] - tierOrder[b.tier];
-
+        if (tierOrder[a.tier] !== tierOrder[b.tier]) return tierOrder[a.tier] - tierOrder[b.tier];
         const locOrder = { main_city: 0, preferred_city: 1, pipeline: 2 };
-        if (locOrder[a.location_type] !== locOrder[b.location_type])
-          return locOrder[a.location_type] - locOrder[b.location_type];
-
+        if (locOrder[a.location_type] !== locOrder[b.location_type]) return locOrder[a.location_type] - locOrder[b.location_type];
         if (b.is_boosted !== a.is_boosted) return b.is_boosted ? 1 : -1;
-
         return b.ai_score - a.ai_score;
       });
 
     // ─────────────────────────────────────────────────────────────────
-    // STEP 12: Summary + response
+    // STEP 13: Mask candidates for daily_budget jobs
+    //          - Already unlocked today → send full data
+    //          - Not yet unlocked       → strip PII, add locked: true
+    // ─────────────────────────────────────────────────────────────────
+    const finalCandidates = tieredCandidates.map((c) => {
+      if (!isDailyBudget) return c;
+      if (unlockedIds.has(c.candidate_id)) return { ...c, locked: false };
+
+      // Return only safe, non-PII fields
+      return {
+        candidate_id:     c.candidate_id,
+        locked:           true,
+        tier:             c.tier,
+        tier_label:       c.tier_label,
+        tier_color:       c.tier_color,
+        ai_score:         c.ai_score,
+        location_type:    c.location_type,
+        matched:          c.matched,
+        missing:          c.missing,
+        is_boosted:       c.is_boosted,
+        city_name:        c.city_name,
+        total_experience: c.total_experience,
+        expected_salary:  c.expected_salary,
+        skills:           c.skills,
+        candidateStatus:  c.candidateStatus,
+        has_applied:      c.has_applied,
+        billing_info:     c.billing_info,
+        // Masked placeholders shown in UI
+        full_name:        null,
+        email:            null,
+        passport_photo:   null,
+      };
+    });
+
+    // ─────────────────────────────────────────────────────────────────
+    // STEP 14: Summary + response
     // ─────────────────────────────────────────────────────────────────
     const summary = {
-      total:               tieredCandidates.length,
-      strong:              tieredCandidates.filter((c) => c.tier === "strong").length,
-      good:                tieredCandidates.filter((c) => c.tier === "good").length,
-      weak:                tieredCandidates.filter((c) => c.tier === "weak").length,
-      from_main_city:      tieredCandidates.filter((c) => c.location_type === "main_city").length,
-      from_preferred_city: tieredCandidates.filter((c) => c.location_type === "preferred_city").length,
+      total:               finalCandidates.length,
+      strong:              finalCandidates.filter((c) => c.tier === "strong").length,
+      good:                finalCandidates.filter((c) => c.tier === "good").length,
+      weak:                finalCandidates.filter((c) => c.tier === "weak").length,
+      from_main_city:      finalCandidates.filter((c) => c.location_type === "main_city").length,
+      from_preferred_city: finalCandidates.filter((c) => c.location_type === "preferred_city").length,
     };
 
-    // Include budget status in response for frontend awareness
-    const budgetStatus = job.billing_model === "daily_budget"
+    const budgetStatus = isDailyBudget
       ? {
           model:           "daily_budget",
-          daily_cap:       parseFloat(job.daily_budget  || 0),
-          spent_today:     parseFloat(job.spent_amount  || 0),
-          remaining_today: Math.max(0, parseFloat(job.daily_budget || 0) - parseFloat(job.spent_amount || 0)),
-          is_exhausted:    parseFloat(job.spent_amount || 0) >= parseFloat(job.daily_budget || 0),
+          daily_cap:       dailyCap,
+          spent_today:     spentSoFar,
+          remaining_today: Math.max(0, dailyCap - spentSoFar),
+          is_exhausted:    budgetExhausted,
+          cost_per_click:  parseFloat(job.cost_per_click || 0),
         }
       : job.billing_model === "cv_credits"
       ? { model: "cv_credits" }
       : { model: job.billing_model || "package" };
 
-    res.status(200).json({
+    return res.status(200).json({
       summary,
       page,
       limit,
       budget_status: budgetStatus,
-      candidate:     tieredCandidates,
+      candidate:     finalCandidates,
     });
 
   } catch (err) {
     console.error("getAllApplicants error:", err);
-    res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ error: "Server error" });
   }
 };
+
+
+// ─────────────────────────────────────────────────────────────────
+// unlockCandidate
+// POST /applicant/unlock-candidate
+// Body: { candidateId, jobId }
+//
+// Required table (run once):
+//   CREATE TABLE candidate_unlocks (
+//     id           INT AUTO_INCREMENT PRIMARY KEY,
+//     company_id   INT NOT NULL,
+//     candidate_id INT NOT NULL,
+//     job_id       INT NOT NULL,
+//     cost_charged DECIMAL(10,2) DEFAULT 0,
+//     unlocked_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+//     INDEX idx_lookup (company_id, candidate_id, job_id, unlocked_at)
+//   );
+// ─────────────────────────────────────────────────────────────────
+const unlockCandidate = async (req, res) => {
+  try {
+    const { candidateId, jobId } = req.body;
+
+    if (!candidateId || !jobId) {
+      return res.status(400).json({ error: "candidateId and jobId are required" });
+    }
+
+    // 1. Fetch job billing info
+    const job = await new Promise((resolve, reject) =>
+      connection.query(
+        `SELECT billing_model, daily_budget, spent_amount, cost_per_click, account_id, approval_status
+         FROM job_posts WHERE id = ?`,
+        [jobId],
+        (err, rows) => (err ? reject(err) : resolve(rows[0]))
+      )
+    );
+
+    if (!job)                               return res.status(404).json({ error: "Job not found" });
+    if (job.approval_status !== "Approved") return res.status(403).json({ error: "Job is not approved" });
+    if (job.billing_model !== "daily_budget") {
+      return res.status(400).json({ error: "This job does not use daily budget billing" });
+    }
+
+    const companyId  = job.account_id;
+    const dailyCap   = parseFloat(job.daily_budget   || 0);
+    const spent      = parseFloat(job.spent_amount   || 0);
+    const cpc        = parseFloat(job.cost_per_click || 0);
+    const remaining  = dailyCap - spent;
+
+    // 2. Check if already unlocked today → no charge, just return data
+const alreadyUnlocked = await new Promise((resolve, reject) =>
+  connection.query(
+    `SELECT id FROM candidate_unlocks
+     WHERE employer_account_id = ?
+       AND candidate_id = ?
+       AND job_id = ?
+       AND unlock_scope = 'full'`,
+    [companyId, candidateId, jobId],
+    (err, rows) => (err ? reject(err) : resolve(rows.length > 0))
+  )
+);
+
+    if (!alreadyUnlocked) {
+      // 3. Budget check before charging
+      if (remaining <= 0) {
+        return res.status(402).json({
+          error: "Daily budget exhausted",
+          message: "Your daily budget has been used up. Please increase it or wait until tomorrow.",
+        });
+      }
+
+      // 4. Deduct cost_per_click (cap at remaining budget)
+      const chargeAmount = Math.min(cpc, remaining);
+      await new Promise((resolve, reject) =>
+        connection.query(
+          `UPDATE job_posts
+           SET spent_amount = LEAST(spent_amount + ?, daily_budget)
+           WHERE id = ?`,
+          [chargeAmount, jobId],
+          (err) => (err ? reject(err) : resolve())
+        )
+      );
+      console.log(`✅ Charged PKR ${chargeAmount} for unlocking candidate ${candidateId} on job ${jobId}`);
+
+      // 5. Log the unlock
+      // 5. Log the unlock
+await new Promise((resolve, reject) =>
+  connection.query(
+    `INSERT IGNORE INTO candidate_unlocks 
+     (employer_account_id, candidate_id, job_id, cost_charged, unlock_scope, company_package_id)
+     VALUES (?, ?, ?, ?, 'full', NULL)`,
+    [companyId, candidateId, jobId, chargeAmount],
+    (err) => (err ? reject(err) : resolve())
+  )
+);
+
+      // 6. Auto-pause job if budget now exhausted
+      const newSpent = spent + chargeAmount;
+      if (newSpent >= dailyCap) {
+        connection.query(
+          `UPDATE job_posts SET status = 'Paused' WHERE id = ? AND spent_amount >= daily_budget`,
+          [jobId],
+          (err) => {
+            if (err) console.error("Failed to auto-pause job:", err);
+            else console.warn(`⚠️ Job ${jobId} auto-paused — daily budget reached`);
+          }
+        );
+      }
+    } else {
+      console.log(`ℹ️ Candidate ${candidateId} already unlocked today for job ${jobId} — no charge`);
+    }
+
+    // 7. Fetch full candidate data
+    const candidateRow = await new Promise((resolve, reject) =>
+      connection.query(
+        `SELECT c.*, a.email, a.username
+         FROM candidate_info c
+         INNER JOIN account a ON a.id = c.account_id
+         WHERE c.id = ?`,
+        [candidateId],
+        (err, rows) => (err ? reject(err) : resolve(rows[0]))
+      )
+    );
+
+    if (!candidateRow) return res.status(404).json({ error: "Candidate not found" });
+
+    // 8. Parse JSON fields
+    try {
+      candidateRow.skills = Array.isArray(candidateRow.skills)
+        ? candidateRow.skills
+        : JSON.parse(candidateRow.skills || "[]");
+    } catch { candidateRow.skills = []; }
+
+    try {
+      candidateRow.otherPreferredCities = Array.isArray(candidateRow.otherPreferredCities)
+        ? candidateRow.otherPreferredCities
+        : JSON.parse(candidateRow.otherPreferredCities || "[]");
+    } catch { candidateRow.otherPreferredCities = []; }
+
+    // 9. Fetch updated budget status to send back
+    const updatedJob = await new Promise((resolve, reject) =>
+      connection.query(
+        `SELECT daily_budget, spent_amount, cost_per_click FROM job_posts WHERE id = ?`,
+        [jobId],
+        (err, rows) => (err ? reject(err) : resolve(rows[0]))
+      )
+    );
+
+    const updatedCap       = parseFloat(updatedJob.daily_budget   || 0);
+    const updatedSpent     = parseFloat(updatedJob.spent_amount   || 0);
+    const updatedRemaining = Math.max(0, updatedCap - updatedSpent);
+
+    return res.status(200).json({
+      success:       true,
+      charged:       !alreadyUnlocked,
+      charge_amount: alreadyUnlocked ? 0 : Math.min(cpc, remaining),
+      candidate:     { ...candidateRow, locked: false },
+      budget_status: {
+        daily_cap:       updatedCap,
+        spent_today:     updatedSpent,
+        remaining_today: updatedRemaining,
+        is_exhausted:    updatedSpent >= updatedCap,
+      },
+    });
+
+  } catch (err) {
+    console.error("unlockCandidate error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
 const updateApplcantStatus = (req, res) => {
   const {
     candidateId,
@@ -1114,4 +1220,5 @@ module.exports = {
   updateApplcantStatus,
   applyJob,
   getAppliedJobs,
+  unlockCandidate,
 };

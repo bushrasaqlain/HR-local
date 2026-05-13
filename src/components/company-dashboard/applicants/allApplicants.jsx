@@ -1,9 +1,6 @@
 import React, { Component } from "react";
 import { Row, Col, Container } from "reactstrap";
 import axios from "axios";
-// import { toast } from "react-toastify";
-import Pagination from "../../common/pagination";
-
 import ApplicantFilters from "./applicantFilters";
 import ApplicantSearch from "./applicantSearch";
 import ApplicantCard from "./applicantCards";
@@ -33,24 +30,19 @@ class AllApplicants extends Component {
       searchFilters: {},
       selectedStatus: "",
       selectedCityId: "",
-      counts: {
-        all: 0,
-        pending: 0,
-        shortlisted: 0,
-        rejected: 0,
-        approved: 0,
-      },
+      counts: { all: 0, pending: 0, shortlisted: 0, rejected: 0, approved: 0 },
       splitViewActive: false,
       selectedCandidateId: null,
-      // Add window width to state for responsive handling
       windowWidth: typeof window !== "undefined" ? window.innerWidth : 1200,
-      // Track if we're in mobile detail view
       mobileDetailView: false,
+      // Budget state for daily_budget jobs
+      budgetStatus: null,
+      // Track which candidates are being unlocked (loading state)
+      unlockingIds: new Set(),
     };
     this.openCandidatePage = this.openCandidatePage.bind(this);
   }
 
-  // Add resize listener
   componentDidMount() {
     this.fetchAllCandidates();
     this.fetchPostedJobs();
@@ -63,96 +55,65 @@ class AllApplicants extends Component {
 
   handleResize = () => {
     this.setState({ windowWidth: window.innerWidth });
-    // If screen becomes larger and we're in mobile detail view, switch to split view
     if (this.state.mobileDetailView && window.innerWidth > 768) {
       this.setState({ mobileDetailView: false, splitViewActive: true });
     }
-    // If screen becomes smaller and we're in split view, switch to mobile detail view if a candidate is selected
-    if (
-      this.state.splitViewActive &&
-      window.innerWidth <= 768 &&
-      this.state.selectedCandidate
-    ) {
+    if (this.state.splitViewActive && window.innerWidth <= 768 && this.state.selectedCandidate) {
       this.setState({ splitViewActive: false, mobileDetailView: true });
     }
   };
 
   openCandidatePage(candidate) {
-    console.log("Selected Candidate object:", candidate);
-
+    if (candidate.locked) return; // locked candidates are not clickable
     const isMobile = this.state.windowWidth <= 768;
-
     this.setState({
       selectedCandidate: candidate,
-      selectedCandidateId: candidate.id,
-      // On mobile, hide list and show only details
-      splitViewActive: !isMobile, // Only use split view on non-mobile
-      mobileDetailView: isMobile, // On mobile, use detail view
+      selectedCandidateId: candidate.id || candidate.candidate_id,
+      splitViewActive: !isMobile,
+      mobileDetailView: isMobile,
       showCandidateInfo: true,
     });
   }
 
   closeDetailView = () => {
-    this.setState({
-      mobileDetailView: false,
-      splitViewActive: false,
-      // Keep selectedCandidateId to maintain highlighting
-      // Don't clear selectedCandidate yet to keep highlight
-    });
+    this.setState({ mobileDetailView: false, splitViewActive: false });
   };
 
   closeSplitView = () => {
-    this.setState({
-      splitViewActive: false,
-      // Keep selectedCandidateId to maintain highlighting
-    });
+    this.setState({ splitViewActive: false });
   };
 
   apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-  userId = sessionStorage.getItem("userId");
+  userId     = sessionStorage.getItem("userId");
 
   fetchPostedJobs = async () => {
     try {
       const userId = sessionStorage.getItem("userId");
-      const res = await axios.get(`${this.apiBaseUrl}job/managejob/${userId}`);
-      const jobs = res.data || [];
-
+      const res    = await axios.get(`${this.apiBaseUrl}job/managejob/${userId}`);
+      const jobs   = res.data || [];
       const activeJobs = jobs.filter((job) => job.status === "Active");
-
       this.setState({ postedJobs: activeJobs }, () => {
         if (activeJobs.length > 0) {
           const latestJobId = activeJobs[0].id;
-          this.setState(
-            { selectedJobId: latestJobId, showFilters: true },
-            () => {
-              this.fetchAllCandidates();
-            },
-          );
+          this.setState({ selectedJobId: latestJobId, showFilters: true }, () => {
+            this.fetchAllCandidates();
+          });
         }
       });
     } catch (err) {
       console.error(err);
-      console.error("Failed to load posted jobs");
     }
   };
 
   handleSearch = (searchFilters) => {
-    this.setState({ searchFilters, currentPage: 1 }, () => {
-      this.fetchAllCandidates();
-    });
+    this.setState({ searchFilters, currentPage: 1 }, () => this.fetchAllCandidates());
   };
 
   fetchAllCandidates = async () => {
     const {
-      selectedSkillId,
-      selectedspecialityId,
-      selectedSalary,
-      selectedExperience,
-      availability,
-      selectedJobId,
-      selectedCountryId,
-      selectedDistrictId,
-      selectedCityIds,
+      selectedSkillId, selectedspecialityId, selectedSalary,
+      selectedExperience, availability, selectedJobId,
+      selectedCountryId, selectedDistrictId, selectedCityIds,
     } = this.state;
 
     if (!selectedJobId) {
@@ -165,309 +126,306 @@ class AllApplicants extends Component {
         `${this.apiBaseUrl}applicant/applicantsData/${this.userId}`,
         {
           params: {
-            skill_id: selectedSkillId,
-            job_id: selectedJobId,
-            speciality_id: selectedspecialityId || "",
-            min_salary: selectedSalary?.min ?? "",
-            max_salary: selectedSalary?.max ?? "",
-            day: availability?.day || "",
-            shift: availability?.shift || "",
-            country_id: selectedCountryId || "",
-            district_id: selectedDistrictId || "",
-            city_id: selectedCityIds.join(","),
-            query: this.state.searchFilters.query || "",
-            min_experience: selectedExperience?.min ?? "",
-            max_experience: selectedExperience?.max ?? "",
+            skill_id:        selectedSkillId,
+            job_id:          selectedJobId,
+            speciality_id:   selectedspecialityId || "",
+            min_salary:      selectedSalary?.min ?? "",
+            max_salary:      selectedSalary?.max ?? "",
+            day:             availability?.day    || "",
+            shift:           availability?.shift  || "",
+            country_id:      selectedCountryId    || "",
+            district_id:     selectedDistrictId   || "",
+            city_id:         selectedCityIds.join(","),
+            query:           this.state.searchFilters.query || "",
+            min_experience:  selectedExperience?.min ?? "",
+            max_experience:  selectedExperience?.max ?? "",
           },
-        },
+        }
       );
 
-      const candidatesRaw = res.data.candidate || [];
+      const candidatesRaw = res.data.candidate     || [];
+      const budgetStatus  = res.data.budget_status || null;
+
       const jobCityId = this.state.postedJobs.find(
-        (j) => j.id === Number(this.state.selectedJobId),
+        (j) => j.id === Number(this.state.selectedJobId)
       )?.city_id;
 
       const cityMapObj = {};
-      (this.state.cities || []).forEach((city) => {
-        cityMapObj[city.id] = city.name;
-      });
+      (this.state.cities || []).forEach((city) => { cityMapObj[city.id] = city.name; });
 
+      // For locked candidates we skip the expensive mapping — they have no PII anyway
       const candidates = candidatesRaw.map((c) => {
-        const otherPreferredCities = (c.otherPreferredCities || []).map(
-          (city) => {
-            if (typeof city === "number")
-              return { id: city, name: cityMapObj[city] || "" };
-            return {
-              id: city.id,
-              name: city.name || cityMapObj[city.id] || "",
-            };
-          },
-        );
+        if (c.locked) return c; // pass through as-is
 
-        const mainCityMatch = Number(c.city) === Number(jobCityId);
+        const otherPreferredCities = (c.otherPreferredCities || []).map((city) => {
+          if (typeof city === "number") return { id: city, name: cityMapObj[city] || "" };
+          return { id: city.id, name: city.name || cityMapObj[city.id] || "" };
+        });
+
+        const mainCityMatch      = Number(c.city) === Number(jobCityId);
         const preferredCityMatch = otherPreferredCities.some(
-          (city) => Number(city.id) === Number(jobCityId),
+          (city) => Number(city.id) === Number(jobCityId)
         );
 
         let city_name = "-";
-        if (mainCityMatch) {
-          city_name = c.city_name || cityMapObj[c.city] || "-";
-        } else if (preferredCityMatch) {
-          const matchedCity = otherPreferredCities.find(
-            (city) => Number(city.id) === Number(jobCityId),
-          );
+        if (mainCityMatch)           city_name = c.city_name || cityMapObj[c.city] || "-";
+        else if (preferredCityMatch) {
+          const matchedCity = otherPreferredCities.find((city) => Number(city.id) === Number(jobCityId));
           city_name = matchedCity?.name || "-";
         } else {
           city_name = c.city_name || cityMapObj[c.city] || "-";
         }
 
-        const age = c.date_of_birth
-          ? new Date().getFullYear() - new Date(c.date_of_birth).getFullYear()
-          : null;
-
+        const age        = c.date_of_birth ? new Date().getFullYear() - new Date(c.date_of_birth).getFullYear() : null;
         const skill_names = (c.skills || []).map((s) => s.name || s);
-
-        const speciality_name =
-          c.experience?.length > 0 && c.experience[0].speciality
-            ? c.experience[0].speciality.name
-            : "-";
-
+        const speciality_name = c.experience?.length > 0 && c.experience[0].speciality
+          ? c.experience[0].speciality.name
+          : "-";
         const availabilityList = c.availability_times
-          ? c.availability_times.split("|").map((s) => {
-              const [day, time] = s.split(" ");
-              return { day, time };
-            })
+          ? c.availability_times.split("|").map((s) => { const [day, time] = s.split(" "); return { day, time }; })
           : [];
 
         return {
           ...c,
-          age,
-          skill_names,
-          speciality_name,
-          city_name,
-          otherPreferredCities,
-          availabilityList,
+          age, skill_names, speciality_name, city_name,
+          otherPreferredCities, availabilityList,
           resume: c.resume || null,
           address: c.address || "",
         };
       });
 
       this.setState(
-        { candidates, selectedStatus: "Pending", allApplicants: candidates, jobMessage: ""  },
-        () => this.calculateCounts(candidates),
+        { candidates, selectedStatus: "Pending", allApplicants: candidates, jobMessage: "", budgetStatus },
+        () => this.calculateCounts(candidates)
       );
-} catch (error) {
-  console.error(error);
+    } catch (error) {
+      console.error(error);
+      const apiError = error.response?.data?.error;
+      if (apiError === "Job not found" || apiError === "Job is pending approval") {
+        this.setState({
+          candidates: [], allApplicants: [],
+          jobMessage: "This job is pending approval. Candidates will appear once it is approved.",
+        });
+      } else {
+        this.setState({ jobMessage: "Something went wrong while loading candidates." });
+      }
+    }
+  };
 
-  const apiError = error.response?.data?.error;
+  // ─── Unlock a single locked candidate ───────────────────────────
+  unlockCandidate = async (candidateId) => {
+    // Add to loading set
+    this.setState((prev) => {
+      const unlockingIds = new Set(prev.unlockingIds);
+      unlockingIds.add(candidateId);
+      return { unlockingIds };
+    });
 
-  if (
-    apiError === "Job not found" ||
-    apiError === "Job is pending approval"
-  ) {
-    this.setState({
-      candidates: [],
-      allApplicants: [],
-      jobMessage:
-        "This job is pending approval. Candidates will appear once it is approved.",
-    });
-  } else {
-    this.setState({
-      jobMessage: "Something went wrong while loading candidates.",
-    });
-  }
-}
+    try {
+      const res = await axios.post(`${this.apiBaseUrl}applicant/unlock-candidate`, {
+        candidateId,
+        jobId: this.state.selectedJobId,
+      });
+
+      const { candidate, budget_status } = res.data;
+
+      // Replace the locked placeholder with the full candidate data
+      const merge = (list) =>
+        list.map((c) =>
+          (c.candidate_id === candidateId || c.id === candidateId)
+            ? {
+                ...c,
+                ...candidate,
+                id: candidate.id || candidateId,
+                locked: false,
+                // Re-parse skills if they came back as IDs
+                skills: Array.isArray(candidate.skills) ? candidate.skills : [],
+              }
+            : c
+        );
+
+      this.setState((prev) => ({
+        candidates:    merge(prev.candidates),
+        allApplicants: merge(prev.allApplicants),
+        budgetStatus:  budget_status || prev.budgetStatus,
+      }), () => this.calculateCounts(this.state.allApplicants));
+
+    } catch (error) {
+      const msg = error.response?.data?.error;
+      if (msg === "Daily budget exhausted") {
+        alert("Your daily budget is exhausted. Please increase it or wait until tomorrow to unlock more candidates.");
+      } else {
+        console.error("Failed to unlock candidate", error);
+        alert("Something went wrong while unlocking this candidate. Please try again.");
+      }
+    } finally {
+      this.setState((prev) => {
+        const unlockingIds = new Set(prev.unlockingIds);
+        unlockingIds.delete(candidateId);
+        return { unlockingIds };
+      });
+    }
   };
 
   loadCities = async (districtId) => {
-    if (!districtId) {
-      this.setState({ cities: [] });
-      return;
-    }
-
+    if (!districtId) { this.setState({ cities: [] }); return; }
     try {
-      const res = await axios.get(
-        `${this.apiBaseUrl}getCitiesByDistrict/${districtId}`,
-      );
-
+      const res   = await axios.get(`${this.apiBaseUrl}getCitiesByDistrict/${districtId}`);
       const cities = Array.isArray(res.data.cities) ? res.data.cities : [];
       this.setState({ cities });
     } catch (error) {
       console.error("Failed to load cities", error);
-      console.error("Could not load cities");
     }
   };
 
   calculateCounts = (applicants) => {
-    const counts = {
-      all: applicants.length,
-      pending: 0,
-      shortlisted: 0,
-      rejected: 0,
-      approved: 0,
-    };
-
+    const counts = { all: applicants.length, pending: 0, shortlisted: 0, rejected: 0, approved: 0 };
     applicants.forEach((a) => {
-      if (a.candidateStatus === "Pending") counts.pending++;
+      if (a.candidateStatus === "Pending")     counts.pending++;
       if (a.candidateStatus === "Shortlisted") counts.shortlisted++;
-      if (a.candidateStatus === "Rejected") counts.rejected++;
-      if (a.candidateStatus === "Approved") counts.approved++;
+      if (a.candidateStatus === "Rejected")    counts.rejected++;
+      if (a.candidateStatus === "Approved")    counts.approved++;
     });
-
     this.setState({ counts });
   };
 
   handleApplicationStatus = async (
-    candidateId,
-    jobId,
-    status = "Shortlisted",
-    interview_day = null,
-    interview_time = null,
+    candidateId, jobId, status = "Shortlisted",
+    interview_day = null, interview_time = null,
   ) => {
-    if (!jobId) {
-      console.error("Job ID is required to update status");
-      return;
-    }
-
+    if (!jobId) { console.error("Job ID is required to update status"); return; }
     try {
       await axios.post(`${this.apiBaseUrl}applicant/updatestatus`, {
-        candidateId,
-        jobId,
-        status,
-        ...(interview_day && { interview_day }),
+        candidateId, jobId, status,
+        ...(interview_day  && { interview_day  }),
         ...(interview_time && { interview_time }),
       });
-      console.log(`Candidate ${status.toLowerCase()} successfully`);
       this.fetchAllCandidates();
     } catch (error) {
       console.error(error.response?.data);
-      console.error("Failed to update status");
     }
   };
 
-  handlePageChange = (page) => {
-    this.setState({ currentPage: page });
-  };
-
+  handlePageChange   = (page)        => this.setState({ currentPage: page });
   handleFilterChange = async (key, value) => {
-    let stateUpdate = { [key]: value, currentPage: 1 };
-    await this.setState(stateUpdate);
+    await this.setState({ [key]: value, currentPage: 1 });
     this.fetchAllCandidates();
   };
 
   filterApplicants = () => {
     const { allApplicants, searchFilters, selectedStatus } = this.state;
     const query = searchFilters.query?.toLowerCase() || "";
-
     return allApplicants.filter((candidate) => {
       const statusMatch = selectedStatus
-        ? String(candidate.candidateStatus || "")
-            .trim()
-            .toLowerCase() === selectedStatus.toLowerCase()
+        ? String(candidate.candidateStatus || "").trim().toLowerCase() === selectedStatus.toLowerCase()
         : true;
       const cityMatch = this.state.selectedCityId
         ? Number(candidate.city) === Number(this.state.selectedCityId) ||
-          candidate.otherPreferredCities?.some(
-            (city) => Number(city.id) === Number(this.state.selectedCityId),
-          )
+          candidate.otherPreferredCities?.some((city) => Number(city.id) === Number(this.state.selectedCityId))
         : true;
-
       let searchMatch = true;
-      if (query) {
-        const nameMatch = candidate.full_name?.toLowerCase().includes(query);
+      if (query && !candidate.locked) {
+        const nameMatch  = candidate.full_name?.toLowerCase().includes(query);
         const emailMatch = candidate.email?.toLowerCase().includes(query);
         searchMatch = nameMatch || emailMatch;
       }
-
-      return statusMatch && cityMatch;
+      return statusMatch && cityMatch && searchMatch;
     });
   };
+
   renderTierBadge(candidate) {
-    const tier = candidate.tier;
+    const tier  = candidate.tier;
     const label = candidate.tier_label;
     if (!tier || !label) return null;
-
     const styles = {
-      strong: {
-        background: "#d1fae5",
-        color: "#065f46",
-        border: "1px solid #6ee7b7",
-      },
-      good: {
-        background: "#dbeafe",
-        color: "#1e40af",
-        border: "1px solid #93c5fd",
-      },
-      weak: {
-        background: "#fef3c7",
-        color: "#92400e",
-        border: "1px solid #fcd34d",
-      },
+      strong: { background: "#d1fae5", color: "#065f46", border: "1px solid #6ee7b7" },
+      good:   { background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd" },
+      weak:   { background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d" },
     };
-
-    const style = styles[tier] || {};
     return (
-      <span
-        style={{
-          ...style,
-          borderRadius: "20px",
-          padding: "3px 10px",
-          fontSize: "11px",
-          fontWeight: 600,
-          whiteSpace: "nowrap",
-          display: "inline-block",
-        }}
-      >
+      <span style={{
+        ...(styles[tier] || {}),
+        borderRadius: "20px", padding: "3px 10px",
+        fontSize: "11px", fontWeight: 600,
+        whiteSpace: "nowrap", display: "inline-block",
+      }}>
         {label}
       </span>
     );
   }
-  /* ================= RENDER ================= */
 
+  // ─── Budget banner for daily_budget jobs ────────────────────────
+  renderBudgetBanner() {
+    const { budgetStatus } = this.state;
+    if (!budgetStatus || budgetStatus.model !== "daily_budget") return null;
+
+    const { daily_cap, spent_today, remaining_today, is_exhausted, cost_per_click } = budgetStatus;
+    const pct = daily_cap > 0 ? Math.min(100, Math.round((spent_today / daily_cap) * 100)) : 0;
+
+    return (
+      <div style={{
+        background: is_exhausted ? "#fee2e2" : "#eff6ff",
+        border: `1px solid ${is_exhausted ? "#fca5a5" : "#bfdbfe"}`,
+        borderRadius: "12px", padding: "0.9rem 1.2rem",
+        marginBottom: "1rem", fontSize: "0.85rem",
+        color: is_exhausted ? "#991b1b" : "#1e40af",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+          <span style={{ fontWeight: 600 }}>
+            {is_exhausted
+              ? "⚠️ Daily budget exhausted — unlock disabled until tomorrow"
+              : `💰 Daily budget: PKR ${remaining_today?.toFixed(0)} remaining`}
+          </span>
+          <span style={{ fontSize: "0.78rem", opacity: 0.8 }}>
+            PKR {cost_per_click} per unlock
+          </span>
+        </div>
+        <div style={{ background: "rgba(0,0,0,0.08)", borderRadius: "99px", height: "6px" }}>
+          <div style={{
+            height: "6px", borderRadius: "99px",
+            width: `${pct}%`,
+            background: is_exhausted ? "#ef4444" : "#3b82f6",
+            transition: "width 0.4s ease",
+          }} />
+        </div>
+        <div style={{ marginTop: "0.3rem", fontSize: "0.75rem", opacity: 0.75 }}>
+          PKR {spent_today?.toFixed(2)} spent of PKR {daily_cap?.toFixed(2)}
+        </div>
+      </div>
+    );
+  }
+
+  /* =================== RENDER =================== */
   render() {
     const {
-      currentPage,
-      itemsPerPage,
-      counts,
-      splitViewActive,
-      selectedCandidate,
-      selectedCandidateId,
-      mobileDetailView,
-      windowWidth,
+      currentPage, itemsPerPage, counts,
+      splitViewActive, selectedCandidate, selectedCandidateId,
+      mobileDetailView, windowWidth, unlockingIds, budgetStatus,
     } = this.state;
 
-    const filteredApplicants = this.filterApplicants();
+    const filteredApplicants  = this.filterApplicants();
+    const indexOfLast         = currentPage * itemsPerPage;
+    const indexOfFirst        = indexOfLast - itemsPerPage;
+    const currentCandidates   = filteredApplicants.slice(indexOfFirst, indexOfLast);
+    const totalPages          = Math.ceil(filteredApplicants.length / itemsPerPage);
 
-    const indexOfLast = currentPage * itemsPerPage;
-    const indexOfFirst = indexOfLast - itemsPerPage;
-    const currentCandidates = filteredApplicants.slice(
-      indexOfFirst,
-      indexOfLast,
-    );
-
-    const totalPages = Math.ceil(filteredApplicants.length / itemsPerPage);
-
-    // Responsive breakpoints
-    const isMobile = windowWidth <= 768;
-    const isTablet = windowWidth > 768 && windowWidth <= 1024;
-
-    // Determine split view layout based on screen size
-    const leftPanelWidth = isMobile ? "100%" : isTablet ? "35%" : "25%";
+    const isMobile    = windowWidth <= 768;
+    const isTablet    = windowWidth > 768 && windowWidth <= 1024;
+    const leftPanelWidth  = isMobile ? "100%" : isTablet ? "35%" : "25%";
     const rightPanelWidth = isMobile ? "100%" : isTablet ? "65%" : "75%";
 
-    // Determine what to show
-    const showSplitView = splitViewActive && selectedCandidate && !isMobile;
+    const showSplitView    = splitViewActive  && selectedCandidate && !isMobile;
     const showMobileDetail = mobileDetailView && selectedCandidate && isMobile;
-    const showListView = !showSplitView && !showMobileDetail;
+    const showListView     = !showSplitView && !showMobileDetail;
+
+    const isDailyBudgetJob = budgetStatus?.model === "daily_budget";
+    const budgetExhausted  = budgetStatus?.is_exhausted === true;
 
     return (
       <>
         <Head>
           <title>All Applicants</title>
-          <meta
-            name="viewport"
-            content="width=device-width, initial-scale=1.0"
-          />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         </Head>
         <Container fluid className="candidate-dashboard px-2 px-sm-3 px-md-4">
           <style jsx>{`
@@ -476,75 +434,29 @@ class AllApplicants extends Component {
               min-height: 100vh;
               padding: 1rem;
             }
-
-            @media (min-width: 768px) {
-              .candidate-dashboard {
-                padding: 1.5rem;
-              }
-            }
-
-            @media (min-width: 1024px) {
-              .candidate-dashboard {
-                padding: 2rem;
-              }
-            }
+            @media (min-width: 768px)  { .candidate-dashboard { padding: 1.5rem; } }
+            @media (min-width: 1024px) { .candidate-dashboard { padding: 2rem; } }
 
             .job-selector-card {
-              background: rgba(255, 255, 255, 0.95);
+              background: rgba(255,255,255,0.95);
               backdrop-filter: blur(10px);
               border-radius: 15px;
               padding: 1.2rem;
-              box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-              border: 1px solid rgba(255, 255, 255, 0.2);
+              box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+              border: 1px solid rgba(255,255,255,0.2);
               margin-bottom: 1rem;
             }
-
-            @media (min-width: 768px) {
-              .job-selector-card {
-                padding: 1.5rem;
-                border-radius: 20px;
-              }
-            }
-
-            @media (min-width: 1024px) {
-              .job-selector-card {
-                padding: 2rem;
-              }
-            }
+            @media (min-width: 768px)  { .job-selector-card { padding: 1.5rem; border-radius: 20px; } }
+            @media (min-width: 1024px) { .job-selector-card { padding: 2rem; } }
 
             .job-label {
-              font-size: 0.9rem;
-              font-weight: 600;
-              color: #2d3748;
-              margin-bottom: 0.5rem;
-              display: flex;
-              align-items: center;
-              gap: 0.5rem;
+              font-size: 0.9rem; font-weight: 600; color: #2d3748;
+              margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;
             }
-
-            @media (min-width: 768px) {
-              .job-label {
-                font-size: 1rem;
-                margin-bottom: 0.8rem;
-              }
-            }
-
-            @media (min-width: 1024px) {
-              .job-label {
-                font-size: 1.1rem;
-              }
-            }
-
-            .job-label i {
-              color: #667eea;
-              font-size: 1.1rem;
-            }
-
-            @media (min-width: 768px) {
-              .job-label i {
-                font-size: 1.3rem;
-              }
-            }
+            @media (min-width: 768px)  { .job-label { font-size: 1rem;   margin-bottom: 0.8rem; } }
+            @media (min-width: 1024px) { .job-label { font-size: 1.1rem; } }
+            .job-label i { color: #667eea; font-size: 1.1rem; }
+            @media (min-width: 768px) { .job-label i { font-size: 1.3rem; } }
 
             .styled-select {
               background: white;
@@ -561,698 +473,231 @@ class AllApplicants extends Component {
               background-position: right 1rem center;
               background-size: 1rem;
             }
-
-            @media (min-width: 768px) {
-              .styled-select {
-                padding: 1rem 1.5rem;
-                font-size: 1rem;
-                border-radius: 15px;
-                background-size: 1.2rem;
-              }
-            }
-
-            .styled-select:hover,
-            .styled-select:focus {
+            @media (min-width: 768px) { .styled-select { padding: 1rem 1.5rem; font-size: 1rem; border-radius: 15px; background-size: 1.2rem; } }
+            .styled-select:hover, .styled-select:focus {
               border-color: #667eea;
-              box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+              box-shadow: 0 5px 15px rgba(102,126,234,0.2);
               outline: none;
             }
 
             .stats-cards {
               display: grid;
               grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-              gap: 0.8rem;
-              margin-bottom: 1.5rem;
+              gap: 0.8rem; margin-bottom: 1.5rem;
             }
-
-            @media (min-width: 768px) {
-              .stats-cards {
-                gap: 1rem;
-                margin-bottom: 2rem;
-              }
-            }
+            @media (min-width: 768px) { .stats-cards { gap: 1rem; margin-bottom: 2rem; } }
 
             .stat-card {
-              background: white;
-              border-radius: 12px;
-              padding: 1rem;
-              text-align: center;
-              box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-              border: 1px solid rgba(0, 0, 0, 0.05);
-              transition: transform 0.3s ease;
+              background: white; border-radius: 12px; padding: 1rem;
+              text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+              border: 1px solid rgba(0,0,0,0.05); transition: transform 0.3s ease;
             }
+            @media (min-width: 768px) { .stat-card { padding: 1.2rem; border-radius: 15px; } }
+            .stat-card:hover { transform: translateY(-5px); }
+            .stat-icon { font-size: 1.5rem; margin-bottom: 0.3rem; }
+            @media (min-width: 768px) { .stat-icon { font-size: 2rem; margin-bottom: 0.5rem; } }
+            .stat-label { font-size: 0.8rem; color: #718096; margin-bottom: 0.2rem; }
+            @media (min-width: 768px) { .stat-label { font-size: 0.9rem; margin-bottom: 0.3rem; } }
+            .stat-value { font-size: 1.2rem; font-weight: 700; color: #2d3748; }
+            @media (min-width: 768px) { .stat-value { font-size: 1.5rem; } }
+            .stat-value.total       { color: #667eea; }
+            .stat-value.pending     { color: #fbbf24; }
+            .stat-value.shortlisted { color: #10b981; }
+            .stat-value.rejected    { color: #ef4444; }
 
-            @media (min-width: 768px) {
-              .stat-card {
-                padding: 1.2rem;
-                border-radius: 15px;
-              }
-            }
-
-            .stat-card:hover {
-              transform: translateY(-5px);
-            }
-
-            .stat-icon {
-              font-size: 1.5rem;
-              margin-bottom: 0.3rem;
-            }
-
-            @media (min-width: 768px) {
-              .stat-icon {
-                font-size: 2rem;
-                margin-bottom: 0.5rem;
-              }
-            }
-
-            .stat-label {
-              font-size: 0.8rem;
-              color: #718096;
-              margin-bottom: 0.2rem;
-            }
-
-            @media (min-width: 768px) {
-              .stat-label {
-                font-size: 0.9rem;
-                margin-bottom: 0.3rem;
-              }
-            }
-
-            .stat-value {
-              font-size: 1.2rem;
-              font-weight: 700;
-              color: #2d3748;
-            }
-
-            @media (min-width: 768px) {
-              .stat-value {
-                font-size: 1.5rem;
-              }
-            }
-
-            .stat-value.total {
-              color: #667eea;
-            }
-            .stat-value.pending {
-              color: #fbbf24;
-            }
-            .stat-value.shortlisted {
-              color: #10b981;
-            }
-            .stat-value.rejected {
-              color: #ef4444;
-            }
-
-            .search-wrapper {
-              background: white;
-              border-radius: 40px;
-              padding: 0.2rem;
-              box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-              margin-bottom: 1.5rem;
-              display: flex;
-              align-items: center;
-            }
-
-            @media (min-width: 768px) {
-              .search-wrapper {
-                border-radius: 50px;
-                padding: 0.3rem;
-                margin-bottom: 2rem;
-              }
-            }
-
-            .search-input {
-              flex: 1;
-              border: none;
-              padding: 0.8rem 1rem;
-              font-size: 0.9rem;
-              background: transparent;
-              border-radius: 40px;
-            }
-
-            @media (min-width: 768px) {
-              .search-input {
-                padding: 1rem 1.5rem;
-                font-size: 1rem;
-                border-radius: 50px;
-              }
-            }
-
-            .search-input:focus {
-              outline: none;
-            }
-
-            .search-button {
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              color: white;
-              border: none;
-              padding: 0.6rem 1.5rem;
-              border-radius: 40px;
-              font-weight: 600;
-              font-size: 0.9rem;
-              cursor: pointer;
-              transition: all 0.3s ease;
-              margin: 0.2rem;
-              white-space: nowrap;
-            }
-
-            @media (min-width: 768px) {
-              .search-button {
-                padding: 0.8rem 2rem;
-                border-radius: 50px;
-                font-size: 1rem;
-                margin: 0.3rem;
-              }
-            }
-
-            .search-button:hover {
-              transform: scale(1.02);
-              box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-            }
-
-            /* Split view container - Responsive */
             .split-view-container {
               display: flex;
               flex-direction: ${isMobile ? "column" : "row"};
               gap: 1rem;
               min-height: ${isMobile ? "auto" : "calc(100vh - 250px)"};
             }
+            @media (min-width: 768px) { .split-view-container { gap: 1.5rem; } }
 
-            @media (min-width: 768px) {
-              .split-view-container {
-                gap: 1.5rem;
-              }
-            }
-
-            /* Left panel - Responsive */
             .left-panel {
               flex: ${isMobile ? "1 1 auto" : `0 0 ${leftPanelWidth}`};
-              background: white;
-              border-radius: 15px;
-              padding: 1rem;
-              box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-              overflow-y: auto;
+              background: white; border-radius: 15px; padding: 1rem;
+              box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow-y: auto;
               max-height: ${isMobile ? "400px" : "calc(100vh - 250px)"};
               margin-bottom: ${isMobile ? "1rem" : "0"};
             }
+            @media (min-width: 768px)  { .left-panel { padding: 1.2rem; border-radius: 18px; } }
+            @media (min-width: 1024px) { .left-panel { padding: 1.5rem; border-radius: 20px; } }
 
-            @media (min-width: 768px) {
-              .left-panel {
-                padding: 1.2rem;
-                border-radius: 18px;
-              }
-            }
-
-            @media (min-width: 1024px) {
-              .left-panel {
-                padding: 1.5rem;
-                border-radius: 20px;
-              }
-            }
-
-            /* Right panel - Responsive */
             .right-panel {
               flex: ${isMobile ? "1 1 auto" : `0 0 ${rightPanelWidth}`};
-              background: white;
-              border-radius: 15px;
-              padding: 1rem;
-              box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-              overflow-y: auto;
+              background: white; border-radius: 15px; padding: 1rem;
+              box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow-y: auto;
               max-height: ${isMobile ? "auto" : "calc(100vh - 250px)"};
               position: relative;
             }
+            @media (min-width: 768px)  { .right-panel { padding: 1.2rem; border-radius: 18px; } }
+            @media (min-width: 1024px) { .right-panel { padding: 1.5rem; border-radius: 20px; } }
 
-            @media (min-width: 768px) {
-              .right-panel {
-                padding: 1.2rem;
-                border-radius: 18px;
-              }
-            }
-
-            @media (min-width: 1024px) {
-              .right-panel {
-                padding: 1.5rem;
-                border-radius: 20px;
-              }
-            }
-
-            /* Close button for split view */
             .close-split-view {
               position: ${isMobile ? "relative" : "absolute"};
               top: ${isMobile ? "0" : "1rem"};
               right: ${isMobile ? "0" : "1rem"};
               margin-bottom: ${isMobile ? "1rem" : "0"};
               margin-left: ${isMobile ? "auto" : "0"};
-              background: #fee2e2;
-              border: none;
-              border-radius: 50%;
-              width: 32px;
-              height: 32px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: #991b1b;
-              cursor: pointer;
-              transition: all 0.3s ease;
-              z-index: 10;
+              background: #fee2e2; border: none; border-radius: 50%;
+              width: 32px; height: 32px;
+              display: flex; align-items: center; justify-content: center;
+              color: #991b1b; cursor: pointer; transition: all 0.3s ease; z-index: 10;
             }
+            @media (min-width: 768px) { .close-split-view { width: 35px; height: 35px; } }
+            .close-split-view:hover { background: #fecaca; transform: scale(1.1); }
 
-            @media (min-width: 768px) {
-              .close-split-view {
-                width: 35px;
-                height: 35px;
-              }
-            }
-
-            .close-split-view:hover {
-              background: #fecaca;
-              transform: scale(1.1);
-            }
-
-            /* Mobile detail view */
             .mobile-detail-view {
-              background: white;
-              border-radius: 15px;
-              padding: 1rem;
-              box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-              position: relative;
+              background: white; border-radius: 15px; padding: 1rem;
+              box-shadow: 0 20px 40px rgba(0,0,0,0.1); position: relative;
             }
-
             .back-to-list {
-              display: inline-flex;
-              align-items: center;
-              gap: 0.5rem;
-              background: #f7fafc;
-              border: 1px solid #e2e8f0;
-              border-radius: 50px;
-              padding: 0.5rem 1rem;
-              margin-bottom: 1rem;
-              color: #2d3748;
-              font-size: 0.9rem;
-              cursor: pointer;
-              transition: all 0.3s ease;
+              display: inline-flex; align-items: center; gap: 0.5rem;
+              background: #f7fafc; border: 1px solid #e2e8f0;
+              border-radius: 50px; padding: 0.5rem 1rem; margin-bottom: 1rem;
+              color: #2d3748; font-size: 0.9rem; cursor: pointer; transition: all 0.3s ease;
             }
+            .back-to-list:hover { background: #edf2f7; border-color: #cbd5e0; }
 
-            .back-to-list:hover {
-              background: #edf2f7;
-              border-color: #cbd5e0;
-            }
-
-            /* Compact candidate list in split view */
-            .compact-candidate-list {
-              display: flex;
-              flex-direction: column;
-              gap: 0.5rem;
-            }
-
-            .compact-candidate-item {
-              display: flex;
-              align-items: center;
-              gap: 0.8rem;
-              padding: 0.6rem;
-              border-radius: 8px;
-              cursor: pointer;
-              transition: all 0.2s ease;
+            .compact-candidate-list  { display: flex; flex-direction: column; gap: 0.5rem; }
+            .compact-candidate-item  {
+              display: flex; align-items: center; gap: 0.8rem; padding: 0.6rem;
+              border-radius: 8px; cursor: pointer; transition: all 0.2s ease;
               border: 2px solid transparent;
             }
-
-            @media (min-width: 768px) {
-              .compact-candidate-item {
-                gap: 1rem;
-                padding: 0.75rem;
-                border-radius: 10px;
-              }
-            }
-
-            .compact-candidate-item:hover {
-              background: #f7fafc;
-              border-color: #e2e8f0;
-            }
-
+            @media (min-width: 768px) { .compact-candidate-item { gap: 1rem; padding: 0.75rem; border-radius: 10px; } }
+            .compact-candidate-item:hover   { background: #f7fafc; border-color: #e2e8f0; }
             .compact-candidate-item.selected {
               background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
-              border-color: #667eea;
-              box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
+              border-color: #667eea; box-shadow: 0 0 0 2px rgba(102,126,234,0.3);
             }
-
             .compact-avatar {
-              width: 35px;
-              height: 35px;
-              border-radius: 50%;
-              object-fit: cover;
+              width: 35px; height: 35px; border-radius: 50%; object-fit: cover;
               border: 2px solid #667eea;
             }
+            @media (min-width: 768px) { .compact-avatar { width: 40px; height: 40px; } }
+            .compact-candidate-item.selected .compact-avatar { border-color: #764ba2; }
+            .compact-info  { flex: 1; min-width: 0; }
+            .compact-name  { font-weight: 600; color: #2d3748; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .compact-candidate-item.selected .compact-name { color: #667eea; font-weight: 700; }
+            @media (min-width: 768px) { .compact-name { font-size: 0.9rem; } }
+            .compact-email { font-size: 0.75rem; color: #718096; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            @media (min-width: 768px) { .compact-email { font-size: 0.8rem; } }
 
-            .compact-candidate-item.selected .compact-avatar {
-              border-color: #764ba2;
-              box-shadow: 0 0 0 2px rgba(118, 75, 162, 0.3);
-            }
-
-            @media (min-width: 768px) {
-              .compact-avatar {
-                width: 40px;
-                height: 40px;
-              }
-            }
-
-            .compact-info {
-              flex: 1;
-              min-width: 0; /* Prevent overflow */
-            }
-
-            .compact-name {
-              font-weight: 600;
-              color: #2d3748;
-              font-size: 0.85rem;
-              white-space: nowrap;
-              overflow: hidden;
-              text-overflow: ellipsis;
-            }
-
-            .compact-candidate-item.selected .compact-name {
-              color: #667eea;
-              font-weight: 700;
-            }
-
-            @media (min-width: 768px) {
-              .compact-name {
-                font-size: 0.9rem;
-              }
-            }
-
-            .compact-email {
-              font-size: 0.75rem;
-              color: #718096;
-              white-space: nowrap;
-              overflow: hidden;
-              text-overflow: ellipsis;
-            }
-
-            @media (min-width: 768px) {
-              .compact-email {
-                font-size: 0.8rem;
-              }
-            }
-
-            .compact-status {
-              font-size: 0.65rem;
-              padding: 0.2rem 0.4rem;
-              border-radius: 50px;
-              display: inline-block;
-              white-space: nowrap;
-            }
-
-            @media (min-width: 768px) {
-              .compact-status {
-                font-size: 0.7rem;
-                padding: 0.2rem 0.5rem;
-              }
-            }
-
-            /* Table responsive */
             .candidates-table-card {
-              background: white;
-              border-radius: 15px;
-              padding: 1rem;
-              box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-              overflow-x: auto;
+              background: white; border-radius: 15px; padding: 1rem;
+              box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow-x: auto;
             }
-
-            @media (min-width: 768px) {
-              .candidates-table-card {
-                padding: 1.5rem;
-                border-radius: 20px;
-              }
-            }
-
-            .table {
-              min-width: 500px; /* Ensure table doesn't get too compressed */
-            }
-
-            .table-header {
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              color: white;
-            }
-
-            .table-header th {
-              padding: 1rem 0.8rem;
-              font-weight: 600;
-              text-transform: uppercase;
-              font-size: 0.8rem;
-              letter-spacing: 0.5px;
-              white-space: nowrap;
-            }
-
-            @media (min-width: 768px) {
-              .table-header th {
-                padding: 1.2rem 1rem;
-                font-size: 0.9rem;
-                letter-spacing: 1px;
-              }
-            }
+            @media (min-width: 768px) { .candidates-table-card { padding: 1.5rem; border-radius: 20px; } }
+            .table { min-width: 500px; }
 
             .candidate-row {
-              transition: all 0.3s ease;
-              cursor: pointer;
-              border: 2px solid transparent;
+              transition: all 0.3s ease; border: 2px solid transparent;
             }
-
-            .candidate-row:hover {
-              background: #f7fafc;
-              transform: scale(1.01);
-              box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            .candidate-row:not(.locked-row) { cursor: pointer; }
+            .candidate-row:not(.locked-row):hover {
+              background: #f7fafc; transform: scale(1.01);
+              box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             }
-
             .candidate-row.selected {
               background: linear-gradient(135deg, #667eea10 0%, #764ba210 100%);
-              border-left: 4px solid #667eea;
-              border-right: 4px solid #764ba2;
+              border-left: 4px solid #667eea; border-right: 4px solid #764ba2;
             }
+            .locked-row { background: #fafafa; }
 
             .candidate-avatar {
-              width: 40px;
-              height: 40px;
-              border-radius: 50%;
-              object-fit: cover;
-              border: 3px solid #667eea;
-              box-shadow: 0 5px 10px rgba(102, 126, 234, 0.2);
+              width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
+              border: 3px solid #667eea; box-shadow: 0 5px 10px rgba(102,126,234,0.2);
               transition: all 0.3s ease;
             }
+            @media (min-width: 768px) { .candidate-avatar { width: 50px; height: 50px; } }
+            .candidate-row.selected .candidate-avatar { border-color: #764ba2; transform: scale(1.05); }
+            .candidate-avatar:hover { transform: scale(1.1); border-color: #764ba2; }
 
-            .candidate-row.selected .candidate-avatar {
-              border-color: #764ba2;
-              transform: scale(1.05);
-            }
-
-            @media (min-width: 768px) {
-              .candidate-avatar {
-                width: 50px;
-                height: 50px;
-              }
-            }
-
-            .candidate-avatar:hover {
-              transform: scale(1.1);
-              border-color: #764ba2;
-            }
-
-            .candidate-name {
-              font-weight: 600;
-              color: #2d3748;
-              transition: color 0.3s ease;
-              font-size: 0.9rem;
-            }
-
-            .candidate-row.selected .candidate-name {
-              color: #667eea;
-              font-weight: 700;
-            }
-
-            @media (min-width: 768px) {
-              .candidate-name {
-                font-size: 1rem;
-              }
-            }
-
-            .candidate-name:hover {
-              color: #667eea;
-            }
+            .candidate-name { font-weight: 600; color: #2d3748; transition: color 0.3s ease; font-size: 0.9rem; }
+            .candidate-row.selected .candidate-name { color: #667eea; font-weight: 700; }
+            @media (min-width: 768px) { .candidate-name { font-size: 1rem; } }
+            .candidate-name:hover { color: #667eea; }
 
             .status-badge {
-              padding: 0.4rem 0.8rem;
-              border-radius: 50px;
-              font-weight: 600;
-              font-size: 0.75rem;
-              display: inline-block;
-              text-align: center;
-              min-width: 80px;
-              white-space: nowrap;
+              padding: 0.4rem 0.8rem; border-radius: 50px; font-weight: 600;
+              font-size: 0.75rem; display: inline-block; text-align: center;
+              min-width: 80px; white-space: nowrap;
             }
-
-            @media (min-width: 768px) {
-              .status-badge {
-                padding: 0.5rem 1rem;
-                font-size: 0.85rem;
-                min-width: 100px;
-              }
-            }
-
-            .status-pending {
-              background: #fef3c7;
-              color: #92400e;
-            }
-
-            .status-shortlisted {
-              background: #d1fae5;
-              color: #065f46;
-            }
-
-            .status-rejected {
-              background: #fee2e2;
-              color: #991b1b;
-            }
+            @media (min-width: 768px) { .status-badge { padding: 0.5rem 1rem; font-size: 0.85rem; min-width: 100px; } }
+            .status-pending     { background: #fef3c7; color: #92400e; }
+            .status-shortlisted { background: #d1fae5; color: #065f46; }
+            .status-rejected    { background: #fee2e2; color: #991b1b; }
 
             .city-badge {
-              background: #e2e8f0;
-              color: #2d3748;
-              padding: 0.4rem 0.8rem;
-              border-radius: 50px;
-              font-size: 0.75rem;
-              display: inline-block;
-              white-space: nowrap;
+              background: #e2e8f0; color: #2d3748; padding: 0.4rem 0.8rem;
+              border-radius: 50px; font-size: 0.75rem; display: inline-block; white-space: nowrap;
+            }
+            @media (min-width: 768px) { .city-badge { padding: 0.5rem 1rem; font-size: 0.85rem; } }
+
+            .unlock-btn {
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              color: white; border: none; border-radius: 20px;
+              padding: 5px 14px; font-size: 12px; font-weight: 600;
+              cursor: pointer; white-space: nowrap; transition: all 0.2s ease;
+            }
+            .unlock-btn:hover:not(:disabled) { transform: scale(1.05); box-shadow: 0 4px 12px rgba(102,126,234,0.4); }
+            .unlock-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+            .unlock-btn.budget-exhausted {
+              background: #e2e8f0; color: #718096; cursor: not-allowed;
             }
 
-            @media (min-width: 768px) {
-              .city-badge {
-                padding: 0.5rem 1rem;
-                font-size: 0.85rem;
-              }
+            .locked-avatar-placeholder {
+              width: 40px; height: 40px; border-radius: 50%;
+              background: #e2e8f0; display: flex; align-items: center; justify-content: center;
+              border: 2px dashed #cbd5e0; flex-shrink: 0;
+            }
+            @media (min-width: 768px) { .locked-avatar-placeholder { width: 50px; height: 50px; } }
+
+            .blurred-text {
+              filter: blur(5px); user-select: none; pointer-events: none;
+              color: #718096; font-size: 0.9rem; font-weight: 600;
             }
 
-            .empty-state {
-              text-align: center;
-              padding: 2rem 1rem;
-            }
-
-            @media (min-width: 768px) {
-              .empty-state {
-                padding: 4rem 2rem;
-              }
-            }
-
-            .empty-icon {
-              font-size: 3rem;
-              color: #cbd5e0;
-              margin-bottom: 1rem;
-            }
-
-            @media (min-width: 768px) {
-              .empty-icon {
-                font-size: 5rem;
-                margin-bottom: 1.5rem;
-              }
-            }
-
-            .empty-text {
-              font-size: 1rem;
-              color: #718096;
-              margin-bottom: 0.8rem;
-            }
-
-            @media (min-width: 768px) {
-              .empty-text {
-                font-size: 1.2rem;
-                margin-bottom: 1rem;
-              }
-            }
+            .empty-state  { text-align: center; padding: 2rem 1rem; }
+            @media (min-width: 768px) { .empty-state { padding: 4rem 2rem; } }
+            .empty-icon   { font-size: 3rem; color: #cbd5e0; margin-bottom: 1rem; }
+            @media (min-width: 768px) { .empty-icon { font-size: 5rem; margin-bottom: 1.5rem; } }
+            .empty-text   { font-size: 1rem; color: #718096; margin-bottom: 0.8rem; }
+            @media (min-width: 768px) { .empty-text { font-size: 1.2rem; margin-bottom: 1rem; } }
 
             .pagination-wrapper {
-              display: flex;
-              justify-content: center;
-              margin-top: 1.5rem;
-              overflow-x: auto;
-              padding: 0.5rem 0;
+              display: flex; justify-content: center; margin-top: 1.5rem;
+              overflow-x: auto; padding: 0.5rem 0;
             }
-
-            @media (min-width: 768px) {
-              .pagination-wrapper {
-                margin-top: 2rem;
-              }
-            }
-
-            .custom-pagination {
-              display: flex;
-              gap: 0.3rem;
-              list-style: none;
-              padding: 0;
-              margin: 0;
-            }
-
-            @media (min-width: 768px) {
-              .custom-pagination {
-                gap: 0.5rem;
-              }
-            }
-
-            .page-item {
-              display: inline-block;
-            }
-
+            @media (min-width: 768px) { .pagination-wrapper { margin-top: 2rem; } }
+            .custom-pagination { display: flex; gap: 0.3rem; list-style: none; padding: 0; margin: 0; }
+            @media (min-width: 768px) { .custom-pagination { gap: 0.5rem; } }
             .page-link {
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              width: 32px;
-              height: 32px;
-              border-radius: 50%;
-              background: white;
-              color: #2d3748;
-              text-decoration: none;
-              transition: all 0.3s ease;
-              border: 1px solid #e2e8f0;
-              font-weight: 500;
-              font-size: 0.85rem;
+              display: flex; align-items: center; justify-content: center;
+              width: 32px; height: 32px; border-radius: 50%;
+              background: white; color: #2d3748; text-decoration: none;
+              transition: all 0.3s ease; border: 1px solid #e2e8f0;
+              font-weight: 500; font-size: 0.85rem;
             }
-
-            @media (min-width: 768px) {
-              .page-link {
-                width: 40px;
-                height: 40px;
-                font-size: 1rem;
-              }
-            }
-
-            .page-link:hover,
-            .page-item.active .page-link {
+            @media (min-width: 768px) { .page-link { width: 40px; height: 40px; font-size: 1rem; } }
+            .page-link:hover, .page-item.active .page-link {
               background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              color: white;
-              border-color: transparent;
-              transform: scale(1.1);
-              box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+              color: white; border-color: transparent;
+              transform: scale(1.1); box-shadow: 0 5px 15px rgba(102,126,234,0.3);
             }
 
-            /* Mobile specific styles */
             @media (max-width: 768px) {
-              .table td,
-              .table th {
-                padding: 0.6rem;
-              }
-
-              .d-flex.align-items-center.gap-3 {
-                gap: 0.5rem !important;
-              }
-
-              .candidate-avatar {
-                width: 35px;
-                height: 35px;
-                border-width: 2px;
-              }
+              .table td, .table th { padding: 0.6rem; }
+              .d-flex.align-items-center.gap-3 { gap: 0.5rem !important; }
+              .candidate-avatar { width: 35px; height: 35px; border-width: 2px; }
             }
           `}</style>
 
           <Row className="justify-content-center">
             <Col lg={splitViewActive ? "12" : "10"} xs="12">
-              {/* Job Selection Card */}
+
+              {/* Job Selection */}
               <div className="job-selector-card">
                 <div className="job-label">
                   <i className="fas fa-briefcase"></i>
@@ -1264,123 +709,101 @@ class AllApplicants extends Component {
                   onChange={async (e) => {
                     const selectedJobId = e.target.value;
                     await this.setState({
-                      selectedJobId,
-                      showFilters: !!selectedJobId,
-                      splitViewActive: false,
-                      mobileDetailView: false,
-                      selectedCandidate: null,
-                      selectedCandidateId: null,
+                      selectedJobId, showFilters: !!selectedJobId,
+                      splitViewActive: false, mobileDetailView: false,
+                      selectedCandidate: null, selectedCandidateId: null,
+                      budgetStatus: null,
                     });
                     if (selectedJobId) this.fetchAllCandidates();
                   }}
                 >
-                  <option value="">
-                    -- Choose a job to view candidates --
-                  </option>
+                  <option value="">-- Choose a job to view candidates --</option>
                   {this.state.postedJobs.map((job) => (
-                    <option key={job.id} value={job.id}>
-                      {job.job_title}
-                    </option>
+                    <option key={job.id} value={job.id}>{job.job_title}</option>
                   ))}
                 </select>
               </div>
-{this.state.jobMessage && (
-  <div className="alert alert-warning mt-3">
-    {this.state.jobMessage}
-  </div>
-)}
+
+              {this.state.jobMessage && (
+                <div className="alert alert-warning mt-3">{this.state.jobMessage}</div>
+              )}
+
+              {/* Budget banner (daily_budget jobs only) */}
+              {this.state.showFilters && this.renderBudgetBanner()}
+
               {this.state.showFilters && (
                 <>
-                  {/* Split View - Desktop/Tablet */}
+                  {/* ── Split View (desktop) ── */}
                   {showSplitView && (
                     <div className="split-view-container">
-                      {/* Left Panel - Candidate List */}
                       <div className="left-panel">
                         <h5 className="mb-2 mb-md-3">Candidates List</h5>
                         <div className="compact-candidate-list">
-                          {currentCandidates.map((candidate) => (
-                            <div
-                              key={candidate.id}
-                              className={`compact-candidate-item ${
-                                candidate.id === selectedCandidateId
-                                  ? "selected"
-                                  : ""
-                              }`}
-                              onClick={() => this.openCandidatePage(candidate)}
-                            >
-                              <img
-                                src={
-                                  candidate.passport_photo
-                                    ? `${process.env.NEXT_PUBLIC_API_BASE_URL}${candidate.passport_photo.replace(/^\/+/, "")}`
-                                    : "/images/user.png"
-                                }
-                                alt={candidate.full_name}
-                                className="compact-avatar"
-                                onError={(e) => {
-                                  e.target.src = "/images/user.png";
-                                }}
-                              />
-                              <div className="compact-info">
-                                <div className="compact-name">
-                                  {candidate.full_name}
+                          {currentCandidates.map((candidate) => {
+                            const cId   = candidate.candidate_id || candidate.id;
+                            const isLocked    = candidate.locked === true;
+                            const isUnlocking = unlockingIds.has(cId);
+                            return (
+                              <div
+                                key={cId}
+                                className={`compact-candidate-item ${cId === selectedCandidateId ? "selected" : ""}`}
+                                onClick={() => !isLocked && this.openCandidatePage(candidate)}
+                                style={{ cursor: isLocked ? "default" : "pointer" }}
+                              >
+                                {isLocked ? (
+                                  <div className="locked-avatar-placeholder">
+                                    <i className="fas fa-lock" style={{ color: "#a0aec0", fontSize: "14px" }}></i>
+                                  </div>
+                                ) : (
+                                  <img
+                                    src={candidate.passport_photo
+                                      ? `${process.env.NEXT_PUBLIC_API_BASE_URL}${candidate.passport_photo.replace(/^\/+/, "")}`
+                                      : "/images/user.png"}
+                                    alt={candidate.full_name}
+                                    className="compact-avatar"
+                                    onError={(e) => { e.target.src = "/images/user.png"; }}
+                                  />
+                                )}
+                                <div className="compact-info">
+                                  {isLocked ? (
+                                    <>
+                                      <div className="blurred-text">██████████</div>
+                                      <div style={{ marginTop: "4px" }}>{this.renderTierBadge(candidate)}</div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="compact-name">{candidate.full_name}</div>
+                                      <div className="compact-email">{candidate.email || ""}</div>
+                                      {this.renderTierBadge(candidate)}
+                                    </>
+                                  )}
                                 </div>
-                                <div className="compact-email">
-                                  {candidate.email || ""}
-                                </div>
-                                {this.renderTierBadge(candidate)}
-                                {candidate.has_applied && (
-                                  <span
-                                    style={{
-                                      background: "#d1fae5",
-                                      color: "#065f46",
-                                      fontSize: "10px",
-                                      fontWeight: 600,
-                                      padding: "1px 6px",
-                                      borderRadius: "10px",
-                                      display: "inline-block",
-                                      marginTop: "2px",
-                                    }}
+                                {isLocked && (
+                                  <button
+                                    className={`unlock-btn${budgetExhausted ? " budget-exhausted" : ""}`}
+                                    disabled={isUnlocking || budgetExhausted}
+                                    onClick={(e) => { e.stopPropagation(); if (!budgetExhausted) this.unlockCandidate(cId); }}
                                   >
-                                    ✓ Applied
-                                  </span>
+                                    {isUnlocking ? "..." : budgetExhausted ? "🔒" : "🔓 Unlock"}
+                                  </button>
                                 )}
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
-
-                        {/* Pagination in split view */}
                         {filteredApplicants.length > itemsPerPage && (
-                          <div className="pagination-wrapper mt-2 mt-md-3">
+                          <div className="pagination-wrapper mt-2">
                             <ul className="custom-pagination">
                               <li className="page-item">
-                                <a
-                                  className="page-link"
-                                  href="#"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    if (currentPage > 1)
-                                      this.handlePageChange(currentPage - 1);
-                                  }}
-                                >
+                                <a className="page-link" href="#" onClick={(e) => { e.preventDefault(); if (currentPage > 1) this.handlePageChange(currentPage - 1); }}>
                                   <i className="fas fa-chevron-left"></i>
                                 </a>
                               </li>
                               <li className="page-item">
-                                <span className="page-link">
-                                  {currentPage} / {totalPages}
-                                </span>
+                                <span className="page-link">{currentPage} / {totalPages}</span>
                               </li>
                               <li className="page-item">
-                                <a
-                                  className="page-link"
-                                  href="#"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    if (currentPage < totalPages)
-                                      this.handlePageChange(currentPage + 1);
-                                  }}
-                                >
+                                <a className="page-link" href="#" onClick={(e) => { e.preventDefault(); if (currentPage < totalPages) this.handlePageChange(currentPage + 1); }}>
                                   <i className="fas fa-chevron-right"></i>
                                 </a>
                               </li>
@@ -1389,13 +812,8 @@ class AllApplicants extends Component {
                         )}
                       </div>
 
-                      {/* Right Panel - Candidate Details */}
                       <div className="right-panel">
-                        <button
-                          className="close-split-view"
-                          onClick={this.closeSplitView}
-                          title="Close split view"
-                        >
+                        <button className="close-split-view" onClick={this.closeSplitView} title="Close split view">
                           <i className="fas fa-times"></i>
                         </button>
                         <CandidateInfo
@@ -1407,13 +825,10 @@ class AllApplicants extends Component {
                     </div>
                   )}
 
-                  {/* Mobile Detail View */}
+                  {/* ── Mobile Detail View ── */}
                   {showMobileDetail && (
                     <div className="mobile-detail-view">
-                      <div
-                        className="back-to-list"
-                        onClick={this.closeDetailView}
-                      >
+                      <div className="back-to-list" onClick={this.closeDetailView}>
                         <i className="fas fa-arrow-left"></i>
                         <span>Back to Candidates List</span>
                       </div>
@@ -1425,7 +840,7 @@ class AllApplicants extends Component {
                     </div>
                   )}
 
-                  {/* List View - Shown when not in split view or mobile detail view */}
+                  {/* ── List View ── */}
                   {showListView && (
                     <div className="candidates-table-card">
                       {currentCandidates.length > 0 ? (
@@ -1434,231 +849,159 @@ class AllApplicants extends Component {
                             <table className="table table-rounded align-middle mb-0">
                               <thead className="text-center rounded">
                                 <tr>
-                                  <th
-                                    className="text-white p-2 p-md-3 border-bottom border-1"
-                                    style={{ background: "#5f8190" }}
-                                  >
-                                    Candidate
-                                  </th>
-                                  <th
-                                    className="text-white p-2 p-md-3 border-bottom border-1"
-                                    style={{ background: "#5f8190" }}
-                                  >
-                                    Status
-                                  </th>
-                                  <th
-                                    className="text-white p-2 p-md-3 border-bottom border-1"
-                                    style={{ background: "#5f8190" }}
-                                  >
-                                    Location
-                                  </th>
-                                  <th
-                                    className="text-white p-2 p-md-3 border-bottom border-1"
-                                    style={{ background: "#5f8190" }}
-                                  >
-                                    Match
-                                  </th>
-                                  {/* <th className="text-white p-2 p-md-3 border-bottom border-1"
-                                    style={{ background: "#5f8190" }}>Boost
-                                  </th> */}
-                                  <th
-                                    className="text-white p-2 p-md-3 border-bottom border-1"
-                                    style={{ background: "#5f8190" }}
-                                  >
-                                    Applied
-                                  </th>
+                                  {["Candidate", "Status", "Location", "Match", "Action"].map((h) => (
+                                    <th key={h} className="text-white p-2 p-md-3 border-bottom border-1" style={{ background: "#5f8190" }}>
+                                      {h}
+                                    </th>
+                                  ))}
                                 </tr>
                               </thead>
                               <tbody className="border-2">
-                                {currentCandidates.map((candidate, index) => (
-                                  <tr
-                                    key={candidate.id}
-                                    className={`candidate-row ${candidate.id === selectedCandidateId ? "selected" : ""}`}
-                                    style={{
-                                      animation: `fadeInUp 0.5s ease ${index * 0.1}s`,
-                                      background:
-                                        candidate.is_boosted &&
-                                        candidate.candidate_id !==
-                                          selectedCandidateId
-                                          ? "#fffbeb"
-                                          : undefined,
-                                      borderLeft:
-                                        candidate.is_boosted &&
-                                        candidate.candidate_id !==
-                                          selectedCandidateId
-                                          ? "3px solid #f59e0b"
-                                          : undefined,
-                                    }}
-                                    onClick={() =>
-                                      this.openCandidatePage(candidate)
-                                    }
-                                  >
-                                    <td>
-                                      <div className="d-flex align-items-center gap-2 gap-md-3">
-                                        <img
-                                          src={
-                                            candidate.passport_photo
-                                              ? `${process.env.NEXT_PUBLIC_API_BASE_URL}${candidate.passport_photo.replace(/^\/+/, "")}`
-                                              : "/images/user.png"
-                                          }
-                                          alt={candidate.full_name}
-                                          className="candidate-avatar"
-                                          onError={(e) => {
-                                            e.target.src = "/images/user.png";
-                                          }}
-                                        />
-                                        <div>
-                                          <div className="candidate-name">
-                                            {candidate.full_name}
-                                          </div>
-                                          {!isMobile && (
-                                            <small className="text-muted">
-                                              {candidate.email}
-                                            </small>
+                                {currentCandidates.map((candidate, index) => {
+                                  const cId      = candidate.candidate_id || candidate.id;
+                                  const isLocked    = candidate.locked === true;
+                                  const isUnlocking = unlockingIds.has(cId);
+                                  const isSelected  = cId === selectedCandidateId;
+
+                                  return (
+                                    <tr
+                                      key={cId}
+                                      className={`candidate-row${isLocked ? " locked-row" : ""}${isSelected ? " selected" : ""}`}
+                                      style={{
+                                        animation: `fadeInUp 0.5s ease ${index * 0.1}s`,
+                                        background: !isLocked && candidate.is_boosted && !isSelected
+                                          ? "#fffbeb" : undefined,
+                                        borderLeft: !isLocked && candidate.is_boosted && !isSelected
+                                          ? "3px solid #f59e0b" : undefined,
+                                      }}
+                                      onClick={() => !isLocked && this.openCandidatePage(candidate)}
+                                    >
+                                      {/* Candidate column */}
+                                      <td>
+                                        <div className="d-flex align-items-center gap-2 gap-md-3">
+                                          {isLocked ? (
+                                            <div className="locked-avatar-placeholder">
+                                              <i className="fas fa-lock" style={{ color: "#a0aec0", fontSize: "16px" }}></i>
+                                            </div>
+                                          ) : (
+                                            <img
+                                              src={candidate.passport_photo
+                                                ? `${process.env.NEXT_PUBLIC_API_BASE_URL}${candidate.passport_photo.replace(/^\/+/, "")}`
+                                                : "/images/user.png"}
+                                              alt={candidate.full_name}
+                                              className="candidate-avatar"
+                                              onError={(e) => { e.target.src = "/images/user.png"; }}
+                                            />
                                           )}
+                                          <div>
+                                            {isLocked ? (
+                                              <div className="blurred-text">███████████</div>
+                                            ) : (
+                                              <>
+                                                <div className="candidate-name">{candidate.full_name}</div>
+                                                {!isMobile && <small className="text-muted">{candidate.email}</small>}
+                                              </>
+                                            )}
+                                          </div>
                                         </div>
-                                      </div>
-                                    </td>
-                                    <td className="text-center">
-                                      <span
-                                        className={`status-badge ${
-                                          candidate.candidateStatus ===
-                                          "Pending"
-                                            ? "status-pending"
-                                            : candidate.candidateStatus ===
-                                                "Rejected"
+                                      </td>
+
+                                      {/* Status */}
+                                      <td className="text-center">
+                                        {isLocked ? (
+                                          <span className="status-badge status-pending" style={{ opacity: 0.4 }}>—</span>
+                                        ) : (
+                                          <span className={`status-badge ${
+                                            candidate.candidateStatus === "Pending"
+                                              ? "status-pending"
+                                              : candidate.candidateStatus === "Rejected"
                                               ? "status-rejected"
                                               : "status-shortlisted"
-                                        }`}
-                                      >
-                                        {candidate.candidateStatus || "Pending"}
-                                      </span>
-                                    </td>
-                                    <td className="text-center">
-                                      <span className="city-badge">
-                                        <i className="fas fa-map-marker-alt me-1 me-md-2"></i>
-                                        {candidate.city_name || "Not specified"}
-                                      </span>
-                                    </td>
-                                    <td className="text-center">
-                                      {this.renderTierBadge(candidate)}
-                                    </td>
-                                    {/* <td className="text-center">
-                                      {candidate.is_boosted ? (
-                                        <span style={{
-                                          background: "#fef3c7",
-                                          color: "#92400e",
-                                          border: "1px solid #fcd34d",
-                                          borderRadius: "20px",
-                                          padding: "4px 10px",
-                                          fontSize: "11px",
-                                          fontWeight: 600,
-                                          whiteSpace: "nowrap",
-                                        }}>
-                                          Featured
+                                          }`}>
+                                            {candidate.candidateStatus || "Pending"}
+                                          </span>
+                                        )}
+                                      </td>
+
+                                      {/* Location */}
+                                      <td className="text-center">
+                                        <span className="city-badge">
+                                          <i className="fas fa-map-marker-alt me-1 me-md-2"></i>
+                                          {candidate.city_name || "Not specified"}
                                         </span>
-                                      ) : (
-                                        <span style={{ color: "#cbd5e0", fontSize: "13px" }}>—</span>
-                                      )}
-                                    </td> */}
-                                    <td className="text-center">
-                                      {candidate.has_applied ? (
-                                        <span
-                                          style={{
-                                            background: "#d1fae5",
-                                            color: "#065f46",
-                                            border: "1px solid #6ee7b7",
-                                            borderRadius: "20px",
-                                            padding: "4px 10px",
-                                            fontSize: "11px",
-                                            fontWeight: 600,
+                                      </td>
+
+                                      {/* Match tier */}
+                                      <td className="text-center">
+                                        {this.renderTierBadge(candidate)}
+                                      </td>
+
+                                      {/* Action: Unlock btn OR Applied badge OR dash */}
+                                      <td className="text-center">
+                                        {isLocked ? (
+                                          <button
+                                            className={`unlock-btn${budgetExhausted ? " budget-exhausted" : ""}`}
+                                            disabled={isUnlocking || budgetExhausted}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if (!budgetExhausted) this.unlockCandidate(cId);
+                                            }}
+                                            title={budgetExhausted
+                                              ? "Daily budget exhausted"
+                                              : `Unlock for PKR ${budgetStatus?.cost_per_click || ""}`}
+                                          >
+                                            {isUnlocking
+                                              ? <><i className="fas fa-spinner fa-spin me-1"></i>Unlocking...</>
+                                              : budgetExhausted
+                                              ? "🔒 Budget full"
+                                              : `🔓 Unlock${budgetStatus?.cost_per_click ? ` (PKR ${budgetStatus.cost_per_click})` : ""}`
+                                            }
+                                          </button>
+                                        ) : candidate.has_applied ? (
+                                          <span style={{
+                                            background: "#d1fae5", color: "#065f46",
+                                            border: "1px solid #6ee7b7", borderRadius: "20px",
+                                            padding: "4px 10px", fontSize: "11px", fontWeight: 600,
                                             whiteSpace: "nowrap",
-                                          }}
-                                        >
-                                          ✓ Applied
-                                        </span>
-                                      ) : (
-                                        <span
-                                          style={{
-                                            color: "#cbd5e0",
-                                            fontSize: "13px",
-                                          }}
-                                        >
-                                          —
-                                        </span>
-                                      )}
-                                    </td>
-                                  </tr>
-                                ))}
+                                          }}>
+                                            ✓ Applied
+                                          </span>
+                                        ) : (
+                                          <span style={{ color: "#cbd5e0", fontSize: "13px" }}>—</span>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
                               </tbody>
                             </table>
                           </div>
 
-                          {/* Pagination */}
                           {filteredApplicants.length > itemsPerPage && (
                             <div className="pagination-wrapper">
                               <ul className="custom-pagination">
                                 <li className="page-item">
-                                  <a
-                                    className="page-link"
-                                    href="#"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      if (currentPage > 1)
-                                        this.handlePageChange(currentPage - 1);
-                                    }}
-                                  >
+                                  <a className="page-link" href="#" onClick={(e) => { e.preventDefault(); if (currentPage > 1) this.handlePageChange(currentPage - 1); }}>
                                     <i className="fas fa-chevron-left"></i>
                                   </a>
                                 </li>
-                                {[
-                                  ...Array(
-                                    Math.min(
-                                      totalPages,
-                                      isMobile ? 5 : totalPages,
-                                    ),
-                                  ),
-                                ].map((_, i) => {
-                                  // Show limited page numbers on mobile
+                                {[...Array(Math.min(totalPages, isMobile ? 5 : totalPages))].map((_, i) => {
                                   let pageNum = i + 1;
                                   if (isMobile && totalPages > 5) {
-                                    if (currentPage <= 3) {
-                                      pageNum = i + 1;
-                                    } else if (currentPage >= totalPages - 2) {
-                                      pageNum = totalPages - 4 + i;
-                                    } else {
-                                      pageNum = currentPage - 2 + i;
-                                    }
+                                    if      (currentPage <= 3)             pageNum = i + 1;
+                                    else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+                                    else                                    pageNum = currentPage - 2 + i;
                                   }
-
                                   return (
-                                    <li
-                                      key={i}
-                                      className={`page-item ${currentPage === pageNum ? "active" : ""}`}
-                                    >
-                                      <a
-                                        className="page-link"
-                                        href="#"
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          this.handlePageChange(pageNum);
-                                        }}
-                                      >
+                                    <li key={i} className={`page-item ${currentPage === pageNum ? "active" : ""}`}>
+                                      <a className="page-link" href="#" onClick={(e) => { e.preventDefault(); this.handlePageChange(pageNum); }}>
                                         {pageNum}
                                       </a>
                                     </li>
                                   );
                                 })}
                                 <li className="page-item">
-                                  <a
-                                    className="page-link"
-                                    href="#"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      if (currentPage < totalPages)
-                                        this.handlePageChange(currentPage + 1);
-                                    }}
-                                  >
+                                  <a className="page-link" href="#" onClick={(e) => { e.preventDefault(); if (currentPage < totalPages) this.handlePageChange(currentPage + 1); }}>
                                     <i className="fas fa-chevron-right"></i>
                                   </a>
                                 </li>
@@ -1668,15 +1011,10 @@ class AllApplicants extends Component {
                         </>
                       ) : (
                         <div className="empty-state">
-                          <div className="empty-icon">
-                            <i className="fas fa-users-slash"></i>
-                          </div>
-                          <div className="empty-text">
-                            No candidates found for this position
-                          </div>
+                          <div className="empty-icon"><i className="fas fa-users-slash"></i></div>
+                          <div className="empty-text">No candidates found for this position</div>
                           <p className="text-muted small mb-0">
-                            Try adjusting your search or check back later for
-                            new applications
+                            Try adjusting your search or check back later for new applications
                           </p>
                         </div>
                       )}

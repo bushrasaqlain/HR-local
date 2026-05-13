@@ -734,12 +734,13 @@ const postJob = (req, res) => {
     speciality_id, degree_id, degreefields_id,
     application_deadline, no_of_positions, industry,
     country_id, district_id, city_id,
-    daily_budget, cost_per_click,
+    daily_budget,
     job_location_type,
     screening_start, screening_end,
     interview_start, interview_end,
     expected_joining_date,
     chosen_package_id,
+    chosen_daily_package_id,  // ← ADD THIS to destructuring
   } = req.body;
 
   // ─────────────────────────────────────────────
@@ -797,36 +798,79 @@ const postJob = (req, res) => {
         activePackage = pkg;
         billingModel = "cv_credits";
       }
+      // daily_budget packages are intentionally NOT matched here
+      // they are handled separately via chosen_daily_package_id
     }
 
     // ─────────────────────────────────────────────
     // STEP 3: FINAL BILLING DECISION
     // ─────────────────────────────────────────────
-    const finalCompanyPackageId = activePackage ? activePackage.id : null;
-    const finalPackageId = activePackage ? activePackage.package_id : null;
-
+    let finalCompanyPackageId = activePackage ? activePackage.id : null;
+    let finalPackageId = activePackage ? activePackage.package_id : null;
     let finalBillingModel = null;
     let isSponsored = 0;
 
     if (activePackage) {
       finalBillingModel = billingModel;
-    } else if (daily_budget && daily_budget > 0) {
+    } else if (daily_budget && daily_budget > 0 && chosen_daily_package_id) {
       finalBillingModel = "daily_budget";
       isSponsored = 1;
+      // ← Set these from the chosen daily package
+      finalCompanyPackageId = chosen_daily_package_id;
     } else {
       return res.status(402).json({ error: "no_package" });
     }
 
     // ─────────────────────────────────────────────
-    // STEP 4: INSERT JOB (after optional card check)
+    // STEP 4: INSERT JOB
     // ─────────────────────────────────────────────
-    const proceedWithJobInsert = () => {
+   const proceedWithJobInsert = () => {
+  if (finalBillingModel === "daily_budget" && chosen_daily_package_id) {
+    
+    // 1. Fetch the package template to get rate_per_unit and duration
+    connection.query(
+      `SELECT * FROM packages WHERE id = ?`,
+      [chosen_daily_package_id],
+      (err, pkgRows) => {
+        if (err || !pkgRows.length) {
+          return res.status(500).json({ error: "Invalid daily budget package" });
+        }
 
+        const pkg = pkgRows[0];
+        const resolvedCpc = parseFloat(pkg.rate_per_unit || 0);
+        const duration = pkg.campaign_duration_days || pkg.duration_days || 30;
+
+        // 2. Create a company_packages row for this daily budget subscription
+        connection.query(
+          `INSERT INTO company_packages 
+           (account_id, package_id, payment_id, pricing_model, start_date, end_date, package_snapshot)
+           VALUES (?, ?, 0, 'daily_budget', CURDATE(), DATE_ADD(CURDATE(), INTERVAL ? DAY), ?)`,
+          [userId, chosen_daily_package_id, duration, JSON.stringify(pkg)],
+          (err2, result2) => {
+            if (err2) {
+              console.error("Failed to create company_package for daily_budget:", err2);
+              return res.status(500).json({ error: "Failed to create package subscription" });
+            }
+
+            const newCompanyPackageId = result2.insertId;
+            finalCompanyPackageId = newCompanyPackageId;
+            finalPackageId = pkg.id;
+
+            insertJob(resolvedCpc);
+          }
+        );
+      }
+    );
+  } else {
+    insertJob(0);
+  }
+};
+    function insertJob(resolvedCpc) {
       const sql = `
         INSERT INTO job_posts (
           account_id, job_title, job_description, skill_ids,
           time_from, time_to, job_type_id,
-          min_salary, max_salary,salary_period, currency_id,
+          min_salary, max_salary, salary_period, currency_id,
           min_experience, max_experience,
           speciality_id, degree_id, degreefields_id,
           application_deadline, no_of_positions, industry,
@@ -868,11 +912,11 @@ const postJob = (req, res) => {
         Array.isArray(city_id) && city_id.length ? JSON.stringify(city_id) : null,
         isSponsored,
         daily_budget || 0,
-        cost_per_click || 0,
-        0, // spent_amount
-        "Pending", // always Pending — admin approves, then charges card for daily_budget jobs
+        resolvedCpc,          // ← from package
+        0,                    // spent_amount
+        "Pending",
         "Active",
-        finalCompanyPackageId,
+        finalCompanyPackageId,  // ← now correctly set to chosen_daily_package_id
         finalPackageId,
         finalBillingModel,
         job_location_type || null,
@@ -881,7 +925,7 @@ const postJob = (req, res) => {
         interview_start || null,
         interview_end || null,
         expected_joining_date || null,
-        finalBillingModel === "daily_budget" ? (req.body.chosen_daily_package_id || null) : null,
+        finalBillingModel === "daily_budget" ? chosen_daily_package_id : null,
       ];
 
       connection.query(sql, params, (err2, result) => {
@@ -892,22 +936,14 @@ const postJob = (req, res) => {
 
         const jobId = result.insertId;
 
-        // ─────────────────────────────────────────────
-        // STEP 5: DEDUCT PACKAGE USAGE (package jobs only)
-        // ─────────────────────────────────────────────
         if (finalCompanyPackageId && deductField) {
           connection.query(
             `UPDATE company_packages SET ${deductField} = ${deductField} + 1 WHERE id = ?`,
             [finalCompanyPackageId],
-            (err3) => {
-              if (err3) console.error("Deduction error:", err3);
-            }
+            (err3) => { if (err3) console.error("Deduction error:", err3); }
           );
         }
 
-        // ─────────────────────────────────────────────
-        // DONE 🎉
-        // ─────────────────────────────────────────────
         return res.status(201).json({
           message: finalBillingModel === "daily_budget"
             ? "Job posted successfully ✅ — pending admin approval. Your saved card will be charged once approved."
@@ -916,29 +952,23 @@ const postJob = (req, res) => {
           billing_model: finalBillingModel,
         });
       });
-    };
+    }
 
     // ─────────────────────────────────────────────
-    // Daily budget: verify a saved card exists first
-    // Package-based: skip card check entirely
+    // Daily budget: verify saved card first
     // ─────────────────────────────────────────────
     if (finalBillingModel === "daily_budget") {
       connection.query(
         `SELECT id FROM saved_cards WHERE account_id = ? LIMIT 1`,
         [userId],
         (cardErr, cards) => {
-          if (cardErr) {
-            console.error("Saved card lookup error:", cardErr);
-            return res.status(500).json({ error: "Card lookup failed" });
-          }
-
+          if (cardErr) return res.status(500).json({ error: "Card lookup failed" });
           if (!cards.length) {
             return res.status(402).json({
               error: "no_saved_card",
               message: "A saved card is required to post a daily budget job. Please add a card first.",
             });
           }
-
           proceedWithJobInsert();
         }
       );
