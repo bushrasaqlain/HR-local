@@ -16,8 +16,58 @@ import ApprovedCandidates from "./approved.jsx";
 import CompanyWallet from "./wallet.jsx";
 import PricingForm2 from "./viewpackage.jsx";
 import AvailableCandidates from "./Available Candidates.jsx";
-import Messages from "./dashboard/Messages.jsx";
+const DASHBOARD_STYLES = `
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
 
+
+  .user-dashboard {
+    padding-bottom: 100px !important;
+  }
+
+  .user-dashboard > .container {
+    padding-bottom: 80px !important;
+    overflow-x: hidden;
+    max-width: 100%;
+  }
+
+  @media (max-width: 768px) {
+    .user-dashboard {
+      padding-bottom: 50px !important;
+    }
+    .user-dashboard > .container {
+      padding-bottom: 120px !important;
+      /* Also add side padding so content never touches screen edge */
+      padding-left: 12px !important;
+      padding-right: 12px !important;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .user-dashboard {
+      padding-bottom: 50px !important;
+    }
+    .user-dashboard > .container {
+      padding-bottom: 50px !important;
+    }
+  }
+`;
+
+// Inject styles once into <head>
+if (typeof document !== "undefined" && !document.getElementById("dashboard-global-styles")) {
+  const tag = document.createElement("style");
+  tag.id = "dashboard-global-styles";
+  tag.textContent = DASHBOARD_STYLES;
+  document.head.appendChild(tag);
+
+  // Hard-clamp document-level overflow (fixes blank right space)
+  document.documentElement.style.overflowX = "hidden";
+  document.documentElement.style.maxWidth = "100vw";
+  document.body.style.overflowX = "hidden";
+  document.body.style.maxWidth = "100vw";
+}
 const JobsLayout = ({ activeTab, onTabChange }) => {
   const tabs = [
     { key: "jobList", label: "Job List" },
@@ -154,6 +204,7 @@ const CompanyDashboardArea = ({
 
   const [ready, setReady] = useState(false);
   // const [profileCompleted, setProfileCompleted] = useState(false);
+  const [walletNotifId, setWalletNotifId] = useState(null);
 
   useEffect(() => {
     const token = sessionStorage.getItem("token");
@@ -169,7 +220,22 @@ const CompanyDashboardArea = ({
     // setProfileCompleted(completed);
     setReady(true);
   }, []);
-
+useEffect(() => {
+  const handler = (e) => {
+    setWalletNotifId(e?.detail?.selectedId || null);
+    onTabChange("wallet");           // switches main nav to wallet
+    // tell the wallet to open notifications tab after it mounts
+    setTimeout(() => {
+      window.dispatchEvent(
+        new CustomEvent("walletOpenNotifications", {
+          detail: { selectedId: e?.detail?.selectedId || null }
+        })
+      );
+    }, 100);
+  };
+  window.addEventListener("openNotifications", handler);
+  return () => window.removeEventListener("openNotifications", handler);
+}, []);
   if (!ready) return <div>Loading dashboard…</div>;
 
   // 🔥 SAME STYLE AS CANDIDATE (hard gate)
@@ -206,10 +272,8 @@ const CompanyDashboardArea = ({
         return <ChatBox />;
       case "availableCandidates":
         return <AvailableCandidates onTabChange={onTabChange} />;
-      case "wallet":
-        return <CompanyWallet />;
-      case "messages":
-        return <Messages selectedContactProp={selectedMessageContact} />;
+     case "wallet":
+  return <CompanyWallet initialNotifId={walletNotifId} />;
 
       case "changepassword":
         return <ChangePasswordForm />;

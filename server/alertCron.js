@@ -11,9 +11,8 @@ const {
 const pct = (used, total) =>
   total > 0 ? Math.min(Math.round((used / total) * 100), 100) : 0;
 
-// Prevent duplicate alerts — checks if same type + package was notified in last 24hrs
 const wasRecentlyNotified = (existingNotifications, type, packageName) => {
-  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
   return existingNotifications.some(
     (n) =>
       n.notification_type === type &&
@@ -22,12 +21,10 @@ const wasRecentlyNotified = (existingNotifications, type, packageName) => {
   );
 };
 
-// ─── Fetch all employer accounts with alert settings ─────────────────────────
+// ─── Fetch all employer accounts ─────────────────────────────────────────────
 
 const getAllEmployerAccounts = () => {
   return new Promise((resolve, reject) => {
-    // Get all employer accounts that have alert settings configured
-    // Falls back to all employer accounts so even default settings are checked
     const query = `
       SELECT DISTINCT a.id as account_id
       FROM account a
@@ -41,64 +38,104 @@ const getAllEmployerAccounts = () => {
   });
 };
 
-// ─── Fetch packages for a specific user ──────────────────────────────────────
+// ─── Fetch packages for a specific account (FIXED) ───────────────────────────
 
-const getUserPackages = (accountId) => {
+const fetchPackagesForAccount = (accountId) => {
   return new Promise((resolve, reject) => {
-    const query = `
+    const subsQuery = `
       SELECT 
-        us.subscription_id,
-        us.status,
-        us.end_date,
-        us.is_daily_budget,
-        us.used_posts,
-        us.used_credits,
-        us.used_slots,
-        us.package
-      FROM user_subscriptions us
-      WHERE us.account_id = ?
-        AND us.status IN ('active', 'pending_payment')
+        cp.id as subscription_id,
+        cp.start_date,
+        cp.end_date,
+        cp.pricing_model,
+        cp.status,
+        cp.used_posts,
+        cp.used_credits,
+        cp.used_slots,
+        cp.used_budget,
+        cp.package_snapshot
+      FROM company_packages cp
+      WHERE cp.account_id = ?
+        AND cp.status = 'active'
+      ORDER BY cp.id DESC
     `;
-    connection.query(query, [accountId], (err, results) => {
+
+    const dailyJobsQuery = `
+      SELECT 
+        id, job_title, status, billing_model,
+        daily_budget  AS daily_budget_cap,
+        spent_amount  AS total_spend,
+        application_deadline
+      FROM job_posts
+      WHERE account_id = ?
+        AND billing_model = 'daily_budget'
+        AND status = 'active'
+      ORDER BY created_at DESC
+    `;
+
+    connection.query(subsQuery, [accountId], (err, subsResult) => {
       if (err) return reject(err);
 
-      const packages = results.map((p) => {
-        let pkg = {};
-        try {
-          pkg = typeof p.package === "string" ? JSON.parse(p.package) : p.package || {};
-        } catch {}
+      connection.query(dailyJobsQuery, [accountId], (err2, dailyJobs) => {
+        if (err2) return reject(err2);
 
-        let total = 0;
-        if (pkg.pricing_model === "featured_boost") {
-          total = pkg.boost_duration_days || 0;
-        } else if (pkg.pricing_model === "job_slot") {
-          total = pkg.slot_count || 0;
-        } else if (pkg.pricing_model === "cv_credits") {
-          total = pkg.credit_count || 0;
-        } else {
-          total = pkg.num_posts || pkg.slot_count || pkg.credit_count || 0;
-        }
+        const packages = subsResult.map((p) => {
+          let pkg = {};
+          try {
+            pkg =
+              typeof p.package_snapshot === "string"
+                ? JSON.parse(p.package_snapshot)
+                : p.package_snapshot || {};
+          } catch {}
 
-        const used = p.used_posts || p.used_credits || p.used_slots || 0;
+          let total = 0;
+          if (p.pricing_model === "featured_boost") {
+            total = pkg.boost_duration_days || 0;
+          } else if (p.pricing_model === "job_slot") {
+            total = pkg.slot_count || 0;
+          } else if (p.pricing_model === "cv_credits") {
+            total = pkg.credit_count || 0;
+          } else if (p.pricing_model === "duration_bundle") {
+            total = pkg.num_posts || 0;
+          } else {
+            total = pkg.num_posts || pkg.slot_count || pkg.credit_count || 0;
+          }
 
-        return {
-          id: p.subscription_id,
-          name: pkg.name || "Package",
-          type: pkg.pricing_model || "bundle",
-          total,
-          used,
-          remaining: Math.max(total - used, 0),
-          price: pkg.price || 0,
-          status: p.status,
-          expiresRaw: p.end_date || null,
-          isDailyBudget: p.is_daily_budget || false,
-          dailyBudgetCap: pkg.daily_budget_cap || 0,
-          totalSpend: pkg.total_spend || 0,
-          billingModel: pkg.billing_model || null,
-        };
+          const used = p.used_posts || p.used_credits || p.used_slots || 0;
+
+          return {
+            id: p.subscription_id,
+            name: pkg.name || "Package",
+            type: p.pricing_model,
+            total,
+            used,
+            remaining: Math.max(total - used, 0),
+            status: p.status,
+            startDate: p.start_date || null,
+            expiresRaw: p.end_date || null,
+            isDailyBudget: false,
+            dailyBudgetCap: 0,
+            totalSpend: Number(p.used_budget) || 0,
+          };
+        });
+
+        const dailyPackages = dailyJobs.map((job) => ({
+          id: `job_${job.id}`,
+          name: job.job_title,
+          type: "daily_budget",
+          total: 0,
+          used: 0,
+          remaining: 0,
+          status: job.status,
+          startDate: null,
+          expiresRaw: job.application_deadline || null,
+          isDailyBudget: true,
+          dailyBudgetCap: Number(job.daily_budget_cap) || 0,
+          totalSpend: Number(job.total_spend) || 0,
+        }));
+
+        resolve([...packages, ...dailyPackages]);
       });
-
-      resolve(packages);
     });
   });
 };
@@ -107,18 +144,26 @@ const getUserPackages = (accountId) => {
 
 const checkAndCreateAlerts = async (accountId) => {
   try {
+    console.log(`🔍 Checking account: ${accountId}`);
+
     const [settings, packages, existingNotifs] = await Promise.all([
       getAlertSettings(accountId),
-      getUserPackages(accountId),
-      getNotifications(accountId, 100), // last 100 to check duplicates
+      fetchPackagesForAccount(accountId),
+      getNotifications(accountId, 100),
     ]);
 
-    if (!packages.length) return;
+    console.log(`📦 Packages found: ${packages.length}`);
+    console.log(`⚙️  Settings:`, JSON.stringify(settings));
+
+    if (!packages.length) {
+      console.log(`⚠️  No active packages for account ${accountId}, skipping.`);
+      return;
+    }
 
     const alertsToCreate = [];
     const now = new Date();
 
-    // ── 1. Low Credits Alert ────────────────────────────────────────────────
+    // ── 1. Low Credits Alert ──────────────────────────────────────────────
     if (settings.lowCredits?.enabled) {
       const threshold = settings.lowCredits.threshold || 20;
 
@@ -145,7 +190,7 @@ const checkAndCreateAlerts = async (accountId) => {
         });
     }
 
-    // ── 2. Package Expiry Alert ─────────────────────────────────────────────
+    // ── 2. Package Expiry Alert ───────────────────────────────────────────
     if (settings.packageExpiry?.enabled) {
       const daysBefore = settings.packageExpiry.daysBefore || 7;
 
@@ -175,7 +220,6 @@ const checkAndCreateAlerts = async (accountId) => {
             }
           }
 
-          // Package already expired — notify once
           if (daysLeft <= 0) {
             if (!wasRecentlyNotified(existingNotifs, "expired", pkg.name)) {
               alertsToCreate.push({
@@ -191,7 +235,7 @@ const checkAndCreateAlerts = async (accountId) => {
         });
     }
 
-    // ── 3. Budget Threshold Alert (daily budget packages) ──────────────────
+    // ── 3. Budget Threshold Alert ─────────────────────────────────────────
     if (settings.budgetThreshold?.enabled) {
       const threshold = settings.budgetThreshold.threshold || 80;
 
@@ -217,48 +261,10 @@ const checkAndCreateAlerts = async (accountId) => {
         });
     }
 
-    // ── 4. Unusual Spending Alert ───────────────────────────────────────────
-    if (settings.unusualSpending?.enabled) {
-      const sensitivity = settings.unusualSpending.sensitivity || "medium";
+    // ── 4. Unusual Spending Alert (skipped until daily_spend_today tracked) ─
+    // Requires a daily_spend_today column in job_posts — skipping for now
 
-      // Spike multiplier based on sensitivity setting
-      const spikeMultiplier = { low: 3, medium: 2, high: 1.5 }[sensitivity] || 2;
-
-      packages
-        .filter((p) => p.isDailyBudget && p.totalSpend > 0)
-        .forEach((pkg) => {
-          // Simple heuristic: if today's spend > spikeMultiplier * (totalSpend / daysActive)
-          // This is a basic version — you can make this more sophisticated later
-          const createdDaysAgo = pkg.expiresRaw
-            ? Math.max(
-                1,
-                Math.ceil(
-                  (now - new Date(pkg.expiresRaw)) / (1000 * 60 * 60 * 24) * -1
-                )
-              )
-            : 1;
-
-          const avgDailySpend = pkg.totalSpend / createdDaysAgo;
-          const todaySpend = pkg.dailySpendToday || 0;
-
-          if (todaySpend > avgDailySpend * spikeMultiplier && todaySpend > 100) {
-            if (!wasRecentlyNotified(existingNotifs, "unusual_spending", pkg.name)) {
-              alertsToCreate.push({
-                accountId,
-                type: "unusual_spending",
-                title: "📊 Unusual Spend Detected",
-                message: `${pkg.name} is spending ${spikeMultiplier}x faster than your daily average. Today: PKR ${todaySpend.toLocaleString(
-                  "en-PK"
-                )} vs avg PKR ${Math.round(avgDailySpend).toLocaleString("en-PK")}.`,
-                packageName: pkg.name,
-                severity: "warning",
-              });
-            }
-          }
-        });
-    }
-
-    // ── 5. Payment Method Missing (always check) ────────────────────────────
+    // ── 5. Payment Method Missing ─────────────────────────────────────────
     const hasPendingPackages = packages.some((p) => p.status === "pending_payment");
     if (hasPendingPackages) {
       if (!wasRecentlyNotified(existingNotifs, "payment_missing", "Payment Method")) {
@@ -274,7 +280,7 @@ const checkAndCreateAlerts = async (accountId) => {
       }
     }
 
-    // ── Insert all new alerts ───────────────────────────────────────────────
+    // ── Insert all new alerts ─────────────────────────────────────────────
     if (alertsToCreate.length > 0) {
       await Promise.all(
         alertsToCreate.map((alert) =>
@@ -285,13 +291,14 @@ const checkAndCreateAlerts = async (accountId) => {
             alert.message,
             alert.packageName,
             alert.severity
+          ).catch((err) =>
+            console.error(`❌ createNotification failed:`, err.message)
           )
         )
       );
-
-      console.log(
-        `✅ Created ${alertsToCreate.length} alert(s) for account ${accountId}`
-      );
+      console.log(`✅ Created ${alertsToCreate.length} alert(s) for account ${accountId}`);
+    } else {
+      console.log(`ℹ️  No new alerts needed for account ${accountId}`);
     }
   } catch (err) {
     console.error(`❌ Alert check failed for account ${accountId}:`, err.message);
@@ -301,78 +308,38 @@ const checkAndCreateAlerts = async (accountId) => {
 // ─── Cron Schedules ───────────────────────────────────────────────────────────
 
 const startAlertCron = () => {
-  // Main check — every hour at :00
+  // Main check — every hour
   cron.schedule("0 * * * *", async () => {
     console.log("🔔 Running hourly alert check...", new Date().toISOString());
-
     try {
       const accounts = await getAllEmployerAccounts();
       console.log(`   Checking ${accounts.length} employer account(s)...`);
-
-      // Process in batches of 10 to avoid overwhelming DB
       const batchSize = 10;
       for (let i = 0; i < accounts.length; i += batchSize) {
         const batch = accounts.slice(i, i + batchSize);
         await Promise.all(batch.map((a) => checkAndCreateAlerts(a.account_id)));
       }
-
       console.log("✅ Hourly alert check complete");
     } catch (err) {
       console.error("❌ Cron job failed:", err.message);
     }
   });
 
-  // Critical-only check — every 15 minutes (payment missing, zero budget)
-  cron.schedule("*/15 * * * *", async () => {
-    try {
-      const accounts = await getAllEmployerAccounts();
-
-      for (const account of accounts) {
-        const packages = await getUserPackages(account.account_id);
-        const existingNotifs = await getNotifications(account.account_id, 50);
-
-        // Only check payment_missing on the fast cycle
-        const hasPending = packages.some((p) => p.status === "pending_payment");
-        if (hasPending) {
-          if (
-            !wasRecentlyNotified(
-              existingNotifs,
-              "payment_missing",
-              "Payment Method"
-            )
-          ) {
-            await createNotification(
-              account.account_id,
-              "payment_missing",
-              "💳 Payment Method Required",
-              "You have job postings waiting to go live. Add a payment method to activate them.",
-              "Payment Method",
-              "critical"
-            );
-          }
-        }
-      }
-    } catch (err) {
-      console.error("❌ Fast-cycle cron failed:", err.message);
-    }
-  });
-
   // Daily digest — every day at 9:00 AM PKT (4:00 UTC)
   cron.schedule("0 4 * * *", async () => {
     console.log("📊 Running daily digest check...", new Date().toISOString());
-
     try {
       const accounts = await getAllEmployerAccounts();
 
       for (const account of accounts) {
-        const packages = await getUserPackages(account.account_id);
+        const packages = await fetchPackagesForAccount(account.account_id);
         if (!packages.length) continue;
 
         const existingNotifs = await getNotifications(account.account_id, 10);
         if (wasRecentlyNotified(existingNotifs, "daily_digest", "Summary")) continue;
 
         const activePackages = packages.filter((p) => p.status === "active");
-        const totalSpend = packages.reduce((s, p) => s + Number(p.price || 0), 0);
+        const totalSpend = packages.reduce((s, p) => s + Number(p.totalSpend || 0), 0);
         const expiringSoon = packages.filter((p) => {
           if (!p.expiresRaw) return false;
           const days = Math.ceil(
@@ -385,9 +352,7 @@ const startAlertCron = () => {
           account.account_id,
           "daily_digest",
           "📋 Daily Wallet Summary",
-          `You have ${activePackages.length} active package(s). Total spend: PKR ${totalSpend.toLocaleString(
-            "en-PK"
-          )}.${
+          `You have ${activePackages.length} active package(s). Total spend: PKR ${totalSpend.toLocaleString("en-PK")}.${
             expiringSoon.length
               ? ` ⚠️ ${expiringSoon.length} package(s) expiring within 7 days.`
               : ""
@@ -396,14 +361,13 @@ const startAlertCron = () => {
           "info"
         );
       }
-
       console.log("✅ Daily digest complete");
     } catch (err) {
       console.error("❌ Daily digest failed:", err.message);
     }
   });
 
-  console.log("✅ Alert cron jobs started (hourly + 15min critical + 9AM digest)");
+  console.log("✅ Alert cron jobs started (hourly + 9AM digest)");
 };
 
 module.exports = { startAlertCron, checkAndCreateAlerts };

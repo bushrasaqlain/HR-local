@@ -3,24 +3,26 @@ const logAudit = require("../utils/auditLogger");
 
 // ─── Create candidate_unlocks table ─────────────────────────────────────────
 const createCandidateUnlocksTable = () => {
-    const sql = `
+  const sql = `
     CREATE TABLE IF NOT EXISTS candidate_unlocks (
-      id INT AUTO_INCREMENT PRIMARY KEY,
+      id                  INT AUTO_INCREMENT PRIMARY KEY,
       employer_account_id INT NOT NULL,
-      candidate_id INT NOT NULL,
-      unlock_scope ENUM('basic','contact','full') NOT NULL,
-      company_package_id INT NOT NULL,
-      unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE KEY unique_unlock (employer_account_id, candidate_id),
+      candidate_id        INT NOT NULL,
+      job_id              INT NOT NULL,
+      unlock_scope        ENUM('basic','contact','full') NOT NULL DEFAULT 'full',
+      cost_charged        DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      company_package_id  INT NULL,
+      unlocked_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_unlock (employer_account_id, candidate_id, job_id, unlock_scope),
       FOREIGN KEY (employer_account_id) REFERENCES account(id) ON DELETE CASCADE,
       FOREIGN KEY (candidate_id) REFERENCES candidate_info(id) ON DELETE CASCADE,
-      FOREIGN KEY (company_package_id) REFERENCES company_packages(id)
+      FOREIGN KEY (job_id) REFERENCES job_posts(id) ON DELETE CASCADE
     )
   `;
-    connection.query(sql, (err) => {
-        if (err) return console.error("candidate_unlocks table error:", err.message);
-        console.log("✅ candidate_unlocks table ready");
-    });
+  connection.query(sql, (err) => {
+    if (err) return console.error("candidate_unlocks table error:", err.message);
+    console.log("✅ candidate_unlocks table ready");
+  });
 };
 
 // ─── Get employer's active cv_credits balance ────────────────────────────────

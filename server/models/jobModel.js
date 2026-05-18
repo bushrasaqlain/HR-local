@@ -114,19 +114,7 @@ const getAllJobs = (req, res) => {
       jp.approval_status,
       jp.status,
       jp.created_at,
-      jp.updated_at,
-        
-    jp.company_package_id,
-    jp.package_id,
-    cp.status           AS package_status,
-    cp.start_date       AS package_start,
-    cp.end_date         AS package_end,
-    cp.used_posts,
-    cp.used_slots,
-    cp.used_credits,
-    p.name              AS package_name,
-    p.pricing_model     AS package_type,
-    cp.package_snapshot
+      jp.updated_at
     FROM job_posts jp
     LEFT JOIN account a ON jp.account_id = a.id
     LEFT JOIN jobtypes jt ON jp.job_type_id = jt.id
@@ -134,8 +122,6 @@ const getAllJobs = (req, res) => {
     LEFT JOIN speciality spec ON jp.speciality_id = spec.id
     LEFT JOIN degreetypes deg ON jp.degree_id = deg.id
     LEFT JOIN countries co ON jp.country_id = co.id
-    LEFT JOIN company_packages cp ON jp.company_package_id = cp.id
-  LEFT JOIN packages p          ON jp.package_id         = p.id
     WHERE jp.account_id = ?
     ORDER BY jp.created_at DESC
   `;
@@ -878,12 +864,13 @@ const postJob = (req, res) => {
     speciality_id, degree_id, degreefields_id,
     application_deadline, no_of_positions, industry,
     country_id, district_id, city_id,
-    daily_budget, cost_per_click,
+    daily_budget,
     job_location_type,
     screening_start, screening_end,
     interview_start, interview_end,
     expected_joining_date,
     chosen_package_id,
+    chosen_daily_package_id,  // ← ADD THIS to destructuring
   } = req.body;
 
   // ─────────────────────────────────────────────
@@ -941,36 +928,79 @@ const postJob = (req, res) => {
         activePackage = pkg;
         billingModel = "cv_credits";
       }
+      // daily_budget packages are intentionally NOT matched here
+      // they are handled separately via chosen_daily_package_id
     }
 
     // ─────────────────────────────────────────────
     // STEP 3: FINAL BILLING DECISION
     // ─────────────────────────────────────────────
-    const finalCompanyPackageId = activePackage ? activePackage.id : null;
-    const finalPackageId = activePackage ? activePackage.package_id : null;
-
+    let finalCompanyPackageId = activePackage ? activePackage.id : null;
+    let finalPackageId = activePackage ? activePackage.package_id : null;
     let finalBillingModel = null;
     let isSponsored = 0;
 
     if (activePackage) {
       finalBillingModel = billingModel;
-    } else if (daily_budget && daily_budget > 0) {
+    } else if (daily_budget && daily_budget > 0 && chosen_daily_package_id) {
       finalBillingModel = "daily_budget";
       isSponsored = 1;
+      // ← Set these from the chosen daily package
+      finalCompanyPackageId = chosen_daily_package_id;
     } else {
       return res.status(402).json({ error: "no_package" });
     }
 
     // ─────────────────────────────────────────────
-    // STEP 4: INSERT JOB (after optional card check)
+    // STEP 4: INSERT JOB
     // ─────────────────────────────────────────────
-    const proceedWithJobInsert = () => {
+   const proceedWithJobInsert = () => {
+  if (finalBillingModel === "daily_budget" && chosen_daily_package_id) {
+    
+    // 1. Fetch the package template to get rate_per_unit and duration
+    connection.query(
+      `SELECT * FROM packages WHERE id = ?`,
+      [chosen_daily_package_id],
+      (err, pkgRows) => {
+        if (err || !pkgRows.length) {
+          return res.status(500).json({ error: "Invalid daily budget package" });
+        }
 
+        const pkg = pkgRows[0];
+        const resolvedCpc = parseFloat(pkg.rate_per_unit || 0);
+        const duration = pkg.campaign_duration_days || pkg.duration_days || 30;
+
+        // 2. Create a company_packages row for this daily budget subscription
+        connection.query(
+          `INSERT INTO company_packages 
+           (account_id, package_id, payment_id, pricing_model, start_date, end_date, package_snapshot)
+           VALUES (?, ?, 0, 'daily_budget', CURDATE(), DATE_ADD(CURDATE(), INTERVAL ? DAY), ?)`,
+          [userId, chosen_daily_package_id, duration, JSON.stringify(pkg)],
+          (err2, result2) => {
+            if (err2) {
+              console.error("Failed to create company_package for daily_budget:", err2);
+              return res.status(500).json({ error: "Failed to create package subscription" });
+            }
+
+            const newCompanyPackageId = result2.insertId;
+            finalCompanyPackageId = newCompanyPackageId;
+            finalPackageId = pkg.id;
+
+            insertJob(resolvedCpc);
+          }
+        );
+      }
+    );
+  } else {
+    insertJob(0);
+  }
+};
+    function insertJob(resolvedCpc) {
       const sql = `
         INSERT INTO job_posts (
           account_id, job_title, job_description, skill_ids,
           time_from, time_to, job_type_id,
-          min_salary, max_salary,salary_period, currency_id,
+          min_salary, max_salary, salary_period, currency_id,
           min_experience, max_experience,
           speciality_id, degree_id, degreefields_id,
           application_deadline, no_of_positions, industry,
@@ -1012,11 +1042,11 @@ const postJob = (req, res) => {
         Array.isArray(city_id) && city_id.length ? JSON.stringify(city_id) : null,
         isSponsored,
         daily_budget || 0,
-        cost_per_click || 0,
-        0, // spent_amount
-        "Pending", // always Pending — admin approves, then charges card for daily_budget jobs
+        resolvedCpc,          // ← from package
+        0,                    // spent_amount
+        "Pending",
         "Active",
-        finalCompanyPackageId,
+        finalCompanyPackageId,  // ← now correctly set to chosen_daily_package_id
         finalPackageId,
         finalBillingModel,
         job_location_type || null,
@@ -1025,7 +1055,7 @@ const postJob = (req, res) => {
         interview_start || null,
         interview_end || null,
         expected_joining_date || null,
-        finalBillingModel === "daily_budget" ? (req.body.chosen_daily_package_id || null) : null,
+        finalBillingModel === "daily_budget" ? chosen_daily_package_id : null,
       ];
 
       connection.query(sql, params, (err2, result) => {
@@ -1036,16 +1066,11 @@ const postJob = (req, res) => {
 
         const jobId = result.insertId;
 
-        // ─────────────────────────────────────────────
-        // STEP 5: DEDUCT PACKAGE USAGE (package jobs only)
-        // ─────────────────────────────────────────────
         if (finalCompanyPackageId && deductField) {
           connection.query(
             `UPDATE company_packages SET ${deductField} = ${deductField} + 1 WHERE id = ?`,
             [finalCompanyPackageId],
-            (err3) => {
-              if (err3) console.error("Deduction error:", err3);
-            }
+            (err3) => { if (err3) console.error("Deduction error:", err3); }
           );
         }
 
@@ -1059,29 +1084,23 @@ const postJob = (req, res) => {
           billing_model: finalBillingModel,
         });
       });
-    };
+    }
 
     // ─────────────────────────────────────────────
-    // Daily budget: verify a saved card exists first
-    // Package-based: skip card check entirely
+    // Daily budget: verify saved card first
     // ─────────────────────────────────────────────
     if (finalBillingModel === "daily_budget") {
       connection.query(
         `SELECT id FROM saved_cards WHERE account_id = ? LIMIT 1`,
         [userId],
         (cardErr, cards) => {
-          if (cardErr) {
-            console.error("Saved card lookup error:", cardErr);
-            return res.status(500).json({ error: "Card lookup failed" });
-          }
-
+          if (cardErr) return res.status(500).json({ error: "Card lookup failed" });
           if (!cards.length) {
             return res.status(402).json({
               error: "no_saved_card",
               message: "A saved card is required to post a daily budget job. Please add a card first.",
             });
           }
-
           proceedWithJobInsert();
         }
       );
@@ -1387,9 +1406,10 @@ const subcribePackageInternal = ({ userId, packageId, paymentId }) => {
   });
 };
 
+// In jobModel.js, replace getUserPackages with this:
 const getUserPackages = (req, res) => {
-  const { userId } = req.params;
-
+  const userId = req.params.userId; // ← extract userId from req HERE
+  
   const subsQuery = `
     SELECT 
       cp.id as subscription_id,
@@ -1400,6 +1420,7 @@ const getUserPackages = (req, res) => {
       cp.used_posts,
       cp.used_credits,
       cp.used_slots,
+      cp.used_budget,
       cp.package_snapshot
     FROM company_packages cp
     WHERE cp.account_id = ?
@@ -1407,85 +1428,63 @@ const getUserPackages = (req, res) => {
   `;
 
   const dailyJobsQuery = `
-  SELECT 
-    id, job_title, status,approval_status, billing_model,
-    cost_per_click  AS rate_per_unit,      -- your actual column
-    daily_budget    AS daily_budget_cap,   -- your actual column
-    0               AS daily_spend_today,  -- you don't track this yet
-    spent_amount    AS total_spend,        -- your actual column
-    application_deadline
-  FROM job_posts
-  WHERE account_id = ? AND billing_model = 'daily_budget'
-  ORDER BY created_at DESC
-`;
+    SELECT 
+      id, job_title, status, billing_model,
+      daily_budget  AS daily_budget_cap,
+      spent_amount  AS total_spend,
+      application_deadline
+    FROM job_posts
+    WHERE account_id = ?
+      AND billing_model = 'daily_budget'
+    ORDER BY created_at DESC
+  `;
 
-  // run both queries in parallel
   connection.query(subsQuery, [userId], (err, subsResult) => {
     if (err) return res.status(500).json({ error: "Failed to fetch packages" });
 
     connection.query(dailyJobsQuery, [userId], (err2, dailyJobs) => {
       if (err2) return res.status(500).json({ error: "Failed to fetch daily budget jobs" });
 
-      // format subscription packages (existing logic unchanged)
-      const packages = subsResult.map(item => {
-        const pkg = (() => {
-          try {
-            if (!item.package_snapshot) return {};
-            return typeof item.package_snapshot === "string"
-              ? JSON.parse(item.package_snapshot)
-              : item.package_snapshot;
-          } catch { return {}; }
-        })();
+      const packages = subsResult.map((p) => {
+        const pkg = typeof p.package_snapshot === "string"
+          ? JSON.parse(p.package_snapshot)
+          : (p.package_snapshot || {});
 
         return {
-          subscription_id: item.subscription_id,
-          start_date: item.start_date,
-          end_date: item.end_date,
-          pricing_model: item.pricing_model,
-          status: item.status,
-          used_posts: item.used_posts,
-          used_credits: item.used_credits,
-          used_slots: item.used_slots,
+          subscription_id: p.subscription_id || p.id,
+          start_date: p.start_date,
+          end_date: p.end_date,
+          pricing_model: p.pricing_model,
+          status: p.status,
+          used_posts: p.used_posts,
+          used_credits: p.used_credits,
+          used_slots: p.used_slots,
           package: { ...pkg, id: pkg.id },
-          remaining_credits: Math.max((pkg.credit_count || 0) - (item.used_credits || 0), 0),
+          remaining_credits: Math.max((pkg.credit_count || 0) - (p.used_credits || 0), 0),
           is_daily_budget: false,
         };
       });
 
-      // format daily_budget jobs to match the same shape
-      const dailyPackages = dailyJobs.map(job => {
-        // approval_status + status ko combine karke ek clean status banao
-        let normalizedStatus = "active";
-        if (job.approval_status === "Pending Payment") {
-          normalizedStatus = "pending_payment";
-        } else if (job.approval_status === "Pending") {
-          normalizedStatus = "pending";
-        } else if (job.status === "Inactive") {
-          normalizedStatus = "expired";
-        }
-
-        return {
-          subscription_id: `job_${job.id}`,
-          start_date: null,
-          end_date: job.application_deadline,
+      const dailyPackages = dailyJobs.map((job) => ({
+        subscription_id: `job_${job.id}`,
+        start_date: null,
+        end_date: job.application_deadline,
+        pricing_model: "daily_budget",
+        status: job.status,
+        used_posts: 0,
+        used_credits: 0,
+        used_slots: 0,
+        is_daily_budget: true,
+        package: {
+          name: job.job_title,
           pricing_model: "daily_budget",
-          status: normalizedStatus,
-          used_posts: 0,
-          used_credits: 0,
-          used_slots: 0,
-          is_daily_budget: true,
-          package: {
-            name: job.job_title,
-            pricing_model: "daily_budget",
-            billing_model: job.billing_model,
-            rate_per_unit: job.rate_per_unit,
-            daily_budget_cap: job.daily_budget_cap,
-            daily_spend_today: job.daily_spend_today,
-            total_spend: job.total_spend,
-            price: job.total_spend,
-          },
-        };
-      });
+          billing_model: job.billing_model,
+          daily_budget_cap: job.daily_budget_cap,
+          daily_spend_today: 0,
+          total_spend: job.total_spend,
+          price: job.total_spend,
+        },
+      }));
 
       res.json([...packages, ...dailyPackages]);
     });
@@ -1542,33 +1541,33 @@ const getTransactionHistory = (req, res) => {
             : item.package_snapshot || {};
 
         const totalUnits =
-          pkg.num_posts ||
-          pkg.credit_count ||
-          pkg.slot_count ||
-          pkg.daily_budget ||
+          pkg.num_posts     ||
+          pkg.credit_count  ||
+          pkg.slot_count    ||
+          pkg.daily_budget  ||
           pkg.applies_limit ||
           0;
 
         const usedUnits =
-          item.used_posts ||
+          item.used_posts   ||
           item.used_credits ||
-          item.used_slots ||
+          item.used_slots   ||
           item.used_applies ||
           Number(item.used_budget) ||
           0;
 
         return {
-          transaction_id: item.transaction_id,
-          package_name: pkg.name || "Package",
-          package_type: pkg.type || item.pricing_model,
-          pricing_model: item.pricing_model,
-          amount_paid: pkg.price || 0,
-          status: item.status,
-          start_date: item.start_date,
-          end_date: item.end_date,
-          purchased_at: item.created_at,
-          total_units: totalUnits,
-          used_units: usedUnits,
+          transaction_id:  item.transaction_id,
+          package_name:    pkg.name         || "Package",
+          package_type:    pkg.type         || item.pricing_model,
+          pricing_model:   item.pricing_model,
+          amount_paid:     pkg.price        || 0,
+          status:          item.status,
+          start_date:      item.start_date,
+          end_date:        item.end_date,
+          purchased_at:    item.created_at,
+          total_units:     totalUnits,
+          used_units:      usedUnits,
           remaining_units: Math.max(totalUnits - usedUnits, 0),
           is_daily_budget: false,
         };
@@ -1576,21 +1575,21 @@ const getTransactionHistory = (req, res) => {
 
       // Format daily budget jobs to match the same shape
       const dailyTransactions = dailyResults.map((job) => ({
-        transaction_id: `job_${job.id}`,
+        transaction_id:  `job_${job.id}`,
         package_name: job.billing_model.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
-        package_type: "daily_budget",
-        pricing_model: "daily_budget",
-        amount_paid: job.spent_amount || 0,   // actual spend so far
-        status: job.status,
-        start_date: job.created_at,
-        end_date: job.application_deadline,
-        purchased_at: job.created_at,
-        total_units: job.daily_budget || 0,  // the cap they set
-        used_units: job.spent_amount || 0,  // what's been spent
+        package_type:    "daily_budget",
+        pricing_model:   "daily_budget",
+        amount_paid:     job.spent_amount || 0,   // actual spend so far
+        status:          job.status,
+        start_date:      job.created_at,
+        end_date:        job.application_deadline,
+        purchased_at:    job.created_at,
+        total_units:     job.daily_budget  || 0,  // the cap they set
+        used_units:      job.spent_amount  || 0,  // what's been spent
         remaining_units: Math.max((job.daily_budget || 0) - (job.spent_amount || 0), 0),
         is_daily_budget: true,
         // extra detail useful for the UI
-        cost_per_click: job.cost_per_click || 0,
+        cost_per_click:  job.cost_per_click || 0,
       }));
 
       // Merge and sort everything by date descending
@@ -1968,7 +1967,7 @@ cron.schedule("0 0 * * *", () => {
             `INSERT INTO payment (account_id, job_id, card_last4, card_brand, card_holder, amount, currency, payment_type, payment_method, payment_status, payment_reference)
              VALUES (?, ?, ?, ?, ?, ?, 'PKR', 'job', 'Card', 'Paid', ?)`,
             [job.account_id, job.id, job.card_last4, job.card_brand, job.card_holder, job.daily_budget,
-            `daily_cron_job${job.id}_${Date.now()}`]
+             `daily_cron_job${job.id}_${Date.now()}`]
           );
 
           // Reset spent_amount for new day
@@ -2035,8 +2034,9 @@ module.exports = {
   getTotalJobPosts,
   getUserPackages,
   getTransactionHistory,
-  subcribePackageInternal,
   resetDailyBudgets,
   viewCandidate,
   triggerJobAlerts,
+  viewCandidate
+
 }
