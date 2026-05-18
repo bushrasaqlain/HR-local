@@ -13,19 +13,21 @@ import {
 import { Doughnut, Bar } from "react-chartjs-2";
 import PricingPage from "./viewpackage";
 import TransactionHistory from "./transactionhistory";
-import NotificationCenter from "./NotificationCenter";
+import NotificationCenter, { NotificationsPage } from "./NotificationCenter";
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
 const STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&display=swap');
 
   .aw-root {
     min-height: 100vh;
     background: #f3f2ef;
     font-family: 'Nunito Sans', ui-sans-serif, sans-serif;
     box-sizing: border-box;
+    overflow-x: clip;  /* clip not hidden — doesn't affect scroll */
+  max-width: 100%;
   }
   .aw-root *, .aw-root *::before, .aw-root *::after {
     box-sizing: border-box; margin: 0; padding: 0;
@@ -40,13 +42,29 @@ const STYLES = `
     align-items: center;
     justify-content: space-between;
     height: 52px;
+    gap: 8px;
+    /* prevent topbar itself from overflowing */
+    // overflow: hidden;
+    max-width: 100vw;
+  min-width: 0;
   }
-  .aw-topbar-tabs {
-    display: flex;
-    align-items: center;
-    gap: 0;
-    height: 100%;
-  }
+  .aw-topbar > * {
+  min-width: 0;
+}
+
+.aw-topbar-tabs {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  flex: 1 1 0;        /* grow to fill space but shrink hard when needed */
+  min-width: 0;
+  max-width: calc(100% - 160px); /* always leave room for right-side buttons */
+}
+.aw-topbar-tabs::-webkit-scrollbar { display: none; }
+
   .aw-topbar-tab {
     height: 100%;
     display: flex;
@@ -68,14 +86,19 @@ const STYLES = `
   .aw-topbar-tab:hover { color: #1a1a1a; }
   .aw-topbar-tab.active {
     color: #1a1a1a;
-   border-bottom-color: #36565f;
+    border-bottom-color: #36565f;
     font-weight: 700;
   }
-  .aw-topbar-right {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
+
+.aw-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;     /* never grow, never shrink, always visible */
+  position: relative;
+  z-index: 101;       /* above tab strip */
+}
+
   .aw-btn-primary {
     background: #36565f;
     color: #fff;
@@ -90,8 +113,10 @@ const STYLES = `
     gap: 6px;
     transition: background 0.15s;
     font-family: 'Nunito Sans', sans-serif;
+    white-space: nowrap;
   }
-  .aw-btn-primary:hover { background: #36565f; }
+  .aw-btn-primary:hover { background: #2a454d; }
+
   .aw-btn-ghost {
     background: #fff;
     color: #595959;
@@ -106,11 +131,12 @@ const STYLES = `
     gap: 6px;
     transition: background 0.15s;
     font-family: 'Nunito Sans', sans-serif;
+    white-space: nowrap;
   }
   .aw-btn-ghost:hover { background: #f5f5f5; }
 
   /* ── Page body ── */
-  .aw-body { padding: 28px 32px; }
+  .aw-body { padding: 28px 32px 100px; }
 
   /* ── Page header ── */
   .aw-page-header {
@@ -130,6 +156,7 @@ const STYLES = `
     gap: 8px;
     font-size: 13px;
     color: #595959;
+    flex-wrap: wrap;
   }
   .aw-date-badge {
     background: #fff;
@@ -182,6 +209,7 @@ const STYLES = `
     grid-template-columns: 1fr 1fr;
     gap: 14px 32px;
     flex: 1;
+    min-width: 0;
   }
   .aw-legend-item { display: flex; align-items: flex-start; gap: 8px; }
   .aw-legend-dot {
@@ -212,7 +240,11 @@ const STYLES = `
     gap: 0;
     border-bottom: 1px solid #e0e0e0;
     margin-bottom: 20px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
+  .aw-roi-tabs::-webkit-scrollbar { display: none; }
   .aw-roi-tab {
     padding: 8px 16px;
     font-size: 13px;
@@ -227,22 +259,23 @@ const STYLES = `
     border-right: none;
     font-family: 'Nunito Sans', sans-serif;
     transition: color 0.15s;
+    white-space: nowrap;
   }
   .aw-roi-tab:hover { color: #1a1a1a; }
   .aw-roi-tab.active { color: #000; border-bottom: 2px solid #36565f; }
 
   .aw-roi-inner { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
-  .aw-roi-stats { display: flex; flex-direction: column; gap: 16px; min-width: 200px; }
+  .aw-roi-stats { display: flex; flex-direction: column; gap: 16px; min-width: 160px; }
   .aw-roi-stat-label { font-size: 12px; color: #767676; margin-bottom: 1px; }
   .aw-roi-stat-val { font-size: 22px; font-weight: 800; color: #1a1a1a; }
   .aw-roi-stat-sub { font-size: 12px; color: #767676; }
-  .aw-roi-chart { flex: 1; min-width: 200px; }
+  .aw-roi-chart { flex: 1; min-width: 0; }
   .aw-bar-wrap { position: relative; width: 100%; height: 180px; }
 
   /* ── Package cards ── */
   .aw-pkg-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
     gap: 12px;
   }
   .aw-pkg-card {
@@ -256,22 +289,15 @@ const STYLES = `
     overflow: hidden;
   }
   .aw-pkg-card:hover { border-color: #aaa; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
-  .aw-pkg-card.selected {
-    border-color: #2164f3;
-    background: #f0f5ff;
-  }
+  .aw-pkg-card.selected { border-color: #2164f3; background: #f0f5ff; }
   .aw-pkg-accent {
     position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 8px 8px 0 0;
   }
   .aw-pkg-type-badge {
     display: inline-block;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    padding: 2px 8px;
-    border-radius: 3px;
-    margin-bottom: 10px;
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.04em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 3px; margin-bottom: 10px;
   }
   .aw-pkg-name { font-size: 12px; color: #595959; font-weight: 600; margin-bottom: 4px; }
   .aw-pkg-num { font-size: 28px; font-weight: 800; color: #1a1a1a; line-height: 1; margin-bottom: 2px; }
@@ -289,16 +315,14 @@ const STYLES = `
     padding: 11px 0;
     border-bottom: 1px solid #f0f0f0;
     font-size: 13.5px;
+    gap: 8px;
   }
   .aw-detail-row:last-child { border-bottom: none; }
-  .aw-detail-label { color: #595959; }
-  .aw-detail-val { font-weight: 700; color: #1a1a1a; }
+  .aw-detail-label { color: #595959; flex-shrink: 0; }
+  .aw-detail-val { font-weight: 700; color: #1a1a1a; text-align: right; word-break: break-word; }
 
   /* ── Status badge ── */
-  .aw-status {
-    display: inline-flex; align-items: center; gap: 5px;
-    font-size: 12.5px; font-weight: 700;
-  }
+  .aw-status { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 700; }
   .aw-status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 
   /* ── Payment method ── */
@@ -306,11 +330,11 @@ const STYLES = `
     display: flex; align-items: center; justify-content: space-between;
     flex-wrap: wrap; gap: 12px;
   }
-  .aw-pm-left { display: flex; align-items: center; gap: 12px; }
+  .aw-pm-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .aw-pm-icon {
     width: 40px; height: 28px; background: #f0f0f0;
     border-radius: 4px; display: flex; align-items: center;
-    justify-content: center; font-size: 18px;
+    justify-content: center; font-size: 18px; flex-shrink: 0;
   }
   .aw-pm-num { font-size: 14px; font-weight: 700; color: #1a1a1a; }
   .aw-pm-exp { font-size: 12px; color: #767676; }
@@ -325,24 +349,20 @@ const STYLES = `
     overflow: hidden;
   }
   .aw-ql-item {
-    background: #fff;
-    padding: 18px 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    cursor: pointer;
-    transition: background 0.1s;
+    background: #fff; padding: 18px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; transition: background 0.1s;
   }
   .aw-ql-item:hover { background: #f9f9f9; }
-  .aw-ql-left { display: flex; align-items: center; gap: 12px; }
+  .aw-ql-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
   .aw-ql-icon {
     width: 36px; height: 36px; border-radius: 6px;
     background: #f0f5ff; display: flex;
-    align-items: center; justify-content: center; font-size: 18px;
+    align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;
   }
   .aw-ql-name { font-size: 13.5px; font-weight: 700; color: #1a1a1a; }
   .aw-ql-sub { font-size: 12px; color: #767676; }
-  .aw-ql-arrow { color: #aaa; font-size: 16px; }
+  .aw-ql-arrow { color: #aaa; font-size: 16px; flex-shrink: 0; }
 
   /* ── States ── */
   .aw-loading {
@@ -351,30 +371,80 @@ const STYLES = `
     font-family: 'Nunito Sans', sans-serif;
   }
   .aw-error {
-    margin: 32px;
-    padding: 20px; background: #fef2f2; border: 1px solid #fecaca;
-    border-radius: 8px; color: #dc2626; font-size: 14px;
+    margin: 32px; padding: 20px; background: #fef2f2;
+    border: 1px solid #fecaca; border-radius: 8px; color: #dc2626; font-size: 14px;
   }
+  .aw-empty { padding: 60px; text-align: center; color: #9e9e9e; font-size: 14px; }
 
-  .aw-empty {
-    padding: 60px; text-align: center; color: #9e9e9e; font-size: 14px;
-  }
   @keyframes aw-spin { to { transform: rotate(360deg); } }
   .aw-spin { animation: aw-spin 0.9s linear infinite; }
 
-  /* ── Responsive ── */
+  /* ══════════════════════════════════════════════
+     RESPONSIVE BREAKPOINTS
+  ══════════════════════════════════════════════ */
+
+  /* ── ≤ 1024px — tablets ── */
+  @media (max-width: 1024px) {
+    .aw-three-col { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* ── ≤ 860px — small tablets / landscape phones ── */
   @media (max-width: 860px) {
-    .aw-two-col, .aw-three-col { grid-template-columns: 1fr; }
     .aw-topbar { padding: 0 16px; }
-    .aw-body { padding: 20px 16px; }
+    .aw-body { padding: 20px 16px 100px; }
+    .aw-two-col, .aw-three-col { grid-template-columns: 1fr; }
     .aw-quicklinks { grid-template-columns: 1fr; }
+    .aw-roi-stats { min-width: 100%; flex-direction: row; flex-wrap: wrap; gap: 12px; }
+    .aw-roi-stats > div { min-width: 120px; }
   }
-  @media (max-width: 560px) {
-    .aw-snapshot-legend { grid-template-columns: 1fr 1fr; gap: 10px 16px; }
-    .aw-pkg-grid { grid-template-columns: 1fr 1fr; }
-    .aw-topbar-tab { font-size: 12px; padding: 0 10px; }
+
+  /* ── ≤ 640px — portrait phones ── */
+  @media (max-width: 640px) {
+    /* Topbar: shrink text, hide Refresh, keep bell + icon */
+    .aw-topbar { padding: 0 10px; height: 48px; }
+  .aw-topbar-tabs { max-width: calc(100vw - 140px); }
+  .aw-topbar-right { gap: 4px; }
+  .aw-btn-ghost.aw-hide-mobile { display: none; }
+  .aw-btn-primary .aw-label { display: none; }
+  .aw-btn-primary { padding: 8px 10px; min-width: 36px; }
+  .aw-body { padding: 16px 12px 120px; }
+
+    /* Body */
+    .aw-body { padding: 16px 12px 120px; }
+    .aw-card-pad { padding: 16px; }
+
+    /* Page header stacks */
+    .aw-page-header { flex-direction: column; gap: 8px; }
     .aw-page-title { font-size: 18px; }
+
+    /* Donut chart: center it */
+    .aw-snapshot-inner { flex-direction: column; align-items: center; gap: 20px; }
+    .aw-snapshot-legend { grid-template-columns: 1fr 1fr; gap: 10px 16px; width: 100%; }
+
+    /* Package grid: 2 columns on phones */
+    .aw-pkg-grid { grid-template-columns: 1fr 1fr; }
+
+    /* Payment method card wraps */
+    .aw-pm-card { flex-direction: column; align-items: flex-start; }
+
+    /* Quick links single column */
+    .aw-quicklinks { grid-template-columns: 1fr; }
+    .aw-ql-item { padding: 14px 16px; }
+    .aw-ql-name { font-size: 13px; }
+
+    /* ROI inner stacks */
+    .aw-roi-inner { flex-direction: column; }
+    .aw-roi-stats { flex-direction: row; flex-wrap: wrap; }
+    .aw-bar-wrap { height: 160px; }
   }
+
+  /* ── ≤ 400px — very small phones ── */
+  @media (max-width: 400px) {
+    .aw-pkg-grid { grid-template-columns: 1fr; }
+    .aw-snapshot-legend { grid-template-columns: 1fr; }
+    .aw-topbar-tab { font-size: 11px; padding: 0 8px; }
+  }
+
 `;
 
 if (typeof document !== "undefined" && !document.getElementById("aw-styles")) {
@@ -382,6 +452,12 @@ if (typeof document !== "undefined" && !document.getElementById("aw-styles")) {
   tag.id = "aw-styles";
   tag.textContent = STYLES;
   document.head.appendChild(tag);
+
+  // Hard-clamp document-level overflow so nothing bleeds right
+  document.documentElement.style.overflowX = "hidden";
+  document.documentElement.style.maxWidth = "100vw";
+  document.body.style.overflowX = "hidden";
+  document.body.style.maxWidth = "100vw";
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -2001,6 +2077,7 @@ class CompanyWallet extends Component {
     }
     this.state = {
       showAddCard: false,
+      notifSelectedId: null,
       packages: [],
       selectedCard: 0,
       activeRoiTab: 0,
@@ -2021,12 +2098,40 @@ class CompanyWallet extends Component {
       typeof sessionStorage !== "undefined" ? sessionStorage.getItem("userId") : null;
   }
 
-  componentDidMount() {
-    this.fetchPackages();
-    this.fetchPaymentMethod();
-    this.fetchAlertSettings();
+componentDidMount() {
+  this.fetchPackages();
+  this.fetchPaymentMethod();
+  this.fetchAlertSettings();
+
+  // if opened with a notif id from outside (e.g. from another page)
+  if (this.props.initialNotifId !== null && this.props.initialNotifId !== undefined) {
+    this.setState({
+      activeTab: "notifications",
+      notifSelectedId: this.props.initialNotifId,
+    });
   }
 
+  this._openNotifHandler = (e) => {
+    this.setState({
+      activeTab: "notifications",
+      notifSelectedId: e?.detail?.selectedId || null,
+    });
+  };
+  // listen on both — direct (when already on wallet) and routed (from other pages)
+  window.addEventListener("openNotifications", this._openNotifHandler);
+  window.addEventListener("walletOpenNotifications", this._openNotifHandler);
+}
+
+componentWillUnmount() {
+  window.removeEventListener("openNotifications", this._openNotifHandler);
+  window.removeEventListener("walletOpenNotifications", this._openNotifHandler);
+
+  // Restore overflow when leaving wallet page
+  document.documentElement.style.overflowX = "";
+  document.documentElement.style.maxWidth = "";
+  document.body.style.overflowX = "";
+  document.body.style.maxWidth = "";
+}
   fetchAlertSettings = async () => {
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
     try {
@@ -2190,31 +2295,35 @@ const Topbar = (
           {tab === "overview"
             ? "Overview"
             : tab === "transactions"
-            ? "Transaction History"
+            ? "Transactions"          // shorter label on mobile
             : "Packages"}
         </button>
       ))}
     </div>
 
     <div className="aw-topbar-right">
-      {/* ← ADD THIS — bell icon wired to your backend */}
       <NotificationCenter
         userId={this.userId}
         apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
       />
 
-      <button className="aw-btn-ghost" onClick={this.fetchPackages}>
+      {/* hidden on mobile via .aw-hide-mobile CSS rule */}
+      <button className="aw-btn-ghost aw-hide-mobile" onClick={this.fetchPackages}>
         Refresh
       </button>
+
       <button
         className="aw-btn-primary"
         onClick={() => this.setState({ activeTab: "packages" })}
       >
-        <IconPlus /> Buy Packages
+        <IconPlus />
+        {/* .aw-label is hidden on mobile, keeping only the + icon */}
+        <span className="aw-label">Buy Packages</span>
       </button>
     </div>
   </div>
 );
+
 
     // ── Empty state (no packages yet) ──
     if (!packages.length) return (
@@ -2229,7 +2338,14 @@ const Topbar = (
         {activeTab === "packages" && (
           <div style={{ padding: 32 }}><PricingPage /></div>
         )}
-
+{activeTab === "notifications" && (
+  <NotificationsPage
+    userId={this.userId}
+    apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
+    onTabChange={(tab) => this.setState({ activeTab: tab })}
+    initialSelectedId={this.state.notifSelectedId}
+  />
+)}
         {activeTab === "overview" && (
           <div style={{ padding: "40px 32px", display: "flex", justifyContent: "center" }}>
             <div className="aw-card" style={{ width: "100%", maxWidth: 480, overflow: "hidden" }}>
@@ -2380,7 +2496,14 @@ const Topbar = (
         {activeTab === "packages" && (
           <div style={{ padding: 32 }}><PricingPage /></div>
         )}
-
+ {activeTab === "notifications" && (
+      <NotificationsPage
+        userId={this.userId}
+        apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
+        onTabChange={(tab) => this.setState({ activeTab: tab })}
+        initialSelectedId={this.state.notifSelectedId}
+      />
+    )}
         {activeTab === "overview" && (
           <div className="aw-body">
             <div className="aw-page-header">

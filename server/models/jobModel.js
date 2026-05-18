@@ -1274,9 +1274,10 @@ const subcribePackageInternal = ({ userId, packageId, paymentId }) => {
   });
 };
 
+// In jobModel.js, replace getUserPackages with this:
 const getUserPackages = (req, res) => {
-  const { userId } = req.params;
-
+  const userId = req.params.userId; // ← extract userId from req HERE
+  
   const subsQuery = `
     SELECT 
       cp.id as subscription_id,
@@ -1287,6 +1288,7 @@ const getUserPackages = (req, res) => {
       cp.used_posts,
       cp.used_credits,
       cp.used_slots,
+      cp.used_budget,
       cp.package_snapshot
     FROM company_packages cp
     WHERE cp.account_id = ?
@@ -1294,48 +1296,44 @@ const getUserPackages = (req, res) => {
   `;
 
   const dailyJobsQuery = `
-  SELECT 
-    id, job_title, status, billing_model,
-    cost_per_click  AS rate_per_unit,      -- your actual column
-    daily_budget    AS daily_budget_cap,   -- your actual column
-    0               AS daily_spend_today,  -- you don't track this yet
-    spent_amount    AS total_spend,        -- your actual column
-    application_deadline
-  FROM job_posts
-  WHERE account_id = ? AND billing_model = 'daily_budget'
-  ORDER BY created_at DESC
-`;
+    SELECT 
+      id, job_title, status, billing_model,
+      daily_budget  AS daily_budget_cap,
+      spent_amount  AS total_spend,
+      application_deadline
+    FROM job_posts
+    WHERE account_id = ?
+      AND billing_model = 'daily_budget'
+    ORDER BY created_at DESC
+  `;
 
-  // run both queries in parallel
   connection.query(subsQuery, [userId], (err, subsResult) => {
     if (err) return res.status(500).json({ error: "Failed to fetch packages" });
 
     connection.query(dailyJobsQuery, [userId], (err2, dailyJobs) => {
       if (err2) return res.status(500).json({ error: "Failed to fetch daily budget jobs" });
 
-      // format subscription packages (existing logic unchanged)
-      const packages = subsResult.map(item => {
-        const pkg = typeof item.package_snapshot === "string"
-          ? JSON.parse(item.package_snapshot)
-          : item.package_snapshot;
+      const packages = subsResult.map((p) => {
+        const pkg = typeof p.package_snapshot === "string"
+          ? JSON.parse(p.package_snapshot)
+          : (p.package_snapshot || {});
 
         return {
-          subscription_id: item.subscription_id,
-          start_date: item.start_date,
-          end_date: item.end_date,
-          pricing_model: item.pricing_model,
-          status: item.status,
-          used_posts: item.used_posts,
-          used_credits: item.used_credits,
-          used_slots: item.used_slots,
+          subscription_id: p.subscription_id || p.id,
+          start_date: p.start_date,
+          end_date: p.end_date,
+          pricing_model: p.pricing_model,
+          status: p.status,
+          used_posts: p.used_posts,
+          used_credits: p.used_credits,
+          used_slots: p.used_slots,
           package: { ...pkg, id: pkg.id },
-          remaining_credits: Math.max((pkg.credit_count || 0) - (item.used_credits || 0), 0),
+          remaining_credits: Math.max((pkg.credit_count || 0) - (p.used_credits || 0), 0),
           is_daily_budget: false,
         };
       });
 
-      // format daily_budget jobs to match the same shape
-      const dailyPackages = dailyJobs.map(job => ({
+      const dailyPackages = dailyJobs.map((job) => ({
         subscription_id: `job_${job.id}`,
         start_date: null,
         end_date: job.application_deadline,
@@ -1349,11 +1347,10 @@ const getUserPackages = (req, res) => {
           name: job.job_title,
           pricing_model: "daily_budget",
           billing_model: job.billing_model,
-          rate_per_unit: job.rate_per_unit,
           daily_budget_cap: job.daily_budget_cap,
-          daily_spend_today: job.daily_spend_today,
+          daily_spend_today: 0,
           total_spend: job.total_spend,
-          price: job.total_spend, // actual spend so far
+          price: job.total_spend,
         },
       }));
 
