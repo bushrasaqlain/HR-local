@@ -6,18 +6,31 @@ import Head from "next/head";
 class CandidateChatBox extends Component {
   constructor(props) {
     super(props);
-    
+
     console.log("CandidateChatBox received props:", props);
-    
+
     this.state = {
-      companyId: props.companyId || sessionStorage.getItem("companyId"),    
+      companyId: props.companyId || sessionStorage.getItem("companyId"),
       companyName: props.companyName || "",
       jobId: props.jobId || sessionStorage.getItem("jobId"),
-      candidateId: sessionStorage.getItem("candidateId"), 
-      senderId: sessionStorage.getItem("userId"), 
+      candidateId: sessionStorage.getItem("candidateId"),
+      senderId: sessionStorage.getItem("userId"),
     };
 
     console.log("CandidateChatBox state:", this.state);
+  }
+
+  componentDidUpdate(prevProps) {
+    if (
+      prevProps.companyId !== this.props.companyId ||
+      prevProps.jobId !== this.props.jobId
+    ) {
+      this.setState({
+        companyId: this.props.companyId,
+        companyName: this.props.companyName || "",
+        jobId: this.props.jobId,
+      });
+    }
   }
 
   render() {
@@ -25,7 +38,7 @@ class CandidateChatBox extends Component {
     const { onBack } = this.props;
 
     return (
-      <Container fluid>    
+      <Container fluid>
         <Head>
           <title>Messages</title>
         </Head>

@@ -19,7 +19,7 @@ const sendMessage=(req,res)=>{
     messageModel.sendMessage(req,res)
 }
 
-const markasRead=(rq,res)=>{
+const markasRead=(req,res)=>{
     messageModel.markasRead(req,res)
 }
 
@@ -27,8 +27,12 @@ const unreadMessage=(req,res)=>{
     messageModel.unreadMessage(req,res)
 }
 
-const unreadCount=(res,req)=>{
+const unreadCount=(req,res)=>{
     messageModel.unreadCount(req,res)
+}
+
+const getUnreadCountPerContact = (req, res) => {
+    messageModel.getUnreadCountPerContact(req, res);
 }
 module.exports={
     getContact,
@@ -37,5 +41,6 @@ module.exports={
     sendMessage,
     markasRead,
     unreadMessage,
-    unreadCount
+    unreadCount,
+    getUnreadCountPerContact
 }

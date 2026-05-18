@@ -66,6 +66,95 @@ const createCandidateTable = () => {
   });
 };
 
+const createJobPreferencesTable = () => {
+  const sql = `
+    CREATE TABLE IF NOT EXISTS job_preferences (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      candidate_id INT NOT NULL,
+      
+      desired_job_titles JSON,
+      job_type JSON,
+      
+      min_salary INT DEFAULT NULL,
+      max_salary INT DEFAULT NULL,
+      currency_id INT DEFAULT NULL,
+      
+      preferred_country_id INT DEFAULT NULL,
+      preferred_city_ids JSON,
+      
+      experience_level ENUM(
+        'fresh',
+        '1-2 years',
+        '3-5 years',
+        '5-10 years',
+        '10+ years'
+      ) DEFAULT NULL,
+      
+      notice_period ENUM(
+        'immediately',
+        '1 week',
+        '2 weeks',
+        '1 month',
+        '2 months',
+        '3 months'
+      ) DEFAULT NULL,
+      
+      joining_date DATE DEFAULT NULL,
+      
+      shift_preference JSON,
+      
+      willing_to_relocate BOOLEAN DEFAULT FALSE,
+      
+      alerts_enabled BOOLEAN DEFAULT TRUE,
+      
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      
+      FOREIGN KEY (candidate_id) 
+        REFERENCES candidate_info(id) ON DELETE CASCADE,
+      FOREIGN KEY (preferred_country_id) 
+        REFERENCES countries(id),
+      FOREIGN KEY (currency_id) 
+        REFERENCES currencies(id)
+    );
+  `;
+
+  connection.query(sql, (err) => {
+    if (err) {
+      console.error("Error creating job_preferences table:", err.message);
+    } else {
+      console.log("job_preferences table created successfully");
+    }
+  });
+};
+
+const createJobAlertsTable = () => {
+  const sql = `
+    CREATE TABLE IF NOT EXISTS job_alerts (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      candidate_id INT NOT NULL,
+      job_id INT NOT NULL,
+      
+      is_read BOOLEAN DEFAULT FALSE,
+      
+      sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      
+      FOREIGN KEY (candidate_id) 
+        REFERENCES candidate_info(id) ON DELETE CASCADE,
+      FOREIGN KEY (job_id) 
+        REFERENCES job_posts(id) ON DELETE CASCADE
+    );
+  `;
+
+  connection.query(sql, (err) => {
+    if (err) {
+      console.error("Error creating job_alerts table:", err.message);
+    } else {
+      console.log("job_alerts table created successfully");
+    }
+  });
+};
+
 const createCandidateSpecialityTable = () => {
   const createCanSpecialityTable = `
   CREATE TABLE candidate_speciality (
@@ -200,6 +289,28 @@ const addBoostColumnsToCandidateInfo = () => {
       }
     }
   );
+};
+
+const createProfileViewsTable = () => {
+  const createProfileViewsTableQuery = `
+    CREATE TABLE IF NOT EXISTS profile_views (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      candidate_id INT NOT NULL,
+      recruiter_id INT NULL,
+      viewed_at DATETIME NOT NULL,
+      ip_address VARCHAR(45),
+      user_agent TEXT,
+      INDEX idx_candidate_date (candidate_id, viewed_at),
+      FOREIGN KEY (candidate_id) REFERENCES candidate_info(id) ON DELETE CASCADE
+    )
+  `;
+
+  connection.query(createProfileViewsTableQuery, function (err, results, fields) {
+    if (err) {
+      return console.error("Error creating profile_views table:", err.message);
+    }
+    console.log("Profile Views table created successfully");
+  });
 };
 
 const getAllCandidates = (req, res) => {
@@ -1934,6 +2045,431 @@ const getSavedJobs = (req, res) => {
   );
 };
 
+// ============ JOB PREFERENCES FUNCTIONS ============
+
+const saveJobPreferences = (req, res) => {
+  const accountId = req.user.userId;
+
+  const {
+    desired_job_titles,
+    job_type,
+    min_salary,
+    max_salary,
+    currency_id,
+    preferred_country_id,
+    preferred_city_ids,
+    experience_level,
+    notice_period,
+    joining_date,
+    shift_preference,
+    willing_to_relocate,
+    alerts_enabled,
+  } = req.body;
+
+  connection.query(
+    `SELECT id FROM candidate_info WHERE account_id = ? LIMIT 1`,
+    [accountId],
+    (err, rows) => {
+      if (err) {
+        console.error("Error fetching candidate_id:", err);
+        return res.status(500).json({ error: "Database error" });
+      }
+
+      if (!rows.length) {
+        return res.status(404).json({ error: "Candidate not found" });
+      }
+
+      const candidateId = rows[0].id;
+
+      const sql = `
+        INSERT INTO job_preferences (
+          candidate_id,
+          desired_job_titles,
+          job_type,
+          min_salary,
+          max_salary,
+          currency_id,
+          preferred_country_id,
+          preferred_city_ids,
+          experience_level,
+          notice_period,
+          joining_date,
+          shift_preference,
+          willing_to_relocate,
+          alerts_enabled
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          desired_job_titles   = VALUES(desired_job_titles),
+          job_type             = VALUES(job_type),
+          min_salary           = VALUES(min_salary),
+          max_salary           = VALUES(max_salary),
+          currency_id          = VALUES(currency_id),
+          preferred_country_id = VALUES(preferred_country_id),
+          preferred_city_ids   = VALUES(preferred_city_ids),
+          experience_level     = VALUES(experience_level),
+          notice_period        = VALUES(notice_period),
+          joining_date         = VALUES(joining_date),
+          shift_preference     = VALUES(shift_preference),
+          willing_to_relocate  = VALUES(willing_to_relocate),
+          alerts_enabled       = VALUES(alerts_enabled)
+      `;
+
+      const params = [
+        candidateId,
+        JSON.stringify(desired_job_titles || []),
+        JSON.stringify(job_type || []),
+        min_salary || null,
+        max_salary || null,
+        currency_id || null,
+        preferred_country_id || null,
+        JSON.stringify(preferred_city_ids || []),
+        experience_level || null,
+        notice_period || null,
+        joining_date || null,
+        JSON.stringify(shift_preference || []),
+        willing_to_relocate ? 1 : 0,
+        alerts_enabled !== undefined ? (alerts_enabled ? 1 : 0) : 1,
+      ];
+
+      connection.query(sql, params, (err2) => {
+        if (err2) {
+          console.error("Error saving job preferences:", err2);
+          return res.status(500).json({ error: "Database error" });
+        }
+
+        return res.status(200).json({
+          success: true,
+          message: "Job preferences saved successfully",
+        });
+      });
+    }
+  );
+};
+
+const getJobPreferences = (req, res) => {
+  const accountId = req.user.userId;
+
+  const sql = `
+    SELECT
+      jp.*,
+      co.name AS preferred_country_name,
+      cur.code AS currency_code
+    FROM job_preferences jp
+    JOIN candidate_info ci ON ci.id = jp.candidate_id
+    LEFT JOIN countries co ON co.id = jp.preferred_country_id
+    LEFT JOIN currencies cur ON cur.id = jp.currency_id
+    WHERE ci.account_id = ?
+    LIMIT 1
+  `;
+
+  connection.query(sql, [accountId], (err, rows) => {
+    if (err) {
+      console.error("Error fetching job preferences:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    if (!rows.length) {
+      return res.status(200).json({
+        success: true,
+        data: null,
+        message: "No preferences set yet",
+      });
+    }
+
+    const pref = rows[0];
+
+    const parseJSON = (val) => {
+      if (!val) return [];
+      try {
+        return typeof val === "string" ? JSON.parse(val) : val;
+      } catch {
+        return [];
+      }
+    };
+
+    const response = {
+      id: pref.id,
+      candidate_id: pref.candidate_id,
+      desired_job_titles: parseJSON(pref.desired_job_titles),
+      job_type: parseJSON(pref.job_type),
+      min_salary: pref.min_salary || null,
+      max_salary: pref.max_salary || null,
+      currency: {
+        id: pref.currency_id || null,
+        code: pref.currency_code || null,
+      },
+      preferred_country: {
+        id: pref.preferred_country_id || null,
+        name: pref.preferred_country_name || null,
+      },
+      preferred_city_ids: parseJSON(pref.preferred_city_ids),
+      experience_level: pref.experience_level || null,
+      notice_period: pref.notice_period || null,
+      joining_date: pref.joining_date
+        ? pref.joining_date.toISOString().slice(0, 10)
+        : null,
+      shift_preference: parseJSON(pref.shift_preference),
+      willing_to_relocate: !!pref.willing_to_relocate,
+      alerts_enabled: !!pref.alerts_enabled,
+      created_at: pref.created_at,
+      updated_at: pref.updated_at,
+    };
+
+    return res.status(200).json({
+      success: true,
+      data: response,
+    });
+  });
+};
+
+const getJobAlerts = (req, res) => {
+  const accountId = req.user.userId;
+
+  const sql = `
+    SELECT
+      ja.id AS alert_id,
+      ja.is_read,
+      ja.sent_at,
+      jp.id AS job_id,
+      jp.job_title,
+      jp.min_salary,
+      jp.max_salary,
+      jp.status AS job_status,
+      jt.name AS job_type,
+      ccy.code AS currency,
+      ci.company_name,
+      ci.logo,
+      c.name AS city_name
+    FROM job_alerts ja
+    JOIN job_posts jp ON jp.id = ja.job_id
+    JOIN candidate_info can_info ON can_info.id = ja.candidate_id
+    LEFT JOIN company_info ci ON ci.account_id = jp.account_id
+    LEFT JOIN cities c ON c.id = jp.city_id
+    LEFT JOIN jobtypes jt ON jt.id = jp.job_type_id
+    LEFT JOIN currencies ccy ON ccy.id = jp.currency_id
+    WHERE can_info.account_id = ?
+    ORDER BY ja.sent_at DESC
+    LIMIT 20
+  `;
+
+  connection.query(sql, [accountId], (err, results) => {
+    if (err) {
+      console.error("getJobAlerts error:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    const alerts = results.map((alert) => ({
+      ...alert,
+      logo: alert.logo ? alert.logo.toString("base64") : null,
+    }));
+
+    return res.status(200).json({
+      success: true,
+      data: alerts,
+      unread_count: alerts.filter((a) => !a.is_read).length,
+    });
+  });
+};
+
+const markJobAlertRead = (req, res) => {
+  const accountId = req.user.userId;
+  const { alert_id } = req.params;
+
+  const sql = `
+    UPDATE job_alerts ja
+    JOIN candidate_info ci ON ci.id = ja.candidate_id
+    SET ja.is_read = 1
+    WHERE ja.id = ? AND ci.account_id = ?
+  `;
+
+  connection.query(sql, [alert_id, accountId], (err) => {
+    if (err) {
+      console.error("markJobAlertRead error:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+    return res.status(200).json({ success: true, message: "Alert marked as read" });
+  });
+};
+
+const markAllJobAlertsRead = (req, res) => {
+  const accountId = req.user.userId;
+
+  const sql = `
+    UPDATE job_alerts ja
+    JOIN candidate_info ci ON ci.id = ja.candidate_id
+    SET ja.is_read = 1
+    WHERE ci.account_id = ? AND ja.is_read = 0
+  `;
+
+  connection.query(sql, [accountId], (err) => {
+    if (err) {
+      console.error("markAllJobAlertsRead error:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+    return res.status(200).json({ success: true, message: "All alerts marked as read" });
+  });
+};
+
+// ============ PROFILE VIEW STATISTICS FUNCTIONS (using candidate_search_impressions) ============
+
+const getProfileViewStats = (req, res) => {
+  const accountId = req.user.userId;
+  const { period = '28days' } = req.query;
+ 
+  const getCandidateIdSql = `SELECT id FROM candidate_info WHERE account_id = ? LIMIT 1`;
+ 
+  connection.query(getCandidateIdSql, [accountId], (err, candidateRows) => {
+    if (err) return res.status(500).json({ error: "Database error" });
+    if (!candidateRows.length) return res.json({ success: true, data: [], current_total: 0, previous_total: 0 });
+ 
+    const candidateInfoId = candidateRows[0].id;
+ 
+    let currentInterval, previousInterval, groupFormat, labelFormat;
+ 
+    if (period === '28days') {
+      currentInterval  = 'INTERVAL 28 DAY';
+      previousInterval = 'INTERVAL 56 DAY';
+      groupFormat      = '%Y-%m-%d';   // group by day
+    } else if (period === 'weekly') {
+      currentInterval  = 'INTERVAL 8 WEEK';
+      previousInterval = 'INTERVAL 16 WEEK';
+      groupFormat      = '%x-%v';      // ISO year-week
+    } else {
+      // monthly
+      currentInterval  = 'INTERVAL 6 MONTH';
+      previousInterval = 'INTERVAL 12 MONTH';
+      groupFormat      = '%Y-%m';
+    }
+ 
+    // Fetch current period data
+    const currentSql = `
+      SELECT 
+        DATE_FORMAT(searched_at, ?) AS period_key,
+        COUNT(*) AS count
+      FROM candidate_search_impressions
+      WHERE candidate_id = ?
+        AND searched_at >= DATE_SUB(NOW(), ${currentInterval})
+      GROUP BY period_key
+      ORDER BY period_key ASC
+    `;
+ 
+    // Fetch previous period total (for % change)
+    const previousSql = `
+      SELECT COUNT(*) AS total
+      FROM candidate_search_impressions
+      WHERE candidate_id = ?
+        AND searched_at >= DATE_SUB(NOW(), ${previousInterval})
+        AND searched_at <  DATE_SUB(NOW(), ${currentInterval})
+    `;
+ 
+    connection.query(currentSql, [groupFormat, candidateInfoId], (err2, currentRows) => {
+      if (err2) return res.status(500).json({ error: "Database error" });
+ 
+      connection.query(previousSql, [candidateInfoId], (err3, prevRows) => {
+        if (err3) return res.status(500).json({ error: "Database error" });
+ 
+        const previousTotal = prevRows[0]?.total || 0;
+        const currentTotal  = currentRows.reduce((sum, r) => sum + r.count, 0);
+ 
+        let filledData = [];
+ 
+        if (period === '28days') {
+          for (let i = 27; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const key = d.toISOString().slice(0, 10); // "2026-05-18"
+ 
+            // Label: "5 May", "6 May" etc
+            const label = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+ 
+            const found = currentRows.find(r => r.period_key === key);
+            filledData.push({ label, count: found ? found.count : 0 });
+          }
+ 
+        } else if (period === 'weekly') {
+          filledData = currentRows.map(r => {
+            const [year, week] = r.period_key.split('-').map(Number);
+            const jan4 = new Date(year, 0, 4);
+            const dow  = jan4.getDay() || 7;
+            const mon  = new Date(jan4);
+            mon.setDate(jan4.getDate() - (dow - 1) + (week - 1) * 7);
+            const sun = new Date(mon);
+            sun.setDate(mon.getDate() + 6);
+            const fmt = d => d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+            return { label: `${fmt(mon)} – ${fmt(sun)}`, count: r.count };
+          });
+ 
+        } else {
+          // monthly
+          filledData = currentRows.map(r => {
+            const [year, month] = r.period_key.split('-');
+            const label = new Date(year, parseInt(month) - 1, 1)
+              .toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            return { label, count: r.count };
+          });
+        }
+ 
+        return res.json({
+          success:        true,
+          data:           filledData,
+          current_total:  currentTotal,
+          previous_total: previousTotal,
+          period,
+        });
+      });
+    });
+  });
+};
+
+// Helper function to get week number
+function getWeekNumber(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+// Track profile view - now using candidate_search_impressions
+const trackProfileView = (req, res) => {
+  const param = req.params.candidateId;
+  const recruiterId = req.user.userId;
+  const { job_id } = req.body;
+
+  console.log("📌 Backend received:", { param, recruiterId, job_id });
+
+  // param account_id bhi ho sakta hai ya candidate_info.id bhi
+  const sql = `
+    SELECT id FROM candidate_info 
+    WHERE account_id = ? OR id = ?
+    LIMIT 1
+  `;
+
+  connection.query(sql, [param, param], (err, rows) => {
+    if (err || !rows.length) {
+      return res.status(200).json({ success: true }); // silently fail
+    }
+
+    const candidateInfoId = rows[0].id;
+
+    // Insert into candidate_search_impressions instead of profile_views
+    connection.query(
+      `INSERT INTO candidate_search_impressions (candidate_id, company_id, job_id, searched_at)
+       VALUES (?, ?, ?, NOW())`,
+      [
+        candidateInfoId,
+        recruiterId, // company_id is the recruiter's account_id
+        job_id || null,
+      ],
+      (err2) => {
+        if (err2) console.error("Track view error:", err2);
+        res.status(200).json({ success: true });
+      }
+    );
+  });
+};
+
 module.exports = {
   getAllCandidates,
   updateStatus,
@@ -1966,4 +2502,14 @@ module.exports = {
   parseCVAndSave,
   toggleSaveJob,
   getSavedJobs,
+  createJobPreferencesTable,
+  createJobAlertsTable,
+  saveJobPreferences,
+  getJobPreferences,
+  getJobAlerts,
+  markJobAlertRead,
+  markAllJobAlertsRead,
+  createProfileViewsTable,
+  getProfileViewStats,
+  trackProfileView,
 };

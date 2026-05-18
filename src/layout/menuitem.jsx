@@ -65,6 +65,7 @@ export const regadminmenuitem = [
   { key: "candidate", label: "Candidates List" },
   { key: "job", label: "Job List" },
   { key: "boosts", label: "Boost Requests" },
+  { key: "contactMessages", label: "Contact Messages" },
 ];
 
 export const companymenuitem = [

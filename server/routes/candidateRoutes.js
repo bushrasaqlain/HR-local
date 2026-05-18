@@ -108,4 +108,48 @@ router.post(
 router.post("/save-job", authMiddleware, candidateController.toggleSaveJob);
 router.get("/saved-jobs", authMiddleware, candidateController.getSavedJobs);
 
+// ============ JOB PREFERENCES ROUTES ============
+router.post(
+  "/job-preferences",
+  authMiddleware,
+  candidateController.saveJobPreferences
+);
+
+router.get(
+  "/job-preferences",
+  authMiddleware,
+  candidateController.getJobPreferences
+);
+
+// ============ JOB ALERTS ROUTES ============
+router.get(
+  "/job-alerts",
+  authMiddleware,
+  candidateController.getJobAlerts
+);
+
+router.put(
+  "/job-alerts/:alert_id/read",
+  authMiddleware,
+  candidateController.markJobAlertRead
+);
+
+router.put(
+  "/job-alerts/read-all",
+  authMiddleware,
+  candidateController.markAllJobAlertsRead
+);
+
+router.get(
+  "/profile-view-stats",
+  authMiddleware,
+  candidateController.getProfileViewStats
+);
+
+router.post(
+  "/track-profile-view/:candidateId",
+  authMiddleware,
+  candidateController.trackProfileView
+);
+
 module.exports = router;

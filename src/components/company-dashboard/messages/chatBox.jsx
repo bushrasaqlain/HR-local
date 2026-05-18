@@ -44,12 +44,12 @@ class ChatBox extends Component {
         <Head>
           <title>Messages</title>
         </Head>
-        <button
+        {/* <button
           className="btn btn-outline-secondary custom-progress text-white mb-4 mt-4"
           onClick={onBack}
         >
           ← Back
-        </button>
+        </button> */}
 
         <Row>
           <Col lg="12" className="chat">

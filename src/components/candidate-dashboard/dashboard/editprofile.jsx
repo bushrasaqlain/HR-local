@@ -53,6 +53,7 @@ class EditProfile extends Component {
       availability: React.createRef(),
       research: React.createRef(),
       certificates: React.createRef(),
+      jobPreferences: React.createRef(),
     };
     this.resumeInputRef = React.createRef();
     // Initialize state here
@@ -72,6 +73,26 @@ class EditProfile extends Component {
       licenseTypes: [],
       successMessage: "",
       errorMessage: "",
+      jobPreferences: {
+        desired_job_titles: [],
+        job_type: [],
+        min_salary: "",
+        max_salary: "",
+        currency_id: "",
+        preferred_country_id: "",
+        preferred_city_ids: [],
+        experience_level: "",
+        notice_period: "",
+        joining_date: "",
+        shift_preference: [],
+        willing_to_relocate: false,
+        alerts_enabled: true,
+      },
+      currencies: [],
+      jobPrefCities: [],
+      jobPrefSuccessMessage: "",
+      jobPrefErrorMessage: "",
+      newJobTitle: "",
     };
   }
 
@@ -97,6 +118,8 @@ class EditProfile extends Component {
       this.fetchCandidateInfo();
       this.loadCountries();
       this.loadLicenseTypes();
+      this.loadCurrencies();
+      this.fetchJobPreferences();
     });
   }
   loadFaceModels = async () => {
@@ -119,6 +142,102 @@ class EditProfile extends Component {
     );
 
     return detections.length > 0;
+  };
+
+  loadCurrencies = async () => {
+    try {
+      const res = await api.get("/getAllCurrencies");
+      const currencies = Array.isArray(res.data) ? res.data
+        : Array.isArray(res.data.currencies) ? res.data.currencies : [];
+      this.setState({ currencies });
+    } catch (err) {
+      console.error("Failed to load currencies", err);
+    }
+  };
+
+  fetchJobPreferences = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await api.get("/candidateProfile/job-preferences", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.data.success && res.data.data) {
+        const pref = res.data.data;
+        this.setState({
+          jobPreferences: {
+            desired_job_titles: pref.desired_job_titles || [],
+            job_type: pref.job_type || [],
+            min_salary: pref.min_salary || "",
+            max_salary: pref.max_salary || "",
+            currency_id: pref.currency?.id || "",
+            preferred_country_id: pref.preferred_country?.id || "",
+            preferred_city_ids: pref.preferred_city_ids || [],
+            experience_level: pref.experience_level || "",
+            notice_period: pref.notice_period || "",
+            joining_date: pref.joining_date || "",
+            shift_preference: pref.shift_preference || [],
+            willing_to_relocate: pref.willing_to_relocate || false,
+            alerts_enabled: pref.alerts_enabled !== undefined
+              ? pref.alerts_enabled : true,
+          },
+        });
+
+        // agar preferred country hai toh us ki cities load karo
+        if (pref.preferred_country?.id) {
+          this.loadJobPrefCities(pref.preferred_country.id);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch job preferences", err);
+    }
+  };
+
+  loadJobPrefCities = async (countryId) => {
+    if (!countryId) {
+      this.setState({ jobPrefCities: [] });
+      return;
+    }
+    try {
+      const res = await api.get("/getalldistricts", {
+        params: { country_id: countryId, limit: 1000 },
+      });
+      const districts = Array.isArray(res.data.districts)
+        ? res.data.districts : [];
+      this.setState({ jobPrefCities: districts });
+    } catch (err) {
+      console.error("Failed to load cities for job preferences", err);
+    }
+  };
+
+  handleSaveJobPreferences = async () => {
+    const { jobPreferences } = this.state;
+    const token = localStorage.getItem("token");
+
+    try {
+      this.setState({ loading: true });
+
+      await api.post(
+        "/candidateProfile/job-preferences",
+        jobPreferences,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      this.setState({
+        jobPrefSuccessMessage: "Job preferences saved successfully!",
+        loading: false,
+      });
+      setTimeout(() => this.setState({ jobPrefSuccessMessage: "" }), 3000);
+    } catch (err) {
+      console.error("Failed to save job preferences", err);
+      this.setState({
+        jobPrefErrorMessage: "Failed to save preferences",
+        loading: false,
+      });
+      setTimeout(() => this.setState({ jobPrefErrorMessage: "" }), 3000);
+    }
   };
 
   loadLicenseTypes = async () => {
@@ -792,6 +911,7 @@ class EditProfile extends Component {
     missing.research = !formData.research || formData.research.length === 0;
     missing.certificates =
       !formData.certificates || formData.certificates.length === 0;
+    missing.jobPreferences = false;
 
     return missing;
   };
@@ -1190,6 +1310,13 @@ class EditProfile extends Component {
           </div>
         );
 
+      case 9:
+        return (
+          <div ref={this.sectionsRef.jobPreferences}>
+            {this.renderJobPreferencesStep()}
+          </div>
+        );
+
       default:
         return null;
     }
@@ -1205,6 +1332,7 @@ class EditProfile extends Component {
       "Availability",
       "Research",
       "Certificates",
+      "Job Preferences",
     ];
     const { formData, personalInfoErrors } = this.state; // <-- add this line
     // 2️⃣ Add this line immediately after
@@ -1350,6 +1478,8 @@ class EditProfile extends Component {
                       break;
                     case 7:
                       stepKey = "certificates";
+                      break;
+                    case 8: stepKey = "jobPreferences";
                       break;
                   }
 
@@ -1856,6 +1986,442 @@ class EditProfile extends Component {
           </div>
         </div>
       </Container>
+    );
+  }
+
+  renderJobPreferencesStep() {
+    const { jobPreferences, currencies, jobPrefCities,
+      jobPrefSuccessMessage, jobPrefErrorMessage, newJobTitle } = this.state;
+
+    const jobTypeOptions = [
+      "Full Time", "Part Time", "Remote", "Contract", "Freelance"
+    ];
+
+    const shiftOptions = ["Morning", "Evening", "Night", "Any"];
+
+    const experienceLevelOptions = [
+      { value: "fresh", label: "Fresh Graduate" },
+      { value: "1-2 years", label: "1-2 Years" },
+      { value: "3-5 years", label: "3-5 Years" },
+      { value: "5-10 years", label: "5-10 Years" },
+      { value: "10+ years", label: "10+ Years" },
+    ];
+
+    const noticePeriodOptions = [
+      { value: "immediately", label: "Immediately Available" },
+      { value: "1 week", label: "1 Week" },
+      { value: "2 weeks", label: "2 Weeks" },
+      { value: "1 month", label: "1 Month" },
+      { value: "2 months", label: "2 Months" },
+      { value: "3 months", label: "3 Months" },
+    ];
+
+    return (
+      <>
+        <h5 className="mb-4">Job Preferences</h5>
+
+        {/* Success / Error Messages */}
+        {jobPrefSuccessMessage && (
+          <div className="alert alert-success">{jobPrefSuccessMessage}</div>
+        )}
+        {jobPrefErrorMessage && (
+          <div className="alert alert-danger">{jobPrefErrorMessage}</div>
+        )}
+
+        {/* ---- Desired Job Titles ---- */}
+        <div className="mb-3">
+          <Label className="fw-semibold">Desired Job Titles</Label>
+          <div className="d-flex gap-2 mb-2">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="e.g. Software Engineer"
+              value={newJobTitle}
+              onChange={(e) => this.setState({ newJobTitle: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newJobTitle.trim()) {
+                  this.setState((prev) => ({
+                    jobPreferences: {
+                      ...prev.jobPreferences,
+                      desired_job_titles: [
+                        ...prev.jobPreferences.desired_job_titles,
+                        newJobTitle.trim(),
+                      ],
+                    },
+                    newJobTitle: "",
+                  }));
+                }
+              }}
+            />
+            <button
+              className="btn"
+              style={{ background: "#36565F", color: "white", whiteSpace: "nowrap" }}
+              onClick={() => {
+                if (newJobTitle.trim()) {
+                  this.setState((prev) => ({
+                    jobPreferences: {
+                      ...prev.jobPreferences,
+                      desired_job_titles: [
+                        ...prev.jobPreferences.desired_job_titles,
+                        newJobTitle.trim(),
+                      ],
+                    },
+                    newJobTitle: "",
+                  }));
+                }
+              }}
+            >
+              + Add
+            </button>
+          </div>
+          {/* Tags */}
+          <div className="d-flex flex-wrap gap-2">
+            {jobPreferences.desired_job_titles.map((title, i) => (
+              <span
+                key={i}
+                className="badge d-flex align-items-center gap-1"
+                style={{ background: "#36565F", fontSize: "13px", padding: "6px 10px" }}
+              >
+                {title}
+                <span
+                  style={{ cursor: "pointer", marginLeft: "4px" }}
+                  onClick={() => {
+                    const updated = jobPreferences.desired_job_titles.filter(
+                      (_, idx) => idx !== i
+                    );
+                    this.setState((prev) => ({
+                      jobPreferences: {
+                        ...prev.jobPreferences,
+                        desired_job_titles: updated,
+                      },
+                    }));
+                  }}
+                >
+                  ✕
+                </span>
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* ---- Job Type ---- */}
+        <div className="mb-3">
+          <Label className="fw-semibold">Job Type</Label>
+          <div className="d-flex flex-wrap gap-3">
+            {jobTypeOptions.map((type) => (
+              <div key={type} className="form-check">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id={`jobtype-${type}`}
+                  checked={jobPreferences.job_type.includes(type)}
+                  onChange={() => {
+                    const updated = jobPreferences.job_type.includes(type)
+                      ? jobPreferences.job_type.filter((t) => t !== type)
+                      : [...jobPreferences.job_type, type];
+                    this.setState((prev) => ({
+                      jobPreferences: { ...prev.jobPreferences, job_type: updated },
+                    }));
+                  }}
+                />
+                <label className="form-check-label" htmlFor={`jobtype-${type}`}>
+                  {type}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ---- Expected Salary ---- */}
+        <div className="mb-3">
+          <Label className="fw-semibold">Expected Salary</Label>
+          <div className="row g-2">
+            <div className="col-md-4">
+              <input
+                type="number"
+                className="form-control"
+                placeholder="Min Salary"
+                value={jobPreferences.min_salary}
+                onChange={(e) =>
+                  this.setState((prev) => ({
+                    jobPreferences: {
+                      ...prev.jobPreferences,
+                      min_salary: e.target.value,
+                    },
+                  }))
+                }
+              />
+            </div>
+            <div className="col-md-4">
+              <input
+                type="number"
+                className="form-control"
+                placeholder="Max Salary"
+                value={jobPreferences.max_salary}
+                onChange={(e) =>
+                  this.setState((prev) => ({
+                    jobPreferences: {
+                      ...prev.jobPreferences,
+                      max_salary: e.target.value,
+                    },
+                  }))
+                }
+              />
+            </div>
+            <div className="col-md-4">
+              <select
+                className="form-select"
+                value={jobPreferences.currency_id}
+                onChange={(e) =>
+                  this.setState((prev) => ({
+                    jobPreferences: {
+                      ...prev.jobPreferences,
+                      currency_id: e.target.value,
+                    },
+                  }))
+                }
+              >
+                <option value="">Select Currency</option>
+                {currencies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.code}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* ---- Preferred Country ---- */}
+        <div className="mb-3">
+          <Label className="fw-semibold">Preferred Country</Label>
+          <select
+            className="form-select"
+            value={jobPreferences.preferred_country_id}
+            onChange={async (e) => {
+              const countryId = e.target.value;
+              this.setState((prev) => ({
+                jobPreferences: {
+                  ...prev.jobPreferences,
+                  preferred_country_id: countryId,
+                  preferred_city_ids: [],
+                },
+              }));
+              if (countryId) this.loadJobPrefCities(countryId);
+            }}
+          >
+            <option value="">Select Country</option>
+            {this.state.countries.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* ---- Experience Level ---- */}
+        <div className="mb-3">
+          <Label className="fw-semibold">Experience Level</Label>
+          <select
+            className="form-select"
+            value={jobPreferences.experience_level}
+            onChange={(e) =>
+              this.setState((prev) => ({
+                jobPreferences: {
+                  ...prev.jobPreferences,
+                  experience_level: e.target.value,
+                },
+              }))
+            }
+          >
+            <option value="">Select Experience Level</option>
+            {experienceLevelOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* ---- Notice Period ---- */}
+        <div className="mb-3">
+          <Label className="fw-semibold">Notice Period</Label>
+          <select
+            className="form-select"
+            value={jobPreferences.notice_period}
+            onChange={(e) =>
+              this.setState((prev) => ({
+                jobPreferences: {
+                  ...prev.jobPreferences,
+                  notice_period: e.target.value,
+                },
+              }))
+            }
+          >
+            <option value="">Select Notice Period</option>
+            {noticePeriodOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* ---- Joining Date ---- */}
+        <div className="mb-3">
+          <Label className="fw-semibold">Available From (Joining Date)</Label>
+          <input
+            type="date"
+            className="form-control"
+            value={jobPreferences.joining_date}
+            min={new Date().toISOString().split("T")[0]}
+            onChange={(e) =>
+              this.setState((prev) => ({
+                jobPreferences: {
+                  ...prev.jobPreferences,
+                  joining_date: e.target.value,
+                },
+              }))
+            }
+          />
+        </div>
+
+        {/* ---- Shift Preference ---- */}
+        <div className="mb-3">
+          <Label className="fw-semibold">Shift Preference</Label>
+          <div className="d-flex flex-wrap gap-3">
+            {shiftOptions.map((shift) => (
+              <div key={shift} className="form-check">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id={`shift-${shift}`}
+                  checked={jobPreferences.shift_preference.includes(shift)}
+                  onChange={() => {
+                    const updated = jobPreferences.shift_preference.includes(shift)
+                      ? jobPreferences.shift_preference.filter((s) => s !== shift)
+                      : [...jobPreferences.shift_preference, shift];
+                    this.setState((prev) => ({
+                      jobPreferences: {
+                        ...prev.jobPreferences,
+                        shift_preference: updated,
+                      },
+                    }));
+                  }}
+                />
+                <label className="form-check-label" htmlFor={`shift-${shift}`}>
+                  {shift}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ---- Willing to Relocate ---- */}
+        <div className="mb-3">
+          <Label className="fw-semibold d-block">Willing to Relocate</Label>
+          <div className="d-flex gap-4">
+            {["Yes", "No"].map((option) => (
+              <div key={option} className="form-check">
+                <input
+                  className="form-check-input"
+                  type="radio"
+                  id={`relocate-${option}`}
+                  name="willing_to_relocate"
+                  checked={
+                    option === "Yes"
+                      ? jobPreferences.willing_to_relocate === true
+                      : jobPreferences.willing_to_relocate === false
+                  }
+                  onChange={() =>
+                    this.setState((prev) => ({
+                      jobPreferences: {
+                        ...prev.jobPreferences,
+                        willing_to_relocate: option === "Yes",
+                      },
+                    }))
+                  }
+                />
+                <label className="form-check-label" htmlFor={`relocate-${option}`}>
+                  {option}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ---- Job Alerts Toggle ---- */}
+        <div className="mb-4">
+          <Label className="fw-semibold d-block mb-2">Job Alerts</Label>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "12px 14px",
+              borderRadius: 10,
+              border: `1.5px solid ${jobPreferences.alerts_enabled ? "#36565F" : "#e5e7eb"}`,
+              background: jobPreferences.alerts_enabled ? "#e8f0f2" : "#f8fafb",
+              cursor: "pointer",
+              transition: "all 0.2s",
+              maxWidth: "400px",
+            }}
+            onClick={() =>
+              this.setState((prev) => ({
+                jobPreferences: {
+                  ...prev.jobPreferences,
+                  alerts_enabled: !prev.jobPreferences.alerts_enabled,
+                },
+              }))
+            }
+          >
+            {/* Toggle Switch */}
+            <div
+              style={{
+                width: 36, height: 20, borderRadius: 10,
+                background: jobPreferences.alerts_enabled ? "#36565F" : "#d1d5db",
+                position: "relative", flexShrink: 0, transition: "background 0.2s",
+              }}
+            >
+              <div
+                style={{
+                  width: 16, height: 16, borderRadius: "50%",
+                  background: "#fff", position: "absolute", top: 2,
+                  left: jobPreferences.alerts_enabled ? 18 : 2,
+                  transition: "left 0.2s",
+                }}
+              />
+            </div>
+            <div>
+              <div style={{
+                fontSize: 13, fontWeight: 500,
+                color: jobPreferences.alerts_enabled ? "#36565F" : "#1a1a1a",
+              }}>
+                {jobPreferences.alerts_enabled
+                  ? "Job Alerts Enabled"
+                  : "Job Alerts Disabled"}
+              </div>
+              <div style={{ fontSize: 11, color: "#6b7280", marginTop: 1 }}>
+                {jobPreferences.alerts_enabled
+                  ? "✅ You will be notified when matching jobs are posted"
+                  : "Turn on to get notified about matching jobs"}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ---- Save Button ---- */}
+        <div className="text-end">
+          <button
+            className="btn px-4"
+            style={{ background: "#36565F", color: "white" }}
+            onClick={this.handleSaveJobPreferences}
+            disabled={this.state.loading}
+          >
+            {this.state.loading ? "Saving..." : "Save Preferences"}
+          </button>
+        </div>
+      </>
     );
   }
 }

@@ -10,7 +10,7 @@ import CompanyInfo from "./dashboard/companyinfo.jsx";
 import AppliedJobs from "./dashboard/AppliedJobs.jsx";
 import SavedJobsPage from "./dashboard/saved-jobs.jsx";
 
-const CandidateDashboardArea = ({ activeTab: parentActiveTab }) => {
+const CandidateDashboardArea = ({ activeTab: parentActiveTab, selectedMessageContact, }) => {
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState(parentActiveTab || "profile");
@@ -87,11 +87,21 @@ const CandidateDashboardArea = ({ activeTab: parentActiveTab }) => {
       case "editprofile":
         return <EditProfile onBack={() => setActiveTab("profile")} />;
       case "lists":
-        return <JobList onClick={() => setActiveTab("lists")} />;
+        return <JobList
+          onClick={() => setActiveTab("lists")}
+          selectedMessageContact={selectedMessageContact}
+        />;
       case "appliedJobs":
         return <AppliedJobs onClick={() => setActiveTab("appliedJobs")} />;
       case "chatbox":
-        return <ChatBox />;
+        return (
+          <ChatBox
+            companyId={selectedMessageContact?.companyId || null}
+            companyName={selectedMessageContact?.companyName || ""}
+            jobId={selectedMessageContact?.jobId || null}
+            onBack={() => setActiveTab("profile")}
+          />
+        );
       case "companyinfo":
         return <CompanyInfo />
       default:

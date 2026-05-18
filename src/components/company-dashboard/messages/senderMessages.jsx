@@ -88,6 +88,10 @@ class SenderMessages extends Component {
         this.setState({ messages: response.data }, () => {
           this.scrollToBottom();
         });
+        await axios.post(`${this.apiBaseUrl}message/mark-as-read`, {
+          senderId: receiverId,  // wo banda jisne messages bheje (receiver ki perspective se sender)
+          receiverId: senderId   // current user
+        });
       }
     } catch (error) {
       console.error("Error fetching messages:", error);

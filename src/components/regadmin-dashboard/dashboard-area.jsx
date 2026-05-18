@@ -8,6 +8,7 @@ import { useRouter } from "next/router";
 import { useSelector } from "react-redux";
 import ChangePasswordForm from "../form/changepassword/changepasswordform.jsx"
 import Job from "./job.jsx";
+import ContactMessages from "./ContactMessages.jsx";
 const RegAdminDashboardArea = ({ activeTab }) => {
   const router = useRouter();
   const [userInfo, setUserInfo] = useState({ userId: null, token: null });
@@ -36,6 +37,8 @@ const RegAdminDashboardArea = ({ activeTab }) => {
         return <Job />;
       case "boosts":
         return <BoostRequests />;
+      case "contactMessages":
+        return <ContactMessages />;
       default:
         return <CompanyData />
     }

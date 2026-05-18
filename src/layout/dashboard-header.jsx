@@ -29,7 +29,9 @@ import RegAdminDashboardArea from "../components/regadmin-dashboard/dashboard-ar
 import CompanyDashboardArea from "../components/company-dashboard/dashboard-area";
 import CandidateDashboardArea from "../components/candidate-dashboard/dashboard-area";
 import DashboardFooter from "./dashboard-footer";
-import  NotificationCenter  from "../components/company-dashboard/Notificationcenter";
+import NotificationCenter from "../components/company-dashboard/Notificationcenter";
+import MessagesDropdown from "../components/company-dashboard/dashboard/MessagesDropdown";
+import CandidateJobAlertsDropdown from "../components/candidate-dashboard/dashboard/CandidateJobAlertsDropdown";
 import axios from "axios";
 
 const EMPLOYER_ROUTE_MAP = {
@@ -76,6 +78,7 @@ const REG_ADMIN_ROUTE_MAP = {
   candidate: "/admin/candidates",
   job: "/admin/jobs",
   boosts: "/admin/boosts",
+  contactMessages: "/admin/contact-messages",
 };
 
 function getRouteMap(accountType) {
@@ -99,6 +102,8 @@ class DashboardHeader extends Component {
       isMobileMenuOpen: false,
       openMobileDropdown: null,
       activeTab: null,
+      selectedMessageContact: null,
+      unreadCount: 0,
       profileGroup: false,
       jobsGroup: false,
       userInfo: { userId: null, displayName: "User", accountType: null, profileCompleted: false },
@@ -124,6 +129,15 @@ class DashboardHeader extends Component {
     const savedTab = sessionStorage.getItem("activeTab");
 
     if (!accountType) return;
+
+    const publicPages = ["/privacy-policy", "/terms-of-service", "/contact-us"];
+    if (typeof window !== "undefined" && publicPages.includes(window.location.pathname)) {
+      this.setState({
+        userInfo: { userId, displayName, accountType, profileCompleted },
+      });
+      window.addEventListener("scroll", this.changeBackground);
+      return;
+    }
 
     const validTabs = [
       "profile",
@@ -172,6 +186,12 @@ class DashboardHeader extends Component {
     }
     if (accountType === "employer") {
       this.fetchPackagesForNotifications(userId);
+      this.fetchUnreadCount(userId);
+      this.unreadInterval = setInterval(() => this.fetchUnreadCount(userId), 3000);
+    }
+    if (accountType === "candidate" && profileCompleted) {
+      this.fetchUnreadCount(userId);
+      this.unreadInterval = setInterval(() => this.fetchUnreadCount(userId), 3000);
     }
 
     window.addEventListener("scroll", this.changeBackground);
@@ -179,6 +199,7 @@ class DashboardHeader extends Component {
 
   componentWillUnmount() {
     window.removeEventListener("scroll", this.changeBackground);
+    clearInterval(this.unreadInterval);
   }
 
   toggleNavbar = () => {
@@ -257,6 +278,19 @@ class DashboardHeader extends Component {
     }
   };
 
+  fetchUnreadCount = async (userId) => {
+    if (!userId) return;
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    try {
+      const res = await axios.get(`${apiBaseUrl}message/contacts/unread-count/${userId}`);
+      if (res.data?.unreadCount !== undefined) {
+        this.setState({ unreadCount: res.data.unreadCount });
+      }
+    } catch (err) {
+      console.error("Unread count fetch failed:", err);
+    }
+  };
+
   changeBackground = () => {
     this.setState({ navbar: window.scrollY >= 10 });
   };
@@ -279,6 +313,28 @@ class DashboardHeader extends Component {
       },
       activeTab: "profile",
     }));
+  };
+
+  handleOpenMessages = (contact) => {
+    this.setState({ selectedMessageContact: contact });
+    this.handleTabChange("messages");
+  };
+
+  handleCandidateOpenMessages = (contact) => {
+    if (!contact) {
+      this.handleTabChange("chatbox");
+      return;
+    }
+
+    this.setState({
+      selectedMessageContact: {
+        companyId: contact.id,
+        companyName: contact.full_name,
+        jobId: contact.jobId || null,
+      },
+    });
+
+    this.handleTabChange("chatbox");
   };
 
   handleUserActionClick = (item) => {
@@ -382,6 +438,8 @@ class DashboardHeader extends Component {
 
     return items.map((item) => {
       if (!item.children) {
+        const { unreadCount } = this.state;
+        const isMessages = item.key === "messages";
         return (
           <NavItem key={item.key} className={isMobile ? "mb-2" : ""}>
             <Button
@@ -394,6 +452,7 @@ class DashboardHeader extends Component {
                   return;
                 }
                 this.handleTabChange(item.key);
+                if (isMessages) this.setState({ unreadCount: 0 });
                 this.setState({
                   isMobileMenuOpen: false,
                   openMobileDropdown: null,
@@ -402,6 +461,25 @@ class DashboardHeader extends Component {
             >
               <i className={`las ${item.icon} me-1`}></i>
               {item.label}
+              {isMessages && unreadCount > 0 && (
+                <span style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "#e74c3c",
+                  color: "#fff",
+                  borderRadius: "50%",
+                  fontSize: "0.65rem",
+                  fontWeight: 700,
+                  minWidth: "18px",
+                  height: "18px",
+                  padding: "0 4px",
+                  marginLeft: "6px",
+                  lineHeight: 1,
+                }}>
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
             </Button>
           </NavItem>
         );
@@ -527,26 +605,58 @@ class DashboardHeader extends Component {
             />
           </div>
           {/* Right: User */}
-          <div className="d-flex align-items-center flex-nowrap ms-auto">
-            {/* Welcome text */}
-            <div className="d-none d-md-flex d-lg-flex align-items-center gap-2">
+          <div className="d-flex align-items-center flex-nowrap ms-auto gap-3">
+            <div className="d-none d-md-flex d-lg-flex align-items-center gap-3">
               {accountType === "employer" && profileCompleted && (
-                <NotificationCenter
-  userId={this.state.userInfo.userId}
-  apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
-/>
+                <>
+                  <NotificationCenter
+                    userId={this.state.userInfo.userId}
+                    apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
+                  />
+                  <MessagesDropdown
+                    userId={userId}
+                    apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
+                    onOpenMessages={this.handleOpenMessages}
+                    externalUnreadCount={this.state.unreadCount}
+                  />
+                </>
               )}
-              <span className="text-white text-end">
-                <div>
-                  <strong>{displayName || "Admin"}</strong>
-                </div>
+              {accountType === "candidate" && profileCompleted && (
+                <>
+                  <CandidateJobAlertsDropdown
+                    userId={userId}
+                    apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
+                    onViewJob={(alert) => {
+                      this.handleTabChange("profile");
+
+                      setTimeout(() => {
+                        const section = document.getElementById("matching-jobs-section");
+
+                        if (section) {
+                          section.scrollIntoView({
+                            behavior: "smooth",
+                            block: "start",
+                          });
+                        }
+                      }, 300);
+                    }}
+                  />
+
+                  {/* Messages Dropdown */}
+                  <MessagesDropdown
+                    userId={userId}
+                    apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
+                    onOpenMessages={this.handleCandidateOpenMessages}
+                    externalUnreadCount={this.state.unreadCount}
+                  />
+                </>
+              )}
+
+              <span className="text-white text-end" style={{ whiteSpace: "nowrap" }}>
+                <strong>{displayName || "Admin"}</strong>
               </span>
 
-              {/* User icon */}
-              <Dropdown
-                isOpen={userDropdownOpen}
-                toggle={this.toggleUserDropdown}
-              >
+              <Dropdown isOpen={userDropdownOpen} toggle={this.toggleUserDropdown}>
                 <DropdownToggle tag="span">
                   <i className="las la-user-circle fs-2 text-white cursor-pointer"></i>
                 </DropdownToggle>
@@ -627,12 +737,14 @@ class DashboardHeader extends Component {
                   jobListFilterStatus={this.state.jobListFilterStatus}
                   profileCompleted={profileCompleted}
                   onProfileComplete={this.handleProfileComplete}
+                  selectedMessageContact={this.state.selectedMessageContact}
                 />
               )}
               {accountType === "candidate" && (
                 <CandidateDashboardArea
                   activeTab={activeTab}
                   onProfileComplete={this.handleProfileComplete}
+                  selectedMessageContact={this.state.selectedMessageContact}
                 />
               )}
             </div>

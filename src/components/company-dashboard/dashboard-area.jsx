@@ -16,6 +16,7 @@ import ApprovedCandidates from "./approved.jsx";
 import CompanyWallet from "./wallet.jsx";
 import PricingForm2 from "./viewpackage.jsx";
 import AvailableCandidates from "./Available Candidates.jsx";
+import Messages from "./dashboard/Messages.jsx";
 
 const JobsLayout = ({ activeTab, onTabChange }) => {
   const tabs = [
@@ -147,6 +148,7 @@ const CompanyDashboardArea = ({
   jobListFilterStatus,
   profileCompleted,
   onProfileComplete,
+  selectedMessageContact,
 }) => {
   const router = useRouter();
 
@@ -206,6 +208,8 @@ const CompanyDashboardArea = ({
         return <AvailableCandidates onTabChange={onTabChange} />;
       case "wallet":
         return <CompanyWallet />;
+      case "messages":
+        return <Messages selectedContactProp={selectedMessageContact} />;
 
       case "changepassword":
         return <ChangePasswordForm />;

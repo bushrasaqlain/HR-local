@@ -737,6 +737,136 @@ const deleteJob = (req, res) => {
   });
 };
 
+const triggerJobAlerts = (jobId) => {
+  const jobSql = `
+    SELECT 
+      jp.id,
+      jp.job_title,
+      jp.skill_ids,
+      jp.min_salary,
+      jp.max_salary,
+      jp.city_id,
+      jp.country_id,
+      jp.job_type_id,
+      jt.name AS job_type_name
+    FROM job_posts jp
+    LEFT JOIN jobtypes jt ON jt.id = jp.job_type_id
+    WHERE jp.id = ?
+    LIMIT 1
+  `;
+
+  connection.query(jobSql, [jobId], (err, jobs) => {
+    if (err || !jobs.length) return;
+
+    const job = jobs[0];
+
+    const parseJSON = (val) => {
+      if (!val) return [];
+      try { return typeof val === "string" ? JSON.parse(val) : val; }
+      catch { return []; }
+    };
+
+    const jobSkillIds = parseJSON(job.skill_ids);
+    const jobCityIds = parseJSON(job.city_id);
+
+    const candidatesSql = `
+      SELECT 
+        jp.candidate_id,
+        jp.desired_job_titles,
+        jp.job_type,
+        jp.min_salary,
+        jp.max_salary,
+        jp.preferred_country_id,
+        jp.preferred_city_ids,
+        ci.skills AS candidate_skills
+      FROM job_preferences jp
+      JOIN candidate_info ci ON ci.id = jp.candidate_id
+      WHERE jp.alerts_enabled = 1
+    `;
+
+    connection.query(candidatesSql, (err2, candidates) => {
+      if (err2 || !candidates.length) return;
+
+      const alertsToInsert = [];
+
+      candidates.forEach((candidate) => {
+        const desiredTitles = parseJSON(candidate.desired_job_titles);
+        const preferredJobTypes = parseJSON(candidate.job_type);
+        const preferredCityIds = parseJSON(candidate.preferred_city_ids);
+        const candidateSkills = parseJSON(candidate.candidate_skills);
+
+        let matchScore = 0;
+
+        // 1. Job Title match
+        const jobTitleLower = (job.job_title || "").toLowerCase();
+        const titleMatch = desiredTitles.some((title) =>
+          jobTitleLower.includes(title.toLowerCase()) ||
+          title.toLowerCase().includes(jobTitleLower)
+        );
+        if (titleMatch) matchScore += 3;
+
+        // 2. Skills match
+        const skillsMatch = candidateSkills.some((skillId) =>
+          jobSkillIds.includes(skillId)
+        );
+        if (skillsMatch) matchScore += 2;
+
+        // 3. Salary match
+        if (candidate.min_salary && candidate.max_salary) {
+          if (
+            (job.max_salary || 0) >= candidate.min_salary &&
+            (job.min_salary || 0) <= candidate.max_salary
+          ) {
+            matchScore += 1;
+          }
+        }
+
+        // 4. Country match
+        if (
+          candidate.preferred_country_id && job.country_id &&
+          Number(candidate.preferred_country_id) === Number(job.country_id)
+        ) {
+          matchScore += 1;
+        }
+
+        // 5. City match
+        if (preferredCityIds.length && jobCityIds.length) {
+          const cityMatch = preferredCityIds.some((cityId) =>
+            jobCityIds.includes(Number(cityId))
+          );
+          if (cityMatch) matchScore += 1;
+        }
+
+        // 6. Job Type match
+        if (preferredJobTypes.length && job.job_type_name) {
+          const typeMatch = preferredJobTypes.some(
+            (type) => type.toLowerCase() === job.job_type_name.toLowerCase()
+          );
+          if (typeMatch) matchScore += 1;
+        }
+
+        if (matchScore >= 2) {
+          alertsToInsert.push([candidate.candidate_id, jobId]);
+        }
+      });
+
+      if (!alertsToInsert.length) return;
+
+      connection.query(
+        `INSERT IGNORE INTO job_alerts (candidate_id, job_id) VALUES ?`,
+        [alertsToInsert],
+        (err3, result) => {
+          if (err3) {
+            console.error("triggerJobAlerts insert error:", err3);
+            return;
+          }
+          console.log(`Job alerts created: ${result.affectedRows} for job ${jobId}`);
+        }
+      );
+    });
+  });
+};
+
 const postJob = (req, res) => {
   const userId = req.params.userId;
 
@@ -919,9 +1049,8 @@ const postJob = (req, res) => {
           );
         }
 
-        // ─────────────────────────────────────────────
-        // DONE 🎉
-        // ─────────────────────────────────────────────
+        triggerJobAlerts(jobId);
+
         return res.status(201).json({
           message: finalBillingModel === "daily_budget"
             ? "Job posted successfully ✅ — pending admin approval. Your saved card will be charged once approved."
@@ -1908,5 +2037,6 @@ module.exports = {
   getTransactionHistory,
   subcribePackageInternal,
   resetDailyBudgets,
-  viewCandidate
+  viewCandidate,
+  triggerJobAlerts,
 }

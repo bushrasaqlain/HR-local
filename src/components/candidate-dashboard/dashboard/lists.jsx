@@ -64,6 +64,23 @@ class JobList extends Component {
         this.setState({ loading: false });
       });
   }
+
+  componentDidUpdate(prevProps) {
+    if (
+      this.props.selectedMessageContact &&
+      this.props.selectedMessageContact !== prevProps.selectedMessageContact
+    ) {
+      const contact = this.props.selectedMessageContact;
+
+      this.setState({
+        showChat: true,
+        selectedCompany: contact.companyId,
+        selectedCompanyName: contact.companyName,
+        selectedJobId: contact.jobId,
+      });
+    }
+  }
+
   handleCompanyClick = async (company) => {
     const token = sessionStorage.getItem("token");
 
@@ -237,28 +254,28 @@ class JobList extends Component {
             {list.map((company, index) => {
               const formattedDate = company.interview_day
                 ? (() => {
-                    const d = new Date(company.interview_day);
-                    const day = String(d.getDate()).padStart(2, "0");
-                    const month = d.toLocaleString("en-US", { month: "short" });
-                    const year = String(d.getFullYear()).slice(-2);
-                    return `${day}-${month}-${year}`;
-                  })()
+                  const d = new Date(company.interview_day);
+                  const day = String(d.getDate()).padStart(2, "0");
+                  const month = d.toLocaleString("en-US", { month: "short" });
+                  const year = String(d.getFullYear()).slice(-2);
+                  return `${day}-${month}-${year}`;
+                })()
                 : "-";
 
               const formattedDay = company.interview_day
                 ? new Date(company.interview_day).toLocaleDateString("en-US", {
-                    weekday: "long",
-                  })
+                  weekday: "long",
+                })
                 : "";
 
               const formattedTime = company.interview_time
                 ? new Date(
-                    `1970-01-01T${company.interview_time}`,
-                  ).toLocaleTimeString("en-US", {
-                    hour: "numeric",
-                    minute: "2-digit",
-                    hour12: true,
-                  })
+                  `1970-01-01T${company.interview_time}`,
+                ).toLocaleTimeString("en-US", {
+                  hour: "numeric",
+                  minute: "2-digit",
+                  hour12: true,
+                })
                 : "-";
 
               // Check if already accepted by candidate
@@ -348,16 +365,16 @@ class JobList extends Component {
                               />
                             </>
                           ) : /* Show appropriate badge when no actions */
-                          isCompanyConfirmed ? (
-                            <span className="badge bg-success bg-opacity-10 text-success px-3 py-2">
-                              <FaCheckCircle className="me-1" /> Company
-                              Confirmed
-                            </span>
-                          ) : isAccepted ? (
-                            <span className="badge bg-success bg-opacity-10 text-success px-3 py-2">
-                              <FaCheckCircle className="me-1" /> You Confirmed
-                            </span>
-                          ) : null}
+                            isCompanyConfirmed ? (
+                              <span className="badge bg-success bg-opacity-10 text-success px-3 py-2">
+                                <FaCheckCircle className="me-1" /> Company
+                                Confirmed
+                              </span>
+                            ) : isAccepted ? (
+                              <span className="badge bg-success bg-opacity-10 text-success px-3 py-2">
+                                <FaCheckCircle className="me-1" /> You Confirmed
+                              </span>
+                            ) : null}
 
                           {/* Chat button - Always visible even after confirmation */}
                           <FaEnvelope
@@ -556,25 +573,25 @@ class JobList extends Component {
                           <strong>Date:</strong>{" "}
                           {this.state.selectedConfirmCompany?.interview_day
                             ? new Date(
-                                this.state.selectedConfirmCompany.interview_day,
-                              ).toLocaleDateString("en-US", {
-                                weekday: "long",
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric",
-                              })
+                              this.state.selectedConfirmCompany.interview_day,
+                            ).toLocaleDateString("en-US", {
+                              weekday: "long",
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })
                             : "Not scheduled"}
                         </p>
                         <p className="mb-0">
                           <strong>Time:</strong>{" "}
                           {this.state.selectedConfirmCompany?.interview_time
                             ? new Date(
-                                `1970-01-01T${this.state.selectedConfirmCompany.interview_time}`,
-                              ).toLocaleTimeString("en-US", {
-                                hour: "numeric",
-                                minute: "2-digit",
-                                hour12: true,
-                              })
+                              `1970-01-01T${this.state.selectedConfirmCompany.interview_time}`,
+                            ).toLocaleTimeString("en-US", {
+                              hour: "numeric",
+                              minute: "2-digit",
+                              hour12: true,
+                            })
                             : "Not scheduled"}
                         </p>
                       </div>
@@ -611,25 +628,25 @@ class JobList extends Component {
                           <strong>Interview Date:</strong>{" "}
                           {this.state.selectedConfirmCompany?.interview_day
                             ? new Date(
-                                this.state.selectedConfirmCompany.interview_day,
-                              ).toLocaleDateString("en-US", {
-                                weekday: "long",
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric",
-                              })
+                              this.state.selectedConfirmCompany.interview_day,
+                            ).toLocaleDateString("en-US", {
+                              weekday: "long",
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })
                             : "Not scheduled"}
                         </p>
                         <p className="mb-0">
                           <strong>Interview Time:</strong>{" "}
                           {this.state.selectedConfirmCompany?.interview_time
                             ? new Date(
-                                `1970-01-01T${this.state.selectedConfirmCompany.interview_time}`,
-                              ).toLocaleTimeString("en-US", {
-                                hour: "numeric",
-                                minute: "2-digit",
-                                hour12: true,
-                              })
+                              `1970-01-01T${this.state.selectedConfirmCompany.interview_time}`,
+                            ).toLocaleTimeString("en-US", {
+                              hour: "numeric",
+                              minute: "2-digit",
+                              hour12: true,
+                            })
                             : "Not scheduled"}
                         </p>
                       </div>
@@ -761,29 +778,29 @@ class JobList extends Component {
         <Card className="mt-5">
           <CardHeader>Select Category</CardHeader>
           <CardBody>
-<div style={{ borderBottom: "2px solid #e0e0e0", marginBottom: "1rem", display: "flex", gap: "0" }}>
-  {["shortlisted", "approved"].map((tab) => (
-    <button
-      key={tab}
-      onClick={() => this.setState({ selected: tab })}
-      style={{
-        padding: "10px 24px",
-        border: "none",
-        background: "transparent",
-        cursor: "pointer",
-        fontWeight: selected === tab ? "600" : "400",
-        color: selected === tab ? "#36565f" : "#6c757d",
-        borderBottom: selected === tab ? "3px solid #36565f" : "3px solid transparent",
-        marginBottom: "-2px",
-        textTransform: "capitalize",
-        fontSize: "15px",
-        transition: "all 0.2s",
-      }}
-    >
-      {tab === "shortlisted" ? "Shortlisted" : "Approved"}
-    </button>
-  ))}
-</div>
+            <div style={{ borderBottom: "2px solid #e0e0e0", marginBottom: "1rem", display: "flex", gap: "0" }}>
+              {["shortlisted", "approved"].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => this.setState({ selected: tab })}
+                  style={{
+                    padding: "10px 24px",
+                    border: "none",
+                    background: "transparent",
+                    cursor: "pointer",
+                    fontWeight: selected === tab ? "600" : "400",
+                    color: selected === tab ? "#36565f" : "#6c757d",
+                    borderBottom: selected === tab ? "3px solid #36565f" : "3px solid transparent",
+                    marginBottom: "-2px",
+                    textTransform: "capitalize",
+                    fontSize: "15px",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {tab === "shortlisted" ? "Shortlisted" : "Approved"}
+                </button>
+              ))}
+            </div>
 
 
 

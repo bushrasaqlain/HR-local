@@ -81,15 +81,39 @@ class AllApplicants extends Component {
 
     const isMobile = this.state.windowWidth <= 768;
 
+    this.trackCandidateProfileView(
+      candidate.account_id || candidate.candidate_id || candidate.id,
+      Number(this.state.selectedJobId) || null
+    );
+
     this.setState({
-      selectedCandidate: candidate,
-      selectedCandidateId: candidate.id,
-      // On mobile, hide list and show only details
-      splitViewActive: !isMobile, // Only use split view on non-mobile
-      mobileDetailView: isMobile, // On mobile, use detail view
-      showCandidateInfo: true,
+      selectedCandidate: null,
+    }, () => {
+      this.setState({
+        selectedCandidate: candidate,
+        selectedCandidateId: candidate.id,
+        splitViewActive: !isMobile,
+        mobileDetailView: isMobile,
+        showCandidateInfo: true,
+      });
     });
   }
+
+  trackCandidateProfileView = async (candidateAccountId, jobId) => {
+    console.log("🔍 trackCandidateProfileView called with:", { candidateAccountId, jobId });
+    if (!candidateAccountId) return;
+    try {
+      const token = sessionStorage.getItem("token");
+      await axios.post(
+        `${this.apiBaseUrl}candidateProfile/track-profile-view/${candidateAccountId}`,
+        { job_id: jobId || null },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      console.log("Profile view tracked:", candidateAccountId);
+    } catch (err) {
+      console.error("Profile view tracking failed:", err);
+    }
+  };
 
   closeDetailView = () => {
     this.setState({
@@ -233,9 +257,9 @@ class AllApplicants extends Component {
 
         const availabilityList = c.availability_times
           ? c.availability_times.split("|").map((s) => {
-              const [day, time] = s.split(" ");
-              return { day, time };
-            })
+            const [day, time] = s.split(" ");
+            return { day, time };
+          })
           : [];
 
         return {
@@ -344,14 +368,14 @@ class AllApplicants extends Component {
     return allApplicants.filter((candidate) => {
       const statusMatch = selectedStatus
         ? String(candidate.candidateStatus || "")
-            .trim()
-            .toLowerCase() === selectedStatus.toLowerCase()
+          .trim()
+          .toLowerCase() === selectedStatus.toLowerCase()
         : true;
       const cityMatch = this.state.selectedCityId
         ? Number(candidate.city) === Number(this.state.selectedCityId) ||
-          candidate.otherPreferredCities?.some(
-            (city) => Number(city.id) === Number(this.state.selectedCityId),
-          )
+        candidate.otherPreferredCities?.some(
+          (city) => Number(city.id) === Number(this.state.selectedCityId),
+        )
         : true;
 
       let searchMatch = true;
@@ -1245,6 +1269,7 @@ class AllApplicants extends Component {
                   value={this.state.selectedJobId}
                   onChange={async (e) => {
                     const selectedJobId = e.target.value;
+                    console.log("📌 Job selected:", selectedJobId);
                     await this.setState({
                       selectedJobId,
                       showFilters: !!selectedJobId,
@@ -1279,11 +1304,10 @@ class AllApplicants extends Component {
                           {currentCandidates.map((candidate) => (
                             <div
                               key={candidate.id}
-                              className={`compact-candidate-item ${
-                                candidate.id === selectedCandidateId
-                                  ? "selected"
-                                  : ""
-                              }`}
+                              className={`compact-candidate-item ${candidate.id === selectedCandidateId
+                                ? "selected"
+                                : ""
+                                }`}
                               onClick={() => this.openCandidatePage(candidate)}
                             >
                               <img
@@ -1377,6 +1401,7 @@ class AllApplicants extends Component {
                           <i className="fas fa-times"></i>
                         </button>
                         <CandidateInfo
+                          key={selectedCandidate?.id}
                           candidate={selectedCandidate}
                           selectedJobId={this.state.selectedJobId}
                           onBack={this.closeSplitView}
@@ -1396,6 +1421,7 @@ class AllApplicants extends Component {
                         <span>Back to Candidates List</span>
                       </div>
                       <CandidateInfo
+                        key={selectedCandidate?.id}
                         candidate={selectedCandidate}
                         selectedJobId={this.state.selectedJobId}
                         onBack={this.closeDetailView}
@@ -1456,13 +1482,13 @@ class AllApplicants extends Component {
                                       animation: `fadeInUp 0.5s ease ${index * 0.1}s`,
                                       background:
                                         candidate.is_boosted &&
-                                        candidate.candidate_id !==
+                                          candidate.candidate_id !==
                                           selectedCandidateId
                                           ? "#fffbeb"
                                           : undefined,
                                       borderLeft:
                                         candidate.is_boosted &&
-                                        candidate.candidate_id !==
+                                          candidate.candidate_id !==
                                           selectedCandidateId
                                           ? "3px solid #f59e0b"
                                           : undefined,
@@ -1499,15 +1525,14 @@ class AllApplicants extends Component {
                                     </td>
                                     <td className="text-center">
                                       <span
-                                        className={`status-badge ${
-                                          candidate.candidateStatus ===
+                                        className={`status-badge ${candidate.candidateStatus ===
                                           "Pending"
-                                            ? "status-pending"
-                                            : candidate.candidateStatus ===
-                                                "Rejected"
-                                              ? "status-rejected"
-                                              : "status-shortlisted"
-                                        }`}
+                                          ? "status-pending"
+                                          : candidate.candidateStatus ===
+                                            "Rejected"
+                                            ? "status-rejected"
+                                            : "status-shortlisted"
+                                          }`}
                                       >
                                         {candidate.candidateStatus || "Pending"}
                                       </span>

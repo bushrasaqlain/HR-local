@@ -63,8 +63,10 @@ const candidatejobs = require("./routes/candidatejobsRoutes")
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const alertSettingsRoutes = require("./routes/alertSettingsRoutes");
 const creditRoutes = require("./routes/creditRoutes");
+const contactRoutes = require("./routes/contactRoutes");
 
 app.use("/credit", creditRoutes);
+app.use("/contact", contactRoutes);
 
 app.use("/", accountRoutes);
 app.use("/", countries);

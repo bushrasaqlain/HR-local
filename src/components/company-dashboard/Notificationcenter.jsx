@@ -116,7 +116,7 @@ function NotificationCenter({ userId, apiBaseUrl }) {
         title="Notifications"
         style={{
           position: "relative",
-          background: showDropdown ? "#f0f0f0" : "transparent",
+          background: "transparent",
           border: "none",
           cursor: "pointer",
           padding: "7px 9px",
@@ -127,7 +127,7 @@ function NotificationCenter({ userId, apiBaseUrl }) {
           alignItems: "center",
         }}
       >
-        <span style={{ fontSize: 19 }}>🔔</span>
+        <i className="las la-bell fs-2 text-white"></i>
         {unreadCount > 0 && (
           <span
             style={{

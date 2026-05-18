@@ -74,6 +74,8 @@ const candidateexperience = require("../models/candidateexperienceModel")
 const candidateAvailabilityModel = require("../models/candidateAvailabilityModel");
 const alertSettingsModel = require("../models/alertSettingsModel");
 const creditModel = require("../models/creditModel");
+const contactModel = require("../models/contactModel");
+const { default: candidate } = require('../../src/components/regadmin-dashboard/candidate');
 
 function Database() {
 
@@ -119,6 +121,10 @@ function Database() {
   alertSettingsModel.createAlertSettingsTable();
   alertSettingsModel.createNotificationsTable();
   creditModel.createCandidateUnlocksTable();
+  contactModel.createContactTable();
+  candidateModel.createJobPreferencesTable();
+  candidateModel.createJobAlertsTable();
+  candidateModel.createProfileViewsTable();
 
 
   // adding extra column in job_posts table

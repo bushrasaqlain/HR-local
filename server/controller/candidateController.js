@@ -88,10 +88,10 @@ const getCandidatesForJob = (req, res) => {
     candidateModel.getCandidatesForJob(req, res);
 };
 const getMatchingJobsForCandidate = (req, res) => {
-  candidateModel.getMatchingJobsForCandidate(req, res);
+    candidateModel.getMatchingJobsForCandidate(req, res);
 };
 const getAllCandidatesForEmployer = (req, res) => {
-  candidateModel.getAllCandidatesForEmployer(req, res);
+    candidateModel.getAllCandidatesForEmployer(req, res);
 };
 const parseCVAndSave = (req, res) => {
     const resumeFile = req.file;
@@ -103,11 +103,39 @@ const parseCVAndSave = (req, res) => {
 };
 
 const toggleSaveJob = (req, res) => {
-  candidateModel.toggleSaveJob(req, res); 
+    candidateModel.toggleSaveJob(req, res);
 };
 
 const getSavedJobs = (req, res) => {
-  candidateModel.getSavedJobs(req, res);   
+    candidateModel.getSavedJobs(req, res);
+};
+
+const saveJobPreferences = (req, res) => {
+    candidateModel.saveJobPreferences(req, res);
+};
+
+const getJobPreferences = (req, res) => {
+    candidateModel.getJobPreferences(req, res);
+};
+
+const getJobAlerts = (req, res) => {
+    candidateModel.getJobAlerts(req, res);
+};
+
+const markJobAlertRead = (req, res) => {
+    candidateModel.markJobAlertRead(req, res);
+};
+
+const markAllJobAlertsRead = (req, res) => {
+    candidateModel.markAllJobAlertsRead(req, res);
+};
+
+const getProfileViewStats = (req, res) => {
+    candidateModel.getProfileViewStats(req, res);
+};
+
+const trackProfileView = (req, res) => {
+    candidateModel.trackProfileView(req, res);
 };
 
 module.exports = {
@@ -135,4 +163,11 @@ module.exports = {
     parseCVAndSave,
     toggleSaveJob,
     getSavedJobs,
+    saveJobPreferences,
+    getJobPreferences,
+    getJobAlerts,
+    markJobAlertRead,
+    markAllJobAlertsRead,
+    getProfileViewStats,
+    trackProfileView,
 }

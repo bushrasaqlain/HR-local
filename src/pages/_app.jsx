@@ -9,6 +9,7 @@ import { Provider } from "react-redux";
 import { store } from "../redux/store";
 import { setUserFromToken } from "../redux/features/user/userSlice";
 import "../styles/index.scss";
+import "../styles/messages.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../../public/scss/components/employer/pricing.scss";
 import "../../public/scss/components/employer/employer.scss";
@@ -55,14 +56,15 @@ function AppContent({ Component, pageProps }) {
     const storedAccountType = sessionStorage.getItem("accountType");
     if (storedAccountType !== "employer") return;
 
+    const publicPages = ["/privacy-policy", "/terms-of-service", "/contact-us"];
+    if (publicPages.includes(router.pathname)) return;
+
     const profileCompleted = sessionStorage.getItem("profile_completed") === "true";
-    const hasPackage = sessionStorage.getItem("has_package") === "true";
     const currentPath = router.pathname;
     if (!profileCompleted && currentPath !== "/company-profile") {
       router.push("/company-profile");
       return;
     }
-
     // if (profileCompleted && !hasPackage && currentPath !== "/company-packages") {
     //   window.location.href = "/company-packages";
     //   return;
@@ -84,6 +86,11 @@ function AppContent({ Component, pageProps }) {
   const isProfileOrPackages =
     router.pathname === "/company-profile";
 
+  const isPublicPage =
+    router.pathname === "/privacy-policy" ||
+    router.pathname === "/terms-of-service" ||
+    router.pathname === "/contact-us";
+
   console.log("APP DEBUG:", { role, isDashboardRoute, isProfileOrPackages, pathname: router.pathname });
 
   return isHistoryPage ? (
@@ -95,6 +102,11 @@ function AppContent({ Component, pageProps }) {
     isProfileOrPackages ? (
       <>
         <DashboardHeader key="dashboard-header-only" headerOnly={true} />
+        <Component {...pageProps} />
+      </>
+    ) : isPublicPage ? (
+      <>
+        <DashboardHeader key="dashboard-public" headerOnly={true} />
         <Component {...pageProps} />
       </>
     ) : (
@@ -126,5 +138,5 @@ function MyApp({ Component, pageProps }) {
     </Provider>
   );
 }
- 
+
 export default MyApp;

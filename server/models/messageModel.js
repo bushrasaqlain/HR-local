@@ -82,15 +82,17 @@ const getAllMessages = (req, res) => {
 // Update getContact to show last message per contact (optionally per job)
 const getContact = (req, res) => {
   const { userId } = req.params;
-  const { jobId } = req.query; // Optional job filter
+  const { jobId } = req.query;
 
   let query = `
     SELECT
       a.id,
-      a.username AS full_name,
+      COALESCE(cp.company_name, a.username) AS full_name,
       m.message AS last_message,
       m.timestamp AS last_message_time,
-      m.jobId
+      m.jobId,
+      m.is_read,      
+      m.receiverId
     FROM messages m
     INNER JOIN (
       SELECT
@@ -109,15 +111,8 @@ const getContact = (req, res) => {
         )
   `;
 
-  let params = [
-    userId,
-    userId,
-    userId,
-    userId,
-    userId
-  ];
+  let params = [userId, userId, userId, userId, userId];
 
-  // Add job filter to subquery if provided
   if (jobId) {
     query += ` AND jobId = ?`;
     params.push(jobId);
@@ -132,6 +127,7 @@ const getContact = (req, res) => {
         AND m.timestamp = lm.last_time
       )
     JOIN account a ON a.id = lm.contact_id
+    LEFT JOIN company_info cp ON cp.account_id = lm.contact_id
     ORDER BY m.timestamp DESC
   `;
 
@@ -301,52 +297,40 @@ const unreadCount = (req, res) => {
 
   const query = `
     SELECT COUNT(*) AS unreadCount
-    FROM (
-      SELECT m.is_read
-      FROM messages m
-      JOIN (
-        SELECT 
-          CASE 
-            WHEN senderId = ? THEN receiverId 
-            ELSE senderId 
-          END AS contactId,
-          MAX(timestamp) AS max_timestamp
-        FROM messages
-        WHERE (senderId = ? OR receiverId = ?)
-        GROUP BY contactId
-      ) t2
-      ON (
-        ((m.senderId = ? AND m.receiverId = t2.contactId) OR 
-         (m.senderId = t2.contactId AND m.receiverId = ?)) 
-        AND m.timestamp = t2.max_timestamp
-      )
-      WHERE 
-        -- Respect soft delete
-        (
-          (m.senderId = ? AND m.deleted_by_sender = 0) OR 
-          (m.receiverId = ? AND m.deleted_by_receiver = 0)
-        )
-        AND m.is_read = 0
-        AND m.receiverId = ?
-    ) subquery;
+    FROM messages
+    WHERE receiverId = ?
+      AND is_read = 0
+      AND deleted_by_receiver = 0
   `;
 
-  const params = [
-    userId, userId, userId, // contactId logic
-    userId, userId,         // join with latest messages
-    userId, userId,          // soft delete filter
-    userId                   // final receiverId filter
-  ];
-
-  connection.query(query, params, (error, results) => {
+  connection.query(query, [userId], (error, results) => {
     if (error) {
-      console.error('Error fetching unread contact count:', error);
-      return res.status(500).json({ error: 'An error occurred while fetching unread contact count.' });
+      console.error('Error fetching unread count:', error);
+      return res.status(500).json({ error: 'An error occurred.' });
     }
-
     res.status(200).json({ unreadCount: results[0].unreadCount });
   });
 }
+
+const getUnreadCountPerContact = (req, res) => {
+  const { userId } = req.params;
+
+  const query = `
+    SELECT senderId, COUNT(*) as unread_count
+    FROM messages
+    WHERE receiverId = ?
+      AND is_read = 0
+      AND deleted_by_receiver = 0
+    GROUP BY senderId
+  `;
+
+  connection.query(query, [userId], (error, results) => {
+    if (error) return res.status(500).json({ error: "Database error" });
+    const counts = {};
+    results.forEach(row => { counts[row.senderId] = row.unread_count; });
+    res.status(200).json(counts);
+  });
+};
 
 module.exports = {
   createMessagesTable,
@@ -357,5 +341,6 @@ module.exports = {
   markasRead,
   unreadMessage,
   unreadCount,
-  getJobMessages
+  getJobMessages,
+  getUnreadCountPerContact
 }

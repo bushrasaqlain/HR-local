@@ -107,6 +107,7 @@ class FormContent extends Component {
       sessionStorage.setItem("userId", res.data.userId);
       sessionStorage.setItem("accountType", res.data.accountType);
       sessionStorage.setItem("displayName", res.data.displayName);
+      sessionStorage.setItem("userEmail", values.email);
       sessionStorage.setItem("profile_completed", res.data.profile_completed);
       sessionStorage.setItem("has_package", res.data.has_package ? "true" : "false");
       dispatch(setUser(res.data));

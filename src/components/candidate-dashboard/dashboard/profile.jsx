@@ -4,6 +4,7 @@ import React, { Component } from "react";
 import { Card, CardBody, CardHeader, Container } from "reactstrap";
 import api from "../../lib/api";
 import EditProfile from "./editprofile";
+import ProfileViewsGraph from "./ProfileViewsGraph";
 import JobList from "./lists";
 import Payment from "../../company-dashboard/payment";
 import { withRouter } from "next/router";
@@ -11,6 +12,7 @@ class Profile extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      showViewsGraph: false,
       matchingJobs: [],
       searchTerm: "",
       applyingJobId: null,
@@ -210,6 +212,7 @@ class Profile extends Component {
                 className="col-12 col-md-4"
                 style={{
                   transition: "transform 0.3s",
+                  cursor: "pointer",
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = "scale(1.05)";
@@ -217,6 +220,7 @@ class Profile extends Component {
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = "scale(1)";
                 }}
+                onClick={() => this.setState({ showViewsGraph: true })}
               >
                 {this.renderStatCard(
                   "Appeared in Search",
@@ -245,7 +249,7 @@ class Profile extends Component {
 
               </div>
 
-              {boostStatus && !boostStatus.isBoosted && (
+              {!this.state.showViewsGraph && boostStatus && !boostStatus.isBoosted && (
                 <div className="col-12">
                   <div style={{
                     display: "flex", alignItems: "center", gap: "14px",
@@ -295,7 +299,7 @@ class Profile extends Component {
               )}
 
               {/* Boost Active Banner */}
-              {boostStatus && boostStatus.isBoosted && (
+              {!this.state.showViewsGraph && boostStatus && boostStatus.isBoosted && (
                 <div className="col-12">
                   <div style={{
                     display: "flex", alignItems: "center", gap: "14px",
@@ -351,213 +355,270 @@ class Profile extends Component {
               )}
 
               {/* Matching Jobs */}
-              <div className="col-12">
-                <Card>
-                  <CardHeader className="d-flex justify-content-between align-items-center">
-                    <div>
-                      <strong>Jobs Matching Your Profile</strong>
-                      <small className="text-muted ms-2">Based on your skills</small>
-                    </div>
-                    <button
-                      onClick={() => {
-                        console.log("clicked");
-                        this.props.onTabChange && this.props.onTabChange("savedJobs");
-                      }}
-                      style={{
-                        background: "#fff", color: "#36565F",
-                        border: "1.5px solid #36565F",
-                        borderRadius: "8px", padding: "5px 14px",
-                        fontSize: "12px", fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      ❤️ Saved Jobs ({this.state.savedJobIds.length})
-                    </button>
-                  </CardHeader>
-                  {/* 🔍 Search Bar */}
-                  <div style={{
-                    display: "flex",
-                    alignItems: "center",
-                    background: "#f9fafb",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "10px",
-                    padding: "8px 12px",
-                    marginBottom: "16px"
-                  }}>
-                    <span style={{ color: "#9ca3af", marginRight: "8px" }}>🔍</span>
-
-                    <input
-                      type="text"
-                      placeholder="Search jobs by title, company, city..."
-                      value={this.state.searchTerm}
-                      onChange={(e) => this.setState({ searchTerm: e.target.value })}
-                      style={{
-                        border: "none",
-                        outline: "none",
-                        background: "transparent",
-                        width: "100%",
-                        fontSize: "13px",
-                        color: "#374151"
-                      }}
-                    />
-
-                    {/* ❌ Clear Button */}
-                    {this.state.searchTerm && (
-                      <span
-                        onClick={() => this.setState({ searchTerm: "" })}
+              <div className="col-12" id="matching-jobs-section">
+                {this.state.showViewsGraph ? (
+                  /* ── GRAPH VIEW ── */
+                  <div>
+                    {/* Back button */}
+                    <div style={{ marginBottom: '12px' }}>
+                      <button
+                        onClick={() => this.setState({ showViewsGraph: false })}
                         style={{
-                          cursor: "pointer",
-                          color: "#9ca3af",
-                          fontWeight: "bold",
-                          marginLeft: "8px"
+                          background: 'none',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px',
+                          padding: '6px 14px',
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                          color: '#374151',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
                         }}
                       >
-                        ✕
-                      </span>
-                    )}
+                        ← Back to Matching Jobs
+                      </button>
+                    </div>
+
+                    {/* Graph Card */}
+                    <Card>
+                      <CardHeader className="d-flex justify-content-between align-items-center">
+                        <div>
+                          <strong>Profile Views</strong>
+                          <small className="text-muted ms-2">See how many times recruiters viewed your profile</small>
+                        </div>
+                        <button
+                          onClick={() => this.setState({ showViewsGraph: false })}
+                          style={{
+                            background: '#fee2e2',
+                            border: 'none',
+                            borderRadius: '50%',
+                            width: '28px', height: '28px',
+                            cursor: 'pointer',
+                            color: '#991b1b',
+                            fontWeight: 700,
+                            fontSize: '15px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          ×
+                        </button>
+                      </CardHeader>
+                      <CardBody>
+                        <ProfileViewsGraph />
+                      </CardBody>
+                    </Card>
                   </div>
-                  <CardBody>
-                    {filteredJobs.length === 0 ? (
-                      <p className="text-muted small">
-                        No matching jobs found. Make sure your skills are updated in your profile.
-                      </p>
-                    ) : (
-                      <div className="d-flex flex-column gap-3">
-                        {filteredJobs.map(job => {
-                          const isSaved = this.state.savedJobIds.includes(job.id);
+                ) : (
+                  <Card>
+                    <CardHeader className="d-flex justify-content-between align-items-center">
+                      <div>
+                        <strong>Jobs Matching Your Profile</strong>
+                        <small className="text-muted ms-2">Based on your skills</small>
+                      </div>
+                      <button
+                        onClick={() => {
+                          console.log("clicked");
+                          this.props.onTabChange && this.props.onTabChange("savedJobs");
+                        }}
+                        style={{
+                          background: "#fff", color: "#36565F",
+                          border: "1.5px solid #36565F",
+                          borderRadius: "8px", padding: "5px 14px",
+                          fontSize: "12px", fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        ❤️ Saved Jobs ({this.state.savedJobIds.length})
+                      </button>
+                    </CardHeader>
+                    {/* 🔍 Search Bar */}
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      background: "#f9fafb",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "10px",
+                      padding: "8px 12px",
+                      marginBottom: "16px"
+                    }}>
+                      <span style={{ color: "#9ca3af", marginRight: "8px" }}>🔍</span>
 
-                          return (
-                            <div
-                              key={job.id}
-                              className="d-flex align-items-center justify-content-between p-3"
-                              style={{
-                                border: "1px solid #e5e7eb",
-                                borderRadius: "10px",
-                                cursor: "pointer"
-                              }}
-                              onClick={() => this.handleJobClick(job.id)}
-                            >
+                      <input
+                        type="text"
+                        placeholder="Search jobs by title, company, city..."
+                        value={this.state.searchTerm}
+                        onChange={(e) => this.setState({ searchTerm: e.target.value })}
+                        style={{
+                          border: "none",
+                          outline: "none",
+                          background: "transparent",
+                          width: "100%",
+                          fontSize: "13px",
+                          color: "#374151"
+                        }}
+                      />
 
-                              {/* LEFT SIDE */}
-                              <div className="d-flex align-items-center gap-3">
-                                {job.logo ? (
-                                  <img
-                                    src={`data:image/png;base64,${job.logo}`}
-                                    alt={job.company_name}
-                                    style={{
+                      {/* ❌ Clear Button */}
+                      {this.state.searchTerm && (
+                        <span
+                          onClick={() => this.setState({ searchTerm: "" })}
+                          style={{
+                            cursor: "pointer",
+                            color: "#9ca3af",
+                            fontWeight: "bold",
+                            marginLeft: "8px"
+                          }}
+                        >
+                          ✕
+                        </span>
+                      )}
+                    </div>
+                    <CardBody>
+                      {filteredJobs.length === 0 ? (
+                        <p className="text-muted small">
+                          No matching jobs found. Make sure your skills are updated in your profile.
+                        </p>
+                      ) : (
+                        <div className="d-flex flex-column gap-3">
+                          {filteredJobs.map(job => {
+                            const isSaved = this.state.savedJobIds.includes(job.id);
+
+                            return (
+                              <div
+                                key={job.id}
+                                className="d-flex align-items-center justify-content-between p-3"
+                                style={{
+                                  border: "1px solid #e5e7eb",
+                                  borderRadius: "10px",
+                                  cursor: "pointer"
+                                }}
+                                onClick={() => this.handleJobClick(job.id)}
+                              >
+
+                                {/* LEFT SIDE */}
+                                <div className="d-flex align-items-center gap-3">
+                                  {job.logo ? (
+                                    <img
+                                      src={`data:image/png;base64,${job.logo}`}
+                                      alt={job.company_name}
+                                      style={{
+                                        width: 40,
+                                        height: 40,
+                                        borderRadius: 8,
+                                        objectFit: "cover"
+                                      }}
+                                    />
+                                  ) : (
+                                    <div style={{
                                       width: 40,
                                       height: 40,
                                       borderRadius: 8,
-                                      objectFit: "cover"
-                                    }}
-                                  />
-                                ) : (
-                                  <div style={{
-                                    width: 40,
-                                    height: 40,
-                                    borderRadius: 8,
-                                    background: "#f3f4f6",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    fontSize: 18,
-                                    color: "#9ca3af"
-                                  }}>
-                                    🏢
-                                  </div>
-                                )}
+                                      background: "#f3f4f6",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      fontSize: 18,
+                                      color: "#9ca3af"
+                                    }}>
+                                      🏢
+                                    </div>
+                                  )}
 
-                                <div>
-                                  {/* Job Title + Save */}
-                                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                    <div style={{ fontWeight: 600, fontSize: 14 }}>
-                                      {job.job_title}
+                                  <div>
+                                    {/* Job Title + Save */}
+                                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                      <div style={{ fontWeight: 600, fontSize: 14 }}>
+                                        {job.job_title}
+                                      </div>
+
+                                      <button
+                                        onClick={(e) => this.handleToggleSave(e, job.id)}
+                                        style={{
+                                          background: "none",
+                                          border: "none",
+                                          cursor: "pointer",
+                                          fontSize: "15px",
+                                          padding: "2px",
+                                          color: isSaved ? "#ef4444" : "#d1d5db",
+                                        }}
+                                        title={isSaved ? "Remove from saved" : "Save job"}
+                                      >
+                                        {isSaved ? "❤️" : "🤍"}
+                                      </button>
                                     </div>
 
-                                    <button
-                                      onClick={(e) => this.handleToggleSave(e, job.id)}
-                                      style={{
-                                        background: "none",
-                                        border: "none",
-                                        cursor: "pointer",
-                                        fontSize: "15px",
-                                        padding: "2px",
-                                        color: isSaved ? "#ef4444" : "#d1d5db",
-                                      }}
-                                      title={isSaved ? "Remove from saved" : "Save job"}
+                                    {/* Company + City */}
+                                    <div style={{ fontSize: 12, color: "#6b7280" }}>
+                                      {job.company_name} • {job.city_name}
+                                    </div>
+
+                                    {/* Salary */}
+                                    {job.min_salary && (
+                                      <div style={{ fontSize: 12, color: "#059669" }}>
+                                        {job.currency} {job.min_salary} - {job.max_salary}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* RIGHT SIDE */}
+                                <div onClick={(e) => e.stopPropagation()}>
+                                  {job.already_applied ? (
+                                    <span
+                                      className="badge"
+                                      style={{ background: "#d1fae5", color: "#065f46" }}
                                     >
-                                      {isSaved ? "❤️" : "🤍"}
+                                      ✓ Applied
+                                    </span>
+                                  ) : !this.state.boostStatus?.isBoosted ? (
+                                    <span
+                                      style={{
+                                        fontSize: 11,
+                                        color: "#a16207",
+                                        background: "#fffbeb",
+                                        border: "1px solid #f59e0b",
+                                        borderRadius: 8,
+                                        padding: "6px 10px",
+                                        display: "inline-block",
+                                        maxWidth: 120,
+                                        textAlign: "center",
+                                        lineHeight: "1.3"
+                                      }}
+                                    >
+                                      Boost your profile to apply
+                                    </span>
+                                  ) : (
+                                    <button
+                                      onClick={() => this.handleApply(job.id)}
+                                      disabled={this.state.applyingJobId === job.id}
+                                      style={{
+                                        background: "#36565F",
+                                        color: "#fff",
+                                        border: "none",
+                                        borderRadius: 8,
+                                        padding: "8px 16px",
+                                        fontSize: 13,
+                                        fontWeight: 600,
+                                        cursor: "pointer",
+                                      }}
+                                    >
+                                      {this.state.applyingJobId === job.id
+                                        ? "Applying..."
+                                        : "Apply"}
                                     </button>
-                                  </div>
-
-                                  {/* Company + City */}
-                                  <div style={{ fontSize: 12, color: "#6b7280" }}>
-                                    {job.company_name} • {job.city_name}
-                                  </div>
-
-                                  {/* Salary */}
-                                  {job.min_salary && (
-                                    <div style={{ fontSize: 12, color: "#059669" }}>
-                                      {job.currency} {job.min_salary} - {job.max_salary}
-                                    </div>
                                   )}
                                 </div>
                               </div>
-
-                              {/* RIGHT SIDE */}
-                              <div onClick={(e) => e.stopPropagation()}>
-                                {job.already_applied ? (
-                                  <span
-                                    className="badge"
-                                    style={{ background: "#d1fae5", color: "#065f46" }}
-                                  >
-                                    ✓ Applied
-                                  </span>
-                                ) : !this.state.boostStatus?.isBoosted ? (
-                                  <span
-                                    style={{
-                                      fontSize: 11,
-                                      color: "#a16207",
-                                      background: "#fffbeb",
-                                      border: "1px solid #f59e0b",
-                                      borderRadius: 8,
-                                      padding: "6px 10px",
-                                      display: "inline-block",
-                                      maxWidth: 120,
-                                      textAlign: "center",
-                                      lineHeight: "1.3"
-                                    }}
-                                  >
-                                    Boost your profile to apply
-                                  </span>
-                                ) : (
-                                  <button
-                                    onClick={() => this.handleApply(job.id)}
-                                    disabled={this.state.applyingJobId === job.id}
-                                    style={{
-                                      background: "#36565F",
-                                      color: "#fff",
-                                      border: "none",
-                                      borderRadius: 8,
-                                      padding: "8px 16px",
-                                      fontSize: 13,
-                                      fontWeight: 600,
-                                      cursor: "pointer",
-                                    }}
-                                  >
-                                    {this.state.applyingJobId === job.id
-                                      ? "Applying..."
-                                      : "Apply"}
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </CardBody>
-                </Card>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </CardBody>
+                  </Card>
+                )}
               </div>
             </div>
           </div>

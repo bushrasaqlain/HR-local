@@ -189,6 +189,30 @@ span.badge.badge-inactive-custom {
   background-position: center;
 }
 
+.privacy-hero {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  height: 300px;
+
+  background: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)),
+    url('/images/tealbg.jpg');
+
+  background-size: cover;
+  background-position: center;
+}
+
+.service-hero {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  height: 300px;
+
+  background: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)),
+    url('/images/tealbg.jpg');
+
+  background-size: cover;
+  background-position: center;
+}
+
 /* ✅ tagline white */
 .hero-tagline {
   color: #ffffff;
@@ -439,6 +463,7 @@ span.badge.badge-inactive-custom {
   /* 🔥 blue icons */
   margin-right: 8px;
 }
+
 .right-box .love-item .icon {
   color: #36565f;
   background-color: white;
@@ -454,6 +479,7 @@ span.badge.badge-inactive-custom {
   border-radius: 50%;
   font-size: 45px;
 }
+
 /* 🔷 SOCIAL */
 .social-icons {
   display: flex;
@@ -549,7 +575,7 @@ span.badge.badge-inactive-custom {
 .custom-btn {
   display: inline-block;
   border: 2px solid #000;
-  background-color: #000; 
+  background-color: #000;
   color: #fff;
   padding: 10px 30px;
   font-size: 16px;
@@ -574,7 +600,7 @@ span.badge.badge-inactive-custom {
 
 /* 🔷 Top Employers */
 .top-employers {
-background: linear-gradient(rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.9)),
+  background: linear-gradient(rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.9)),
     url('/images/background/4.jpg');
   background-size: cover;
   background-position: center;

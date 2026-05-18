@@ -149,7 +149,7 @@ const addPayment = (req, res) => {
       paymentQuery,
       [
         userId, jobId || null, packageId || null,
-        last4, brand, cardName || null,
+        last4, brand, cardName || null,cardExpiry || null,
         amount, currency || "PKR",
         payment_type || "job", method,
         reference || null,

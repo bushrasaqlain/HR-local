@@ -1,34 +1,33 @@
+import Link from "next/link";
 import React from 'react';
-import { Container, Row, Col, Nav, NavItem, NavLink } from 'reactstrap';
+import { Container, Row, Col, Nav, NavItem } from 'reactstrap';
 
 const DashboardFooter = () => {
   return (
     <footer className="footer text-white py-3 mt-3 fixed-bottom dashboard-footer"
-    style={{ background: "#192b31"}}>
+      style={{ background: "#192b31" }}>
       <Container>
         <Row className="align-items-center">
-          {/* Left Side */}
           <Col md="6" className="text-center text-md-start mb-2 mb-md-0">
             <span>© {new Date().getFullYear()} HR. All Rights Reserved.</span>
           </Col>
 
-          {/* Right Side */}
           <Col md="6" className="text-center text-md-end">
             <Nav className="justify-content-center justify-content-md-end">
               <NavItem>
-                <NavLink href="#" className="text-white">
+                <Link href="/privacy-policy" className="text-white nav-link">
                   Privacy Policy
-                </NavLink>
+                </Link>
               </NavItem>
               <NavItem>
-                <NavLink href="/terms" className="text-white">
+                <Link href="/terms-of-service" className="text-white nav-link">
                   Terms of Service
-                </NavLink>
+                </Link>
               </NavItem>
               <NavItem>
-                <NavLink href="/contact" className="text-white">
+                <Link href="/contact-us" className="text-white nav-link">
                   Contact
-                </NavLink>
+                </Link>
               </NavItem>
             </Nav>
           </Col>
