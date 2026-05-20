@@ -9,7 +9,7 @@ class CompanyProfile extends Component {
     super(props);
     this.state = {
       formData: {
-        username: "",
+        // username: "",
         company_name: "",
         account_email: "",
         phone: "",
@@ -62,7 +62,7 @@ class CompanyProfile extends Component {
       this.setState(
         {
           formData: {
-            username: data.username,
+            // username: data.username,
             company_name: data.company_name || "",
             account_email: data.account_email || "",
             phone: data.phone || "",
@@ -302,7 +302,7 @@ class CompanyProfile extends Component {
 
     formDataToSend.append("userId", this.userId);
     formDataToSend.append("account_id", this.userId);
-    formDataToSend.append("username", formData.username || "");
+    // formDataToSend.append("username", formData.username || "");
     formDataToSend.append("email", formData.account_email || "");
     formDataToSend.append("company_name", formData.company_name || "");
     formDataToSend.append("business_type", formData.business_type || "");
@@ -405,7 +405,7 @@ class CompanyProfile extends Component {
               <div className="card-body">
                 <Form ref={this.formRef} onSubmit={this.handleSubmit}>
                   <Row>
-                    <Col md={6}>
+                    {/* <Col md={6}>
                       <FormGroup>
                         <Label>User Name</Label>
                         <Input
@@ -415,7 +415,7 @@ class CompanyProfile extends Component {
                           onChange={this.handleInputChange}
                         />
                       </FormGroup>
-                    </Col>
+                    </Col> */}
                     <Col md={6}>
                       <FormGroup>
                         <Label>Email</Label>
@@ -601,10 +601,10 @@ class CompanyProfile extends Component {
 
               <table className="table table-sm table-bordered mb-3">
                 <tbody>
-                  <tr>
+                  {/* <tr>
                     <td style={{ width: "40%" }}><strong>Username</strong></td>
                     <td>{this.state.formData.username || <span className="text-muted">—</span>}</td>
-                  </tr>
+                  </tr> */}
                   <tr>
                     <td><strong>Email</strong></td>
                     <td>{this.state.formData.account_email || <span className="text-muted">—</span>}</td>

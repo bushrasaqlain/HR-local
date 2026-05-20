@@ -117,9 +117,31 @@ const addPayment = (req, res) => {
             insertCard,
             [userId, last4, brand, cardName || null, cardExpiry || null, JSON.stringify(acceptedTypes || []), payment_token],
             (errInsert) => {
-              if (errInsert) return res.status(500).json({ success: false, message: "Saving card failed" });
-              return res.status(201).json({ success: true, message: "Card saved successfully ✅" });
-            }
+  if (errInsert) {
+    return res.status(500).json({
+      success: false,
+      message: "Saving card failed"
+    });
+  }
+
+  // Audit log
+logAudit({
+    tableName: "history",
+    entityType: "employer",
+    entityId: userId,
+    action: "CARD_SAVED",
+    data: {
+        event: "Payment card saved",
+        card_brand: brand,
+        card_last4: last4,
+    },
+    changedBy: userId,
+});
+  return res.status(201).json({
+    success: true,
+    message: "Card saved successfully ✅"
+  });
+}
           );
         } else {
           return res.status(200).json({ success: true, message: "Card already saved" });
@@ -178,9 +200,31 @@ const addPayment = (req, res) => {
                   insertCard,
                   [userId, last4, brand, cardName || null, cardExpiry || null, JSON.stringify(acceptedTypes || []), payment_token],
                   (errInsert) => {
-                    if (errInsert) return connection.rollback(() => res.status(500).json({ success: false, message: "Saving card failed" }));
-                    cb();
-                  }
+  if (errInsert) {
+    return connection.rollback(() =>
+      res.status(500).json({
+        success: false,
+        message: "Saving card failed"
+      })
+    );
+  }
+
+  // Audit log
+ logAudit({
+    tableName: "history",
+    entityType: "employer",
+    entityId: userId,
+    action: "CARD_SAVED",
+    data: {
+        event: "Payment card saved",
+        card_brand: brand,
+        card_last4: last4,
+    },
+    changedBy: userId,
+});
+
+  cb();
+}
                 );
               } else { cb(); }
             });
@@ -188,16 +232,65 @@ const addPayment = (req, res) => {
         };
 
         saveCardIfNeeded(() => {
-          if (!packageId) {
-            return connection.commit((err4) => {
-              if (err4) return connection.rollback(() => res.status(500).json({ success: false, message: "Commit failed" }));
-              return res.status(201).json({ success: true, message: "Payment saved", payment_id: paymentId });
-            });
-          }
+         if (!packageId) {
+  return connection.commit((err4) => {
+    if (err4) {
+      return connection.rollback(() =>
+        res.status(500).json({
+          success: false,
+          message: "Commit failed"
+        })
+      );
+    }
+
+    // Audit log
+    logAudit({
+      tableName: "history",
+      entityType: "employer",
+      entityId: userId,
+      action: "PAYMENT",
+      data: {
+        event: "Payment recorded",
+        amount,
+        currency: currency || "PKR",
+        method,
+        packageId: packageId || null,
+        jobId: jobId || null,
+        payment_type: payment_type || "job",
+        paymentId,
+      },
+      changedBy: userId,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Payment saved",
+      payment_id: paymentId
+    });
+  });
+}
 
           if (payment_type === "candidate_boost") {
             return connection.commit((err4) => {
               if (err4) return connection.rollback(() => res.status(500).json({ success: false, message: "Commit failed" }));
+                  // Audit log
+    logAudit({
+      tableName: "history",
+      entityType: "employer",
+      entityId: userId,
+      action: "PAYMENT",
+      data: {
+        event: "Payment recorded",
+        amount,
+        currency: currency || "PKR",
+        method,
+        packageId: packageId || null,
+        jobId: jobId || null,
+        payment_type: payment_type || "job",
+        paymentId,
+      },
+      changedBy: userId,
+    });
               return res.status(201).json({ success: true, message: "Boost payment successful", payment_id: paymentId });
             });
           }
@@ -207,6 +300,25 @@ const addPayment = (req, res) => {
               const finalize = () => {
                 connection.commit((err4) => {
                   if (err4) return connection.rollback(() => res.status(500).json({ success: false, message: "Commit failed" }));
+                  // Audit log
+logAudit({
+  tableName: "history",
+  entityType: "employer",
+  entityId: userId,
+  action: "PAYMENT",
+  data: {
+    event: "Payment recorded",
+    amount,
+    currency: currency || "PKR",
+    method,
+    packageId: packageId || null,
+    jobId: jobId || null,
+    payment_type: payment_type || "job",
+    paymentId,
+  },
+  changedBy: userId,
+});
+
                   return res.status(201).json({
                     success: true,
                     message: "Payment + Subscription successful 🚀",

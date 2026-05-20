@@ -213,119 +213,157 @@ const updateCompanyinfo = async (req, res) => {
   try {
     const accountId = parseInt(req.body.userId);
     const {
-      username,
-      email,
-      company_name,
-      business_type,
-      phone,
-      country,
-      district,
-      city,
-      company_address,
-      company_website,
-      NTN,
-      size_of_company,
-      established_date
+       email, company_name, business_type, phone,
+      country, district, city, company_address, company_website,
+      NTN, size_of_company, established_date
     } = req.body;
 
-    console.log("country:", country);
-    console.log("district:", district);
-    console.log("city:", city);
     const country_id = country;
     const district_id = district;
     const city_id = city;
-    console.log("country_id:", country_id);
-    console.log("district_id:", district_id);
-    console.log("city_id:", city_id);
 
-    const logo = req.file ? req.file.buffer : null;
+    // Step 1: Check if a REAL profile already exists (not just a signup placeholder)
+    connection.query(
+      `SELECT * FROM company_info WHERE account_id = ?`,
+      [accountId],
+      (err, existing) => {
+        if (err) return res.status(500).json({ error: err });
 
-    let sql = `
-      INSERT INTO company_info
-        (account_id, company_name, Business_entity_type_id, phone, country_id, district_id, city_id, 
-         company_address, company_website, NTN, size_of_company, established_date ${req.file ? ", logo" : ""})
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ${req.file ? ", ?" : ""})
-      ON DUPLICATE KEY UPDATE
-        company_name=VALUES(company_name),
-        Business_entity_type_id=VALUES(Business_entity_type_id),
-        phone=VALUES(phone),
-        country_id=VALUES(country_id),
-        district_id=VALUES(district_id),
-        city_id=VALUES(city_id),
-        company_address=VALUES(company_address),
-        company_website=VALUES(company_website),
-        NTN=VALUES(NTN),
-        size_of_company=VALUES(size_of_company),
-        established_date=VALUES(established_date)
-        ${req.file ? ", logo=VALUES(logo)" : ""}
-    `;
+        // ✅ Step 2: Also fetch old username/email from account table
+        connection.query(
+          `SELECT username, email FROM account WHERE id = ?`,
+          [accountId],
+          (err2, accountRows) => {
+            if (err2) return res.status(500).json({ error: err2 });
 
-    const params = [
-      accountId,
-      company_name,
-      business_type,
-      phone,
-      country_id,   // ✅ use the numeric ID
-      district_id,  // ✅ use the numeric ID
-      city_id,
-      company_address,
-      company_website,
-      NTN,
-      size_of_company,
-      established_date
-    ];
+            const isNew = existing.length === 0 || !existing[0].company_name;
+            const oldData = isNew ? null : existing[0];
+            const oldAccount = accountRows[0] || {};
 
-    if (req.file) params.push(req.file.buffer);
+            // Step 3: Upsert company_info
+            const sql = `
+              INSERT INTO company_info
+                (account_id, company_name, Business_entity_type_id, phone, country_id, district_id, city_id,
+                 company_address, company_website, NTN, size_of_company, established_date
+                 ${req.file ? ", logo" : ""})
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ${req.file ? ", ?" : ""})
+              ON DUPLICATE KEY UPDATE
+                company_name            = VALUES(company_name),
+                Business_entity_type_id = VALUES(Business_entity_type_id),
+                phone                   = VALUES(phone),
+                country_id              = VALUES(country_id),
+                district_id             = VALUES(district_id),
+                city_id                 = VALUES(city_id),
+                company_address         = VALUES(company_address),
+                company_website         = VALUES(company_website),
+                NTN                     = VALUES(NTN),
+                size_of_company         = VALUES(size_of_company),
+                established_date        = VALUES(established_date)
+                ${req.file ? ", logo = VALUES(logo)" : ""}
+            `;
 
-    connection.query(sql, params, (err, result) => {
-      if (err) return res.status(500).json({ error: err });
+            const params = [
+              accountId, company_name, business_type, phone,
+              country_id, district_id, city_id,
+              company_address, company_website, NTN, size_of_company, established_date
+            ];
+            if (req.file) params.push(req.file.buffer);
 
-      const markProfileComplete = `
-        UPDATE company_info 
-        SET profile_completed = TRUE 
-        WHERE account_id = ?
-      `;
+            connection.query(sql, params, (err3, result) => {
+              if (err3) return res.status(500).json({ error: err3 });
 
-      connection.query(markProfileComplete, [accountId]);
+              // Mark profile as complete
+              connection.query(
+                `UPDATE company_info SET profile_completed = TRUE WHERE account_id = ?`,
+                [accountId]
+              );
 
-      // update account table if needed
-      if (username || email) {
-        let updatedFields = [];
-        let updatedParams = [];
-        if (username) {
-          updatedFields.push("username = ?");
-          updatedParams.push(username);
-        }
-        if (email) {
-          updatedFields.push("email = ?");
-          updatedParams.push(email);
-        }
-        console.log("req.body.email:", req.body.email);
-        const accountSql = `UPDATE account SET ${updatedFields.join(", ")} WHERE id = ?`;
-        updatedParams.push(accountId);
-        connection.query(accountSql, updatedParams, (accErr) => {
-          if (accErr) return res.status(500).json({ error: accErr });
-        });
+              // Update account table (username / email)
+              if (email) {
+    connection.query(
+        `UPDATE account SET email = ? WHERE id = ?`,
+        [email, accountId]
+    );
+}
+
+              // Step 4: Audit log — ADDED or UPDATED with diff
+              if (isNew) {
+                logAudit({
+                  tableName: "history",
+                  entityType: "employer",
+                  entityId: accountId,
+                  action: "ADDED",
+                  data: {
+                    event: "Company profile created",
+                    email,
+                    company_name,
+                    business_type,
+                    phone,
+                    country_id,
+                    district_id,
+                    city_id,
+                    company_address,
+                    company_website,
+                    NTN,
+                    size_of_company,
+                    established_date,
+                  },
+                  changedBy: accountId,
+                });
+              } else {
+                // Compute diff for company_info fields
+                const newData = {
+                  company_name,
+                  Business_entity_type_id: parseInt(business_type),
+                  phone,
+                  country_id:      parseInt(country_id),
+                  district_id:     parseInt(district_id),
+                  city_id:         parseInt(city_id),
+                  company_address,
+                  company_website,
+                  NTN,
+                  size_of_company,
+                  established_date,
+                };
+
+                const diff = {};
+                for (const key of Object.keys(newData)) {
+                  const oldVal = String(oldData[key] ?? "");
+                  const newVal = String(newData[key] ?? "");
+                  if (oldVal !== newVal) {
+                    diff[key] = { from: oldData[key], to: newData[key] };
+                  }
+                }
+
+                
+                if (email && email !== oldAccount.email) {
+                  diff.email = { from: oldAccount.email, to: email };
+                }
+
+                logAudit({
+                  tableName: "history",
+                  entityType: "employer",
+                  entityId: accountId,
+                  action: "UPDATED",
+                  data: {
+                    event: "Company profile updated",
+                    changes: diff,
+                  },
+                  changedBy: accountId,
+                });
+              }
+
+              res.status(200).json({ message: "Profile saved/updated successfully" });
+            });
+          }
+        );
       }
-
-      logAudit({
-        tableName: "history",
-        entityType: "employer",
-        entityId: accountId,
-        action: "UPDATED",
-        data: { event: "Company profile updated", company_name, city_id, country_id },
-        changedBy: accountId,
-      });
-
-      res.status(200).json({ message: "Profile saved/updated successfully" });
-    });
+    );
   } catch (error) {
     console.error(error);
     res.status(500).json({ error });
   }
 };
-
-
 const getcompanybyid = (req, res) => {
   const companyId = Number(req.params.userId); // 🔹 match the router param
   if (!Number.isInteger(companyId)) {

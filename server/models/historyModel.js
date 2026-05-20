@@ -31,59 +31,134 @@ const getHistory = (req, res) => {
         return res.status(400).json({ error: "entity_type and entity_id are required" });
     }
 
-    const query = `SELECT h.*, u.username AS changed_by_name FROM history h
-                   LEFT JOIN account u ON h.changed_by = u.id
-                   WHERE h.entity_type = ? AND h.entity_id = ?`;
+    const query = `SELECT h.*, 
+               CASE 
+                   WHEN u.accountType IN ('employer', 'candidate') THEN u.email
+                   ELSE u.username
+               END AS changed_by_name
+               FROM history h
+               LEFT JOIN account u ON h.changed_by = u.id
+               WHERE h.entity_type = ? AND h.entity_id = ?`;
 
     connection.query(query, [entity_type, entity_id], async (err, results) => {
         if (err) return res.status(500).json({ error: "Database error" });
 
         // Fetch mapping tables separately
-        const [cities, countries, districts, businessTypes] = await Promise.all([
-            getLookupMap("cities"),
-            getLookupMap("countries"),
-            getLookupMap("districts"),
-            getLookupMap("business_entity_type")
-        ]);
+        const [
+    cities,
+    countries,
+    districts,
+    businessTypes,
+    packages,
+    jobs,
+    companyPackages
+] = await Promise.all([
+    getLookupMap("cities"),
+    getLookupMap("countries"),
+    getLookupMap("districts"),
+    getLookupMap("business_entity_type"),
+    getLookupMap("packages"),
+    getLookupMap("job_posts", "job_title"), 
+    getLookupMap("company_packages", "pricing_model") 
+]);
 
         // Replace IDs with names
-        results.forEach(item => {
-            if (item.data) {
-                item.data.city = cities[item.data.city] || item.data.city;
-                item.data.country = countries[item.data.country] || item.data.country;
-                item.data.district = districts[item.data.district] || item.data.district;
-                item.data.Business_entity_type = businessTypes[item.data.Business_entity_type] || item.data.Business_entity_type;
-            }
-        });
+results.forEach(item => {
+    if (!item.data) return;
 
+    // location lookups
+    item.data.city_name = cities[item.data.city] || null;
+    item.data.country_name = countries[item.data.country] || null;
+    item.data.district_name = districts[item.data.district] || null;
+    item.data.business_type_name = businessTypes[item.data.business_type] || null;
+
+    // job / package / subscription (NAMES ONLY)
+    item.data.job_title =
+        jobs[item.data.job_id] || null;
+
+    item.data.package_name =
+        packages[item.data.packageId] || null;
+
+   item.data.company_package_info = companyPackages[item.data.company_package_id] || null;
+});
         results.forEach(item => {
-            if (item.data && item.data.event) {
-                item.readable_event = item.data.event;  
-            } else if (item.action === "ADDED") {
-                item.readable_event = entity_type === "employer" ? "Company registered" :
-                    entity_type === "job" ? "Job posted" :  
-                        "Candidate registered";
-            } else if (item.action === "ACTIVE") {
-                item.readable_event = entity_type === "job" ? "Job activated" :  
-                    "Account activated";
-            } else if (item.action === "INACTIVE") {
-                item.readable_event = entity_type === "job" ? "Job deactivated" :  
-                    "Account deactivated";
-            } else {
-                item.readable_event = entity_type === "job" ? "Job updated" :  
-                    entity_type === "employer" ? "Company updated" :
-                        "Profile updated";
-            }
-        });
+    // Prefer explicit event from audit data
+    if (item.data?.event) {
+        item.readable_event = item.data.event;
+        return;
+    }
+
+    // Fallbacks
+    switch (item.action) {
+        case "CREATED":
+        case "ADDED":
+            item.readable_event =
+                entity_type === "job"
+                    ? "Job created"
+                    : entity_type === "employer"
+                    ? "Employer created"
+                    : "Record created";
+            break;
+
+        case "UPDATED":
+            item.readable_event =
+                entity_type === "job"
+                    ? "Job updated"
+                    : entity_type === "employer"
+                    ? "Employer updated"
+                    : "Record updated";
+            break;
+
+        case "ACTIVE":
+            item.readable_event = "Activated";
+            break;
+
+        case "INACTIVE":
+            item.readable_event = "Deactivated";
+            break;
+
+        case "APPROVED":
+            item.readable_event = "Approved";
+            break;
+
+        case "PAYMENT":
+            item.readable_event = "Payment recorded";
+            break;
+
+        case "PACKAGE_SUBSCRIBED":
+            item.readable_event = "Package subscribed";
+            break;
+
+        case "CANDIDATE_UNLOCKED":
+            item.readable_event = "Candidate unlocked";
+            break;
+
+        default:
+            item.readable_event = item.action || "History event";
+    }
+});
 
         return res.status(200).json({ history: results });
     });
 };
 
 // Generic function to get mapping {id: name} from a table
-function getLookupMap(table) {
+// Before
+// function getLookupMap(table) {
+//     return new Promise((resolve, reject) => {
+//         connection.query(`SELECT id, name FROM ${table}`, (err, results) => {
+//             if (err) return reject(err);
+//             const map = {};
+//             results.forEach(r => map[r.id] = r.name);
+//             resolve(map);
+//         });
+//     });
+// }
+
+// After
+function getLookupMap(table, labelColumn = "name") {
     return new Promise((resolve, reject) => {
-        connection.query(`SELECT id, name FROM ${table}`, (err, results) => {
+        connection.query(`SELECT id, ${labelColumn} AS name FROM ${table}`, (err, results) => {
             if (err) return reject(err);
             const map = {};
             results.forEach(r => map[r.id] = r.name);
@@ -91,7 +166,6 @@ function getLookupMap(table) {
         });
     });
 }
-
 
 const addhistory = (req, res) => {
     const { entity_type, entity_id, action, data, changed_by } = req.query;
@@ -107,6 +181,7 @@ const addhistory = (req, res) => {
         return res.status(201).json({ message: "data inserted successfully", id: results.insertId });
     })
 }
+
 module.exports = {
     createHistoryTable,
     getHistory,

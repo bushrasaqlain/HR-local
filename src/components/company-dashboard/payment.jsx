@@ -66,15 +66,40 @@ class Payment extends Component {
   handleChange = (e) => {
     let { name, value } = e.target;
 
-    if (name === "expiry") {
-      value = value
-        .replace(/\D/g, "")
-        .slice(0, 4);
+if (name === "expiry") {
+    value = value.replace(/\D/g, "").slice(0, 4);
 
-      if (value.length >= 3) {
-        value = `${value.slice(0, 2)}/${value.slice(2)}`;
-      }
+    // Block first digit > 1 (can't be a valid month start)
+    if (value.length === 1 && parseInt(value) > 1) {
+        value = "0" + value;
     }
+
+    // Block month > 12
+    if (value.length >= 2) {
+        const month = parseInt(value.slice(0, 2));
+        if (month > 12) value = "12" + value.slice(2);
+        if (month === 0) value = "01" + value.slice(2);
+    }
+
+    // Add slash after MM
+    if (value.length >= 3) {
+        value = `${value.slice(0, 2)}/${value.slice(2)}`;
+    }
+
+    // Block expired date in real time
+    if (value.length === 5) {
+        const [mm, yy] = value.split("/").map(Number);
+        const now = new Date();
+        const expiry = new Date(2000 + yy, mm); // first day of next month
+        if (expiry <= now) {
+            this.setState(prev => ({
+                paymentData: { ...prev.paymentData, expiry: value },
+                errors: { ...prev.errors, expiry: "Card is expired" },
+            }));
+            return;
+        }
+    }
+}
 
     this.setState(prev => ({
       paymentData: {

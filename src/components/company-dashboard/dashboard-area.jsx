@@ -16,6 +16,7 @@ import ApprovedCandidates from "./approved.jsx";
 import CompanyWallet from "./wallet.jsx";
 import PricingForm2 from "./viewpackage.jsx";
 import AvailableCandidates from "./Available Candidates.jsx";
+import Messages from "./dashboard/Messages.jsx";
 const DASHBOARD_STYLES = `
   html, body {
     overflow-x: hidden;
@@ -24,21 +25,21 @@ const DASHBOARD_STYLES = `
 
 
   .user-dashboard {
-    padding-bottom: 100px !important;
+    padding-bottom: 10px !important;
   }
 
   .user-dashboard > .container {
-    padding-bottom: 80px !important;
+    padding-bottom: 10px !important;
     overflow-x: hidden;
     max-width: 100%;
   }
 
   @media (max-width: 768px) {
     .user-dashboard {
-      padding-bottom: 50px !important;
+      padding-bottom: 10px !important;
     }
     .user-dashboard > .container {
-      padding-bottom: 120px !important;
+      padding-bottom: 10px !important;
       /* Also add side padding so content never touches screen edge */
       padding-left: 12px !important;
       padding-right: 12px !important;
@@ -47,10 +48,10 @@ const DASHBOARD_STYLES = `
 
   @media (max-width: 480px) {
     .user-dashboard {
-      padding-bottom: 50px !important;
+      padding-bottom: 10px !important;
     }
     .user-dashboard > .container {
-      padding-bottom: 50px !important;
+      padding-bottom: 10px !important;
     }
   }
 `;
@@ -220,22 +221,22 @@ const CompanyDashboardArea = ({
     // setProfileCompleted(completed);
     setReady(true);
   }, []);
-useEffect(() => {
-  const handler = (e) => {
-    setWalletNotifId(e?.detail?.selectedId || null);
-    onTabChange("wallet");           // switches main nav to wallet
-    // tell the wallet to open notifications tab after it mounts
-    setTimeout(() => {
-      window.dispatchEvent(
-        new CustomEvent("walletOpenNotifications", {
-          detail: { selectedId: e?.detail?.selectedId || null }
-        })
-      );
-    }, 100);
-  };
-  window.addEventListener("openNotifications", handler);
-  return () => window.removeEventListener("openNotifications", handler);
-}, []);
+  useEffect(() => {
+    const handler = (e) => {
+      setWalletNotifId(e?.detail?.selectedId || null);
+      onTabChange("wallet");           // switches main nav to wallet
+      // tell the wallet to open notifications tab after it mounts
+      setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent("walletOpenNotifications", {
+            detail: { selectedId: e?.detail?.selectedId || null }
+          })
+        );
+      }, 100);
+    };
+    window.addEventListener("openNotifications", handler);
+    return () => window.removeEventListener("openNotifications", handler);
+  }, []);
   if (!ready) return <div>Loading dashboard…</div>;
 
   // 🔥 SAME STYLE AS CANDIDATE (hard gate)
@@ -272,8 +273,10 @@ useEffect(() => {
         return <ChatBox />;
       case "availableCandidates":
         return <AvailableCandidates onTabChange={onTabChange} />;
-     case "wallet":
-  return <CompanyWallet initialNotifId={walletNotifId} />;
+      case "wallet":
+        return <CompanyWallet initialNotifId={walletNotifId} />;
+      case "messages":
+        return <Messages selectedContactProp={selectedMessageContact} />;
 
       case "changepassword":
         return <ChangePasswordForm />;

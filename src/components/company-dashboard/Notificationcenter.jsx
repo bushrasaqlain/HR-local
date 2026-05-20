@@ -5,7 +5,7 @@ import axios from "axios";
 const SEVERITY = {
   critical: { color: "#ef4444", bg: "#fef2f2", badge: "#fee2e2", label: "Critical" },
   warning:  { color: "#f59e0b", bg: "#fffbeb", badge: "#fef3c7", label: "Warning"  },
-  info:     { color: "#3b82f6", bg: "#eff6ff", badge: "#dbeafe", label: "Info"     },
+  info:     { color: "#36565f", bg: "#eff6ff", badge: "#dbeafe", label: "Info"     },
 };
 const sev  = (s) => SEVERITY[s] || SEVERITY.info;
 const TYPE_ICON = {
@@ -282,7 +282,7 @@ maxWidth: "calc(100vw - 20px)", background: "#fff", borderRadius: 12,
                 onClick={handleViewAll}
                 style={{
                   background: "none", border: "none",
-                  fontSize: 12, color: "#2164f3",
+                  fontSize: 12, color: "#36565f",
                   cursor: "pointer", fontFamily: "inherit",
                   fontWeight: 700, padding: 0,
                 }}

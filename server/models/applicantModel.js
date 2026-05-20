@@ -1,4 +1,4 @@
-  const express = require("express");
+const express = require("express");
   const router = express.Router();
   const connection = require("../connection");
   const logAudit = require("../utils/auditLogger");
@@ -27,7 +27,6 @@
     FOREIGN KEY (candidate_id) REFERENCES candidate_info(id)
   );`;
 
-    // Execute the query to create the table
     connection.query(applicantsTable, function (err, results, fields) {
       if (err) {
         return console.error(err.message);
@@ -35,6 +34,7 @@
       console.log("applications table created successfully");
     });
   };
+
   const createCandidateSearchImpressionsTable = () => {
     const candidatesearchimpressionTable = `
       CREATE TABLE IF NOT EXISTS candidate_search_impressions (
@@ -61,6 +61,7 @@
   };
 
   const openai = require("../lib/openai");
+
   // ─────────────────────────────────────────────────────────────────
   // getAllApplicants
   // ─────────────────────────────────────────────────────────────────
@@ -73,9 +74,7 @@
       const jobId = req.query.job_id ? Number(req.query.job_id) : null;
       if (!jobId) return res.status(400).json({ error: "job_id is required" });
 
-      // ─────────────────────────────────────────────────────────────────
-      // STEP 1: Fetch job — including billing fields + job_type
-      // ─────────────────────────────────────────────────────────────────
+      // ── STEP 1: Fetch job ──
       const job = await new Promise((resolve, reject) => {
         connection.query(
           `SELECT jp.speciality_id, jp.skill_ids, jp.min_salary, jp.max_salary,
@@ -89,7 +88,8 @@
                   jp.cost_per_click,
                   jp.status,
                   jp.approval_status,
-                  jp.job_location_type
+                  jp.job_location_type,
+                  jp.job_title
           FROM job_posts jp
           WHERE jp.id = ?`,
           [jobId],
@@ -107,17 +107,13 @@
 
       const companyId = job.account_id;
 
-      // ─────────────────────────────────────────────────────────────────
-      // STEP 2: For daily_budget — check if budget is exhausted
-      // ─────────────────────────────────────────────────────────────────
+      // ── STEP 2: Budget check ──
       const isDailyBudget   = job.billing_model === "daily_budget";
       const dailyCap        = parseFloat(job.daily_budget  || 0);
       const spentSoFar      = parseFloat(job.spent_amount  || 0);
       const budgetExhausted = isDailyBudget && dailyCap > 0 && spentSoFar >= dailyCap;
 
-      // ─────────────────────────────────────────────────────────────────
-      // STEP 3: Parse city IDs
-      // ─────────────────────────────────────────────────────────────────
+      // ── STEP 3: Parse city IDs ──
       let jobCityIds = [];
       try {
         const parsed = typeof job.city_id === "string"
@@ -132,18 +128,11 @@
       console.log("parsed jobCityIds:",   jobCityIds);
       console.log("job.job_type:",        job.job_type);
 
-      // ─────────────────────────────────────────────────────────────────
-      // STEP 3.5: Detect remote job
-      // A job is remote if job_type is 'remote' OR no cities are set
-      // ─────────────────────────────────────────────────────────────────
+      // ── STEP 3.5: Detect remote job ──
       const isRemote = job.job_location_type === "remote" || jobCityIds.length === 0;
       console.log("job.job_location_type:", job.job_location_type);
 
-      // ─────────────────────────────────────────────────────────────────
-      // STEP 4: Build WHERE clause
-      // - Remote jobs: no city filter — fetch all active completed candidates
-      // - City jobs:   filter by city OR preferred cities OR already applied
-      // ─────────────────────────────────────────────────────────────────
+      // ── STEP 4: Build WHERE clause ──
       const whereConditions = [
         `a.accountType = 'candidate'`,
         `a.isActive = 'Active'`,
@@ -162,13 +151,10 @@
         )`);
         values.push(jobCityIds, JSON.stringify(jobCityIds), jobId);
       }
-      // Remote: no location condition — all candidates are eligible
 
       const whereClause = `WHERE ${whereConditions.join(" AND ")}`;
 
-      // ─────────────────────────────────────────────────────────────────
-      // STEP 5: Fetch candidates
-      // ─────────────────────────────────────────────────────────────────
+      // ── STEP 5: Fetch candidates ──
       const candidateQuery = `
         SELECT
           a.id AS account_id,
@@ -294,31 +280,27 @@
 
       const candidateIds = candidatesRaw.map((c) => c.candidate_id);
 
-      // ─────────────────────────────────────────────────────────────────
-      // STEP 6: Fetch today's unlocked candidate IDs for this job
-      // ─────────────────────────────────────────────────────────────────
+      // ── STEP 6: Fetch unlocked candidate IDs ──
       const unlockedIds = new Set();
-if (isDailyBudget && candidateIds.length) {
-  const unlockRows = await new Promise((resolve, reject) =>
-    connection.query(
-      `SELECT candidate_id FROM candidate_unlocks
-       WHERE employer_account_id = ?
-         AND candidate_id IN (?)
-         AND unlock_scope = 'full'
-         AND (
-           job_id = ?
-           OR DATE(unlocked_at) = CURDATE()
-         )`,
-      [companyId, candidateIds, jobId],
-      (err, rows) => (err ? reject(err) : resolve(rows))
-    )
-  );
-  unlockRows.forEach((r) => unlockedIds.add(r.candidate_id));
-}
+      if (isDailyBudget && candidateIds.length) {
+        const unlockRows = await new Promise((resolve, reject) =>
+          connection.query(
+            `SELECT candidate_id FROM candidate_unlocks
+             WHERE employer_account_id = ?
+               AND candidate_id IN (?)
+               AND unlock_scope = 'full'
+               AND (
+                 job_id = ?
+                 OR DATE(unlocked_at) = CURDATE()
+               )`,
+            [companyId, candidateIds, jobId],
+            (err, rows) => (err ? reject(err) : resolve(rows))
+          )
+        );
+        unlockRows.forEach((r) => unlockedIds.add(r.candidate_id));
+      }
 
-      // ─────────────────────────────────────────────────────────────────
-      // STEP 7: Log impressions + trigger billing
-      // ─────────────────────────────────────────────────────────────────
+      // ── STEP 7: Log impressions + billing ──
       if (candidateIds.length > 0 && companyId) {
 
         // 7a — Log impressions
@@ -331,7 +313,26 @@ if (isDailyBudget && candidateIds.length) {
           (err) => { if (err) console.error("Failed to log search impressions:", err); }
         );
 
-        // 7b — CV Credits: deduct 1 per profile viewed
+        // ─────────────────────────────────────────────────────────────────
+        // 7b — Log employer history: "viewed applicants for job"
+        // Only logs once per job per page (not per candidate, to avoid spam)
+        // ─────────────────────────────────────────────────────────────────
+        logAudit({
+          tableName: "history",
+          entityType: "employer",
+          entityId: companyId,
+          action: "VIEWED_APPLICANTS",
+          data: {
+            event: `Employer viewed applicants for job: ${job.job_title}`,
+            jobId,
+            jobTitle: job.job_title,
+            candidateCount: candidateIds.length,
+            page,
+          },
+          changedBy: companyId,
+        });
+
+        // 7c — CV Credits billing
         if (job.billing_model === "cv_credits" && job.company_package_id) {
           connection.query(
             `SELECT used_credits, package_snapshot FROM company_packages WHERE id = ?`,
@@ -369,9 +370,7 @@ if (isDailyBudget && candidateIds.length) {
         }
       }
 
-      // ─────────────────────────────────────────────────────────────────
-      // STEP 8: Fetch related data in batch
-      // ─────────────────────────────────────────────────────────────────
+      // ── STEP 8: Fetch related data in batch ──
       const [
         experienceRows,
         educationRows,
@@ -430,9 +429,7 @@ if (isDailyBudget && candidateIds.length) {
           : Promise.resolve([]),
       ]);
 
-      // ─────────────────────────────────────────────────────────────────
-      // STEP 9: Map skills & cities
-      // ─────────────────────────────────────────────────────────────────
+      // ── STEP 9: Map skills & cities ──
       const allSkillIds = [];
       const allCityIds  = [];
 
@@ -479,9 +476,7 @@ if (isDailyBudget && candidateIds.length) {
         cityRows.forEach((c) => (cityMapObj[c.id] = c.name));
       }
 
-      // ─────────────────────────────────────────────────────────────────
-      // STEP 10: Build full candidate objects
-      // ─────────────────────────────────────────────────────────────────
+      // ── STEP 10: Build full candidate objects ──
       const candidates = candidatesRaw.map((c) => {
         const city_name = cityMapObj[c.city] || "-";
         return {
@@ -526,9 +521,7 @@ if (isDailyBudget && candidateIds.length) {
         };
       });
 
-      // ─────────────────────────────────────────────────────────────────
-      // STEP 11: Parse job requirements for scoring
-      // ─────────────────────────────────────────────────────────────────
+      // ── STEP 11: Parse job requirements for scoring ──
       let jobSkillIds = [];
       try {
         jobSkillIds = Array.isArray(job.skill_ids)
@@ -542,9 +535,7 @@ if (isDailyBudget && candidateIds.length) {
       const jobMaxExp    = parseInt(job.max_experience) || 50;
       const tierOrder    = { strong: 0, good: 1, weak: 2 };
 
-      // ─────────────────────────────────────────────────────────────────
-      // STEP 12: Score + tier each candidate
-      // ─────────────────────────────────────────────────────────────────
+      // ── STEP 12: Score + tier each candidate ──
       const tieredCandidates = candidates
         .map((c) => {
           const matched = [];
@@ -556,7 +547,6 @@ if (isDailyBudget && candidateIds.length) {
           let location_type = "pipeline";
 
           if (isRemote) {
-            // Remote jobs — all candidates are location-eligible, full score
             locationScore = 10;
             location_type = "remote";
           } else {
@@ -713,18 +703,13 @@ if (isDailyBudget && candidateIds.length) {
         .filter(Boolean)
         .sort((a, b) => {
           if (tierOrder[a.tier] !== tierOrder[b.tier]) return tierOrder[a.tier] - tierOrder[b.tier];
-          // remote = same priority as main_city
           const locOrder = { remote: 0, main_city: 0, preferred_city: 1, pipeline: 2 };
           if (locOrder[a.location_type] !== locOrder[b.location_type]) return locOrder[a.location_type] - locOrder[b.location_type];
           if (b.is_boosted !== a.is_boosted) return b.is_boosted ? 1 : -1;
           return b.ai_score - a.ai_score;
         });
 
-      // ─────────────────────────────────────────────────────────────────
-      // STEP 13: Mask candidates for daily_budget jobs
-      //          - Already unlocked → send full data
-      //          - Not yet unlocked → strip PII, add locked: true
-      // ─────────────────────────────────────────────────────────────────
+      // ── STEP 13: Mask locked candidates ──
       const finalCandidates = tieredCandidates.map((c) => {
         if (!isDailyBudget) return c;
         if (unlockedIds.has(c.candidate_id)) return { ...c, locked: false };
@@ -753,9 +738,7 @@ if (isDailyBudget && candidateIds.length) {
         };
       });
 
-      // ─────────────────────────────────────────────────────────────────
-      // STEP 14: Summary + response
-      // ─────────────────────────────────────────────────────────────────
+      // ── STEP 14: Summary + response ──
       const summary = {
         total:               finalCandidates.length,
         strong:              finalCandidates.filter((c) => c.tier === "strong").length,
@@ -797,19 +780,6 @@ if (isDailyBudget && candidateIds.length) {
 
   // ─────────────────────────────────────────────────────────────────
   // unlockCandidate
-  // POST /applicant/unlock-candidate
-  // Body: { candidateId, jobId }
-  //
-  // Required table (run once):
-  //   CREATE TABLE candidate_unlocks (
-  //     id           INT AUTO_INCREMENT PRIMARY KEY,
-  //     company_id   INT NOT NULL,
-  //     candidate_id INT NOT NULL,
-  //     job_id       INT NOT NULL,
-  //     cost_charged DECIMAL(10,2) DEFAULT 0,
-  //     unlocked_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  //     INDEX idx_lookup (company_id, candidate_id, job_id, unlocked_at)
-  //   );
   // ─────────────────────────────────────────────────────────────────
   const unlockCandidate = async (req, res) => {
     try {
@@ -819,10 +789,11 @@ if (isDailyBudget && candidateIds.length) {
         return res.status(400).json({ error: "candidateId and jobId are required" });
       }
 
-      // 1. Fetch job billing info
+      // 1. Fetch job billing info + job title
       const job = await new Promise((resolve, reject) =>
         connection.query(
-          `SELECT billing_model, daily_budget, spent_amount, cost_per_click, account_id, approval_status
+          `SELECT billing_model, daily_budget, spent_amount, cost_per_click,
+                  account_id, approval_status, job_title
           FROM job_posts WHERE id = ?`,
           [jobId],
           (err, rows) => (err ? reject(err) : resolve(rows[0]))
@@ -841,24 +812,24 @@ if (isDailyBudget && candidateIds.length) {
       const cpc        = parseFloat(job.cost_per_click || 0);
       const remaining  = dailyCap - spent;
 
-      // 2. Check if already unlocked today → no charge, just return data
-const alreadyUnlocked = await new Promise((resolve, reject) =>
-  connection.query(
-    `SELECT id FROM candidate_unlocks
-     WHERE employer_account_id = ?
-       AND candidate_id = ?
-       AND unlock_scope = 'full'
-       AND (
-         job_id = ?
-         OR DATE(unlocked_at) = CURDATE()
-       )`,
-    [companyId, candidateId, jobId],
-    (err, rows) => (err ? reject(err) : resolve(rows.length > 0))
-  )
-);
+      // 2. Check if already unlocked
+      const alreadyUnlocked = await new Promise((resolve, reject) =>
+        connection.query(
+          `SELECT id FROM candidate_unlocks
+           WHERE employer_account_id = ?
+             AND candidate_id = ?
+             AND unlock_scope = 'full'
+             AND (
+               job_id = ?
+               OR DATE(unlocked_at) = CURDATE()
+             )`,
+          [companyId, candidateId, jobId],
+          (err, rows) => (err ? reject(err) : resolve(rows.length > 0))
+        )
+      );
 
       if (!alreadyUnlocked) {
-        // 3. Budget check before charging
+        // 3. Budget check
         if (remaining <= 0) {
           return res.status(402).json({
             error: "Daily budget exhausted",
@@ -866,7 +837,7 @@ const alreadyUnlocked = await new Promise((resolve, reject) =>
           });
         }
 
-        // 4. Deduct cost_per_click (cap at remaining budget)
+        // 4. Deduct cost_per_click
         const chargeAmount = Math.min(cpc, remaining);
         await new Promise((resolve, reject) =>
           connection.query(
@@ -879,19 +850,50 @@ const alreadyUnlocked = await new Promise((resolve, reject) =>
         );
         console.log(`✅ Charged PKR ${chargeAmount} for unlocking candidate ${candidateId} on job ${jobId}`);
 
-        // 5. Log the unlock
-        // 5. Log the unlock
-  await new Promise((resolve, reject) =>
-    connection.query(
-      `INSERT IGNORE INTO candidate_unlocks 
-      (employer_account_id, candidate_id, job_id, cost_charged, unlock_scope, company_package_id)
-      VALUES (?, ?, ?, ?, 'full', NULL)`,
-      [companyId, candidateId, jobId, chargeAmount],
-      (err) => (err ? reject(err) : resolve())
-    )
-  );
+        // 5. Log the unlock record
+        await new Promise((resolve, reject) =>
+          connection.query(
+            `INSERT IGNORE INTO candidate_unlocks
+            (employer_account_id, candidate_id, job_id, cost_charged, unlock_scope, company_package_id)
+            VALUES (?, ?, ?, ?, 'full', NULL)`,
+            [companyId, candidateId, jobId, chargeAmount],
+            (err) => (err ? reject(err) : resolve())
+          )
+        );
 
-        // 6. Auto-pause job if budget now exhausted
+        // 6. Employer history: profile unlocked (charged)
+        logAudit({
+          tableName: "history",
+          entityType: "employer",
+          entityId: companyId,
+          action: "CANDIDATE_UNLOCKED",
+          data: {
+            event: `Employer unlocked candidate profile for job: ${job.job_title}`,
+            candidateId,
+            jobId,
+            jobTitle: job.job_title,
+            chargeAmount,
+            already_unlocked: false,
+          },
+          changedBy: companyId,
+        });
+
+        // 7. Candidate history: their profile was viewed/unlocked
+        logAudit({
+          tableName: "history",
+          entityType: "candidate",
+          entityId: candidateId,
+          action: "PROFILE_VIEWED",
+          data: {
+            event: `Your profile was viewed by an employer for job: ${job.job_title}`,
+            jobId,
+            jobTitle: job.job_title,
+            employerId: companyId,
+          },
+          changedBy: companyId,
+        });
+
+        // 8. Auto-pause job if budget now exhausted
         const newSpent = spent + chargeAmount;
         if (newSpent >= dailyCap) {
           connection.query(
@@ -904,10 +906,27 @@ const alreadyUnlocked = await new Promise((resolve, reject) =>
           );
         }
       } else {
+        // Already unlocked — log a lightweight re-view event (no charge)
         console.log(`ℹ️ Candidate ${candidateId} already unlocked today for job ${jobId} — no charge`);
+
+        logAudit({
+          tableName: "history",
+          entityType: "employer",
+          entityId: companyId,
+          action: "CANDIDATE_PROFILE_REVISITED",
+          data: {
+            event: `Employer re-viewed already unlocked candidate profile for job: ${job.job_title}`,
+            candidateId,
+            jobId,
+            jobTitle: job.job_title,
+            chargeAmount: 0,
+            already_unlocked: true,
+          },
+          changedBy: companyId,
+        });
       }
 
-      // 7. Fetch full candidate data
+      // 9. Fetch full candidate data
       const candidateRow = await new Promise((resolve, reject) =>
         connection.query(
           `SELECT c.*, a.email, a.username
@@ -921,7 +940,7 @@ const alreadyUnlocked = await new Promise((resolve, reject) =>
 
       if (!candidateRow) return res.status(404).json({ error: "Candidate not found" });
 
-      // 8. Parse JSON fields
+      // 10. Parse JSON fields
       try {
         candidateRow.skills = Array.isArray(candidateRow.skills)
           ? candidateRow.skills
@@ -934,7 +953,7 @@ const alreadyUnlocked = await new Promise((resolve, reject) =>
           : JSON.parse(candidateRow.otherPreferredCities || "[]");
       } catch { candidateRow.otherPreferredCities = []; }
 
-      // 9. Fetch updated budget status to send back
+      // 11. Fetch updated budget status
       const updatedJob = await new Promise((resolve, reject) =>
         connection.query(
           `SELECT daily_budget, spent_amount, cost_per_click FROM job_posts WHERE id = ?`,
@@ -966,172 +985,168 @@ const alreadyUnlocked = await new Promise((resolve, reject) =>
     }
   };
 
-  const updateApplcantStatus = (req, res) => {
-    const {
-      candidateId,
-      jobId,
-      status,
-      interview_day,
-      interview_time,
-      message,
-      candidate_response,
-      requested_interview_day,
-      requested_interview_time,
-      candidate_response_message,
-      company_status, // optional: confirmed/reschedule_offered
-      company_offered_day,
-      company_offered_time,
-    } = req.body;
 
-    if (!candidateId || !jobId) {
-      return res
-        .status(400)
-        .json({ error: "Candidate ID and Job ID are required" });
-    }
+  // ─────────────────────────────────────────────────────────────────
+  // updateApplicantStatus
+  // ─────────────────────────────────────────────────────────────────
+ const updateApplcantStatus = (req, res) => {
+  const {
+    candidateId,
+    jobId,
+    status,
+    interview_day,
+    interview_time,
+    message,
+    candidate_response,
+    requested_interview_day,
+    requested_interview_time,
+    candidate_response_message,
+    company_status,
+    company_offered_day,
+    company_offered_time,
+  } = req.body;
 
-    const selectQuery = `SELECT * FROM applications WHERE candidate_id = ? AND job_id = ?`;
-    connection.query(selectQuery, [candidateId, jobId], (err, results) => {
-      if (err) return res.status(500).json({ error: "Database error" });
+  if (!candidateId || !jobId) {
+    return res.status(400).json({ error: "Candidate ID and Job ID are required" });
+  }
 
-      if (results.length > 0) {
-        const appId = results[0].id;
+  const selectQuery = `SELECT * FROM applications WHERE candidate_id = ? AND job_id = ?`;
 
-        // Build dynamic update
-        const fields = [];
-        const values = [];
+  const employerQuery = `
+    SELECT jp.account_id, jp.job_title, a.company_name
+    FROM job_posts jp
+    JOIN company_info a ON a.account_id = jp.account_id
+    WHERE jp.id = ?
+    LIMIT 1
+  `;
 
-        if (status !== undefined) {
-          fields.push("status = ?");
-          values.push(status);
-        }
-        if (interview_day !== undefined) {
-          fields.push("interview_day = ?");
-          values.push(interview_day);
-        }
-        if (interview_time !== undefined) {
-          fields.push("interview_time = ?");
-          values.push(interview_time);
-        }
-        if (message !== undefined) {
-          fields.push("message = ?");
-          values.push(message);
-        }
-        if (candidate_response !== undefined) {
-          fields.push("candidate_response = ?");
-          values.push(candidate_response);
-        }
+  // ── Helper: log for Shortlisted / Approved / Rejected only ──
+const logStatusHistory = (employerId, jobTitle, companyName) => {
+  if (status === "Shortlisted" || status === "Approved" || status === "Rejected") {
 
-        if (requested_interview_day !== undefined) {
-          fields.push("requested_interview_day = ?");
-          values.push(requested_interview_day);
-        }
+    // ✅ Map status to correct action
+    const actionMap = {
+      Shortlisted: "SHORTLISTED",
+      Approved:    "APPROVED",
+      Rejected:    "REJECTED",
+    };
+    const action = actionMap[status];
 
-        if (requested_interview_time !== undefined) {
-          fields.push("requested_interview_time = ?");
-          values.push(requested_interview_time);
-        }
-
-        if (candidate_response_message !== undefined) {
-          fields.push("candidate_response_message = ?");
-          values.push(candidate_response_message);
-        }
-        // --- Company updates ---
-        if (company_status !== undefined) {
-          fields.push("company_status = ?");
-          values.push(company_status);
-        }
-        if (company_offered_day !== undefined) {
-          fields.push("company_offered_day = ?");
-          values.push(company_offered_day);
-        }
-        if (company_offered_time !== undefined) {
-          fields.push("company_offered_time = ?");
-          values.push(company_offered_time);
-        }
-        if (
-          candidate_response === "confirmed" &&
-          (company_status === "confirmed" || company_status === undefined) &&
-          interview_day &&
-          interview_time
-        ) {
-          fields.push("final_interview_day = ?");
-          fields.push("final_interview_time = ?");
-          values.push(interview_day, interview_time);
-        }
-
-        // Candidate confirmed company offered time
-        if (
-          candidate_response === "confirmed" &&
-          company_status === "reschedule_offered" &&
-          company_offered_day &&
-          company_offered_time
-        ) {
-          fields.push("final_interview_day = ?");
-          fields.push("final_interview_time = ?");
-          values.push(company_offered_day, company_offered_time);
-        }
-        if (fields.length === 0) {
-          return res.status(400).json({ error: "No fields provided to update" });
-        }
-
-        const updateQuery = `UPDATE applications SET ${fields.join(", ")} WHERE id = ?`;
-        values.push(appId);
-
-        connection.query(updateQuery, values, (err2) => {
-          if (err2) return res.status(500).json({ error: "Database error" });
-          if (status === "Shortlisted" || status === "Approved" || status === "Rejected") {
-            connection.query(
-              "SELECT account_id FROM candidate_info WHERE id = ? LIMIT 1",
-              [candidateId],
-              (err3, rows) => {
-                if (!err3 && rows.length > 0) {
-                  logAudit({
-                    tableName: "history",
-                    entityType: "candidate",
-                    entityId: rows[0].account_id,
-                    action: "UPDATED",
-                    data: { event: `Status changed to ${status}`, job_id: jobId },
-                    changedBy: rows[0].account_id,
-                  });
-                  logAudit({
-                    tableName: "history",
-                    entityType: "employer",
-                    entityId: rows[0].account_id,
-                    action: "UPDATED",
-                    data: { event: `Candidate ${status}`, job_id: jobId, candidate_id: candidateId },
-                    changedBy: rows[0].account_id,
-                  });
-                }
-              }
-            );
-          }
-          res.json({ message: "Application updated successfully" });
-        });
-      } else {
-        // Insert new row if none exists
-        const insertQuery = `
-          INSERT INTO applications
-          (candidate_id, job_id, status, message, interview_day, interview_time)
-          VALUES (?, ?, ?, ?, ?, ?)`;
-        connection.query(
-          insertQuery,
-          [
-            candidateId,
-            jobId,
-            status || "Pending",
-            message || "",
-            interview_day || null,
-            interview_time || null,
-          ],
-          (err3) => {
-            if (err3) return res.status(500).json({ error: "Database error" });
-            res.json({ message: "Application created successfully" });
-          },
-        );
-      }
+    // Employer history
+    logAudit({
+      tableName: "history",
+      entityType: "employer",
+      entityId: employerId,
+      action,
+      data: {
+        event: `Candidate ${status.toLowerCase()} for job: ${jobTitle}`,
+        candidateId,
+        jobId,
+        status,
+      },
+      changedBy: employerId,
     });
-  };
 
+    // Candidate history
+    logAudit({
+      tableName: "history",
+      entityType: "candidate",
+      entityId: candidateId,
+      action,
+      data: {
+        event: `You were ${status.toLowerCase()} for job: ${jobTitle} at ${companyName}`,
+        jobId,
+        status,
+      },
+      changedBy: employerId,
+    });
+  }
+};
+
+  connection.query(selectQuery, [candidateId, jobId], (err, results) => {
+    if (err) return res.status(500).json({ error: "Database error" });
+
+    // ── UPDATE FLOW ──
+    if (results.length > 0) {
+      const appId = results[0].id;
+      const fields = [];
+      const values = [];
+
+      if (status !== undefined)                    { fields.push("status = ?");                      values.push(status); }
+      if (interview_day !== undefined)             { fields.push("interview_day = ?");               values.push(interview_day); }
+      if (interview_time !== undefined)            { fields.push("interview_time = ?");              values.push(interview_time); }
+      if (message !== undefined)                   { fields.push("message = ?");                     values.push(message); }
+      if (candidate_response !== undefined)        { fields.push("candidate_response = ?");          values.push(candidate_response); }
+      if (requested_interview_day !== undefined)   { fields.push("requested_interview_day = ?");     values.push(requested_interview_day); }
+      if (requested_interview_time !== undefined)  { fields.push("requested_interview_time = ?");    values.push(requested_interview_time); }
+      if (candidate_response_message !== undefined){ fields.push("candidate_response_message = ?");  values.push(candidate_response_message); }
+      if (company_status !== undefined)            { fields.push("company_status = ?");              values.push(company_status); }
+      if (company_offered_day !== undefined)       { fields.push("company_offered_day = ?");         values.push(company_offered_day); }
+      if (company_offered_time !== undefined)      { fields.push("company_offered_time = ?");        values.push(company_offered_time); }
+
+      if (fields.length === 0) {
+        return res.status(400).json({ error: "No fields provided to update" });
+      }
+
+      const updateQuery = `UPDATE applications SET ${fields.join(", ")} WHERE id = ?`;
+      values.push(appId);
+
+      connection.query(updateQuery, values, (err2) => {
+        if (err2) return res.status(500).json({ error: "Database error" });
+
+        // ✅ Fetch employer info then log if status is Shortlisted/Approved/Rejected
+        connection.query(employerQuery, [jobId], (empErr, empRows) => {
+          if (!empErr && empRows.length) {
+            const employerId  = empRows[0].account_id;
+            const jobTitle    = empRows[0].job_title;
+            const companyName = empRows[0].company_name;
+            logStatusHistory(employerId, jobTitle, companyName);
+          }
+          return res.json({ message: "Application updated successfully" });
+        });
+      });
+
+    // ── INSERT FLOW ──
+    } else {
+      const insertQuery = `
+        INSERT INTO applications
+        (candidate_id, job_id, status, message, interview_day, interview_time)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `;
+
+      connection.query(
+        insertQuery,
+        [
+          candidateId,
+          jobId,
+          status || "Pending",
+          message || "",
+          interview_day || null,
+          interview_time || null,
+        ],
+        (err3) => {
+          if (err3) return res.status(500).json({ error: "Database error" });
+
+          // ✅ Also log on insert if status is Shortlisted/Approved/Rejected
+          connection.query(employerQuery, [jobId], (empErr, empRows) => {
+            if (!empErr && empRows.length) {
+              const employerId  = empRows[0].account_id;
+              const jobTitle    = empRows[0].job_title;
+              const companyName = empRows[0].company_name;
+              logStatusHistory(employerId, jobTitle, companyName);
+            }
+            return res.json({ message: "Application created successfully" });
+          });
+        }
+      );
+    }
+  });
+};
+
+
+  // ─────────────────────────────────────────────────────────────────
+  // applyJob
+  // ─────────────────────────────────────────────────────────────────
   const applyJob = (req, res) => {
     const accountId = req.user.userId;
     const { job_id } = req.body;
@@ -1158,20 +1173,60 @@ const alreadyUnlocked = await new Promise((resolve, reject) =>
               return res.status(409).json({ error: "Already applied" });
             }
 
+            // Fetch job title + company name for richer history
             connection.query(
-              "INSERT INTO applications (job_id, candidate_id, status) VALUES (?, ?, 'Pending')",
-              [job_id, candidateId],
-              (err3) => {
-                if (err3) return res.status(500).json({ error: "Database error", details: err3.message });
-                logAudit({
-                  tableName: "history",
-                  entityType: "candidate",
-                  entityId: accountId,
-                  action: "UPDATED",
-                  data: { event: "Applied for job", job_id },
-                  changedBy: accountId,
-                });
-                res.json({ success: true, message: "Applied successfully" });
+              `SELECT jp.job_title, ci.company_name, jp.account_id
+               FROM job_posts jp
+               LEFT JOIN company_info ci ON ci.account_id = jp.account_id
+               WHERE jp.id = ? LIMIT 1`,
+              [job_id],
+              (jobErr, jobRows) => {
+                const jobTitle    = jobRows?.[0]?.job_title    || "a job";
+                const companyName = jobRows?.[0]?.company_name || "a company";
+                const employerId  = jobRows?.[0]?.account_id   || null;
+
+                connection.query(
+                  "INSERT INTO applications (job_id, candidate_id, status) VALUES (?, ?, 'Pending')",
+                  [job_id, candidateId],
+                  (err3) => {
+                    if (err3) return res.status(500).json({ error: "Database error", details: err3.message });
+
+                    // Candidate history: applied for job
+                    logAudit({
+                      tableName: "history",
+                      entityType: "candidate",
+                      entityId: accountId,
+                      action: "JOB_APPLIED",
+                      data: {
+                        event: `You applied for job: ${jobTitle} at ${companyName}`,
+                        job_id,
+                        jobTitle,
+                        companyName,
+                        employerId,
+                      },
+                      changedBy: accountId,
+                    });
+
+                    // Employer history: new application received
+                    if (employerId) {
+                      logAudit({
+                        tableName: "history",
+                        entityType: "employer",
+                        entityId: employerId,
+                        action: "APPLICATION_RECEIVED",
+                        data: {
+                          event: `New application received for job: ${jobTitle}`,
+                          job_id,
+                          jobTitle,
+                          candidateId,
+                        },
+                        changedBy: accountId,
+                      });
+                    }
+
+                    res.json({ success: true, message: "Applied successfully" });
+                  }
+                );
               }
             );
           }
@@ -1180,6 +1235,10 @@ const alreadyUnlocked = await new Promise((resolve, reject) =>
     );
   };
 
+
+  // ─────────────────────────────────────────────────────────────────
+  // getAppliedJobs
+  // ─────────────────────────────────────────────────────────────────
   const getAppliedJobs = (req, res) => {
     console.log("USER DATA:", req.user);
     const accountId = req.user.userId;
@@ -1230,7 +1289,7 @@ const alreadyUnlocked = await new Promise((resolve, reject) =>
 
   module.exports = {
     createApplicantsTable,
-    createCandidateSearchImpressionsTable, // add this
+    createCandidateSearchImpressionsTable,
     getAllApplicants,
     updateApplcantStatus,
     applyJob,
