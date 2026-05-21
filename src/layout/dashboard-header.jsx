@@ -32,6 +32,7 @@ import DashboardFooter from "./dashboard-footer";
 import NotificationCenter from "../components/company-dashboard/Notificationcenter";
 import MessagesDropdown from "../components/company-dashboard/dashboard/MessagesDropdown";
 import CandidateJobAlertsDropdown from "../components/candidate-dashboard/dashboard/CandidateJobAlertsDropdown";
+import CandidateJobAlertsPage from "../components/candidate-dashboard/dashboard/CandidateJobAlertsPage";
 import axios from "axios";
 
 const EMPLOYER_ROUTE_MAP = {
@@ -95,6 +96,7 @@ class DashboardHeader extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      jobAlertSelectedId: null,
       navbar: false,
       userDropdownOpen: false,
       menuDropdownOpen: false,
@@ -151,6 +153,10 @@ class DashboardHeader extends Component {
       "approved",
       "chatBox",
       "changepassword",
+      "messages",
+      "lists",
+      "appliedJobs",
+      "jobAlerts",
     ];
 
     const safeTab =
@@ -322,19 +328,26 @@ class DashboardHeader extends Component {
 
   handleCandidateOpenMessages = (contact) => {
     if (!contact) {
-      this.handleTabChange("chatbox");
+      this.handleTabChange("messages");
       return;
     }
 
     this.setState({
       selectedMessageContact: {
-        companyId: contact.id,
-        companyName: contact.full_name,
+        id: contact.id,
+        full_name: contact.full_name,
         jobId: contact.jobId || null,
       },
     });
 
-    this.handleTabChange("chatbox");
+    this.handleTabChange("messages");
+  };
+
+  handleCandidateViewAlert = (alert) => {
+    this.setState({
+      jobAlertSelectedId: alert ? alert.alert_id : null,
+    });
+    this.handleTabChange("jobAlerts");
   };
 
   handleUserActionClick = (item) => {
@@ -369,6 +382,30 @@ class DashboardHeader extends Component {
           path
         );
       }
+    }
+  };
+
+  handleViewJobFromAlert = (jobAlert) => {
+    const jobId = jobAlert.job_id || jobAlert.id;
+
+    if (jobId) {
+      sessionStorage.setItem('highlightJobId', jobId);
+
+      this.handleTabChange("profile");
+
+      setTimeout(() => {
+        const event = new CustomEvent('highlightJobFromAlert', {
+          detail: { jobId: jobId }
+        });
+        window.dispatchEvent(event);
+
+        setTimeout(() => {
+          const section = document.getElementById("matching-jobs-section");
+          if (section) {
+            section.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }, 500);
+      }, 500);
     }
   };
 
@@ -579,132 +616,111 @@ class DashboardHeader extends Component {
 
     return (
       <>
-        <Navbar expand="md" fixed="top" className="shadow-sm custom-bg ">
+        <Navbar expand="md" fixed="top" className="shadow-sm custom-bg">
           <div className="container-fluid d-flex align-items-center justify-content-between flex-nowrap py-2">
-            {/* Left: Logo + Desktop Menu */}
+
+            {/* LEFT: Logo + Desktop Menu */}
             <div className="d-flex align-items-center gap-3 flex-nowrap">
               <NavbarBrand href="/">
-                <Image
-                  width={154}
-                  height={50}
-                  src="/images/logo-2.svg"
-                  alt="brand"
-                />
+                <Image width={154} height={50} src="/images/logo-2.svg" alt="brand" />
               </NavbarBrand>
 
-              {/* Desktop Menu */}
+              {/* Desktop Menu — sirf md+ pe */}
               <div className="d-none d-md-flex align-items-center gap-3">
                 {this.renderMenuItems(false)}
               </div>
             </div>
 
-            {/* Mobile Hamburger */}
-            <NavbarToggler
-              onClick={this.toggleMobileMenu}
-              className="d-md-none"
-            />
-          </div>
-          {/* Right: User */}
-          <div className="d-flex align-items-center flex-nowrap ms-auto gap-3">
-            <div className="d-none d-md-flex d-lg-flex align-items-center gap-3">
-              {accountType === "employer" && profileCompleted && (
-                <>
-                  <NotificationCenter
-                    userId={this.state.userInfo.userId}
-                    apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
-                  />
-                  <MessagesDropdown
-                    userId={userId}
-                    apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
-                    onOpenMessages={this.handleOpenMessages}
-                    externalUnreadCount={this.state.unreadCount}
-                  />
-                </>
-              )}
-              {accountType === "candidate" && profileCompleted && (
-                <>
-                  <CandidateJobAlertsDropdown
-                    userId={userId}
-                    apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
-                    onViewJob={(alert) => {
-                      this.handleTabChange("profile");
+            {/* RIGHT: Desktop icons + Mobile icons + Hamburger — sab ek saath */}
+            <div className="d-flex align-items-center gap-2 flex-nowrap">
 
-                      setTimeout(() => {
-                        const section = document.getElementById("matching-jobs-section");
+              {/* Desktop: Notification + Message + Name + User icon */}
+              <div className="d-none d-md-flex align-items-center gap-3">
+                {accountType === "employer" && profileCompleted && (
+                  <>
+                    <NotificationCenter userId={userId} apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL} />
+                    <MessagesDropdown
+                      userId={userId}
+                      apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
+                      onOpenMessages={this.handleOpenMessages}
+                      externalUnreadCount={this.state.unreadCount}
+                    />
+                  </>
+                )}
+                {accountType === "candidate" && profileCompleted && (
+                  <>
+                    <CandidateJobAlertsDropdown userId={userId} apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL} onViewAlert={this.handleCandidateViewAlert} />
+                    <MessagesDropdown
+                      userId={userId}
+                      apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
+                      onOpenMessages={this.handleCandidateOpenMessages}
+                      externalUnreadCount={this.state.unreadCount}
+                    />
+                  </>
+                )}
+                <span className="text-white" style={{ whiteSpace: "nowrap" }}>
+                  <strong>{displayName || "Admin"}</strong>
+                </span>
+                <Dropdown isOpen={userDropdownOpen} toggle={this.toggleUserDropdown}>
+                  <DropdownToggle tag="span">
+                    <i className="las la-user-circle fs-2 text-white cursor-pointer"></i>
+                  </DropdownToggle>
+                  <DropdownMenu end>
+                    {dropdownItem(userId, accountType).map((item) => (
+                      <DropdownItem key={item.id} onClick={() => this.handleUserActionClick(item)}>
+                        <i className={`la ${item.icon} me-2`}></i>
+                        {item.name}
+                      </DropdownItem>
+                    ))}
+                  </DropdownMenu>
+                </Dropdown>
+              </div>
 
-                        if (section) {
-                          section.scrollIntoView({
-                            behavior: "smooth",
-                            block: "start",
-                          });
-                        }
-                      }, 300);
-                    }}
-                  />
+              {/* ✅ Mobile: Notification + Message icons — logo ke saath same line */}
+              <div className="d-flex d-md-none align-items-center gap-2">
+                {accountType === "employer" && profileCompleted && (
+                  <>
+                    <NotificationCenter userId={userId} apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL} />
+                    <MessagesDropdown
+                      userId={userId}
+                      apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
+                      onOpenMessages={this.handleOpenMessages}
+                      externalUnreadCount={this.state.unreadCount}
+                    />
+                  </>
+                )}
+                {accountType === "candidate" && profileCompleted && (
+                  <>
+                    <CandidateJobAlertsDropdown userId={userId} apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL} onViewAlert={this.handleCandidateViewAlert} />
+                    <MessagesDropdown
+                      userId={userId}
+                      apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
+                      onOpenMessages={this.handleCandidateOpenMessages}
+                      externalUnreadCount={this.state.unreadCount}
+                    />
+                  </>
+                )}
+              </div>
 
-                  {/* Messages Dropdown */}
-                  <MessagesDropdown
-                    userId={userId}
-                    apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
-                    onOpenMessages={this.handleCandidateOpenMessages}
-                    externalUnreadCount={this.state.unreadCount}
-                  />
-                </>
-              )}
+              {/* ✅ Hamburger — sirf mobile pe, icons ke baad */}
+              <NavbarToggler onClick={this.toggleMobileMenu} className="d-md-none" />
 
-              <span className="text-white text-end" style={{ whiteSpace: "nowrap" }}>
-                <strong>{displayName || "Admin"}</strong>
-              </span>
-
-              <Dropdown isOpen={userDropdownOpen} toggle={this.toggleUserDropdown}>
-                <DropdownToggle tag="span">
-                  <i className="las la-user-circle fs-2 text-white cursor-pointer"></i>
-                </DropdownToggle>
-                <DropdownMenu end>
-                  {dropdownItem(userId, accountType).map((item) => (
-                    <DropdownItem
-                      key={item.id}
-                      onClick={() => this.handleUserActionClick(item)}
-                    >
-                      <i className={`la ${item.icon} me-2`}></i>
-                      {item.name}
-                    </DropdownItem>
-                  ))}
-                </DropdownMenu>
-              </Dropdown>
             </div>
           </div>
 
-          {/* Mobile Menu */}
+          {/* Mobile Dropdown Menu */}
           {this.state.isMobileMenuOpen && (
             <div
               className="d-md-none custom-progress-bar text-white p-3"
-              style={{
-                position: "absolute",
-                top: "60px",
-                left: 0,
-                right: 0,
-                zIndex: 999,
-              }}
+              style={{ position: "absolute", top: "60px", left: 0, right: 0, zIndex: 999 }}
             >
-              {/* Mobile menu items */}
               {this.renderMenuItems(true)}
-
-              {/* Welcome + Name */}
               <div className="my-2 px-2 p-2 border-top border-bottom custom-progress-bar">
-                <div>
-                  <strong>{displayName || "Admin"}</strong>
-                </div>
+                <strong>{displayName || "Admin"}</strong>
               </div>
-
-              {/* Mobile user actions */}
               <div className="mt-3">
                 {dropdownItem(userId, accountType).map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-2 text-white cursor-pointer"
-                    onClick={() => this.handleUserActionClick(item)}
-                  >
+                  <div key={item.id} className="p-2 text-white cursor-pointer" onClick={() => this.handleUserActionClick(item)}>
                     <i className={`la ${item.icon} me-2`}></i>
                     {item.name}
                   </div>
@@ -740,13 +756,27 @@ class DashboardHeader extends Component {
                   selectedMessageContact={this.state.selectedMessageContact}
                 />
               )}
-              {accountType === "candidate" && (
+              {accountType === "candidate" && activeTab === "jobAlerts" ? (
+                <CandidateJobAlertsPage
+                  apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
+                  onViewJob={this.handleViewJobFromAlert}
+                  initialAlertId={this.state.jobAlertSelectedId}
+                  onBack={() => this.handleTabChange("profile")}
+                  onApply={() => {
+                    this.handleTabChange("profile");
+                    setTimeout(() => {
+                      const section = document.getElementById("matching-jobs-section");
+                      if (section) section.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }, 300);
+                  }}
+                />
+              ) : accountType === "candidate" ? (
                 <CandidateDashboardArea
                   activeTab={activeTab}
                   onProfileComplete={this.handleProfileComplete}
                   selectedMessageContact={this.state.selectedMessageContact}
                 />
-              )}
+              ) : null}
             </div>
 
             <DashboardFooter className="dashboard-footer" />

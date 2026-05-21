@@ -68,7 +68,7 @@ class SavedJobsPage extends Component {
                 <Head><title>Saved Jobs</title></Head>
 
                 <div className="row mt-3">
-                    <div className="col-12">
+                    <div className="col-12" style={{paddingTop: "10px"}}>
                         <Card>
                             <CardHeader className="d-flex justify-content-between align-items-center">
                                 <button
@@ -78,7 +78,7 @@ class SavedJobsPage extends Component {
                                         border: "1.5px solid #36565F",
                                         borderRadius: "8px", padding: "5px 14px",
                                         fontSize: "12px", fontWeight: 600,
-                                        cursor: "pointer",
+                                        cursor: "pointer", margin: "12px",
                                     }}
                                 >
                                     ← Back to Dashboard

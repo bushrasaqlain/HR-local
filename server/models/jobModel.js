@@ -729,14 +729,8 @@ const triggerJobAlerts = (jobId) => {
       jp.id,
       jp.job_title,
       jp.skill_ids,
-      jp.min_salary,
-      jp.max_salary,
-      jp.city_id,
-      jp.country_id,
-      jp.job_type_id,
-      jt.name AS job_type_name
+      jp.city_id
     FROM job_posts jp
-    LEFT JOIN jobtypes jt ON jt.id = jp.job_type_id
     WHERE jp.id = ?
     LIMIT 1
   `;
@@ -752,22 +746,19 @@ const triggerJobAlerts = (jobId) => {
       catch { return []; }
     };
 
-    const jobSkillIds = parseJSON(job.skill_ids);
-    const jobCityIds = parseJSON(job.city_id);
+    const jobSkillIds = parseJSON(job.skill_ids).map(Number);
+    const jobCityIds = parseJSON(job.city_id).map(Number);
 
     const candidatesSql = `
       SELECT 
-        jp.candidate_id,
-        jp.desired_job_titles,
-        jp.job_type,
-        jp.min_salary,
-        jp.max_salary,
-        jp.preferred_country_id,
-        jp.preferred_city_ids,
-        ci.skills AS candidate_skills
-      FROM job_preferences jp
-      JOIN candidate_info ci ON ci.id = jp.candidate_id
-      WHERE jp.alerts_enabled = 1
+        ci.id AS candidate_id,
+        ci.skills,
+        ci.city,
+        ci.otherPreferredCities
+      FROM candidate_info ci
+      INNER JOIN account a ON a.id = ci.account_id
+      WHERE ci.profile_completed = 1
+        AND a.isActive = 'Active'
     `;
 
     connection.query(candidatesSql, (err2, candidates) => {
@@ -776,62 +767,22 @@ const triggerJobAlerts = (jobId) => {
       const alertsToInsert = [];
 
       candidates.forEach((candidate) => {
-        const desiredTitles = parseJSON(candidate.desired_job_titles);
-        const preferredJobTypes = parseJSON(candidate.job_type);
-        const preferredCityIds = parseJSON(candidate.preferred_city_ids);
-        const candidateSkills = parseJSON(candidate.candidate_skills);
+        const candidateSkills = parseJSON(candidate.skills).map(Number);
+        const candidateCity = Number(candidate.city);
+        const preferredCities = parseJSON(candidate.otherPreferredCities)
+          .map((c) => Number(typeof c === "object" ? c.id : c));
 
-        let matchScore = 0;
-
-        // 1. Job Title match
-        const jobTitleLower = (job.job_title || "").toLowerCase();
-        const titleMatch = desiredTitles.some((title) =>
-          jobTitleLower.includes(title.toLowerCase()) ||
-          title.toLowerCase().includes(jobTitleLower)
+        const skillsMatch = jobSkillIds.some((id) =>
+          candidateSkills.includes(id)
         );
-        if (titleMatch) matchScore += 3;
 
-        // 2. Skills match
-        const skillsMatch = candidateSkills.some((skillId) =>
-          jobSkillIds.includes(skillId)
-        );
-        if (skillsMatch) matchScore += 2;
+        // 2. City match — main city ya preferred city
+        const cityMatch =
+          jobCityIds.includes(candidateCity) ||
+          jobCityIds.some((id) => preferredCities.includes(id));
 
-        // 3. Salary match
-        if (candidate.min_salary && candidate.max_salary) {
-          if (
-            (job.max_salary || 0) >= candidate.min_salary &&
-            (job.min_salary || 0) <= candidate.max_salary
-          ) {
-            matchScore += 1;
-          }
-        }
-
-        // 4. Country match
-        if (
-          candidate.preferred_country_id && job.country_id &&
-          Number(candidate.preferred_country_id) === Number(job.country_id)
-        ) {
-          matchScore += 1;
-        }
-
-        // 5. City match
-        if (preferredCityIds.length && jobCityIds.length) {
-          const cityMatch = preferredCityIds.some((cityId) =>
-            jobCityIds.includes(Number(cityId))
-          );
-          if (cityMatch) matchScore += 1;
-        }
-
-        // 6. Job Type match
-        if (preferredJobTypes.length && job.job_type_name) {
-          const typeMatch = preferredJobTypes.some(
-            (type) => type.toLowerCase() === job.job_type_name.toLowerCase()
-          );
-          if (typeMatch) matchScore += 1;
-        }
-
-        if (matchScore >= 2) {
+        // Dono match hone chahiye
+        if (skillsMatch && cityMatch) {
           alertsToInsert.push([candidate.candidate_id, jobId]);
         }
       });
@@ -846,7 +797,7 @@ const triggerJobAlerts = (jobId) => {
             console.error("triggerJobAlerts insert error:", err3);
             return;
           }
-          console.log(`Job alerts created: ${result.affectedRows} for job ${jobId}`);
+          console.log(`✅ Job alerts created: ${result.affectedRows} for job ${jobId}`);
         }
       );
     });
@@ -954,47 +905,47 @@ const postJob = (req, res) => {
     // ─────────────────────────────────────────────
     // STEP 4: INSERT JOB
     // ─────────────────────────────────────────────
-   const proceedWithJobInsert = () => {
-  if (finalBillingModel === "daily_budget" && chosen_daily_package_id) {
-    
-    // 1. Fetch the package template to get rate_per_unit and duration
-    connection.query(
-      `SELECT * FROM packages WHERE id = ?`,
-      [chosen_daily_package_id],
-      (err, pkgRows) => {
-        if (err || !pkgRows.length) {
-          return res.status(500).json({ error: "Invalid daily budget package" });
-        }
+    const proceedWithJobInsert = () => {
+      if (finalBillingModel === "daily_budget" && chosen_daily_package_id) {
 
-        const pkg = pkgRows[0];
-        const resolvedCpc = parseFloat(pkg.rate_per_unit || 0);
-        const duration = pkg.campaign_duration_days || pkg.duration_days || 30;
-
-        // 2. Create a company_packages row for this daily budget subscription
+        // 1. Fetch the package template to get rate_per_unit and duration
         connection.query(
-          `INSERT INTO company_packages 
-           (account_id, package_id, payment_id, pricing_model, start_date, end_date, package_snapshot)
-           VALUES (?, ?, 0, 'daily_budget', CURDATE(), DATE_ADD(CURDATE(), INTERVAL ? DAY), ?)`,
-          [userId, chosen_daily_package_id, duration, JSON.stringify(pkg)],
-          (err2, result2) => {
-            if (err2) {
-              console.error("Failed to create company_package for daily_budget:", err2);
-              return res.status(500).json({ error: "Failed to create package subscription" });
+          `SELECT * FROM packages WHERE id = ?`,
+          [chosen_daily_package_id],
+          (err, pkgRows) => {
+            if (err || !pkgRows.length) {
+              return res.status(500).json({ error: "Invalid daily budget package" });
             }
 
-            const newCompanyPackageId = result2.insertId;
-            finalCompanyPackageId = newCompanyPackageId;
-            finalPackageId = pkg.id;
+            const pkg = pkgRows[0];
+            const resolvedCpc = parseFloat(pkg.rate_per_unit || 0);
+            const duration = pkg.campaign_duration_days || pkg.duration_days || 30;
 
-            insertJob(resolvedCpc);
+            // 2. Create a company_packages row for this daily budget subscription
+            connection.query(
+              `INSERT INTO company_packages 
+           (account_id, package_id, payment_id, pricing_model, start_date, end_date, package_snapshot)
+           VALUES (?, ?, 0, 'daily_budget', CURDATE(), DATE_ADD(CURDATE(), INTERVAL ? DAY), ?)`,
+              [userId, chosen_daily_package_id, duration, JSON.stringify(pkg)],
+              (err2, result2) => {
+                if (err2) {
+                  console.error("Failed to create company_package for daily_budget:", err2);
+                  return res.status(500).json({ error: "Failed to create package subscription" });
+                }
+
+                const newCompanyPackageId = result2.insertId;
+                finalCompanyPackageId = newCompanyPackageId;
+                finalPackageId = pkg.id;
+
+                insertJob(resolvedCpc);
+              }
+            );
           }
         );
+      } else {
+        insertJob(0);
       }
-    );
-  } else {
-    insertJob(0);
-  }
-};
+    };
     function insertJob(resolvedCpc) {
       const sql = `
         INSERT INTO job_posts (
@@ -1409,7 +1360,7 @@ const subcribePackageInternal = ({ userId, packageId, paymentId }) => {
 // In jobModel.js, replace getUserPackages with this:
 const getUserPackages = (req, res) => {
   const userId = req.params.userId; // ← extract userId from req HERE
-  
+
   const subsQuery = `
     SELECT 
       cp.id as subscription_id,
@@ -1541,33 +1492,33 @@ const getTransactionHistory = (req, res) => {
             : item.package_snapshot || {};
 
         const totalUnits =
-          pkg.num_posts     ||
-          pkg.credit_count  ||
-          pkg.slot_count    ||
-          pkg.daily_budget  ||
+          pkg.num_posts ||
+          pkg.credit_count ||
+          pkg.slot_count ||
+          pkg.daily_budget ||
           pkg.applies_limit ||
           0;
 
         const usedUnits =
-          item.used_posts   ||
+          item.used_posts ||
           item.used_credits ||
-          item.used_slots   ||
+          item.used_slots ||
           item.used_applies ||
           Number(item.used_budget) ||
           0;
 
         return {
-          transaction_id:  item.transaction_id,
-          package_name:    pkg.name         || "Package",
-          package_type:    pkg.type         || item.pricing_model,
-          pricing_model:   item.pricing_model,
-          amount_paid:     pkg.price        || 0,
-          status:          item.status,
-          start_date:      item.start_date,
-          end_date:        item.end_date,
-          purchased_at:    item.created_at,
-          total_units:     totalUnits,
-          used_units:      usedUnits,
+          transaction_id: item.transaction_id,
+          package_name: pkg.name || "Package",
+          package_type: pkg.type || item.pricing_model,
+          pricing_model: item.pricing_model,
+          amount_paid: pkg.price || 0,
+          status: item.status,
+          start_date: item.start_date,
+          end_date: item.end_date,
+          purchased_at: item.created_at,
+          total_units: totalUnits,
+          used_units: usedUnits,
           remaining_units: Math.max(totalUnits - usedUnits, 0),
           is_daily_budget: false,
         };
@@ -1575,21 +1526,21 @@ const getTransactionHistory = (req, res) => {
 
       // Format daily budget jobs to match the same shape
       const dailyTransactions = dailyResults.map((job) => ({
-        transaction_id:  `job_${job.id}`,
+        transaction_id: `job_${job.id}`,
         package_name: job.billing_model.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
-        package_type:    "daily_budget",
-        pricing_model:   "daily_budget",
-        amount_paid:     job.spent_amount || 0,   // actual spend so far
-        status:          job.status,
-        start_date:      job.created_at,
-        end_date:        job.application_deadline,
-        purchased_at:    job.created_at,
-        total_units:     job.daily_budget  || 0,  // the cap they set
-        used_units:      job.spent_amount  || 0,  // what's been spent
+        package_type: "daily_budget",
+        pricing_model: "daily_budget",
+        amount_paid: job.spent_amount || 0,   // actual spend so far
+        status: job.status,
+        start_date: job.created_at,
+        end_date: job.application_deadline,
+        purchased_at: job.created_at,
+        total_units: job.daily_budget || 0,  // the cap they set
+        used_units: job.spent_amount || 0,  // what's been spent
         remaining_units: Math.max((job.daily_budget || 0) - (job.spent_amount || 0), 0),
         is_daily_budget: true,
         // extra detail useful for the UI
-        cost_per_click:  job.cost_per_click || 0,
+        cost_per_click: job.cost_per_click || 0,
       }));
 
       // Merge and sort everything by date descending
@@ -1967,7 +1918,7 @@ cron.schedule("0 0 * * *", () => {
             `INSERT INTO payment (account_id, job_id, card_last4, card_brand, card_holder, amount, currency, payment_type, payment_method, payment_status, payment_reference)
              VALUES (?, ?, ?, ?, ?, ?, 'PKR', 'job', 'Card', 'Paid', ?)`,
             [job.account_id, job.id, job.card_last4, job.card_brand, job.card_holder, job.daily_budget,
-             `daily_cron_job${job.id}_${Date.now()}`]
+            `daily_cron_job${job.id}_${Date.now()}`]
           );
 
           // Reset spent_amount for new day

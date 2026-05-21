@@ -168,9 +168,101 @@ const updateMessageStatus = (req, res) => {
   });
 };
 
+const replyToMessage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { replyMessage } = req.body;
+    const adminId = req.user.userId; 
+
+    if (!replyMessage || !replyMessage.trim()) {
+      return res.status(400).json({ success: false, error: "Reply message is required." });
+    }
+
+    // ✅ Step 1: DB se RegAdmin ka email fetch karein
+    const getAdminEmail = () =>
+      new Promise((resolve, reject) => {
+        connection.query(
+          `SELECT email FROM account WHERE id = ?`,
+          [adminId],
+          (err, results) => {
+            if (err) return reject(err);
+            if (!results.length) return reject(new Error("Admin not found"));
+            resolve(results[0].email);
+          }
+        );
+      });
+
+    const getMsg = () =>
+      new Promise((resolve, reject) => {
+        connection.query(
+          `SELECT * FROM contact_messages WHERE id = ?`,
+          [id],
+          (err, results) => {
+            if (err) return reject(err);
+            if (!results.length) return reject(new Error("Message not found"));
+            resolve(results[0]);
+          }
+        );
+      });
+
+    const [adminEmail, original] = await Promise.all([getAdminEmail(), getMsg()]);
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 10px; overflow: hidden;">
+        <div style="background-color: #264752; padding: 24px; text-align: center;">
+          <h2 style="color: #fff; margin: 0;">Reply from HR Job Portal</h2>
+          <p style="color: #cce0e5; margin: 6px 0 0;">Support Response</p>
+        </div>
+        <div style="padding: 28px;">
+          <p style="color: #333;">Hi <strong>${original.name}</strong>,</p>
+          <p style="color: #555;">Thank you for contacting us. Here is our response:</p>
+
+          <div style="background: #f4f8f9; border-left: 4px solid #264752; padding: 16px; border-radius: 6px; color: #333; line-height: 1.6; margin: 20px 0;">
+            ${replyMessage.replace(/\n/g, "<br/>")}
+          </div>
+
+          <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 24px 0;" />
+
+          <p style="color: #aaa; font-size: 12px; margin-bottom: 4px;">Your original message:</p>
+          <div style="background: #fafafa; border-left: 3px solid #ccc; padding: 12px; border-radius: 6px; color: #888; font-size: 13px; line-height: 1.5;">
+            <strong>Subject:</strong> ${original.subject}<br/><br/>
+            ${original.message.replace(/\n/g, "<br/>")}
+          </div>
+        </div>
+        <div style="background: #f4f4f4; padding: 14px; text-align: center; font-size: 12px; color: #aaa;">
+          HR Job Portal Support — ${adminEmail}
+        </div>
+      </div>
+    `;
+
+    await transporter.sendMail({
+      from: `"HR Job Portal Support" <${process.env.MAIL_USER}>`,
+      to: original.email,
+      replyTo: adminEmail,   
+      subject: `Re: ${original.subject}`,
+      html: htmlContent,
+    });
+
+    await new Promise((resolve, reject) => {
+      connection.query(
+        `UPDATE contact_messages SET status = 'replied' WHERE id = ?`,
+        [id],
+        (err) => (err ? reject(err) : resolve())
+      );
+    });
+
+    return res.status(200).json({ success: true, message: "Reply sent successfully." });
+
+  } catch (error) {
+    console.error("Reply error:", error);
+    return res.status(500).json({ success: false, error: "Failed to send reply." });
+  }
+};
+
 module.exports = {
   createContactTable,
   sendContactMessage,
   getAllMessages,
   updateMessageStatus,
+  replyToMessage,
 };

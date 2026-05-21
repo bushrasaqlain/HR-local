@@ -33,6 +33,9 @@ class ContactMessages extends Component {
             errorMessage: "",
             currentPage: 1,
             pageSize: 20,
+            showReplyModal: false,
+            replyMessage: "",
+            replyLoading: false,
         };
 
         this.tableHeaders = [
@@ -112,6 +115,38 @@ class ContactMessages extends Component {
             });
             return matchStatus && matchSearch;
         });
+    };
+
+    sendReply = () => {
+        const { selectedMessage, replyMessage } = this.state;
+        const token = sessionStorage.getItem("token");
+
+        this.setState({ replyLoading: true });
+
+        api.post(
+            `${this.apibaseurl}contact/messages/${selectedMessage.id}/reply`,
+            { replyMessage },
+            { headers: { Authorization: `Bearer ${token}` } }
+        )
+            .then((res) => {
+                if (res.data.success) {
+                    this.setState({
+                        showReplyModal: false,
+                        replyMessage: "",
+                        replyLoading: false,
+                        successMessage: "Reply sent successfully!",
+                    });
+                    this.updateStatus(selectedMessage.id, "replied");
+                    setTimeout(() => this.setState({ successMessage: "" }), 3000);
+                }
+            })
+            .catch(() => {
+                this.setState({
+                    errorMessage: "Failed to send reply.",
+                    replyLoading: false,
+                });
+                setTimeout(() => this.setState({ errorMessage: "" }), 3000);
+            });
     };
 
     getStatusBadge = (status) => {
@@ -274,18 +309,16 @@ class ContactMessages extends Component {
                                                                     )}
 
                                                                     {/* Reply Email */}
-                                                                    <a
-                                                                        href={`mailto:${msg.email}?subject=Re: ${msg.subject}`}
+                                                                    <button
                                                                         className="icon-btn"
                                                                         title="Reply via Email"
-                                                                        onClick={() => {
-                                                                            if (msg.status !== "replied") {
-                                                                                this.updateStatus(msg.id, "replied");
-                                                                            }
-                                                                        }}
+                                                                        onClick={() => this.setState({
+                                                                            selectedMessage: msg,
+                                                                            showReplyModal: true,
+                                                                        })}
                                                                     >
                                                                         <i className="bi bi-envelope text-warning"></i>
-                                                                    </a>
+                                                                    </button>
                                                                 </div>
                                                             </td>
                                                         );
@@ -343,12 +376,19 @@ class ContactMessages extends Component {
                     <div style={{
                         position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
                         backgroundColor: "rgba(0,0,0,0.5)", zIndex: 9999,
-                        display: "flex", alignItems: "center", justifyContent: "center"
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        padding: "16px",
+                        overflowY: "auto",
+                        boxSizing: "border-box",
                     }}>
                         <div style={{
-                            background: "#fff", borderRadius: "12px", padding: "32px",
-                            minWidth: "500px", maxWidth: "620px", width: "90%",
-                            boxShadow: "0 8px 32px rgba(0,0,0,0.2)", position: "relative"
+                            background: "#fff", borderRadius: "12px", padding: "24px",
+                            width: "100%",
+                            maxWidth: "620px",
+                            boxShadow: "0 8px 32px rgba(0,0,0,0.2)", position: "relative",
+                            maxHeight: "90vh",
+                            overflowY: "auto",
+                            margin: "auto",
                         }}>
                             <button
                                 onClick={() => this.setState({ showDetailModal: false, selectedMessage: null })}
@@ -410,8 +450,118 @@ class ContactMessages extends Component {
                                 </button>
                             </div>
                         </div>
-                    </div>
-                )}
+                    </div >
+                )
+                }
+                {
+                    this.state.showReplyModal && this.state.selectedMessage && (
+                        <div style={{
+                            position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
+                            backgroundColor: "rgba(0,0,0,0.5)", zIndex: 99999,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            padding: "16px",
+                            overflowY: "auto",
+                            boxSizing: "border-box",
+                        }}>
+                            <div style={{
+                                background: "#fff", borderRadius: "12px", padding: "24px",
+                                width: "100%",
+                                maxWidth: "620px",
+                                boxShadow: "0 8px 32px rgba(0,0,0,0.2)", position: "relative",
+                                maxHeight: "90vh",
+                                overflowY: "auto",
+                                margin: "auto",
+                            }}>
+                                <button
+                                    onClick={() => this.setState({ showReplyModal: false, replyMessage: "" })}
+                                    style={{
+                                        position: "absolute", top: "16px", right: "16px",
+                                        background: "none", border: "none", fontSize: "1.3rem",
+                                        cursor: "pointer", color: "#888"
+                                    }}
+                                >
+                                    <i className="bi bi-x-lg"></i>
+                                </button>
+
+                                <h5 className="fw-bold mb-4" style={{ color: "#264752" }}>
+                                    <i className="bi bi-reply me-2"></i>
+                                    Reply to {this.state.selectedMessage.name}
+                                </h5>
+
+                                <div className="mb-3">
+                                    <label style={{ fontWeight: 500, color: "#888", fontSize: "0.9rem" }}>To</label>
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        value={this.state.selectedMessage.email}
+                                        disabled
+                                        style={{ background: "#f4f8f9", color: "#333" }}
+                                    />
+                                </div>
+
+                                <div className="mb-3">
+                                    <label style={{ fontWeight: 500, color: "#888", fontSize: "0.9rem" }}>Subject</label>
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        value={`Re: ${this.state.selectedMessage.subject}`}
+                                        disabled
+                                        style={{ background: "#f4f8f9", color: "#333" }}
+                                    />
+                                </div>
+
+                                <div className="mb-3">
+                                    <label style={{ fontWeight: 500, color: "#888", fontSize: "0.9rem" }}>Original Message</label>
+                                    <div style={{
+                                        background: "#f4f8f9", borderLeft: "4px solid #264752",
+                                        padding: "12px", borderRadius: "6px", color: "#555",
+                                        fontSize: "0.88rem", lineHeight: "1.6"
+                                    }}>
+                                        {this.state.selectedMessage.message}
+                                    </div>
+                                </div>
+
+                                <div className="mb-4">
+                                    <label style={{ fontWeight: 500, color: "#888", fontSize: "0.9rem" }}>Your Reply</label>
+                                    <textarea
+                                        className="form-control"
+                                        rows={5}
+                                        placeholder="Type your reply here..."
+                                        value={this.state.replyMessage}
+                                        onChange={(e) => this.setState({ replyMessage: e.target.value })}
+                                        style={{ borderRadius: "8px", resize: "vertical" }}
+                                    />
+                                </div>
+
+                                <div className="d-flex gap-2 justify-content-end">
+                                    <button
+                                        className="btn btn-sm"
+                                        style={{ backgroundColor: "#264752", color: "#fff", borderRadius: "8px" }}
+                                        onClick={this.sendReply}
+                                        disabled={!this.state.replyMessage.trim() || this.state.replyLoading}
+                                    >
+                                        {this.state.replyLoading ? (
+                                            <>
+                                                <span className="spinner-border spinner-border-sm me-1"></span>
+                                                Sending...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <i className="bi bi-send me-1"></i> Send Reply
+                                            </>
+                                        )}
+                                    </button>
+                                    <button
+                                        className="btn btn-sm btn-outline-secondary"
+                                        onClick={() => this.setState({ showReplyModal: false, replyMessage: "" })}
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        </div >
+                    )
+                }
             </>
         );
     }

@@ -12,8 +12,13 @@ const updateMessageStatus = (req, res) => {
   contactModel.updateMessageStatus(req, res);
 };
 
+const replyToMessage = (req, res) => {
+  contactModel.replyToMessage(req, res);
+};
+
 module.exports = {
   sendContactMessage,
   getAllMessages,
   updateMessageStatus,
+  replyToMessage,
 };

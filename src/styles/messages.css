@@ -1,15 +1,15 @@
-/* ===== MESSAGES PAGE — WhatsApp Desktop Style ===== */
+/* ===== MESSAGES PAGE — WhatsApp Style ===== */
 
 .messages-layout {
   display: flex;
-  height: calc(100vh - 80px);
+  max-height: calc(100vh - 140px);
+  height: 400px;
   border: 1px solid #e0e0e0;
   border-radius: 12px;
   overflow: hidden;
   background: #fff;
 }
 
-/* ===== LEFT SIDEBAR ===== */
 .messages-sidebar {
   width: 340px;
   min-width: 300px;
@@ -66,13 +66,8 @@
   transition: background 0.2s;
 }
 
-.messages-contact-item:hover {
-  background: #f0f4f6;
-}
-
-.messages-contact-item.active {
-  background: #e4edf1;
-}
+.messages-contact-item:hover { background: #f0f4f6; }
+.messages-contact-item.active { background: #e4edf1; }
 
 .contact-avatar {
   width: 44px;
@@ -88,25 +83,10 @@
   flex-shrink: 0;
 }
 
-.contact-name {
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: #1a1a2e;
-}
+.contact-name { font-weight: 600; font-size: 0.9rem; color: #1a1a2e; }
+.contact-time { font-size: 0.75rem; color: #999; white-space: nowrap; }
+.contact-last-msg { font-size: 0.8rem; color: #777; }
 
-.contact-time {
-  font-size: 0.75rem;
-  color: #999;
-  white-space: nowrap;
-}
-
-.contact-last-msg {
-  font-size: 0.8rem;
-  color: #777;
-  /* max-width: 180px; */
-}
-
-/* ===== RIGHT CHAT PANEL ===== */
 .messages-chat-panel {
   flex: 1;
   display: flex;
@@ -125,54 +105,50 @@
   gap: 10px;
 }
 
-.messages-empty-state .empty-icon {
-  font-size: 3rem;
-}
+.messages-empty-state .empty-icon { font-size: 3rem; }
+.messages-empty-state h5 { color: #555; margin: 0; }
 
-.messages-empty-state h5 {
-  color: #555;
-  margin: 0;
-}
-
-/* ===== SCROLLBAR ===== */
-.messages-contact-list::-webkit-scrollbar {
-  width: 4px;
-}
-.messages-contact-list::-webkit-scrollbar-thumb {
-  background: #ccc;
-  border-radius: 4px;
-}
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 768px) {
-  .messages-layout {
-    flex-direction: column;
-    height: auto;
-  }
-
-  .messages-sidebar {
-    width: 100%;
-    min-width: unset;
-    border-right: none;
-    border-bottom: 1px solid #e9ecef;
-  }
-
-  .messages-chat-panel {
-    min-height: 400px;
-  }
-}
+.messages-contact-list::-webkit-scrollbar { width: 4px; }
+.messages-contact-list::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
 
 .messages-contact-item.unread {
   background: #eaf4f7;
   border-left: 3px solid #5f8190;
 }
+.messages-contact-item.unread .contact-name { font-weight: 700; color: #1a1a2e; }
+.messages-contact-item.unread .contact-last-msg { color: #333; font-weight: 500; }
 
-.messages-contact-item.unread .contact-name {
-  font-weight: 700;
-  color: #1a1a2e;
-}
+/* ===== MOBILE — WhatsApp style ===== */
+@media (max-width: 768px) {
+  .messages-layout {
+    flex-direction: column;
+    height: calc(100vh - 120px);
+    max-height: none;
+    border-radius: 0;
+    border: none;
+  }
 
-.messages-contact-item.unread .contact-last-msg {
-  color: #333;
-  font-weight: 500;
+  /* Mobile: sidebar aur chat panel dono full screen lenge */
+  .messages-sidebar {
+    width: 100%;
+    min-width: unset;
+    border-right: none;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .messages-chat-panel {
+    height: 100%;
+    width: 100%;
+  }
+
+  /* JS se yeh classes toggle hongi */
+  .messages-sidebar.mobile-hidden {
+    display: none;
+  }
+
+  .messages-chat-panel.mobile-hidden {
+    display: none;
+  }
 }

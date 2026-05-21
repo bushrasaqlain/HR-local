@@ -263,7 +263,7 @@ class SenderMessages extends Component {
     const messageGroups = this.groupMessagesByDate(messages);
 
     return (
-      <Container fluid className="p-0">
+      <Container fluid className="p-0" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
         {this.state.successMessage && (
           <div className="alert alert-success d-flex justify-content-between align-items-center">
             <span>{this.state.successMessage}</span>
@@ -285,15 +285,49 @@ class SenderMessages extends Component {
             />
           </div>
         )}
-        <Card className="message-card" style={{ height: "500px", display: "flex", flexDirection: "column" }}>
-          <CardHeader className="" style={{ background: "#5F8190", flexShrink: 0 }}>
-            <div className="user_info justify-content-center">
-              <span className="text-white">Chat with: {receiverName || "Select a contact"}</span>
-              {messages.length > 0 && messages[0].job_title && (
-                <small className="d-block text-white">
-                  Job Title: {messages[0].job_title}
-                </small>
+        <Card className="message-card" style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0,
+          height: "100%",
+          borderRadius: 0,
+          border: "none"
+        }}>
+          <CardHeader style={{ background: "#5F8190", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+
+              {/* ✅ Back button — onBack prop ChatBox se aayega */}
+              {this.props.onBack && (
+                <button
+                  onClick={this.props.onBack}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#fff",
+                    fontSize: "1.4rem",
+                    cursor: "pointer",
+                    padding: "0",
+                    lineHeight: 1,
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                  aria-label="Go back"
+                >
+                  &#8592;
+                </button>
               )}
+
+              <div className="user_info">
+                <span className="text-white">
+                  Chat with: {receiverName || "Select a contact"}
+                </span>
+                {messages.length > 0 && messages[0].job_title && (
+                  <small className="d-block text-white">
+                    Job Title: {messages[0].job_title}
+                  </small>
+                )}
+              </div>
             </div>
           </CardHeader>
 
@@ -361,7 +395,7 @@ class SenderMessages extends Component {
             )}
           </CardBody>
 
-          <CardFooter className="p-3 bg-dark-subtle" style={{ width: "100%" }}>
+          <CardFooter className="p-3 bg-dark-subtle" style={{ flexShrink: 0 }}>
             <Form onSubmit={this.handleSendMessage} style={{ width: "100%" }}>
               <div className="d-flex w-100 gap-2">
                 <Input
@@ -392,39 +426,24 @@ class SenderMessages extends Component {
         {/* Add custom CSS */}
         <style jsx>{`
           .message-card {
-            height: 400px;
+            flex: 1;
             display: flex;
             flex-direction: column;
+            min-height: 0;
           }
-          
           .msg_card_body {
             flex: 1 1 auto;
             overflow-y: auto;
             min-height: 0;
           }
-          
           .messages-container {
             display: flex;
             flex-direction: column;
           }
-          
-          /* Custom scrollbar styling (optional) */
-          .msg_card_body::-webkit-scrollbar {
-            width: 6px;
-          }
-          
-          .msg_card_body::-webkit-scrollbar-track {
-            background: #f1f1f1;
-          }
-          
-          .msg_card_body::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 3px;
-          }
-          
-          .msg_card_body::-webkit-scrollbar-thumb:hover {
-            background: #555;
-          }
+          .msg_card_body::-webkit-scrollbar { width: 6px; }
+          .msg_card_body::-webkit-scrollbar-track { background: #f1f1f1; }
+          .msg_card_body::-webkit-scrollbar-thumb { background: #888; border-radius: 3px; }
+          .msg_card_body::-webkit-scrollbar-thumb:hover { background: #555; }
         `}</style>
       </Container>
     );

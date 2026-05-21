@@ -1010,6 +1010,7 @@ class PaymentModal extends Component {
     cardExpiry: "",
     cardCvv: "",
     saveCard: false,
+    expiryError: "",
     // ── qr / bank ──
     // qrRef: "",
     // bankRef: "",
@@ -1247,12 +1248,74 @@ class PaymentModal extends Component {
               const v = e.target.value.replace(/\D/g, "").slice(0, 16);
               this.setState({ cardNumber: v.replace(/(.{4})/g, "$1 ").trim() });
             }} />
-          <Field label="Expiry" placeholder="MM / YY" value={cardExpiry} half
-            onChange={e => {
-              let v = e.target.value.replace(/\D/g, "").slice(0, 4);
-              if (v.length >= 3) v = v.slice(0, 2) + " / " + v.slice(2);
-              this.setState({ cardExpiry: v });
-            }} />
+          <div style={{ flex: "1 1 calc(50% - 6px)", minWidth: 0 }}>
+            <label style={{
+              display: "block", fontSize: 11, fontWeight: 600, color: THEME.muted,
+              marginBottom: 5, textTransform: "uppercase", letterSpacing: 0.5,
+            }}>
+              Expiry
+            </label>
+            <input
+              type="text"
+              placeholder="MM / YY"
+              value={cardExpiry}
+              autoComplete="new-password"
+              onChange={e => {
+                let raw = e.target.value.replace(/\D/g, "").slice(0, 4);
+
+                // ✅ Month validate — 01-12
+                if (raw.length >= 2) {
+                  let month = parseInt(raw.slice(0, 2));
+                  if (month > 12) raw = "12" + raw.slice(2);
+                  if (month === 0) raw = "01" + raw.slice(2);
+                }
+
+                if (raw.length >= 3) raw = raw.slice(0, 2) + " / " + raw.slice(2);
+
+                // ✅ Year/month validation
+                let expiryError = "";
+                if (raw.length === 7) {
+                  const parts = raw.replace(/\s/g, "").split("/");
+                  const month = parseInt(parts[0]);
+                  const year = parseInt("20" + parts[1]);
+                  const now = new Date();
+                  const currentYear = now.getFullYear();
+                  const currentMonth = now.getMonth() + 1;
+
+                  if (month < 1 || month > 12) {
+                    expiryError = "Month must be between 01 and 12";
+                  } else if (year < currentYear) {
+                    expiryError = `Year cannot be before ${currentYear}`;
+                  } else if (year === currentYear && month < currentMonth) {
+                    expiryError = "Card expired — enter a future date";
+                  }
+                }
+
+                this.setState({ cardExpiry: raw, expiryError });
+              }}
+              style={{
+                width: "100%", padding: "0.62rem 0.85rem",
+                border: `1px solid ${this.state.expiryError ? "#ef4444" : THEME.border}`,
+                borderRadius: 8, fontSize: 14, color: THEME.text,
+                background: "#FAFAF9", outline: "none", boxSizing: "border-box",
+                transition: "border-color 0.15s, box-shadow 0.15s",
+              }}
+              onFocus={e => {
+                e.target.style.borderColor = this.state.expiryError ? "#ef4444" : THEME.accent;
+                e.target.style.boxShadow = `0 0 0 3px ${this.state.expiryError ? "#fef2f2" : THEME.accentLight}`;
+              }}
+              onBlur={e => {
+                e.target.style.borderColor = this.state.expiryError ? "#ef4444" : THEME.border;
+                e.target.style.boxShadow = "none";
+              }}
+            />
+            {/* ✅ Error message */}
+            {this.state.expiryError && (
+              <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4 }}>
+                {this.state.expiryError}
+              </div>
+            )}
+          </div>
           <Field label="CVV" placeholder={isAmex ? "1234" : "123"} value={cardCvv} half
             onChange={e =>
               this.setState({ cardCvv: e.target.value.replace(/\D/g, "").slice(0, isAmex ? 4 : 3) })
@@ -1363,10 +1426,12 @@ class PaymentModal extends Component {
 
   /* ── Is the Pay button enabled? ── */
   canPay() {
-    const { paymentMethod, selectedSavedCardId, showNewCardForm, cardNumber } = this.state;
+    const { paymentMethod, selectedSavedCardId, showNewCardForm, cardNumber, expiryError, cardExpiry } = this.state;
     if (paymentMethod === "card") {
       // saved card selected OR new card has a number entered
-      return selectedSavedCardId != null || (showNewCardForm && cardNumber.replace(/\s/g, "").length >= 13);
+      return selectedSavedCardId != null || (showNewCardForm && cardNumber.replace(/\s/g, "").length >= 13)
+        && cardExpiry.length === 7
+        && !expiryError;
     }
     // if (paymentMethod === "qr")   return true;   // reference optional
     // if (paymentMethod === "bank") return true;

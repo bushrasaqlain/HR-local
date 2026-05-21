@@ -283,7 +283,7 @@ class CandidateMessages extends Component {
             />
           </div>
         )}
-        <Card className="message-card" style={{ height: "500px", display: "flex", flexDirection: "column" }}>
+        <Card className="message-card" style={{ height: "400px", display: "flex", flexDirection: "column" }}>
           <CardHeader className="" style={{ background: "#5F8190", flexShrink: 0 }}>
             <div className="user_info justify-content-center">
               <span className="text-white">

@@ -16,10 +16,14 @@ const getAppliedJobs = (req, res) => {
 const unlockCandidate=(req,res)=>{
     applicantModel.unlockCandidate(req,res);
 }
+const getApplicationStats=(req,res)=>{
+  applicantModel.getApplicationStats(req,res);
+}
 module.exports={
   unlockCandidate,
     getAllApplicants,
     updateApplcantStatus,
     applyJob,
     getAppliedJobs,
+    getApplicationStats,
 }

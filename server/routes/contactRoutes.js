@@ -9,4 +9,6 @@ router.get("/messages", authMiddleware, contactController.getAllMessages);
 
 router.patch("/messages/:id/status", authMiddleware, contactController.updateMessageStatus);
 
+router.post("/messages/:id/reply", authMiddleware, contactController.replyToMessage);
+
 module.exports = router;

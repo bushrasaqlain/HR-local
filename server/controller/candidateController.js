@@ -110,14 +110,6 @@ const getSavedJobs = (req, res) => {
     candidateModel.getSavedJobs(req, res);
 };
 
-const saveJobPreferences = (req, res) => {
-    candidateModel.saveJobPreferences(req, res);
-};
-
-const getJobPreferences = (req, res) => {
-    candidateModel.getJobPreferences(req, res);
-};
-
 const getJobAlerts = (req, res) => {
     candidateModel.getJobAlerts(req, res);
 };
@@ -163,8 +155,6 @@ module.exports = {
     parseCVAndSave,
     toggleSaveJob,
     getSavedJobs,
-    saveJobPreferences,
-    getJobPreferences,
     getJobAlerts,
     markJobAlertRead,
     markAllJobAlertsRead,
