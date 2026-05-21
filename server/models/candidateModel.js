@@ -328,6 +328,7 @@ const getAllCandidates = (req, res) => {
     email: "a.email",
     phone: "c.phone",
     password: "a.password",
+    full_name: "c.full_name",
     created_at: "a.created_at",
     isActive: "a.isActive",
   };
@@ -367,6 +368,7 @@ const getAllCandidates = (req, res) => {
   const query = `
     SELECT a.*,
            c.account_id,
+           c.full_name,
            c.id as candidate_id,
            c.full_name,
            c.phone,

@@ -75,7 +75,7 @@ const candidateAvailabilityModel = require("../models/candidateAvailabilityModel
 const alertSettingsModel = require("../models/alertSettingsModel");
 const creditModel = require("../models/creditModel");
 const contactModel = require("../models/contactModel");
-const { default: candidate } = require('../../src/components/regadmin-dashboard/candidate');
+// const { default: candidate } = require('../../src/components/regadmin-dashboard/candidate');
 
 function Database() {
 

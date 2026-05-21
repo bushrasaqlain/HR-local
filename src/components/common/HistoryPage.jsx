@@ -156,9 +156,10 @@ if (item.action === "CARD_SAVED") {
 }
     return { summary, details };
 };
-const HistoryPage = () => {
-    const router = useRouter();
-    const { id, type } = router.query;
+const HistoryPage = ({ inlineId, inlineType, onBack }) => {
+  const router = useRouter();
+  const id   = inlineId  || router.query.id;
+  const type = inlineType || router.query.type;
 
     const [historyData, setHistoryData] = useState([]);
     const [loading, setLoading]         = useState(true);
@@ -208,7 +209,7 @@ const HistoryPage = () => {
             <style>{`
                 .hp-wrap {
                     padding: 24px;
-                    padding-top: 110px;
+                    // padding-top: 110px;
                     padding-bottom: 100px;
                     background: #f8fafc;
                     min-height: 100vh;
@@ -381,7 +382,7 @@ const HistoryPage = () => {
 </Head>
             <div className="hp-wrap">
                 <div className="hp-header">
-                    <button className="hp-back" onClick={() => router.back()}>← Back</button>
+                    <button className="hp-back" onClick={onBack || (() => router.back())}>← Back</button>
                     <h2 className="hp-title">History</h2>
                 </div>
 
