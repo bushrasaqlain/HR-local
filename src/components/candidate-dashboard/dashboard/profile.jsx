@@ -7,6 +7,8 @@ import EditProfile from "./editprofile";
 import ProfileViewsGraph from "./ProfileViewsGraph";
 import JobList from "./lists";
 import Payment from "../../company-dashboard/payment";
+import PricingForm from "../../company-dashboard/pricingform";
+import PricingPage, { PaymentModal } from "../../company-dashboard/viewpackage";
 import { withRouter } from "next/router";
 class Profile extends Component {
   constructor(props) {
@@ -116,7 +118,7 @@ class Profile extends Component {
     this.setState({ applyingJobId: jobId });
     try {
       const token = sessionStorage.getItem("token");
-      await api.post("/apply",
+      await api.post("/applicant/apply",
         { job_id: jobId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -304,30 +306,30 @@ class Profile extends Component {
                   <div style={{
                     display: "flex", alignItems: "center", gap: "14px",
                     padding: "14px 18px", borderRadius: "10px",
-                    background: "#f0fdf4", border: "1.5px solid #22c55e",
+                    background: "#e2f0f0", border: "1.5px solid #5f8190",
                   }}>
                     <div style={{
                       width: "40px", height: "40px", borderRadius: "10px",
-                      background: "#dcfce7", border: "1px solid #22c55e",
+                      background: "#dcfce7", border: "1px solid #36565f",
                       display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
                     }}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                        stroke="#15803d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        stroke="#36565f" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
                         <polyline points="16 7 22 7 22 13" />
                       </svg>
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: "13px", fontWeight: 600, color: "#14532d", marginBottom: "3px" }}>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: "#36565f", marginBottom: "3px" }}>
                         Profile Boosted — Active
                       </div>
-                      <span style={{ fontSize: "12px", color: "#166534" }}>
+                      <span style={{ fontSize: "12px", color: "#5f8190" }}>
                         Your profile is now appearing higher in search results
                       </span>
                     </div>
                     <span style={{
                       display: "flex", alignItems: "center", gap: "6px",
-                      background: "#22c55e", color: "#14532d",
+                      background: "#5f8190", color: "#fff",
                       borderRadius: "20px", padding: "5px 12px",
                       fontSize: "12px", fontWeight: 600,
                     }}>
@@ -483,137 +485,183 @@ class Profile extends Component {
                         </p>
                       ) : (
                         <div className="d-flex flex-column gap-3">
-                          {filteredJobs.map(job => {
-                            const isSaved = this.state.savedJobIds.includes(job.id);
+                         {filteredJobs.map(job => {
+  const isSaved = this.state.savedJobIds.includes(job.id);
 
-                            return (
-                              <div
-                                key={job.id}
-                                className="d-flex align-items-center justify-content-between p-3"
-                                style={{
-                                  border: "1px solid #e5e7eb",
-                                  borderRadius: "10px",
-                                  cursor: "pointer"
-                                }}
-                                onClick={() => this.handleJobClick(job.id)}
-                              >
+  const tierStyles = {
+    strong: { background: "#d1fae5", color: "#065f46", border: "1px solid #6ee7b7" },
+    good:   { background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd" },
+    weak:   { background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d" },
+  };
+  const tierStyle = tierStyles[job.tier] || {};
 
-                                {/* LEFT SIDE */}
-                                <div className="d-flex align-items-center gap-3">
-                                  {job.logo ? (
-                                    <img
-                                      src={`data:image/png;base64,${job.logo}`}
-                                      alt={job.company_name}
-                                      style={{
-                                        width: 40,
-                                        height: 40,
-                                        borderRadius: 8,
-                                        objectFit: "cover"
-                                      }}
-                                    />
-                                  ) : (
-                                    <div style={{
-                                      width: 40,
-                                      height: 40,
-                                      borderRadius: 8,
-                                      background: "#f3f4f6",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      fontSize: 18,
-                                      color: "#9ca3af"
-                                    }}>
-                                      🏢
-                                    </div>
-                                  )}
+  return (
+    <div
+      key={job.id}
+      onClick={() => this.handleJobClick(job.id)}
+      style={{
+        border: "1px solid #e5e7eb",
+        borderRadius: "14px",
+        padding: "16px 20px",
+        cursor: "pointer",
+        transition: "box-shadow 0.2s, border-color 0.2s",
+        background: "#fff",
+      }}
+      onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)"}
+      onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
+    >
+      {/* ── TOP ROW: Logo + Info + Action ── */}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: "14px" }}>
 
-                                  <div>
-                                    {/* Job Title + Save */}
-                                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                      <div style={{ fontWeight: 600, fontSize: 14 }}>
-                                        {job.job_title}
-                                      </div>
+        {/* Logo */}
+        {job.logo ? (
+          <img
+            src={`data:image/png;base64,${job.logo}`}
+            alt={job.company_name}
+            style={{ width: 44, height: 44, borderRadius: 10, objectFit: "cover", flexShrink: 0, marginTop: 2 }}
+          />
+        ) : (
+          <div style={{
+            width: 44, height: 44, borderRadius: 10, background: "#f3f4f6",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 20, flexShrink: 0, marginTop: 2,
+          }}>🏢</div>
+        )}
 
-                                      <button
-                                        onClick={(e) => this.handleToggleSave(e, job.id)}
-                                        style={{
-                                          background: "none",
-                                          border: "none",
-                                          cursor: "pointer",
-                                          fontSize: "15px",
-                                          padding: "2px",
-                                          color: isSaved ? "#ef4444" : "#d1d5db",
-                                        }}
-                                        title={isSaved ? "Remove from saved" : "Save job"}
-                                      >
-                                        {isSaved ? "❤️" : "🤍"}
-                                      </button>
-                                    </div>
+        {/* Center info */}
+        <div style={{ flex: 1, minWidth: 0 }}>
 
-                                    {/* Company + City */}
-                                    <div style={{ fontSize: 12, color: "#6b7280" }}>
-                                      {job.company_name} • {job.city_name}
-                                    </div>
+          {/* Line 1: Title + save + tier + score */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+            <span style={{ fontWeight: 700, fontSize: 15, color: "#111827" }}>
+              {job.job_title}
+            </span>
+            <button
+              onClick={(e) => this.handleToggleSave(e, job.id)}
+              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 15, padding: 0, lineHeight: 1 }}
+              title={isSaved ? "Remove from saved" : "Save job"}
+            >
+              {isSaved ? "❤️" : "🤍"}
+            </button>
+            {job.tier_label && (
+              <span style={{
+                ...tierStyle, borderRadius: "20px",
+                padding: "2px 10px", fontSize: "11px", fontWeight: 600,
+              }}>
+                {job.tier_label}
+              </span>
+            )}
+            {job.ai_score != null && (
+              <span style={{
+                background: "#f3f4f6", color: "#6b7280", borderRadius: "20px",
+                padding: "2px 9px", fontSize: "11px", fontWeight: 500,
+              }}>
+                {job.ai_score}% match
+              </span>
+            )}
+          </div>
 
-                                    {/* Salary */}
-                                    {job.min_salary && (
-                                      <div style={{ fontSize: 12, color: "#059669" }}>
-                                        {job.currency} {job.min_salary} - {job.max_salary}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
+          {/* Line 2: Company · Salary · Exp */}
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", fontSize: 12, color: "#6b7280" }}>
+            <span style={{ fontWeight: 500, color: "#374151" }}>{job.company_name}</span>
+            {job.min_salary && (
+              <>
+                <span style={{ color: "#d1d5db" }}>•</span>
+                <span style={{ color: "#36565f", fontWeight: 500 }}>
+                  {job.currency} {Number(job.min_salary).toLocaleString()} – {Number(job.max_salary).toLocaleString()}
+                </span>
+              </>
+            )}
+            {job.min_experience && (
+              <>
+                <span style={{ color: "#d1d5db" }}>•</span>
+                <span>🕒 {job.min_experience} – {job.max_experience} yrs</span>
+              </>
+            )}
+          </div>
+        </div>
 
-                                {/* RIGHT SIDE */}
-                                <div onClick={(e) => e.stopPropagation()}>
-                                  {job.already_applied ? (
-                                    <span
-                                      className="badge"
-                                      style={{ background: "#d1fae5", color: "#065f46" }}
-                                    >
-                                      ✓ Applied
-                                    </span>
-                                  ) : !this.state.boostStatus?.isBoosted ? (
-                                    <span
-                                      style={{
-                                        fontSize: 11,
-                                        color: "#a16207",
-                                        background: "#fffbeb",
-                                        border: "1px solid #f59e0b",
-                                        borderRadius: 8,
-                                        padding: "6px 10px",
-                                        display: "inline-block",
-                                        maxWidth: 120,
-                                        textAlign: "center",
-                                        lineHeight: "1.3"
-                                      }}
-                                    >
-                                      Boost your profile to apply
-                                    </span>
-                                  ) : (
-                                    <button
-                                      onClick={() => this.handleApply(job.id)}
-                                      disabled={this.state.applyingJobId === job.id}
-                                      style={{
-                                        background: "#36565F",
-                                        color: "#fff",
-                                        border: "none",
-                                        borderRadius: 8,
-                                        padding: "8px 16px",
-                                        fontSize: 13,
-                                        fontWeight: 600,
-                                        cursor: "pointer",
-                                      }}
-                                    >
-                                      {this.state.applyingJobId === job.id
-                                        ? "Applying..."
-                                        : "Apply"}
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
+        {/* Right: Apply / Applied */}
+        <div onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0, marginTop: 2 }}>
+          {job.already_applied ? (
+            <span style={{
+              background: "#36565f", color: "#fff", border: "1px solid #36565f",
+              borderRadius: "20px", padding: "6px 14px",
+              fontSize: "12px", fontWeight: 600, whiteSpace: "nowrap",
+            }}>✓ Applied</span>
+          ) : !this.state.boostStatus?.isBoosted ? (
+            <span style={{
+              fontSize: 11, color: "#a16207", background: "#fffbeb",
+              border: "1px solid #f59e0b", borderRadius: 8,
+              padding: "6px 10px", display: "inline-block",
+              textAlign: "center", lineHeight: "1.4", maxWidth: 110,
+            }}>
+              Boost to apply
+            </span>
+          ) : (
+            <button
+              onClick={() => this.handleApply(job.id)}
+              disabled={this.state.applyingJobId === job.id}
+              style={{
+                background: "#36565F", color: "#fff", border: "none",
+                borderRadius: 8, padding: "8px 20px",
+                fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+              }}
+            >
+              {this.state.applyingJobId === job.id ? "Applying..." : "Apply"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── DIVIDER ── */}
+      {(job.matched?.length > 0 || job.missing?.length > 0) && (
+        <div style={{ borderTop: "1px solid #f3f4f6", marginTop: "12px", paddingTop: "10px" }}>
+
+          {/* Matched + Missing in two columns */}
+          <div style={{ display: "flex", gap: "24px" }}>
+
+            {/* Matched */}
+            {job.matched?.length > 0 && (
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>
+                  Matching
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
+                  {job.matched.map((m, i) => (
+                    <span key={i} style={{
+                      background: "#e2f0f0", color: "#353333",
+                      border: "1px solid #708791",
+                      borderRadius: "6px", padding: "3px 9px", fontSize: "11px", fontWeight: 500,
+                    }}>✓ {m}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Missing */}
+            {/* {job.missing?.length > 0 && (
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>
+                  Missing
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
+                  {job.missing.map((m, i) => (
+                    <span key={i} style={{
+                      background: "#fef2f2", color: "#991b1b",
+                      border: "1px solid #fecaca",
+                      borderRadius: "6px", padding: "3px 9px", fontSize: "11px", fontWeight: 500,
+                    }}>✗ {m}</span>
+                  ))}
+                </div>
+              </div>
+            )} */}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+})}
                         </div>
                       )}
                     </CardBody>
@@ -882,19 +930,24 @@ class BoostModal extends React.Component {
   render() {
     const { packages, selected, loading, showPayment, selectedPkg } = this.state;
 
-    if (showPayment && selectedPkg) {
-      return (
-        <Payment
-          isOpen={true}
-          toggle={() => this.setState({ showPayment: false, selectedPkg: null })}
-          amount={selectedPkg.price}
-          currency={selectedPkg.currency}
-          packageId={selectedPkg.id}
-          paymentType="candidate_boost"
-          onPaymentSuccess={this.handlePaymentSuccess}
-        />
-      );
-    }
+   // In BoostModal, replace the showPayment block:
+if (showPayment && selectedPkg) {
+  const userId = sessionStorage.getItem("userId") || localStorage.getItem("userId");
+
+  return (
+    <PaymentModal
+      pkg={selectedPkg}           // full package object — already have this
+      userId={userId}
+      onClose={() => this.setState({ showPayment: false, selectedPkg: null })}
+      onSubmit={async (formState) => {
+        // First close the payment modal
+        this.setState({ showPayment: false, selectedPkg: null });
+        // Then place the boost order
+        await this.handlePaymentSuccess();
+      }}
+    />
+  );
+}
 
     return (
       <div style={{

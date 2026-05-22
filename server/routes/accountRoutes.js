@@ -26,5 +26,6 @@ router.post("/account", upload.none(),accountController.register);
 router.post("/login", accountController.login);
 
 router.post("/changepassword", authMiddleware, accountController.changePassword);
+router.get("/verify-email", accountController.verifyEmail);
 
 module.exports = router;

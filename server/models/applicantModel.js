@@ -89,7 +89,9 @@ const express = require("express");
                   jp.status,
                   jp.approval_status,
                   jp.job_location_type,
-                  jp.job_title
+                  jp.job_title,
+                  jp.time_from,        
+                  jp.time_to
           FROM job_posts jp
           WHERE jp.id = ?`,
           [jobId],
@@ -664,6 +666,31 @@ const express = require("express");
             matched.push("Salary");
           }
           score += salaryScore;
+// ── Availability / Working Hours (10pts) ──    ← ADD FROM HERE
+          const candAvailability = availabilityRows.filter(
+            (a) => a.candidate_id === c.candidate_id
+          );
+          let availScore = 0;
+
+          if (!job.time_from || !job.time_to) {
+            availScore = 10;
+            matched.push("Availability");
+          } else if (candAvailability.length === 0) {
+            availScore = 5;
+            missing.push("Availability (not specified by candidate)");
+          } else {
+            const hasOverlap = candAvailability.some(
+              (slot) => slot.time_from <= job.time_to && slot.time_to >= job.time_from
+            );
+            if (hasOverlap) {
+              availScore = 10;
+              matched.push("Availability");
+            } else {
+              availScore = 0;
+              missing.push(`Availability (hours don't overlap with ${job.time_from}–${job.time_to})`);
+            }
+          }
+          score += availScore;
 
           // ── Tier ──
           const skillsMatched = skillScore  >= 20;
@@ -1024,42 +1051,50 @@ const express = require("express");
 const logStatusHistory = (employerId, jobTitle, companyName) => {
   if (status === "Shortlisted" || status === "Approved" || status === "Rejected") {
 
-    // ✅ Map status to correct action
-    const actionMap = {
-      Shortlisted: "SHORTLISTED",
-      Approved:    "APPROVED",
-      Rejected:    "REJECTED",
-    };
-    const action = actionMap[status];
+    // ✅ Look up candidate's account_id first
+    connection.query(
+      `SELECT account_id FROM candidate_info WHERE id = ?`,
+      [candidateId],
+      (err, rows) => {
+        if (err || !rows.length) return;
 
-    // Employer history
-    logAudit({
-      tableName: "history",
-      entityType: "employer",
-      entityId: employerId,
-      action,
-      data: {
-        event: `Candidate ${status.toLowerCase()} for job: ${jobTitle}`,
-        candidateId,
-        jobId,
-        status,
-      },
-      changedBy: employerId,
-    });
+        const candidateAccountId = rows[0].account_id; // 160 ✅
 
-    // Candidate history
-    logAudit({
-      tableName: "history",
-      entityType: "candidate",
-      entityId: candidateId,
-      action,
-      data: {
-        event: `You were ${status.toLowerCase()} for job: ${jobTitle} at ${companyName}`,
-        jobId,
-        status,
-      },
-      changedBy: employerId,
-    });
+        const actionMap = {
+          Shortlisted: "SHORTLISTED",
+          Approved:    "APPROVED",
+          Rejected:    "REJECTED",
+        };
+        const action = actionMap[status];
+
+        logAudit({
+          tableName: "history",
+          entityType: "employer",
+          entityId: employerId,
+          action,
+          data: {
+            event: `Candidate ${status.toLowerCase()} for job: ${jobTitle}`,
+            candidateId,
+            jobId,
+            status,
+          },
+          changedBy: employerId,
+        });
+
+        logAudit({
+          tableName: "history",
+          entityType: "candidate",
+          entityId: candidateAccountId, // ✅ was candidateId (164), now account_id (160)
+          action,
+          data: {
+            event: `You were ${status.toLowerCase()} for job: ${jobTitle} at ${companyName}`,
+            jobId,
+            status,
+          },
+          changedBy: employerId,
+        });
+      }
+    );
   }
 };
 
@@ -1186,10 +1221,10 @@ const logStatusHistory = (employerId, jobTitle, companyName) => {
                 const employerId  = jobRows?.[0]?.account_id   || null;
 
                 connection.query(
-                  "INSERT INTO applications (job_id, candidate_id, status) VALUES (?, ?, 'Pending')",
-                  [job_id, candidateId],
-                  (err3) => {
-                    if (err3) return res.status(500).json({ error: "Database error", details: err3.message });
+  "INSERT INTO applications (job_id, candidate_id, status, message) VALUES (?, ?, 'Pending', '')",
+  [job_id, candidateId],
+  (err3) => {
+    if (err3) return res.status(500).json({ error: "Database error", details: err3.message });
 
                     // Candidate history: applied for job
                     logAudit({

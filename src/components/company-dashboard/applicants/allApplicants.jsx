@@ -63,27 +63,25 @@ class AllApplicants extends Component {
     }
   };
 
-  openCandidatePage(candidate) {
-    if (candidate.locked) return; // locked candidates are not clickable
-    const isMobile = this.state.windowWidth <= 768;
+ openCandidatePage(candidate) {
+  if (candidate.locked) return;
+  const isMobile = this.state.windowWidth <= 768;
 
-    this.trackCandidateProfileView(
-      candidate.account_id || candidate.candidate_id || candidate.id,
-      Number(this.state.selectedJobId) || null
-    );
+  this.trackCandidateProfileView(
+    candidate.account_id || candidate.candidate_id || candidate.id,
+    Number(this.state.selectedJobId) || null
+  );
 
+  this.setState({ selectedCandidate: null }, () => {
     this.setState({
-      selectedCandidate: null,
-    }, () => {
-      this.setState({
-        selectedCandidate: candidate,
-        selectedCandidateId: candidate.id,
-        splitViewActive: !isMobile,
-        mobileDetailView: isMobile,
-        showCandidateInfo: true,
-      });
+      selectedCandidate: candidate,
+      selectedCandidateId: candidate.candidate_id || candidate.id,  // ← fix here
+      splitViewActive: !isMobile,
+      mobileDetailView: isMobile,
+      showCandidateInfo: true,
     });
-  }
+  });
+}
 
   trackCandidateProfileView = async (candidateAccountId, jobId) => {
     console.log("🔍 trackCandidateProfileView called with:", { candidateAccountId, jobId });

@@ -623,29 +623,84 @@ const addCandidateInfo = async (req, res) => {
         isFresherVal,
       ];
 
-      connection.query(sql, params, (err2) => {
-        if (err2) {
-          console.error("DB Error:", err2);
-          return res.status(500).json({
-            success: false,
-            error: err2.message,
-          });
+     // First fetch existing data before update
+connection.query(
+  `SELECT * FROM candidate_info WHERE account_id = ? LIMIT 1`,
+  [accountId],
+  (errFetch, existingRows) => {
+    if (errFetch) return res.status(500).json({ success: false, error: errFetch.message });
+
+    const existingData = existingRows[0] || null;
+    const isFirstTime = !existingData || !existingData.full_name; // no profile yet
+
+    connection.query(sql, params, (err2, result) => {
+      if (err2) {
+        console.error("DB Error:", err2);
+        return res.status(500).json({ success: false, error: err2.message });
+      }
+
+      if (isFirstTime) {
+        // First time — just log ADDED, no diff needed
+        logAudit({
+          tableName: "history",
+          entityType: "candidate",
+          entityId: accountId,
+          action: "ADDED",
+          data: {
+            event: "Candidate profile created",
+            profile_completed: profileCompleted,
+          },
+          changedBy: accountId,
+        });
+      } else {
+        // Not first time — compute diff of old vs new
+        const fieldsToTrack = {
+          full_name,
+          phone,
+          date_of_birth,
+          gender,
+          marital_status,
+          total_experience,
+          license_number,
+          address,
+          country,
+          district,
+          city,
+          current_salary,
+          expected_salary,
+        };
+
+        const diff = {};
+        for (const [key, newVal] of Object.entries(fieldsToTrack)) {
+          const oldVal = String(existingData[key] ?? "");
+          const newValStr = String(newVal ?? "");
+          if (oldVal !== newValStr) {
+            diff[key] = { from: existingData[key], to: newVal };
+          }
         }
+
         logAudit({
           tableName: "history",
           entityType: "candidate",
           entityId: accountId,
           action: "UPDATED",
-          data: { event: "Profile updated", profile_completed: profileCompleted },
+          data: {
+            event: "Candidate profile updated",
+            changes: diff,
+            profile_completed: profileCompleted,
+          },
           changedBy: accountId,
         });
+      }
 
-        return res.json({
-          success: true,
-          message: "Candidate profile saved successfully",
-          profile_completed: profileCompleted,
-        });
+      return res.json({
+        success: true,
+        message: "Candidate profile saved successfully",
+        profile_completed: profileCompleted,
       });
+    });
+  }
+);
     });
   } catch (error) {
     console.error("Save Candidate Error:", error);
@@ -1331,13 +1386,13 @@ const placeBoostOrder = (req, res) => {
                 return res.status(500).json({ error: "Database error", details: err3.message }); // ✅
               }
               logAudit({
-                tableName: "history",
-                entityType: "candidate",
-                entityId: accountId,
-                action: "UPDATED",
-                data: { event: "Boost order placed", package_id },
-                changedBy: accountId,
-              });
+  tableName: "history",
+  entityType: "candidate",
+  entityId: accountId,
+  action: "BOOST_REQUESTED",
+  data: { event: "Boost order placed", package_id },
+  changedBy: accountId,
+});
               res.json({
                 success: true,
                 message: "Boost order placed successfully. Waiting for admin approval.",
@@ -1468,13 +1523,13 @@ const activateBoost = (req, res) => {
                 (err4, rows) => {
                   if (!err4 && rows.length > 0) {
                     logAudit({
-                      tableName: "history",
-                      entityType: "candidate",
-                      entityId: rows[0].account_id,
-                      action: "UPDATED",
-                      data: { event: "Boost activated by admin", boost_expires_at: end },
-                      changedBy: req.user.userId,
-                    });
+  tableName: "history",
+  entityType: "candidate",
+  entityId: rows[0].account_id,
+  action: "BOOST_ACTIVATED",
+  data: { event: "Boost activated by admin", boost_expires_at: end },
+  changedBy: req.user.userId,
+});
                   }
                 }
               );
@@ -1491,15 +1546,34 @@ const rejectBoost = (req, res) => {
   const { orderId } = req.params;
 
   connection.query(
-    "UPDATE boost_orders SET status='rejected' WHERE id=?",
+    `SELECT bo.candidate_id, ci.account_id 
+     FROM boost_orders bo
+     JOIN candidate_info ci ON ci.id = bo.candidate_id
+     WHERE bo.id = ?`,
     [orderId],
-    (err) => {
-      if (err) {
-        console.error("Error rejecting boost order:", err.message);
-        return res.status(500).json({ error: "Database error" });
-      }
-      console.log("Boost order rejected:", orderId);
-      res.json({ success: true, message: "Boost order rejected" });
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: "Database error" });
+
+      connection.query(
+        "UPDATE boost_orders SET status='rejected' WHERE id=?",
+        [orderId],
+        (err2) => {
+          if (err2) return res.status(500).json({ error: "Database error" });
+
+          if (rows.length > 0) {
+            logAudit({
+              tableName: "history",
+              entityType: "candidate",
+              entityId: rows[0].account_id,
+              action: "BOOST_REJECTED",
+              data: { event: "Boost order rejected by admin" },
+              changedBy: req.user.userId,
+            });
+          }
+
+          res.json({ success: true, message: "Boost order rejected" });
+        }
+      );
     }
   );
 };
@@ -1562,87 +1636,352 @@ const getBoostAnalytics = (req, res) => {
   });
 };
 
-const getMatchingJobsForCandidate = (req, res) => {
-  const accountId = req.user.userId;
+const getMatchingJobsForCandidate = async (req, res) => {
+  try {
+    const accountId = req.user.userId;
 
-  console.log("getMatchingJobsForCandidate called, accountId:", accountId); // ← add karo
+    // ── STEP 1: Fetch candidate profile ──
+    const candidate = await new Promise((resolve, reject) =>
+      connection.query(
+        `SELECT ci.id, ci.skills, ci.city, ci.total_experience,
+                ci.expected_salary, ci.otherPreferredCities, ci.is_boosted
+         FROM candidate_info ci
+         WHERE ci.account_id = ?
+         LIMIT 1`,
+        [accountId],
+        (err, rows) => (err ? reject(err) : resolve(rows[0]))
+      )
+    );
 
-  const candidateSql = `
-    SELECT ci.id, ci.skills, ci.city, ci.is_boosted
-    FROM candidate_info ci
-    WHERE ci.account_id = ?
-    LIMIT 1
-  `;
+    if (!candidate) return res.status(404).json({ error: "Candidate not found" });
 
-  connection.query(candidateSql, [accountId], (err, rows) => {
-    if (err) {
-      console.error("candidateSql error:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
-
-    console.log("candidate rows:", rows);
-
-    if (!rows.length) return res.status(404).json({ error: "Candidate not found" });
-
-    const candidate = rows[0];
-    let skills = [];
+    // ── STEP 2: Parse candidate skills ──
+    let candSkillIds = [];
     try {
-      skills = typeof candidate.skills === "string"
+      candSkillIds = typeof candidate.skills === "string"
         ? JSON.parse(candidate.skills)
         : candidate.skills || [];
-    } catch { skills = []; }
+    } catch { candSkillIds = []; }
 
-    console.log("skills:", skills);
+    // ── STEP 3: Parse candidate cities ──
+    let candOtherCityIds = [];
+    try {
+      const parsed = typeof candidate.otherPreferredCities === "string"
+        ? JSON.parse(candidate.otherPreferredCities)
+        : candidate.otherPreferredCities || [];
+      candOtherCityIds = parsed.map((c) => typeof c === "object" ? Number(c.id) : Number(c));
+    } catch { candOtherCityIds = []; }
 
-    if (!skills.length) {
-      return res.json({ success: true, data: [] });
+    const candCityId = Number(candidate.city);
+
+    // ── STEP 4: Fetch candidate experience (for speciality) ──
+    const experienceRows = await new Promise((resolve, reject) =>
+      connection.query(
+        `SELECT e.speciality_id FROM candidate_experience e WHERE e.candidate_id = ?`,
+        [candidate.id],
+        (err, rows) => (err ? reject(err) : resolve(rows))
+      )
+    );
+    const candSpecialityIds = experienceRows.map((e) => Number(e.speciality_id)).filter(Boolean);
+
+    // ── STEP 5: Fetch candidate education ──
+    const educationRows = await new Promise((resolve, reject) =>
+      connection.query(
+        `SELECT ed.degree_id, df.degree_type_id
+         FROM candidate_education ed
+         LEFT JOIN degreefields df ON ed.degree_id = df.id
+         WHERE ed.candidate_id = ?`,
+        [candidate.id],
+        (err, rows) => (err ? reject(err) : resolve(rows))
+      )
+    );
+    const hasDegree          = educationRows.length > 0;
+    const candDegreeTypeIds  = educationRows.map((e) => Number(e.degree_type_id)).filter(Boolean);
+    const candDegreeFieldIds = educationRows.map((e) => Number(e.degree_id)).filter(Boolean);
+
+    // ── STEP 6: Fetch candidate availability ──
+    const availabilityRows = await new Promise((resolve, reject) =>
+      connection.query(
+        `SELECT * FROM candidate_availability WHERE candidate_id = ?`,
+        [candidate.id],
+        (err, rows) => (err ? reject(err) : resolve(rows))
+      )
+    );
+
+    // ── STEP 7: Fetch ALL active approved jobs (no skill gate) ──
+    const jobsRaw = await new Promise((resolve, reject) =>
+      connection.query(
+        `SELECT
+           jp.id, jp.job_title, jp.job_description,
+           jp.skill_ids, jp.speciality_id,
+           jp.min_salary, jp.max_salary,
+           jp.min_experience, jp.max_experience,
+           jp.degree_id, jp.degreefields_id,
+           jp.city_id, jp.job_location_type,
+           jp.time_from, jp.time_to,
+           jp.created_at, jp.is_sponsored,
+           jt.name AS job_type,
+           ccy.code AS currency,
+           ci.company_name, ci.logo,
+           CASE WHEN EXISTS (
+             SELECT 1 FROM applications a
+             WHERE a.job_id = jp.id AND a.candidate_id = ?
+           ) THEN 1 ELSE 0 END AS already_applied
+         FROM job_posts jp
+         LEFT JOIN company_info ci  ON ci.account_id  = jp.account_id
+         LEFT JOIN jobtypes jt      ON jt.id          = jp.job_type_id
+         LEFT JOIN currencies ccy   ON ccy.id         = jp.currency_id
+         WHERE jp.status          = 'Active'
+           AND jp.approval_status = 'Approved'
+           AND jp.application_deadline >= CURDATE()
+         ORDER BY jp.is_sponsored DESC, jp.created_at DESC
+         LIMIT 100`,
+        [candidate.id],
+        (err, rows) => (err ? reject(err) : resolve(rows))
+      )
+    );
+
+    if (!jobsRaw.length) {
+      return res.json({
+        success: true,
+        summary: { total: 0, strong: 0, good: 0, weak: 0 },
+        data: [],
+      });
     }
 
-    const jobsSql = `
-      SELECT
-        jp.id, jp.job_title, jp.job_description,
-        jp.min_salary, jp.max_salary,
-        jp.min_experience, jp.max_experience,
-        jp.status, jp.created_at,
-        jt.name AS job_type,
-        ccy.code AS currency,
-        ci.company_name, ci.logo,
-        c.name AS city_name,
-        (SELECT COUNT(*) FROM applications a 
-        WHERE a.job_id = jp.id AND a.candidate_id = ?) AS already_applied
-      FROM job_posts jp
-      LEFT JOIN company_info ci ON ci.account_id = jp.account_id
-      LEFT JOIN cities c ON c.id = jp.city_id
-      LEFT JOIN jobtypes jt ON jt.id = jp.job_type_id
-      LEFT JOIN currencies ccy ON ccy.id = jp.currency_id
-      WHERE jp.status = 'Active'
-        AND jp.approval_status = 'Approved'
-        AND JSON_OVERLAPS(jp.skill_ids, ?)
-      ORDER BY jp.created_at DESC
-      LIMIT 20
-    `;
+    // ── STEP 8: Score each job against the candidate ──
+    const candExp    = parseFloat(candidate.total_experience || 0);
+    const candSalary = parseFloat(candidate.expected_salary  || 0);
+    const tierOrder  = { strong: 0, good: 1, weak: 2 };
 
-    connection.query(
-      jobsSql,
-      [candidate.id, JSON.stringify(skills)],
-      (err2, jobs) => {
-        if (err2) {
-          console.error("jobsSql error:", err2);
-          return res.status(500).json({ error: "Database error", details: err2.message });
-        }
+    const tieredJobs = jobsRaw.map((job) => {
+      const matched = [];
+      const missing = [];
+      let score = 0;
 
-        console.log("jobs found:", jobs.length);
+      // ── Parse job skill IDs ──
+      let jobSkillIds = [];
+      try {
+        jobSkillIds = typeof job.skill_ids === "string"
+          ? JSON.parse(job.skill_ids).map(Number)
+          : (job.skill_ids || []).map(Number);
+      } catch { jobSkillIds = []; }
 
-        const result = jobs.map(job => ({
-          ...job,
-          logo: job.logo ? job.logo.toString("base64") : null,
-          already_applied: job.already_applied > 0,
-        }));
+      // ── Parse job city IDs ──
+      let jobCityIds = [];
+      try {
+        const parsed = typeof job.city_id === "string"
+          ? JSON.parse(job.city_id)
+          : job.city_id;
+        jobCityIds = Array.isArray(parsed) ? parsed.map(Number) : [];
+      } catch { jobCityIds = []; }
 
-        res.json({ success: true, data: result });
+      const isRemote = job.job_location_type === "remote" || jobCityIds.length === 0;
+
+      // ── Location (10pts) ──
+      let locationScore = 0;
+      let location_type = "pipeline";
+
+      if (isRemote) {
+        locationScore = 10;
+        location_type = "remote";
+      } else {
+        const mainCityMatch      = jobCityIds.includes(candCityId);
+        const preferredCityMatch = jobCityIds.some((id) => candOtherCityIds.includes(id));
+        locationScore = mainCityMatch ? 10 : preferredCityMatch ? 6 : 0;
+        location_type = mainCityMatch
+          ? "main_city"
+          : preferredCityMatch
+          ? "preferred_city"
+          : "pipeline";
       }
-    );
-  });
+      score += locationScore;
+
+      // ── Skills (30pts) ──
+      let skillScore = 0;
+      if (jobSkillIds.length === 0) {
+        skillScore = 30;
+        matched.push("Skills");
+      } else if (candSkillIds.length === 0) {
+        skillScore = 0;
+        missing.push("Skills (none matched)");
+      } else {
+        const matchedCount = jobSkillIds.filter((id) => candSkillIds.includes(id)).length;
+        skillScore = Math.round((matchedCount / jobSkillIds.length) * 30);
+        if (skillScore >= 20) matched.push(`Skills (${matchedCount}/${jobSkillIds.length})`);
+        else if (skillScore > 0) missing.push(`Skills (${matchedCount}/${jobSkillIds.length} matched)`);
+        else missing.push("Skills (none matched)");
+      }
+      score += skillScore;
+
+      // ── Experience (25pts) ──
+      const jobMinExp = parseInt(job.min_experience) || 0;
+      const jobMaxExp = parseInt(job.max_experience) || 50;
+      let expScore = 0;
+      if (jobMinExp === 0 && jobMaxExp === 0) {
+        expScore = 25;
+      } else if (candExp >= jobMinExp && candExp <= jobMaxExp) {
+        expScore = 25;
+      } else if (candExp < jobMinExp) {
+        expScore = Math.max(0, 25 - (jobMinExp - candExp) * 4);
+      } else {
+        expScore = 20;
+      }
+      score += expScore;
+      if (expScore >= 20) matched.push("Experience");
+      else missing.push(`Experience (you have ${candExp} yrs, job needs ${jobMinExp}-${jobMaxExp})`);
+
+      // ── Speciality (20pts) ──
+      let specScore = 0;
+      if (!job.speciality_id) {
+        specScore = 20;
+        matched.push("Speciality");
+      } else if (candSpecialityIds.includes(Number(job.speciality_id))) {
+        specScore = 20;
+        matched.push("Speciality");
+      } else {
+        missing.push("Speciality");
+      }
+      score += specScore;
+
+      // ── Degree (10pts) ──
+      const jobDegreeTypeId  = job.degree_id       ? Number(job.degree_id)       : null;
+      const jobDegreeFieldId = job.degreefields_id ? Number(job.degreefields_id) : null;
+      let degreeScore = 0;
+
+      if (!jobDegreeTypeId && !jobDegreeFieldId) {
+        degreeScore = hasDegree ? 10 : 0;
+        if (hasDegree) matched.push("Education");
+        else missing.push("Education");
+      } else {
+        const degreeTypeMatch  = candDegreeTypeIds.includes(jobDegreeTypeId);
+        const degreeFieldMatch = candDegreeFieldIds.includes(jobDegreeFieldId);
+        if (jobDegreeFieldId && jobDegreeTypeId) {
+          if (degreeFieldMatch && degreeTypeMatch)      { degreeScore = 10; matched.push("Education (degree & field match)"); }
+          else if (degreeTypeMatch || degreeFieldMatch) { degreeScore = 5;  matched.push(`Education (partial: ${degreeTypeMatch ? "type" : "field"} matched)`); }
+          else if (hasDegree)                           { degreeScore = 2;  missing.push("Education (wrong degree type & field)"); }
+          else                                          { degreeScore = 0;  missing.push("Education (none)"); }
+        } else if (jobDegreeFieldId) {
+          if (degreeFieldMatch)  { degreeScore = 10; matched.push("Education (field match)"); }
+          else if (hasDegree)    { degreeScore = 3;  missing.push("Education (wrong field)"); }
+          else                   { degreeScore = 0;  missing.push("Education (none)"); }
+        } else if (jobDegreeTypeId) {
+          if (degreeTypeMatch)   { degreeScore = 10; matched.push("Education (degree type match)"); }
+          else if (hasDegree)    { degreeScore = 3;  missing.push("Education (wrong degree type)"); }
+          else                   { degreeScore = 0;  missing.push("Education (none)"); }
+        }
+      }
+      score += degreeScore;
+      const degreeMatched = degreeScore >= 5;
+
+      // ── Salary (15pts) ──
+      const jobMinSalary = parseFloat(job.min_salary || 0);
+      const jobMaxSalary = parseFloat(job.max_salary || 0);
+      let salaryScore = 15;
+      let salaryOver  = false;
+      if (jobMinSalary || jobMaxSalary) {
+        if (candSalary >= jobMinSalary && candSalary <= jobMaxSalary) {
+          salaryScore = 15; matched.push("Salary");
+        } else if (candSalary < jobMinSalary) {
+          salaryScore = 10; matched.push("Salary (you expect less)");
+        } else {
+          const overage = ((candSalary - jobMaxSalary) / jobMaxSalary) * 100;
+          salaryScore   = overage > 50 ? 0 : overage > 25 ? 5 : 8;
+          salaryOver    = true;
+          missing.push("Salary (your expectation exceeds job budget)");
+        }
+      } else {
+        matched.push("Salary");
+      }
+      score += salaryScore;
+
+      // ── Availability (10pts) ──
+      let availScore = 0;
+      if (!job.time_from || !job.time_to) {
+        availScore = 10;
+        matched.push("Availability");
+      } else if (availabilityRows.length === 0) {
+        availScore = 5;
+        missing.push("Availability (you haven't set availability)");
+      } else {
+        const hasOverlap = availabilityRows.some(
+          (slot) => slot.time_from <= job.time_to && slot.time_to >= job.time_from
+        );
+        if (hasOverlap) {
+          availScore = 10;
+          matched.push("Availability");
+        } else {
+          availScore = 0;
+          missing.push(`Availability (your hours don't overlap with ${job.time_from}–${job.time_to})`);
+        }
+      }
+      score += availScore;
+
+      // ── Tier (same logic as getAllApplicants) ──
+      const skillsMatched = skillScore >= 20;
+      const expMatched    = expScore   >= 20;
+      const specMatched   = specScore  === 20;
+      const coreCriteriaCount = [skillsMatched, expMatched, specMatched, degreeMatched].filter(Boolean).length;
+
+      // filter out jobs where nothing at all matched
+      if (coreCriteriaCount === 0) return null;
+
+      let tier, tier_label, tier_color;
+      if      (coreCriteriaCount === 4) { tier = "strong"; tier_label = "Strong Match"; tier_color = "green"; }
+      else if (coreCriteriaCount >= 2)  { tier = "good";   tier_label = "Good Match";   tier_color = "blue";  }
+      else                              { tier = "weak";   tier_label = "Partial Match"; tier_color = "amber"; }
+
+      if (salaryOver && tier === "strong") {
+        tier = "good"; tier_label = "Good Match"; tier_color = "blue";
+      }
+
+      return {
+        id:              job.id,
+        job_title:       job.job_title,
+        job_description: job.job_description,
+        job_type:        job.job_type,
+        currency:        job.currency,
+        min_salary:      job.min_salary,
+        max_salary:      job.max_salary,
+        min_experience:  job.min_experience,
+        max_experience:  job.max_experience,
+        company_name:    job.company_name,
+        logo:            job.logo ? job.logo.toString("base64") : null,
+        created_at:      job.created_at,
+        already_applied: !!job.already_applied,
+        is_sponsored:    !!job.is_sponsored,
+        location_type,
+        ai_score:        Math.min(100, score),
+        tier,
+        tier_label,
+        tier_color,
+        matched,
+        missing,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => {
+      if (tierOrder[a.tier] !== tierOrder[b.tier]) return tierOrder[a.tier] - tierOrder[b.tier];
+      const locOrder = { remote: 0, main_city: 0, preferred_city: 1, pipeline: 2 };
+      if (locOrder[a.location_type] !== locOrder[b.location_type]) return locOrder[a.location_type] - locOrder[b.location_type];
+      if (b.is_sponsored !== a.is_sponsored) return b.is_sponsored ? 1 : -1;
+      return b.ai_score - a.ai_score;
+    });
+
+    // ── STEP 9: Summary + response ──
+    const summary = {
+      total:  tieredJobs.length,
+      strong: tieredJobs.filter((j) => j.tier === "strong").length,
+      good:   tieredJobs.filter((j) => j.tier === "good").length,
+      weak:   tieredJobs.filter((j) => j.tier === "weak").length,
+    };
+
+    return res.json({ success: true, summary, data: tieredJobs });
+
+  } catch (err) {
+    console.error("getMatchingJobsForCandidate error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
 };
 
 const getAllCandidatesForEmployer = (req, res) => {
