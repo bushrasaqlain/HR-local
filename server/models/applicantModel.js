@@ -923,51 +923,109 @@ const applyJob = (req, res) => {
   const accountId = req.user.userId;
   const { job_id } = req.body;
 
-  if (!job_id) return res.status(400).json({ error: "job_id is required" });
+  if (!job_id) {
+    return res.status(400).json({ error: "job_id is required" });
+  }
 
-  connection.query("SELECT id FROM candidate_info WHERE account_id = ? LIMIT 1", [accountId], (err, rows) => {
-    if (err) return res.status(500).json({ error: "Database error" });
-    if (!rows.length) return res.status(404).json({ error: "Candidate not found" });
+  connection.query(
+    "SELECT id FROM candidate_info WHERE account_id = ? LIMIT 1",
+    [accountId],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: "Database error" });
+      }
 
-    const candidateId = rows[0].id;
+      if (!rows.length) {
+        return res.status(404).json({ error: "Candidate not found" });
+      }
 
-    connection.query(
-      "SELECT id FROM applications WHERE job_id = ? AND candidate_id = ? AND status != 'Cancelled'",
-      [job_id, candidateId],
-      (err2, existing) => {
-        if (err2) return res.status(500).json({ error: "Database error" });
-        if (existing.length > 0) return res.status(409).json({ error: "Already applied" });
+      const candidateId = rows[0].id;
 
-        connection.query(
-          `SELECT jp.job_title, ci.company_name, jp.account_id FROM job_posts jp LEFT JOIN company_info ci ON ci.account_id = jp.account_id WHERE jp.id = ? LIMIT 1`,
-          [job_id],
-          (jobErr, jobRows) => {
-            const jobTitle = jobRows?.[0]?.job_title || "a job";
-            const companyName = jobRows?.[0]?.company_name || "a company";
-            const employerId = jobRows?.[0]?.account_id || null;
+      connection.query(
+        "SELECT id FROM applications WHERE job_id = ? AND candidate_id = ? AND status != 'Cancelled'",
+        [job_id, candidateId],
+        (err2, existing) => {
+          if (err2) {
+            return res.status(500).json({ error: "Database error" });
+          }
 
-                connection.query(
-  "INSERT INTO applications (job_id, candidate_id, status, message) VALUES (?, ?, 'Pending', '')",
-  [job_id, candidateId],
-  (err3) => {
-    if (err3) return res.status(500).json({ error: "Database error", details: err3.message });
-            connection.query("INSERT INTO applications (job_id, candidate_id, status) VALUES (?, ?, 'Pending')", [job_id, candidateId], (err3) => {
-              if (err3) return res.status(500).json({ error: "Database error", details: err3.message });
+          if (existing.length > 0) {
+            return res.status(409).json({ error: "Already applied" });
+          }
 
-              logAudit({ tableName: "history", entityType: "candidate", entityId: accountId, action: "JOB_APPLIED", data: { event: `You applied for job: ${jobTitle} at ${companyName}`, job_id, jobTitle, companyName, employerId }, changedBy: accountId });
-
-              if (employerId) {
-                logAudit({ tableName: "history", entityType: "employer", entityId: employerId, action: "APPLICATION_RECEIVED", data: { event: `New application received for job: ${jobTitle}`, job_id, jobTitle, candidateId }, changedBy: accountId });
+          connection.query(
+            `SELECT jp.job_title, ci.company_name, jp.account_id
+             FROM job_posts jp
+             LEFT JOIN company_info ci ON ci.account_id = jp.account_id
+             WHERE jp.id = ?
+             LIMIT 1`,
+            [job_id],
+            (jobErr, jobRows) => {
+              if (jobErr) {
+                return res.status(500).json({ error: "Database error" });
               }
 
-              res.json({ success: true, message: "Applied successfully" });
-            });
-          }
-        );
-      });
-  });
-};
+              const jobTitle = jobRows?.[0]?.job_title || "a job";
+              const companyName = jobRows?.[0]?.company_name || "a company";
+              const employerId = jobRows?.[0]?.account_id || null;
 
+              connection.query(
+                `INSERT INTO applications 
+                 (job_id, candidate_id, status, message)
+                 VALUES (?, ?, 'Pending', '')`,
+                [job_id, candidateId],
+                (err3) => {
+                  if (err3) {
+                    return res.status(500).json({
+                      error: "Database error",
+                      details: err3.message,
+                    });
+                  }
+
+                  logAudit({
+                    tableName: "history",
+                    entityType: "candidate",
+                    entityId: accountId,
+                    action: "JOB_APPLIED",
+                    data: {
+                      event: `You applied for job: ${jobTitle} at ${companyName}`,
+                      job_id,
+                      jobTitle,
+                      companyName,
+                      employerId,
+                    },
+                    changedBy: accountId,
+                  });
+
+                  if (employerId) {
+                    logAudit({
+                      tableName: "history",
+                      entityType: "employer",
+                      entityId: employerId,
+                      action: "APPLICATION_RECEIVED",
+                      data: {
+                        event: `New application received for job: ${jobTitle}`,
+                        job_id,
+                        jobTitle,
+                        candidateId,
+                      },
+                      changedBy: accountId,
+                    });
+                  }
+
+                  return res.json({
+                    success: true,
+                    message: "Applied successfully",
+                  });
+                }
+              );
+            }
+          );
+        }
+      );
+    }
+  );
+};
 // ─────────────────────────────────────────────────────────────────
 // getAppliedJobs
 // ─────────────────────────────────────────────────────────────────
