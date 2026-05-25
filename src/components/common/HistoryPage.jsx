@@ -15,6 +15,23 @@ const badgeConfig = {
     APPROVED:           { label: "Approved",    bg: "#EAF3DE", color: "#27500A" },
     SHORTLISTED:        { label: "Shortlisted", bg: "#EEEDFE", color: "#3C3489" },
     CARD_SAVED: { label: "Card Saved", bg: "#FAEEDA", color: "#633806" },
+    BOOST_REQUESTED:      { label: "Boost Req",   bg: "#EEEDFE", color: "#3C3489" },
+BOOST_ACTIVATED:      { label: "Boosted",      bg: "#EAF3DE", color: "#27500A" },
+BOOST_REJECTED:       { label: "Boost Denied", bg: "#FCEBEB", color: "#791F1F" },
+APPLIED:              { label: "Applied",      bg: "#E6F1FB", color: "#0C447C" },
+INTERVIEW_SCHEDULED:  { label: "Interview",    bg: "#EEEDFE", color: "#3C3489" },
+INTERVIEW_CONFIRMED:  { label: "Confirmed",    bg: "#EAF3DE", color: "#27500A" },
+RESCHEDULE_REQUESTED: { label: "Reschedule",   bg: "#FAEEDA", color: "#633806" },
+OFFER_RECEIVED:       { label: "Offer",        bg: "#E1F5EE", color: "#085041" },
+OFFER_ACCEPTED:       { label: "Accepted",     bg: "#EAF3DE", color: "#27500A" },
+OFFER_REJECTED:       { label: "Declined",     bg: "#FCEBEB", color: "#791F1F" },
+REJECTED:             { label: "Rejected",     bg: "#FCEBEB", color: "#791F1F" },
+JOB_APPLIED:                 { label: "Applied",      bg: "#E6F1FB", color: "#0C447C" },
+APPLICATION_RECEIVED:        { label: "New App",       bg: "#EEEDFE", color: "#3C3489" },
+PROFILE_VIEWED:              { label: "Profile Seen",  bg: "#E1F5EE", color: "#085041" },
+CANDIDATE_UNLOCKED:          { label: "Unlocked",      bg: "#FAEEDA", color: "#633806" },
+CANDIDATE_PROFILE_REVISITED: { label: "Re-viewed",     bg: "#f8fafc", color: "#64748b" },
+VIEWED_APPLICANTS:           { label: "Viewed Apps",   bg: "#f8fafc", color: "#64748b" },
 };
 
 const accentColor = {
@@ -28,6 +45,23 @@ const accentColor = {
     APPROVED:           "#3B6D11",
     SHORTLISTED:        "#534AB7",
     CARD_SAVED: "#854F0B",
+    BOOST_REQUESTED:      "#534AB7",
+BOOST_ACTIVATED:      "#3B6D11",
+BOOST_REJECTED:       "#A32D2D",
+APPLIED:              "#185FA5",
+INTERVIEW_SCHEDULED:  "#534AB7",
+INTERVIEW_CONFIRMED:  "#3B6D11",
+RESCHEDULE_REQUESTED: "#854F0B",
+OFFER_RECEIVED:       "#0F6E56",
+OFFER_ACCEPTED:       "#3B6D11",
+OFFER_REJECTED:       "#A32D2D",
+REJECTED:             "#A32D2D",
+JOB_APPLIED:                 "#185FA5",
+APPLICATION_RECEIVED:        "#534AB7",
+PROFILE_VIEWED:              "#0F6E56",
+CANDIDATE_UNLOCKED:          "#854F0B",
+CANDIDATE_PROFILE_REVISITED: "#94a3b8",
+VIEWED_APPLICANTS:           "#94a3b8",
 };
 
 const formatKey = (key) =>
@@ -80,7 +114,7 @@ const fieldLabels = {
 };
 
 const buildSentence = (item) => {
-    const who = item.data?.company_name || item.changed_by_name || item.changed_by || "System";
+    const who = item.changed_by_name || item.changed_by || "System";
     const when = new Date(item.changed_at).toLocaleString("en-GB", {
         day: "2-digit", month: "short", year: "numeric",
         hour: "2-digit", minute: "2-digit", hour12: true,
@@ -99,6 +133,10 @@ const actionMap = {
         ACTIVE:   "activated the account",
         INACTIVE: "deactivated the account",
          CARD_SAVED: () => "saved a payment card",
+         APPLICATION_RECEIVED:        (data) => `received a new application for job: ${data?.jobTitle || ""}`,
+CANDIDATE_UNLOCKED:          (data) => `unlocked a candidate profile for job: ${data?.jobTitle || ""}`,
+CANDIDATE_PROFILE_REVISITED: (data) => `re-viewed an already unlocked profile for job: ${data?.jobTitle || ""}`,
+VIEWED_APPLICANTS:           (data) => `viewed applicants for job: ${data?.jobTitle || ""}`,
     },
         job: {
             CREATED:  "created a job posting",
@@ -107,6 +145,27 @@ const actionMap = {
             ACTIVE:   "activated the job",
             INACTIVE: "deactivated the job",
         },
+        candidate: {
+        ADDED:       "was added to the system",
+        UPDATED:     "updated their profile",
+        SHORTLISTED: (data) => `was shortlisted for job: ${data?.job_title || data?.event?.split("job: ")[1]?.split(" at")[0] || ""}`,
+        APPROVED:    (data) => `was approved for job: ${data?.job_title || ""}`,
+        REJECTED:    (data) => `was rejected for job: ${data?.job_title || ""}`,
+        BOOST_REQUESTED:      "requested a profile boost",
+BOOST_ACTIVATED:      "had their profile boost activated by admin",
+BOOST_REJECTED:       "had their boost request rejected by admin",
+APPLIED:              (data) => `applied for job: ${data?.job_title || ""}`,
+INTERVIEW_SCHEDULED:  (data) => `was scheduled for an interview for: ${data?.job_title || ""}`,
+INTERVIEW_CONFIRMED:  (data) => `confirmed the interview for: ${data?.job_title || ""}`,
+RESCHEDULE_REQUESTED: (data) => `requested a reschedule for: ${data?.job_title || ""}`,
+OFFER_RECEIVED:       (data) => `received an offer for: ${data?.job_title || ""}`,
+OFFER_ACCEPTED:       (data) => `accepted the offer for: ${data?.job_title || ""}`,
+OFFER_REJECTED:       (data) => `declined the offer for: ${data?.job_title || ""}`,
+REJECTED:             (data) => `was rejected for job: ${data?.job_title || ""}`,
+JOB_APPLIED:    (data) => `applied for job: ${data?.jobTitle || ""} at ${data?.companyName || ""}`,
+PROFILE_VIEWED: (data) => `profile was viewed by an employer for job: ${data?.jobTitle || ""}`,
+    },
+    
     };
 const actionEntry = actionMap[entity]?.[item.action];
     const actionText = typeof actionEntry === "function"

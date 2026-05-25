@@ -7,6 +7,8 @@ import EditProfile from "./editprofile";
 import StatsGraph from "./StatsGraph";
 import JobList from "./lists";
 import Payment from "../../company-dashboard/payment";
+import PricingForm from "../../company-dashboard/pricingform";
+import PricingPage, { PaymentModal } from "../../company-dashboard/viewpackage";
 import { withRouter } from "next/router";
 
 class Profile extends Component {
@@ -374,30 +376,30 @@ class Profile extends Component {
                   <div style={{
                     display: "flex", alignItems: "center", gap: "14px",
                     padding: "14px 18px", borderRadius: "10px",
-                    background: "#f0fdf4", border: "1.5px solid #22c55e",
+                    background: "#e2f0f0", border: "1.5px solid #5f8190",
                   }}>
                     <div style={{
                       width: "40px", height: "40px", borderRadius: "10px",
-                      background: "#dcfce7", border: "1px solid #22c55e",
+                      background: "#dcfce7", border: "1px solid #36565f",
                       display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
                     }}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                        stroke="#15803d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        stroke="#36565f" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
                         <polyline points="16 7 22 7 22 13" />
                       </svg>
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: "13px", fontWeight: 600, color: "#14532d", marginBottom: "3px" }}>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: "#36565f", marginBottom: "3px" }}>
                         Profile Boosted — Active
                       </div>
-                      <span style={{ fontSize: "12px", color: "#166534" }}>
+                      <span style={{ fontSize: "12px", color: "#5f8190" }}>
                         Your profile is now appearing higher in search results
                       </span>
                     </div>
                     <span style={{
                       display: "flex", alignItems: "center", gap: "6px",
-                      background: "#22c55e", color: "#14532d",
+                      background: "#5f8190", color: "#fff",
                       borderRadius: "20px", padding: "5px 12px",
                       fontSize: "12px", fontWeight: 600,
                     }}>
@@ -846,19 +848,24 @@ class BoostModal extends React.Component {
   render() {
     const { packages, selected, loading, showPayment, selectedPkg } = this.state;
 
-    if (showPayment && selectedPkg) {
-      return (
-        <Payment
-          isOpen={true}
-          toggle={() => this.setState({ showPayment: false, selectedPkg: null })}
-          amount={selectedPkg.price}
-          currency={selectedPkg.currency}
-          packageId={selectedPkg.id}
-          paymentType="candidate_boost"
-          onPaymentSuccess={this.handlePaymentSuccess}
-        />
-      );
-    }
+   // In BoostModal, replace the showPayment block:
+if (showPayment && selectedPkg) {
+  const userId = sessionStorage.getItem("userId") || localStorage.getItem("userId");
+
+  return (
+    <PaymentModal
+      pkg={selectedPkg}           // full package object — already have this
+      userId={userId}
+      onClose={() => this.setState({ showPayment: false, selectedPkg: null })}
+      onSubmit={async (formState) => {
+        // First close the payment modal
+        this.setState({ showPayment: false, selectedPkg: null });
+        // Then place the boost order
+        await this.handlePaymentSuccess();
+      }}
+    />
+  );
+}
 
     return (
       <div style={{

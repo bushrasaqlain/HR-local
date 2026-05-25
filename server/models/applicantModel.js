@@ -66,22 +66,30 @@ const getAllApplicants = async (req, res) => {
     const jobId = req.query.job_id ? Number(req.query.job_id) : null;
     if (!jobId) return res.status(400).json({ error: "job_id is required" });
 
-    // STEP 1: Fetch job
-    const job = await new Promise((resolve, reject) => {
-      connection.query(
-        `SELECT jp.speciality_id, jp.skill_ids, jp.min_salary, jp.max_salary,
-                jp.min_experience, jp.max_experience,
-                jp.country_id, jp.district_id, jp.city_id,
-                jp.account_id, jp.package_id, jp.company_package_id,
-                jp.degree_id, jp.degreefields_id,
-                jp.billing_model, jp.daily_budget, jp.spent_amount,
-                jp.cost_per_click, jp.status, jp.approval_status,
-                jp.job_location_type, jp.job_title
-         FROM job_posts jp WHERE jp.id = ?`,
-        [jobId],
-        (err, result) => (err ? reject(err) : resolve(result[0]))
-      );
-    });
+      // ── STEP 1: Fetch job ──
+      const job = await new Promise((resolve, reject) => {
+        connection.query(
+          `SELECT jp.speciality_id, jp.skill_ids, jp.min_salary, jp.max_salary,
+                  jp.min_experience, jp.max_experience,
+                  jp.country_id, jp.district_id, jp.city_id,
+                  jp.account_id, jp.package_id, jp.company_package_id,
+                  jp.degree_id, jp.degreefields_id,
+                  jp.billing_model,
+                  jp.daily_budget,
+                  jp.spent_amount,
+                  jp.cost_per_click,
+                  jp.status,
+                  jp.approval_status,
+                  jp.job_location_type,
+                  jp.job_title,
+                  jp.time_from,        
+                  jp.time_to
+          FROM job_posts jp
+          WHERE jp.id = ?`,
+          [jobId],
+          (err, result) => (err ? reject(err) : resolve(result[0]))
+        );
+      });
 
     if (!job) return res.status(404).json({ error: "Job not found" });
     if (job.approval_status !== "Approved") {
@@ -436,21 +444,50 @@ const getAllApplicants = async (req, res) => {
         score += degreeScore;
         const degreeMatched = degreeScore >= 5;
 
-        // Salary (15pts)
-        const candSalary = parseFloat(c.expected_salary || 0);
-        let salaryScore = 15;
-        let salaryOver = false;
-        if (jobMinSalary || jobMaxSalary) {
-          if (candSalary >= jobMinSalary && candSalary <= jobMaxSalary) { salaryScore = 15; matched.push("Salary"); }
-          else if (candSalary < jobMinSalary) { salaryScore = 10; matched.push("Salary (expects less)"); }
-          else {
-            const overage = ((candSalary - jobMaxSalary) / jobMaxSalary) * 100;
-            salaryScore = overage > 50 ? 0 : overage > 25 ? 5 : 8;
-            salaryOver = true;
-            missing.push("Salary (expects more than budget)");
+          // ── Salary (15pts) ──
+          const candSalary = parseFloat(c.expected_salary || 0);
+          let salaryScore  = 15;
+          let salaryOver   = false;
+          if (jobMinSalary || jobMaxSalary) {
+            if (candSalary >= jobMinSalary && candSalary <= jobMaxSalary) {
+              salaryScore = 15; matched.push("Salary");
+            } else if (candSalary < jobMinSalary) {
+              salaryScore = 10; matched.push("Salary (expects less)");
+            } else {
+              const overage = ((candSalary - jobMaxSalary) / jobMaxSalary) * 100;
+              salaryScore   = overage > 50 ? 0 : overage > 25 ? 5 : 8;
+              salaryOver    = true;
+              missing.push("Salary (expects more than budget)");
+            }
+          } else {
+            matched.push("Salary");
           }
-        } else { matched.push("Salary"); }
-        score += salaryScore;
+          score += salaryScore;
+// ── Availability / Working Hours (10pts) ──    ← ADD FROM HERE
+          const candAvailability = availabilityRows.filter(
+            (a) => a.candidate_id === c.candidate_id
+          );
+          let availScore = 0;
+
+          if (!job.time_from || !job.time_to) {
+            availScore = 10;
+            matched.push("Availability");
+          } else if (candAvailability.length === 0) {
+            availScore = 5;
+            missing.push("Availability (not specified by candidate)");
+          } else {
+            const hasOverlap = candAvailability.some(
+              (slot) => slot.time_from <= job.time_to && slot.time_to >= job.time_from
+            );
+            if (hasOverlap) {
+              availScore = 10;
+              matched.push("Availability");
+            } else {
+              availScore = 0;
+              missing.push(`Availability (hours don't overlap with ${job.time_from}–${job.time_to})`);
+            }
+          }
+          score += availScore;
 
         // Tier
         const skillsMatched = skillScore >= 20;
@@ -886,46 +923,109 @@ const applyJob = (req, res) => {
   const accountId = req.user.userId;
   const { job_id } = req.body;
 
-  if (!job_id) return res.status(400).json({ error: "job_id is required" });
+  if (!job_id) {
+    return res.status(400).json({ error: "job_id is required" });
+  }
 
-  connection.query("SELECT id FROM candidate_info WHERE account_id = ? LIMIT 1", [accountId], (err, rows) => {
-    if (err) return res.status(500).json({ error: "Database error" });
-    if (!rows.length) return res.status(404).json({ error: "Candidate not found" });
+  connection.query(
+    "SELECT id FROM candidate_info WHERE account_id = ? LIMIT 1",
+    [accountId],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: "Database error" });
+      }
 
-    const candidateId = rows[0].id;
+      if (!rows.length) {
+        return res.status(404).json({ error: "Candidate not found" });
+      }
 
-    connection.query(
-      "SELECT id FROM applications WHERE job_id = ? AND candidate_id = ? AND status != 'Cancelled'",
-      [job_id, candidateId],
-      (err2, existing) => {
-        if (err2) return res.status(500).json({ error: "Database error" });
-        if (existing.length > 0) return res.status(409).json({ error: "Already applied" });
+      const candidateId = rows[0].id;
 
-        connection.query(
-          `SELECT jp.job_title, ci.company_name, jp.account_id FROM job_posts jp LEFT JOIN company_info ci ON ci.account_id = jp.account_id WHERE jp.id = ? LIMIT 1`,
-          [job_id],
-          (jobErr, jobRows) => {
-            const jobTitle = jobRows?.[0]?.job_title || "a job";
-            const companyName = jobRows?.[0]?.company_name || "a company";
-            const employerId = jobRows?.[0]?.account_id || null;
+      connection.query(
+        "SELECT id FROM applications WHERE job_id = ? AND candidate_id = ? AND status != 'Cancelled'",
+        [job_id, candidateId],
+        (err2, existing) => {
+          if (err2) {
+            return res.status(500).json({ error: "Database error" });
+          }
 
-            connection.query("INSERT INTO applications (job_id, candidate_id, status) VALUES (?, ?, 'Pending')", [job_id, candidateId], (err3) => {
-              if (err3) return res.status(500).json({ error: "Database error", details: err3.message });
+          if (existing.length > 0) {
+            return res.status(409).json({ error: "Already applied" });
+          }
 
-              logAudit({ tableName: "history", entityType: "candidate", entityId: accountId, action: "JOB_APPLIED", data: { event: `You applied for job: ${jobTitle} at ${companyName}`, job_id, jobTitle, companyName, employerId }, changedBy: accountId });
-
-              if (employerId) {
-                logAudit({ tableName: "history", entityType: "employer", entityId: employerId, action: "APPLICATION_RECEIVED", data: { event: `New application received for job: ${jobTitle}`, job_id, jobTitle, candidateId }, changedBy: accountId });
+          connection.query(
+            `SELECT jp.job_title, ci.company_name, jp.account_id
+             FROM job_posts jp
+             LEFT JOIN company_info ci ON ci.account_id = jp.account_id
+             WHERE jp.id = ?
+             LIMIT 1`,
+            [job_id],
+            (jobErr, jobRows) => {
+              if (jobErr) {
+                return res.status(500).json({ error: "Database error" });
               }
 
-              res.json({ success: true, message: "Applied successfully" });
-            });
-          }
-        );
-      });
-  });
-};
+              const jobTitle = jobRows?.[0]?.job_title || "a job";
+              const companyName = jobRows?.[0]?.company_name || "a company";
+              const employerId = jobRows?.[0]?.account_id || null;
 
+              connection.query(
+                `INSERT INTO applications 
+                 (job_id, candidate_id, status, message)
+                 VALUES (?, ?, 'Pending', '')`,
+                [job_id, candidateId],
+                (err3) => {
+                  if (err3) {
+                    return res.status(500).json({
+                      error: "Database error",
+                      details: err3.message,
+                    });
+                  }
+
+                  logAudit({
+                    tableName: "history",
+                    entityType: "candidate",
+                    entityId: accountId,
+                    action: "JOB_APPLIED",
+                    data: {
+                      event: `You applied for job: ${jobTitle} at ${companyName}`,
+                      job_id,
+                      jobTitle,
+                      companyName,
+                      employerId,
+                    },
+                    changedBy: accountId,
+                  });
+
+                  if (employerId) {
+                    logAudit({
+                      tableName: "history",
+                      entityType: "employer",
+                      entityId: employerId,
+                      action: "APPLICATION_RECEIVED",
+                      data: {
+                        event: `New application received for job: ${jobTitle}`,
+                        job_id,
+                        jobTitle,
+                        candidateId,
+                      },
+                      changedBy: accountId,
+                    });
+                  }
+
+                  return res.json({
+                    success: true,
+                    message: "Applied successfully",
+                  });
+                }
+              );
+            }
+          );
+        }
+      );
+    }
+  );
+};
 // ─────────────────────────────────────────────────────────────────
 // getAppliedJobs
 // ─────────────────────────────────────────────────────────────────

@@ -27,6 +27,7 @@ class FormContent extends Component {
       },
       errors: {},
       successMessage: "",
+      errorMessage: "",
       showPassword: false,
       showConfirmPassword: false,
     };
@@ -72,71 +73,54 @@ class FormContent extends Component {
     }
   };
 
-  handleSubmit = async (e) => {
-    e.preventDefault();
+handleSubmit = async (e) => {
+  e.preventDefault();
 
-    const { values, accountType } = this.state;
-    const validationErrors = {};
+  const { values, accountType } = this.state;
+  const validationErrors = {};
 
-    // if (!values.username.trim())
-    //   validationErrors.username = "Username is required";
-    if (!values.email.trim()) validationErrors.email = "Email is required";
-    if (!values.password.trim())
-      validationErrors.password = "Password is required";
-    if (values.password.length < 8)
-      validationErrors.password = "Password must be at least 8 characters";
-    if (values.password !== values.confirmPassword)
-      validationErrors.confirmPassword = "Passwords do not match";
+  if (!values.email.trim()) validationErrors.email = "Email is required";
+  if (!values.password.trim()) validationErrors.password = "Password is required";
+  if (values.password.length < 8) validationErrors.password = "Password must be at least 8 characters";
+  if (values.password !== values.confirmPassword) validationErrors.confirmPassword = "Passwords do not match";
 
-    if (Object.keys(validationErrors).length > 0) {
-      this.setState({ errors: validationErrors });
-      return;
+  if (Object.keys(validationErrors).length > 0) {
+    this.setState({ errors: validationErrors });
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+    Object.entries(values).forEach(([key, value]) => formData.append(key, value));
+    formData.append("accountType", accountType);
+    formData.append("isActive", "Inactive");
+
+    const res = await axios.post(this.apiBaseUrl, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    if (res.data && res.data.success) {
+      this.props.setUserId?.(res.data.accountId);
+      this.props.setAccountType?.(accountType);
+      this.setState({ successMessage: "Registration successful! Please check your email to verify.", errorMessage: "" });
+      setTimeout(() => { window.location.href = "/login"; }, 2000);
+    } else {
+      this.setState({ errorMessage: res.data?.error || "Registration failed.", successMessage: "" });
     }
-
-    const emailExists = await this.checkEmailExists(values.email);
-    if (emailExists) {
-      this.setState({
-        errors: { email: "Email already exists" },
-      });
-      return;
-    }
-
-    try {
-      const formData = new FormData();
-      Object.entries(values).forEach(([key, value]) =>
-        formData.append(key, value)
-      );
-      formData.append("accountType", accountType);
-      formData.append("isActive", "Inactive");
-
-      const res = await axios.post(this.apiBaseUrl, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      // Always check res.data.success instead of res.status
-      if (res.data && res.data.success) {
-        this.props.setUserId?.(res.data.accountId);
-        this.props.setAccountType?.(accountType);
-
-        // Show success message
-        this.setState({ successMessage: "Registration successful!" });
-
-        // Redirect to login after 1 second
-        setTimeout(() => {
-          window.location.href = "/login";
-        }, 1000);
-      }
-      else {
-        this.setState({ successMessage: "Registration failed. Try again." });
-      }
-    } catch (err) {
-      console.error(err.response?.data || err.message);
-      this.setState({
-        successMessage: "Registration failed. Try again.",
-      });
-    }
-
-  };
+  } catch (err) {
+    const msg = err.response?.data?.error || "Registration failed. Try again.";
+    // Check for duplicate email from backend
+    if (err.response?.status === 409 || msg.toLowerCase().includes("already exists")) {
+  this.setState({ 
+    errors: { email: "An account with this email already exists." }, 
+    errorMessage: "An account with this email already exists.",  // ← add this
+    successMessage: "" 
+  });
+} else {
+  this.setState({ errorMessage: msg, successMessage: "" });
+}
+  }
+};
 
   render() {
     const {
@@ -144,6 +128,7 @@ class FormContent extends Component {
       values,
       errors,
       successMessage,
+      errorMessage,
       showPassword,
       showConfirmPassword,
     } = this.state;
@@ -151,6 +136,7 @@ class FormContent extends Component {
     return (
       <div>
         {successMessage && <Alert color="success">{successMessage}</Alert>}
+        {errorMessage && <Alert color="danger">{errorMessage}</Alert>}
 
         <Form onSubmit={this.handleSubmit}>
           <div className="d-flex mb-3">

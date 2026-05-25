@@ -547,7 +547,7 @@
                       </p>
                     </div>
 
-                    <div className="card shadow-sm rounded-4 p-4">
+                    {/* <div className="card shadow-sm rounded-4 p-4">
                       <h6 className="fw-bold">Internal Notes</h6>
                       <textarea
                         className="form-control mb-2"
@@ -568,7 +568,7 @@
                       >
                         Save Note
                       </button>
-                    </div>
+                    </div> */}
                   </div>
                 </div>
               </>

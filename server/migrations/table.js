@@ -96,6 +96,7 @@ function Database() {
   skills.createSkillsTable();
   currency.createCurrenciesTable();
   accountModel.createAccountTable();
+  accountModel.createEmailVerificationTable();
   emplyeeModel.createCompanyInfoTable();
   candidateModel.createCandidateTable();
   candidateModel.createCandidateSpecialityTable();

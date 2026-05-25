@@ -998,12 +998,12 @@ const FilterTabs = ({ models, active, onChange }) => (
 ═══════════════════════════════════════════════════════════════ */
 class PaymentModal extends Component {
   state = {
-    paymentMethod: "card",          // default to card tab always
+    paymentMethod: "card",        
     // ── saved card selection ──
     savedCards: [],
     savedCardsLoading: true,
-    selectedSavedCardId: null,      // null = "enter new card"
-    showNewCardForm: false,         // toggled by "Use a different card"
+    selectedSavedCardId: null,      
+    showNewCardForm: false,      
     // ── new card fields ──
     cardName: "",
     cardNumber: "",
@@ -1891,5 +1891,5 @@ class PricingPage extends Component {
     );
   }
 }
-
+export { PaymentModal };
 export default PricingPage;

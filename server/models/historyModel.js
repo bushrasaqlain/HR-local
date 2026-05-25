@@ -42,13 +42,12 @@ const getHistory = (req, res) => {
     }
 
     const query = `SELECT h.*, 
-               CASE 
-                   WHEN u.accountType IN ('employer', 'candidate') THEN u.email
-                   ELSE u.username
-               END AS changed_by_name
-               FROM history h
-               LEFT JOIN account u ON h.changed_by = u.id
-               WHERE h.entity_type = ? AND h.entity_id = ?`;
+           COALESCE(ci.company_name, cand.full_name, u.email) AS changed_by_name
+           FROM history h
+           LEFT JOIN account u ON h.changed_by = u.id
+           LEFT JOIN company_info ci ON ci.account_id = u.id
+           LEFT JOIN candidate_info cand ON cand.account_id = u.id
+           WHERE h.entity_type = ? AND h.entity_id = ?`;
 
     connection.query(query, [entity_type, entity_id], async (err, results) => {
         if (err) return res.status(500).json({ error: "Database error" });

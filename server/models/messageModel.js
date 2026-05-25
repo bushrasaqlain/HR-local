@@ -87,7 +87,7 @@ const getContact = (req, res) => {
   let query = `
     SELECT
       a.id,
-      COALESCE(cp.company_name, a.username) AS full_name,
+      COALESCE(cp.company_name, cand.full_name, a.username) AS full_name,
       m.message AS last_message,
       m.timestamp AS last_message_time,
       m.jobId,
@@ -128,6 +128,7 @@ const getContact = (req, res) => {
       )
     JOIN account a ON a.id = lm.contact_id
     LEFT JOIN company_info cp ON cp.account_id = lm.contact_id
+    LEFT JOIN candidate_info cand ON cand.account_id = lm.contact_id
     ORDER BY m.timestamp DESC
   `;
 

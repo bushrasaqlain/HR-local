@@ -25,12 +25,17 @@ const login = (req, res) => {
 const changePassword = (req, res) => {
     accountModel.changePassword(req, res);
 }
+const verifyEmail = (req, res) => {
+    accountModel.verifyEmail(req, res);
+}
+
 
 module.exports = {
     getAccountDetail,
     getAccountType,
     register,
     login,
-    changePassword
+    changePassword,
+    verifyEmail
 };
 
