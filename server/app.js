@@ -64,7 +64,7 @@ const dashboardRoutes = require("./routes/dashboardRoutes");
 const alertSettingsRoutes = require("./routes/alertSettingsRoutes");
 const creditRoutes = require("./routes/creditRoutes");
 const contactRoutes = require("./routes/contactRoutes");
-
+const revenuerecordRoutes = require("./routes/revenuerecordRoutes");
 app.use("/credit", creditRoutes);
 app.use("/contact", contactRoutes);
 
@@ -109,6 +109,7 @@ app.use("/payment", paymentRoutes)
 app.use("/", dashboardRoutes);
 app.use("/", jobtitlesRoutes);
 app.use("/alert-settings", alertSettingsRoutes);
+app.use("/revenue", revenuerecordRoutes);
 
 
 module.exports = app;

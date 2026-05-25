@@ -9,6 +9,7 @@ import ChangePasswordForm from "../form/changepassword/changepasswordform.jsx"
 import Job from "./job.jsx";
 import ContactMessages from "./ContactMessages.jsx";
 import HistoryPage from "../common/HistoryPage.jsx";
+import AdminRevenuePage from "./adminrevenue.jsx";
 // import HistoryPage from "../history1/[type]/[id]"; // ← import it
 
 const RegAdminDashboardArea = ({ activeTab }) => {
@@ -53,6 +54,8 @@ const RegAdminDashboardArea = ({ activeTab }) => {
       onViewHistory={(id) => setHistoryTarget({ id, type: "candidate" })}
     />
   );
+  case "adminrevenue":
+    return <AdminRevenuePage />;
       case "changepassword":
         return <ChangePasswordForm />;
       case "job":
