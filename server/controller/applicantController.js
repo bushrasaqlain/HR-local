@@ -16,10 +16,19 @@ const getAppliedJobs = (req, res) => {
 const unlockCandidate=(req,res)=>{
     applicantModel.unlockCandidate(req,res);
 }
+const getApplicationStats=(req,res)=>{
+  applicantModel.getApplicationStats(req,res);
+}
+const cancelApplication=(req,res)=>{
+  applicantModel.cancelApplication(req,res);
+}
+
 module.exports={
   unlockCandidate,
     getAllApplicants,
     updateApplcantStatus,
     applyJob,
     getAppliedJobs,
+    getApplicationStats,
+    cancelApplication,
 }

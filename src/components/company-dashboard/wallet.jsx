@@ -898,7 +898,16 @@ function AddCardForm({ onSave, onBrowse }) {
 
   const handleExpiry = (e) => {
     let raw = e.target.value.replace(/\D/g, "").slice(0, 4);
-    if (raw.length >= 3) raw = raw.slice(0, 2) + " / " + raw.slice(2);
+
+    if (raw.length >= 2) {
+      let month = parseInt(raw.slice(0, 2));
+      if (month > 12) raw = "12" + raw.slice(2);
+      if (month === 0) raw = "01" + raw.slice(2);
+    }
+
+    if (raw.length >= 3) {
+      raw = raw.slice(0, 2) + " / " + raw.slice(2);
+    }
     setExpiry(raw);
   };
 
@@ -917,7 +926,24 @@ function AddCardForm({ onSave, onBrowse }) {
     const errs = {};
     if (!holder.trim()) errs.holder = "Required";
     if (rawNum.length < 16) errs.num = "Enter a valid 16-digit number";
-    if (expiry.length < 7) errs.exp = "Invalid expiry";
+    if (expiry.length < 7) {
+      errs.exp = "Enter valid expiry date (MM / YY)";
+    } else {
+      const parts = expiry.replace(/\s/g, "").split("/");
+      const month = parseInt(parts[0]);
+      const year = parseInt("20" + parts[1]);
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1; // 1-12
+
+      if (month < 1 || month > 12) {
+        errs.exp = "Month must be between 01 and 12";
+      } else if (year < currentYear) {
+        errs.exp = `Year cannot be before ${currentYear}`;
+      } else if (year === currentYear && month < currentMonth) {
+        errs.exp = `Card expired — enter a future date`;
+      }
+    }
     const minCvv = brand === "amex" ? 4 : 3;
     if (cvv.length < minCvv) errs.cvv = `Enter ${minCvv} digits`;
     if (!accepted.length) errs.types = "Select at least one card type";
@@ -2098,40 +2124,40 @@ class CompanyWallet extends Component {
       typeof sessionStorage !== "undefined" ? sessionStorage.getItem("userId") : null;
   }
 
-componentDidMount() {
-  this.fetchPackages();
-  this.fetchPaymentMethod();
-  this.fetchAlertSettings();
+  componentDidMount() {
+    this.fetchPackages();
+    this.fetchPaymentMethod();
+    this.fetchAlertSettings();
 
-  // if opened with a notif id from outside (e.g. from another page)
-  if (this.props.initialNotifId !== null && this.props.initialNotifId !== undefined) {
-    this.setState({
-      activeTab: "notifications",
-      notifSelectedId: this.props.initialNotifId,
-    });
+    // if opened with a notif id from outside (e.g. from another page)
+    if (this.props.initialNotifId !== null && this.props.initialNotifId !== undefined) {
+      this.setState({
+        activeTab: "notifications",
+        notifSelectedId: this.props.initialNotifId,
+      });
+    }
+
+    this._openNotifHandler = (e) => {
+      this.setState({
+        activeTab: "notifications",
+        notifSelectedId: e?.detail?.selectedId || null,
+      });
+    };
+    // listen on both — direct (when already on wallet) and routed (from other pages)
+    window.addEventListener("openNotifications", this._openNotifHandler);
+    window.addEventListener("walletOpenNotifications", this._openNotifHandler);
   }
 
-  this._openNotifHandler = (e) => {
-    this.setState({
-      activeTab: "notifications",
-      notifSelectedId: e?.detail?.selectedId || null,
-    });
-  };
-  // listen on both — direct (when already on wallet) and routed (from other pages)
-  window.addEventListener("openNotifications", this._openNotifHandler);
-  window.addEventListener("walletOpenNotifications", this._openNotifHandler);
-}
+  componentWillUnmount() {
+    window.removeEventListener("openNotifications", this._openNotifHandler);
+    window.removeEventListener("walletOpenNotifications", this._openNotifHandler);
 
-componentWillUnmount() {
-  window.removeEventListener("openNotifications", this._openNotifHandler);
-  window.removeEventListener("walletOpenNotifications", this._openNotifHandler);
-
-  // Restore overflow when leaving wallet page
-  document.documentElement.style.overflowX = "";
-  document.documentElement.style.maxWidth = "";
-  document.body.style.overflowX = "";
-  document.body.style.maxWidth = "";
-}
+    // Restore overflow when leaving wallet page
+    document.documentElement.style.overflowX = "";
+    document.documentElement.style.maxWidth = "";
+    document.body.style.overflowX = "";
+    document.body.style.maxWidth = "";
+  }
   fetchAlertSettings = async () => {
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
     try {
@@ -2279,50 +2305,50 @@ componentWillUnmount() {
     if (error) return <div className="aw-error">{error}</div>;
 
     // ── Shared topbar (always the same) ──
-   // ─── In CompanyWallet.render() ────────────────────────────────────────────────
-// Replace your existing `const Topbar = (...)` block with this.
-// The only change is adding <NotificationCenter> into .aw-topbar-right.
+    // ─── In CompanyWallet.render() ────────────────────────────────────────────────
+    // Replace your existing `const Topbar = (...)` block with this.
+    // The only change is adding <NotificationCenter> into .aw-topbar-right.
 
-const Topbar = (
-  <div className="aw-topbar">
-    <div className="aw-topbar-tabs">
-      {["overview", "transactions", "packages"].map((tab) => (
-        <button
-          key={tab}
-          className={`aw-topbar-tab${activeTab === tab ? " active" : ""}`}
-          onClick={() => this.setState({ activeTab: tab })}
-        >
-          {tab === "overview"
-            ? "Overview"
-            : tab === "transactions"
-            ? "Transactions"          // shorter label on mobile
-            : "Packages"}
-        </button>
-      ))}
-    </div>
+    const Topbar = (
+      <div className="aw-topbar">
+        <div className="aw-topbar-tabs">
+          {["overview", "transactions", "packages"].map((tab) => (
+            <button
+              key={tab}
+              className={`aw-topbar-tab${activeTab === tab ? " active" : ""}`}
+              onClick={() => this.setState({ activeTab: tab })}
+            >
+              {tab === "overview"
+                ? "Overview"
+                : tab === "transactions"
+                  ? "Transactions"          // shorter label on mobile
+                  : "Packages"}
+            </button>
+          ))}
+        </div>
 
-    <div className="aw-topbar-right">
-      <NotificationCenter
-        userId={this.userId}
-        apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
-      />
+        <div className="aw-topbar-right">
+          <NotificationCenter
+            userId={this.userId}
+            apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
+          />
 
-      {/* hidden on mobile via .aw-hide-mobile CSS rule */}
-      <button className="aw-btn-ghost aw-hide-mobile" onClick={this.fetchPackages}>
-        Refresh
-      </button>
+          {/* hidden on mobile via .aw-hide-mobile CSS rule */}
+          <button className="aw-btn-ghost aw-hide-mobile" onClick={this.fetchPackages}>
+            Refresh
+          </button>
 
-      <button
-        className="aw-btn-primary"
-        onClick={() => this.setState({ activeTab: "packages" })}
-      >
-        <IconPlus />
-        {/* .aw-label is hidden on mobile, keeping only the + icon */}
-        <span className="aw-label">Buy Packages</span>
-      </button>
-    </div>
-  </div>
-);
+          <button
+            className="aw-btn-primary"
+            onClick={() => this.setState({ activeTab: "packages" })}
+          >
+            <IconPlus />
+            {/* .aw-label is hidden on mobile, keeping only the + icon */}
+            <span className="aw-label">Buy Packages</span>
+          </button>
+        </div>
+      </div>
+    );
 
 
     // ── Empty state (no packages yet) ──
@@ -2338,14 +2364,14 @@ const Topbar = (
         {activeTab === "packages" && (
           <div style={{ padding: 32 }}><PricingPage /></div>
         )}
-{activeTab === "notifications" && (
-  <NotificationsPage
-    userId={this.userId}
-    apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
-    onTabChange={(tab) => this.setState({ activeTab: tab })}
-    initialSelectedId={this.state.notifSelectedId}
-  />
-)}
+        {activeTab === "notifications" && (
+          <NotificationsPage
+            userId={this.userId}
+            apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
+            onTabChange={(tab) => this.setState({ activeTab: tab })}
+            initialSelectedId={this.state.notifSelectedId}
+          />
+        )}
         {activeTab === "overview" && (
           <div style={{ padding: "40px 32px", display: "flex", justifyContent: "center" }}>
             <div className="aw-card" style={{ width: "100%", maxWidth: 480, overflow: "hidden" }}>
@@ -2496,14 +2522,14 @@ const Topbar = (
         {activeTab === "packages" && (
           <div style={{ padding: 32 }}><PricingPage /></div>
         )}
- {activeTab === "notifications" && (
-      <NotificationsPage
-        userId={this.userId}
-        apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
-        onTabChange={(tab) => this.setState({ activeTab: tab })}
-        initialSelectedId={this.state.notifSelectedId}
-      />
-    )}
+        {activeTab === "notifications" && (
+          <NotificationsPage
+            userId={this.userId}
+            apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
+            onTabChange={(tab) => this.setState({ activeTab: tab })}
+            initialSelectedId={this.state.notifSelectedId}
+          />
+        )}
         {activeTab === "overview" && (
           <div className="aw-body">
             <div className="aw-page-header">
@@ -2706,4 +2732,4 @@ const Topbar = (
 }
 
 export default CompanyWallet;
-export { AddCardForm};
+export { AddCardForm };

@@ -1,4 +1,3 @@
-// "use client";
 import React, { useState, useEffect } from "react";
 import Head from "next/head";
 import ChatBox from "../messages/chatBox";
@@ -6,10 +5,22 @@ import ChatBox from "../messages/chatBox";
 const Messages = ({ selectedContactProp = null }) => {
     const [contacts, setContacts] = useState([]);
     const [searchValue, setSearchValue] = useState("");
-    const [selectedContact, setSelectedContact] = useState(selectedContactProp);
+    const [selectedContact, setSelectedContact] = useState(null);
     const [unreadCounts, setUnreadCounts] = useState({});
+    // ✅ Mobile view toggle: "list" ya "chat"
+    const [mobileView, setMobileView] = useState("list");
+    const [isMobile, setIsMobile] = useState(false);
+
     const userId = sessionStorage.getItem("userId");
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+    // ✅ Mobile detect karo
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+        checkMobile();
+        window.addEventListener("resize", checkMobile);
+        return () => window.removeEventListener("resize", checkMobile);
+    }, []);
 
     useEffect(() => {
         fetchContacts();
@@ -18,7 +29,12 @@ const Messages = ({ selectedContactProp = null }) => {
     }, []);
 
     useEffect(() => {
-        if (selectedContactProp) setSelectedContact(selectedContactProp);
+        if (selectedContactProp && selectedContactProp.id) {
+            setSelectedContact(selectedContactProp);
+            if (isMobile) setMobileView("chat"); // ✅ prop se aaye to chat dikhao
+        } else {
+            setSelectedContact(null);
+        }
     }, [selectedContactProp]);
 
     const fetchContacts = async () => {
@@ -27,15 +43,8 @@ const Messages = ({ selectedContactProp = null }) => {
                 fetch(`${apiBaseUrl}message/contacts/${userId}`),
                 fetch(`${apiBaseUrl}message/unread-per-contact/${userId}`)
             ]);
-
-            if (contactsRes.ok) {
-                const data = await contactsRes.json();
-                setContacts(data);
-            }
-            if (countsRes.ok) {
-                const counts = await countsRes.json();
-                setUnreadCounts(counts); // { senderId: count }
-            }
+            if (contactsRes.ok) setContacts(await contactsRes.json());
+            if (countsRes.ok) setUnreadCounts(await countsRes.json());
         } catch (error) {
             console.error("Network error:", error);
         }
@@ -43,9 +52,7 @@ const Messages = ({ selectedContactProp = null }) => {
 
     const formatTime = (timeString) => {
         return new Date(timeString).toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
+            hour: "2-digit", minute: "2-digit", hour12: true,
         });
     };
 
@@ -53,25 +60,46 @@ const Messages = ({ selectedContactProp = null }) => {
         contact.full_name.toLowerCase().includes(searchValue.toLowerCase())
     );
 
+    // ✅ Contact select karna
+    const handleContactSelect = (contact) => {
+        fetch(`${apiBaseUrl}message/mark-as-read`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ senderId: contact.senderId, receiverId: userId })
+        }).catch(err => console.error("Mark read failed:", err));
+
+        setUnreadCounts(prev => ({ ...prev, [contact.id]: 0 }));
+        setSelectedContact(null);
+        setTimeout(() => {
+            setSelectedContact(contact);
+            setContacts(prev =>
+                prev.map(c => c.id === contact.id ? { ...c, is_read: 1 } : c)
+            );
+            if (isMobile) setMobileView("chat"); // ✅ Mobile pe chat panel dikhao
+        }, 0);
+    };
+
+    // ✅ Back button — list pe wapas
+    const handleBack = () => {
+        setSelectedContact(null);
+        setMobileView("list");
+    };
+
     return (
         <>
-            <Head>
-                <title>Messages</title>
-            </Head>
+            <Head><title>Messages</title></Head>
 
             <section className="user-dashboard">
-                <div className="dashboard-outer p-0">
+                <div className="dashboard-outer p-0" style={{ padding: 0, height: '100%' }}>
                     <div className="messages-layout">
 
-                        {/* LEFT SIDEBAR — Contact List */}
-                        <div className="messages-sidebar">
+                        {/* LEFT SIDEBAR */}
+                        <div className={`messages-sidebar ${isMobile && mobileView === "chat" ? "mobile-hidden" : ""}`}>
 
-                            {/* Sidebar Header */}
                             <div className="messages-sidebar-header">
                                 <h5 className="fw-bold mb-0">Messages</h5>
                             </div>
 
-                            {/* Search */}
                             <div className="messages-search-wrapper">
                                 <input
                                     type="text"
@@ -82,38 +110,17 @@ const Messages = ({ selectedContactProp = null }) => {
                                 />
                             </div>
 
-                            {/* Contact List */}
                             <div className="messages-contact-list">
                                 {filteredContacts.length === 0 ? (
                                     <p className="text-muted text-center mt-4 px-3">No contacts found.</p>
                                 ) : (
                                     filteredContacts.map((contact) => {
                                         const isUnread = contact.is_read === 0 && contact.receiverId == userId;
-                                        const contactUnreadCount = isUnread ? 1 : 0;
                                         return (
                                             <div
                                                 key={contact.id}
                                                 className={`messages-contact-item ${selectedContact?.id === contact.id ? "active" : ""} ${isUnread ? "unread" : ""}`}
-                                                onClick={() => {
-                                                    fetch(`${apiBaseUrl}message/mark-as-read`, {
-                                                        method: "POST",
-                                                        headers: { "Content-Type": "application/json" },
-                                                        body: JSON.stringify({
-                                                            senderId: contact.senderId,
-                                                            receiverId: userId
-                                                        })
-                                                    }).catch(err => console.error("Mark read failed:", err));
-
-                                                    setUnreadCounts(prev => ({ ...prev, [contact.id]: 0 }));
-
-                                                    setSelectedContact(null);
-                                                    setTimeout(() => {
-                                                        setSelectedContact(contact);
-                                                        setContacts(prev =>
-                                                            prev.map(c => c.id === contact.id ? { ...c, is_read: 1 } : c)
-                                                        );
-                                                    }, 0);
-                                                }}
+                                                onClick={() => handleContactSelect(contact)}
                                             >
                                                 <div className="contact-avatar">
                                                     {contact.full_name.charAt(0).toUpperCase()}
@@ -121,31 +128,18 @@ const Messages = ({ selectedContactProp = null }) => {
                                                 <div className="contact-info flex-grow-1 overflow-hidden">
                                                     <div className="d-flex justify-content-between align-items-center">
                                                         <span className="contact-name">{contact.full_name}</span>
-                                                        <span className="contact-time">
-                                                            {formatTime(contact.last_message_time)}
-                                                        </span>
+                                                        <span className="contact-time">{formatTime(contact.last_message_time)}</span>
                                                     </div>
-
-                                                    {/* ✅ Last message + badge row */}
                                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                                         <p className="contact-last-msg text-truncate mb-0" style={{ flex: 1, marginRight: "6px" }}>
                                                             {contact.last_message}
                                                         </p>
-
-                                                        {/* ✅ Badge - sirf unread ho tab */}
                                                         {isUnread && (
                                                             <span style={{
-                                                                background: "#36565f",
-                                                                color: "#fff",
-                                                                borderRadius: "50%",
-                                                                fontSize: "0.65rem",
-                                                                fontWeight: 700,
-                                                                minWidth: "18px",
-                                                                height: "18px",
-                                                                display: "inline-flex",
-                                                                alignItems: "center",
-                                                                justifyContent: "center",
-                                                                flexShrink: 0,
+                                                                background: "#36565f", color: "#fff", borderRadius: "50%",
+                                                                fontSize: "0.65rem", fontWeight: 700, minWidth: "18px",
+                                                                height: "18px", display: "inline-flex", alignItems: "center",
+                                                                justifyContent: "center", flexShrink: 0,
                                                             }}>
                                                                 {unreadCounts[contact.id] || 1}
                                                             </span>
@@ -159,14 +153,14 @@ const Messages = ({ selectedContactProp = null }) => {
                             </div>
                         </div>
 
-                        {/* RIGHT PANEL — Chat or Placeholder */}
-                        <div className="messages-chat-panel">
+                        {/* RIGHT CHAT PANEL */}
+                        <div className={`messages-chat-panel ${isMobile && mobileView === "list" ? "mobile-hidden" : ""}`}>
                             {selectedContact ? (
                                 <ChatBox
                                     selectedContactId={selectedContact.id}
                                     selectedContactName={selectedContact.full_name}
                                     selectedJobId={selectedContact.jobId}
-                                    onBack={() => setSelectedContact(null)}
+                                    onBack={handleBack} // ✅ Back button ChatBox ko pass karo
                                     embedded={true}
                                 />
                             ) : (

@@ -89,8 +89,8 @@ const MessagesDropdown = ({ userId, apiBaseUrl, onOpenMessages, externalUnreadCo
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    senderId: contact.id,       
-                    receiverId: String(userId)  
+                    senderId: contact.id,
+                    receiverId: String(userId)
                 })
             });
         } catch (err) {
@@ -137,10 +137,13 @@ const MessagesDropdown = ({ userId, apiBaseUrl, onOpenMessages, externalUnreadCo
             {open && (
                 <div
                     style={{
-                        position: "absolute",
-                        top: "40px",
-                        right: 0,
-                        width: "320px",
+                        position: "fixed",
+                        top: "60px",
+                        left: "8px",
+                        right: "8px",
+                        width: "auto",
+                        maxWidth: "380px",
+                        marginLeft: "auto",
                         background: "#fff",
                         borderRadius: "10px",
                         boxShadow: "0 8px 32px rgba(0,0,0,0.18)",

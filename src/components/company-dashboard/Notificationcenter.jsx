@@ -4,21 +4,21 @@ import axios from "axios";
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const SEVERITY = {
   critical: { color: "#ef4444", bg: "#fef2f2", badge: "#fee2e2", label: "Critical" },
-  warning:  { color: "#f59e0b", bg: "#fffbeb", badge: "#fef3c7", label: "Warning"  },
-  info:     { color: "#36565f", bg: "#eff6ff", badge: "#dbeafe", label: "Info"     },
+  warning: { color: "#f59e0b", bg: "#fffbeb", badge: "#fef3c7", label: "Warning" },
+  info: { color: "#3b82f6", bg: "#eff6ff", badge: "#dbeafe", label: "Info" },
 };
-const sev  = (s) => SEVERITY[s] || SEVERITY.info;
+const sev = (s) => SEVERITY[s] || SEVERITY.info;
 const TYPE_ICON = {
   low_credits: "⚡", expiry: "⏰", expired: "🚫",
   budget_threshold: "💰", unusual_spending: "📊",
   payment_missing: "💳", daily_digest: "📋",
 };
 const icon = (t) => TYPE_ICON[t] || "🔔";
-const isRead  = (n) => n.is_read === true || n.is_read === 1;
+const isRead = (n) => n.is_read === true || n.is_read === 1;
 
 const fmtRel = (ts) => {
   const m = Math.floor((Date.now() - new Date(ts)) / 60_000);
-  if (m < 1)  return "Just now";
+  if (m < 1) return "Just now";
   if (m < 60) return `${m}m ago`;
   const h = Math.floor(m / 60);
   if (h < 24) return `${h}h ago`;
@@ -41,9 +41,9 @@ const normalize = (list) =>
 // ─────────────────────────────────────────────────────────────────────────────
 function NotificationCenter({ userId, apiBaseUrl }) {
   const [notifications, setNotifications] = React.useState([]);
-  const [unreadCount,   setUnreadCount]   = React.useState(0);
-  const [showDropdown,  setShowDropdown]  = React.useState(false);
-  const [loading,       setLoading]       = React.useState(false);
+  const [unreadCount, setUnreadCount] = React.useState(0);
+  const [showDropdown, setShowDropdown] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
   const pollRef = React.useRef(null);
 
   // ── fetch ──────────────────────────────────────────────────────────────────
@@ -92,20 +92,20 @@ function NotificationCenter({ userId, apiBaseUrl }) {
 
   // ── click a single notification in the dropdown ────────────────────────────
   // marks it read + opens the full inline page with that item pre-selected
-const handleItemClick = (n) => {
-  console.log("Item clicked, dispatching openNotifications", n.id);
-  if (!n.is_read) markRead(n.id);
-  setShowDropdown(false);
-  window.dispatchEvent(
-    new CustomEvent("openNotifications", { detail: { selectedId: n.id } })
-  );
-};
+  const handleItemClick = (n) => {
+    console.log("Item clicked, dispatching openNotifications", n.id);
+    if (!n.is_read) markRead(n.id);
+    setShowDropdown(false);
+    window.dispatchEvent(
+      new CustomEvent("openNotifications", { detail: { selectedId: n.id } })
+    );
+  };
 
-const handleViewAll = () => {
-  console.log("View all clicked, dispatching openNotifications");
-  setShowDropdown(false);
-  window.dispatchEvent(new CustomEvent("openNotifications", { detail: {} }));
-};
+  const handleViewAll = () => {
+    console.log("View all clicked, dispatching openNotifications");
+    setShowDropdown(false);
+    window.dispatchEvent(new CustomEvent("openNotifications", { detail: {} }));
+  };
 
   // preview = first 5 notifications
   const preview = notifications.slice(0, 5);
@@ -116,22 +116,22 @@ const handleViewAll = () => {
       <button
         onClick={handleBellClick}
         title="Notifications"
-       style={{
-  position: "relative",
-  background: showDropdown ? "#f0f0f0" : "transparent",
-  border: "none",
-  cursor: "pointer",
-  padding: "7px 9px",
-  borderRadius: 8,
-  lineHeight: 1,
-  transition: "background 0.15s",
-  display: "flex",
-  alignItems: "center",
-  flexShrink: 0,
-  flexGrow: 0,
-  zIndex: 101,        /* ← add this */
-  WebkitTapHighlightColor: "transparent",  /* ← fixes iOS tap issues */
-}}
+        style={{
+          position: "relative",
+          background: showDropdown ? "#f0f0f0" : "transparent",
+          border: "none",
+          cursor: "pointer",
+          padding: "7px 9px",
+          borderRadius: 8,
+          lineHeight: 1,
+          transition: "background 0.15s",
+          display: "flex",
+          alignItems: "center",
+          flexShrink: 0,
+          flexGrow: 0,
+          zIndex: 101,        /* ← add this */
+          WebkitTapHighlightColor: "transparent",  /* ← fixes iOS tap issues */
+        }}
       >
         <i className="las la-bell fs-2 text-white"></i>
         {unreadCount > 0 && (
@@ -156,15 +156,23 @@ const handleViewAll = () => {
             style={{ position: "fixed", inset: 0, zIndex: 998 }}
           />
 
-          <div style={{
-            position: "absolute", top: "calc(100% + 8px)", right: 0,
-           width: "min(360px, calc(100vw - 20px))",
-maxWidth: "calc(100vw - 20px)", background: "#fff", borderRadius: 12,
-            boxShadow: "0 10px 30px -5px rgba(0,0,0,0.15)",
-            zIndex: 999, overflow: "hidden",
-            border: "1px solid #e5e7eb",
-            display: "flex", flexDirection: "column",
-          }}>
+          <div
+            style={{
+              position: "fixed",        
+              top: "60px",              
+              left: "8px",              
+              right: "8px",             
+              width: "auto",            
+              maxWidth: "380px",        
+              marginLeft: "auto",       
+              background: "#fff",
+              borderRadius: "10px",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+              border: "1px solid #e0e0e0",
+              zIndex: 9999,
+              overflow: "hidden",
+            }}
+          >
             {/* header */}
             <div style={{
               padding: "12px 16px", borderBottom: "1px solid #e5e7eb",
@@ -348,10 +356,10 @@ const outlookPanelStyle = {
 
 export function NotificationsPage({ userId, apiBaseUrl, onTabChange, initialSelectedId }) {
   const [notifications, setNotifications] = React.useState([]);
-  const [unreadCount,   setUnreadCount]   = React.useState(0);
-  const [loading,       setLoading]       = React.useState(true);
-  const [selected,      setSelected]      = React.useState(null);
-  const [filter,        setFilter]        = React.useState("all");
+  const [unreadCount, setUnreadCount] = React.useState(0);
+  const [loading, setLoading] = React.useState(true);
+  const [selected, setSelected] = React.useState(null);
+  const [filter, setFilter] = React.useState("all");
   // NEW: track whether we're showing detail on mobile
   const [mobileShowDetail, setMobileShowDetail] = React.useState(false);
   // NEW: detect mobile
@@ -514,8 +522,8 @@ export function NotificationsPage({ userId, apiBaseUrl, onTabChange, initialSele
               Details
             </div>
             {[
-              { label: "Type",     value: (selected.notification_type || "—").replace(/_/g, " ") },
-              { label: "Package",  value: selected.package_name || "—" },
+              { label: "Type", value: (selected.notification_type || "—").replace(/_/g, " ") },
+              { label: "Package", value: selected.package_name || "—" },
               {
                 label: "Severity",
                 value: (
@@ -532,7 +540,7 @@ export function NotificationsPage({ userId, apiBaseUrl, onTabChange, initialSele
                 label: "Status",
                 value: selected.is_read
                   ? <span style={{ color: "#10b981", fontWeight: 700 }}>✓ Read</span>
-                  : <span style={{ color: "#f59e0b",  fontWeight: 700 }}>● Unread</span>,
+                  : <span style={{ color: "#f59e0b", fontWeight: 700 }}>● Unread</span>,
               },
             ].map((row) => (
               <div key={row.label} style={{
@@ -551,17 +559,17 @@ export function NotificationsPage({ userId, apiBaseUrl, onTabChange, initialSele
             {(selected.notification_type === "low_credits" ||
               selected.notification_type === "expiry" ||
               selected.notification_type === "expired") && (
-              <button
-                onClick={() => onTabChange && onTabChange("packages")}
-                style={{
-                  padding: "10px 20px", borderRadius: 6, fontSize: 13,
-                  fontWeight: 700, border: "none", cursor: "pointer",
-                  background: "#36565f", color: "#fff", fontFamily: "inherit",
-                }}
-              >
-                🛒 Buy More Packages
-              </button>
-            )}
+                <button
+                  onClick={() => onTabChange && onTabChange("packages")}
+                  style={{
+                    padding: "10px 20px", borderRadius: 6, fontSize: 13,
+                    fontWeight: 700, border: "none", cursor: "pointer",
+                    background: "#36565f", color: "#fff", fontFamily: "inherit",
+                  }}
+                >
+                  🛒 Buy More Packages
+                </button>
+              )}
             {selected.notification_type === "payment_missing" && (
               <button
                 onClick={() => {
@@ -621,7 +629,7 @@ export function NotificationsPage({ userId, apiBaseUrl, onTabChange, initialSele
           </div>
         ) : (
           visible.map((n) => {
-            const s    = sev(n.severity);
+            const s = sev(n.severity);
             const isSel = selected?.id === n.id;
             return (
               <div
@@ -691,16 +699,16 @@ export function NotificationsPage({ userId, apiBaseUrl, onTabChange, initialSele
       fontFamily: "'Nunito Sans', ui-sans-serif, sans-serif",
     }}>
       {/* page heading */}
-   <div style={{
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  marginBottom: 16,
-  flexWrap: "wrap",
-  gap: 10,
-  position: "relative",  /* ← add */
-  zIndex: 10,            /* ← add */
-}}>
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: 16,
+        flexWrap: "wrap",
+        gap: 10,
+        position: "relative",  /* ← add */
+        zIndex: 10,            /* ← add */
+      }}>
         <div>
           <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: "#1a1a1a" }}>
             Notifications

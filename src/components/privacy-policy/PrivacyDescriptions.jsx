@@ -82,7 +82,7 @@ const PrivacyDescriptions = () => {
         </motion.div>
       </div>
 
-      <Container className="mt-5">
+      <Container className="mt-5" style={{ paddingBottom: "80px" }}>
         {/* Intro */}
         <motion.div
           initial={{ opacity: 0 }}

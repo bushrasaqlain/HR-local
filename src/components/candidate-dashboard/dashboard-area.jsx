@@ -9,6 +9,9 @@ import CandidateRegisterForm from "./dashboard/register.jsx";
 import CompanyInfo from "./dashboard/companyinfo.jsx";
 import AppliedJobs from "./dashboard/AppliedJobs.jsx";
 import SavedJobsPage from "./dashboard/saved-jobs.jsx";
+import Messages from "../company-dashboard/dashboard/Messages.jsx";
+import ChangePasswordForm from "../form/changepassword/changepasswordform.jsx";
+import CandidateWallet from "./dashboard/candidatewallet.jsx";
 
 const CandidateDashboardArea = ({ activeTab: parentActiveTab, selectedMessageContact, }) => {
   const router = useRouter();
@@ -93,6 +96,8 @@ const CandidateDashboardArea = ({ activeTab: parentActiveTab, selectedMessageCon
         />;
       case "appliedJobs":
         return <AppliedJobs onClick={() => setActiveTab("appliedJobs")} />;
+      case "candidatewallet":
+        return <CandidateWallet onBack={() => setActiveTab("profile")} />;
       case "chatbox":
         return (
           <ChatBox
@@ -104,13 +109,21 @@ const CandidateDashboardArea = ({ activeTab: parentActiveTab, selectedMessageCon
         );
       case "companyinfo":
         return <CompanyInfo />
+      case "messages":
+        return (
+          <div style={{ paddingTop: "16px" }}>
+            <Messages selectedContactProp={selectedMessageContact} />
+          </div>
+        );
+      case "changepassword":
+        return <ChangePasswordForm />;
       default:
         return <Profile onEdit={() => setActiveTab("editprofile")} />;
     }
   };
 
   return (
-    <section className="user-dashboard py-3">
+    <section className="user-dashboard">
       <div className="container">{renderContent()}</div>
     </section>
   );

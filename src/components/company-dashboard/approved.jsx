@@ -455,7 +455,7 @@ class ApprovedCandidates extends Component {
       indexOfLast,
     );
     const hasCandidateResponse = currentCandidates.some(
-      (c) => c.candidate_response,
+      (c) => c.candidateStatus === "Approved"
     );
     const totalPages = Math.ceil(filteredApplicants.length / itemsPerPage);
 
@@ -1150,8 +1150,11 @@ class ApprovedCandidates extends Component {
                                       candidate.candidate_response === "Accepted" ? "response-accepted" :
                                         "response-reschedule"
                                       }`}>
-                                      {candidate.candidate_response === "Confirmed" ? "✓" :
-                                        candidate.candidate_response === "Accepted" ? "A" : "R"}
+                                      {candidate.candidate_response === "Confirmed" ? "✓ Confirmed" :
+                                        candidate.candidate_response === "Accepted" ? "✓ Accepted" :
+                                          candidate.candidate_response === "Rejected" ? "✕ Rejected" :
+                                            candidate.candidate_response === "Reschedule Requested" ? "↺ Reschedule" :
+                                              "⏳ Awaiting"}
                                     </span>
                                   )}
                                 </div>
@@ -1325,15 +1328,27 @@ class ApprovedCandidates extends Component {
                                             </div>
                                           )}
 
+                                          {candidate.candidate_response === "Rejected" && (
+                                            <span className="response-badge" style={{
+                                              background: "#fee2e2", color: "#991b1b"
+                                            }}>
+                                              ✕ Rejected Offer
+                                            </span>
+                                          )}
+
                                           {candidate.candidate_response &&
-                                            !["Confirmed", "Accepted", "Reschedule Requested"].includes(candidate.candidate_response) && (
+                                            !["Confirmed", "Accepted", "Reschedule Requested", "Rejected"].includes(candidate.candidate_response) && (
                                               <span className="badge bg-secondary">
                                                 {candidate.candidate_response}
                                               </span>
                                             )}
 
                                           {!candidate.candidate_response && (
-                                            <span className="text-muted">—</span>
+                                            <span className="response-badge" style={{
+                                              background: "#fef3c7", color: "#92400e"
+                                            }}>
+                                              ⏳ Awaiting
+                                            </span>
                                           )}
                                         </td>
 

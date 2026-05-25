@@ -110,14 +110,6 @@ const getSavedJobs = (req, res) => {
     candidateModel.getSavedJobs(req, res);
 };
 
-const saveJobPreferences = (req, res) => {
-    candidateModel.saveJobPreferences(req, res);
-};
-
-const getJobPreferences = (req, res) => {
-    candidateModel.getJobPreferences(req, res);
-};
-
 const getJobAlerts = (req, res) => {
     candidateModel.getJobAlerts(req, res);
 };
@@ -136,6 +128,9 @@ const getProfileViewStats = (req, res) => {
 
 const trackProfileView = (req, res) => {
     candidateModel.trackProfileView(req, res);
+};
+const getCandidatePackages = (req, res) => {
+    candidateModel.getCandidatePackages(req, res);
 };
 
 module.exports = {
@@ -163,11 +158,10 @@ module.exports = {
     parseCVAndSave,
     toggleSaveJob,
     getSavedJobs,
-    saveJobPreferences,
-    getJobPreferences,
     getJobAlerts,
     markJobAlertRead,
     markAllJobAlertsRead,
     getProfileViewStats,
     trackProfileView,
+    getCandidatePackages,
 }

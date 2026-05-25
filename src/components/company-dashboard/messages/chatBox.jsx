@@ -40,7 +40,7 @@ class ChatBox extends Component {
     const { onBack } = this.props;
 
     return (
-      <Container fluid>
+      <Container fluid style={{ padding: 0, height: "100%", display: "flex", flexDirection: "column" }}>
         <Head>
           <title>Messages</title>
         </Head>
@@ -51,14 +51,15 @@ class ChatBox extends Component {
           ← Back
         </button> */}
 
-        <Row>
-          <Col lg="12" className="chat">
+        <Row style={{ flex: 1, margin: 0, minHeight: 0 }}>
+          <Col lg="12" className="chat" style={{ padding: 0, height: "100%", display: "flex", flexDirection: "column" }}>
             <SenderMessages
-              senderId={senderId} // Current user (company) - THIS IS THE SENDER
-              receiverId={selectedContactId} // Candidate's account_id - THIS IS THE RECEIVER
-              candidateId={candidateId} // For status updates if needed
+              senderId={senderId}
+              receiverId={selectedContactId}
+              candidateId={candidateId}
               jobId={selectedjobId}
               receiverName={selectedContactName}
+              onBack={onBack}  
               refreshContacts={() =>
                 this.messagesListRef.current?.fetchContacts()
               }

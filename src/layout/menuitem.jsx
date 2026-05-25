@@ -82,4 +82,5 @@ export const candidatesmenuitem = [
   { key: "appliedJobs", label: "Applied Jobs" },
   // { key: "chatbox", label: "Message"},
   { key: "register", label: "Candidate Register Form" },
+  {key: "candidatewallet", label: "Wallet", type: "single"},
 ];

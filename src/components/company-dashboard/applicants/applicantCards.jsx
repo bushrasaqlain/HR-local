@@ -22,7 +22,23 @@ class ApplicantCard extends React.Component {
 
     if (candidate.candidateStatus === "Pending") {
       actionButton = (
-        <div className="d-flex flex-row align-items-center gap-2">
+        <div className="d-flex flex-column align-items-start gap-1">
+          {/* ✅ Badge upar */}
+          {isHired && (
+            <span style={{
+              background: "#fee2e2",
+              color: "#991b1b",
+              border: "1px solid #fca5a5",
+              borderRadius: "20px",
+              padding: "3px 10px",
+              fontSize: "11px",
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+            }}>
+              Already Hired
+            </span>
+          )}
+          {/* ✅ Button neeche */}
           <Button
             size="sm"
             className="custom-progress-bar text-white"
@@ -39,21 +55,6 @@ class ApplicantCard extends React.Component {
           >
             Shortlist
           </Button>
-
-          {isHired && (
-            <span style={{
-              background: "#fee2e2",
-              color: "#991b1b",
-              border: "1px solid #fca5a5",
-              borderRadius: "20px",
-              padding: "3px 10px",
-              fontSize: "11px",
-              fontWeight: 600,
-              whiteSpace: "nowrap",
-            }}>
-              Already Hired
-            </span>
-          )}
         </div>
       );
     } else if (candidate.candidateStatus === "Shortlisted") {
@@ -74,18 +75,12 @@ class ApplicantCard extends React.Component {
             </span>
           )}
           <div className="d-flex gap-2">
-            <Button
-              size="sm"
-              style={{ background: "#5f8190" }}
-              onClick={() => onStatusChange(candidate.candidate_id, "Approved")}
-            >
+            <Button size="sm" style={{ background: "#5f8190" }}
+              onClick={() => onStatusChange(candidate.candidate_id, "Approved")}>
               Approve
             </Button>
-            <Button
-              size="sm"
-              color="danger"
-              onClick={() => onStatusChange(candidate.candidate_id, "Rejected")}
-            >
+            <Button size="sm" color="danger"
+              onClick={() => onStatusChange(candidate.candidate_id, "Rejected")}>
               Reject
             </Button>
           </div>

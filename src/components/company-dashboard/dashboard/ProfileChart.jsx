@@ -27,10 +27,26 @@ ChartJS.register(
 
 export const options = {
   responsive: true,
+  maintainAspectRatio: false,   
   plugins: {
     legend: { display: false },
     title: { display: false },
   },
+  scales: {
+    x: {
+      ticks: {
+        maxRotation: 45,
+        minRotation: 0,
+        maxTicksLimit: 6,
+        font: { size: 10 }
+      }
+    },
+    y: {
+      ticks: {
+        font: { size: 10 }
+      }
+    }
+  }
 };
 
 class ProfileChart extends Component {
@@ -204,7 +220,7 @@ class ProfileChart extends Component {
     );
 
     return (
-      <Card className="tabs-box rounded-5 overflow-auto">
+      <Card className="tabs-box rounded-5">
         <CardHeader
           className="widget-title text-white mb-2 hover shadow-sm"
           style={{ background: "#5f8190" }}
@@ -212,7 +228,7 @@ class ProfileChart extends Component {
           <h5 className="fw-semibold p-2 m-2 hover">Job Posts Analytics</h5>
         </CardHeader>
 
-        <CardBody>
+        <CardBody style={{ padding: "12px" }}>
           <div className="chosen-outer mb-3 p-2 tabs-box">
             <Select
               options={this.selectOptions}
@@ -234,8 +250,19 @@ class ProfileChart extends Component {
             />
           </div>
 
-          <div className="widget-content mt-2">
-            <Line options={options} data={data} />
+          <div style={{
+            position: "relative",
+            width: "100%",
+            height: "300px",
+          }}>
+            <Line
+              options={{
+                ...options,
+                responsive: true,
+                maintainAspectRatio: false,
+              }}
+              data={data}
+            />
           </div>
         </CardBody>
       </Card>

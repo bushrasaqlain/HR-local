@@ -8,7 +8,17 @@ const createHistoryTable = () => {
         id INT AUTO_INCREMENT PRIMARY KEY,
         entity_type VARCHAR(50) NOT NULL,
         entity_id INT NOT NULL,
-        action ENUM('ADDED','ACTIVE', 'UPDATED', 'INACTIVE') NOT NULL,
+        action ENUM('ADDED',
+                    'ACTIVE', 
+                    'UPDATED',
+                    'INACTIVE',
+                    'CREATED',
+                    'APPROVED',
+                    'PAYMENT',
+                    'PACKAGE_SUBSCRIBED',
+                    'CANDIDATE_UNLOCKED',
+                    'SHORTLISTED',
+                    'CARD_SAVED') NOT NULL,
         data JSON NOT NULL,
         changed_by INT NOT NULL,
         changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -44,98 +54,98 @@ const getHistory = (req, res) => {
 
         // Fetch mapping tables separately
         const [
-    cities,
-    countries,
-    districts,
-    businessTypes,
-    packages,
-    jobs,
-    companyPackages
-] = await Promise.all([
-    getLookupMap("cities"),
-    getLookupMap("countries"),
-    getLookupMap("districts"),
-    getLookupMap("business_entity_type"),
-    getLookupMap("packages"),
-    getLookupMap("job_posts", "job_title"), 
-    getLookupMap("company_packages", "pricing_model") 
-]);
+            cities,
+            countries,
+            districts,
+            businessTypes,
+            packages,
+            jobs,
+            companyPackages
+        ] = await Promise.all([
+            getLookupMap("cities"),
+            getLookupMap("countries"),
+            getLookupMap("districts"),
+            getLookupMap("business_entity_type"),
+            getLookupMap("packages"),
+            getLookupMap("job_posts", "job_title"),
+            getLookupMap("company_packages", "pricing_model")
+        ]);
 
         // Replace IDs with names
-results.forEach(item => {
-    if (!item.data) return;
-
-    // location lookups
-    item.data.city_name = cities[item.data.city] || null;
-    item.data.country_name = countries[item.data.country] || null;
-    item.data.district_name = districts[item.data.district] || null;
-    item.data.business_type_name = businessTypes[item.data.business_type] || null;
-
-    // job / package / subscription (NAMES ONLY)
-    item.data.job_title =
-        jobs[item.data.job_id] || null;
-
-    item.data.package_name =
-        packages[item.data.packageId] || null;
-
-   item.data.company_package_info = companyPackages[item.data.company_package_id] || null;
-});
         results.forEach(item => {
-    // Prefer explicit event from audit data
-    if (item.data?.event) {
-        item.readable_event = item.data.event;
-        return;
-    }
+            if (!item.data) return;
 
-    // Fallbacks
-    switch (item.action) {
-        case "CREATED":
-        case "ADDED":
-            item.readable_event =
-                entity_type === "job"
-                    ? "Job created"
-                    : entity_type === "employer"
-                    ? "Employer created"
-                    : "Record created";
-            break;
+            // location lookups
+            item.data.city_name = cities[item.data.city] || null;
+            item.data.country_name = countries[item.data.country] || null;
+            item.data.district_name = districts[item.data.district] || null;
+            item.data.business_type_name = businessTypes[item.data.business_type] || null;
 
-        case "UPDATED":
-            item.readable_event =
-                entity_type === "job"
-                    ? "Job updated"
-                    : entity_type === "employer"
-                    ? "Employer updated"
-                    : "Record updated";
-            break;
+            // job / package / subscription (NAMES ONLY)
+            item.data.job_title =
+                jobs[item.data.job_id] || null;
 
-        case "ACTIVE":
-            item.readable_event = "Activated";
-            break;
+            item.data.package_name =
+                packages[item.data.packageId] || null;
 
-        case "INACTIVE":
-            item.readable_event = "Deactivated";
-            break;
+            item.data.company_package_info = companyPackages[item.data.company_package_id] || null;
+        });
+        results.forEach(item => {
+            // Prefer explicit event from audit data
+            if (item.data?.event) {
+                item.readable_event = item.data.event;
+                return;
+            }
 
-        case "APPROVED":
-            item.readable_event = "Approved";
-            break;
+            // Fallbacks
+            switch (item.action) {
+                case "CREATED":
+                case "ADDED":
+                    item.readable_event =
+                        entity_type === "job"
+                            ? "Job created"
+                            : entity_type === "employer"
+                                ? "Employer created"
+                                : "Record created";
+                    break;
 
-        case "PAYMENT":
-            item.readable_event = "Payment recorded";
-            break;
+                case "UPDATED":
+                    item.readable_event =
+                        entity_type === "job"
+                            ? "Job updated"
+                            : entity_type === "employer"
+                                ? "Employer updated"
+                                : "Record updated";
+                    break;
 
-        case "PACKAGE_SUBSCRIBED":
-            item.readable_event = "Package subscribed";
-            break;
+                case "ACTIVE":
+                    item.readable_event = "Activated";
+                    break;
 
-        case "CANDIDATE_UNLOCKED":
-            item.readable_event = "Candidate unlocked";
-            break;
+                case "INACTIVE":
+                    item.readable_event = "Deactivated";
+                    break;
 
-        default:
-            item.readable_event = item.action || "History event";
-    }
-});
+                case "APPROVED":
+                    item.readable_event = "Approved";
+                    break;
+
+                case "PAYMENT":
+                    item.readable_event = "Payment recorded";
+                    break;
+
+                case "PACKAGE_SUBSCRIBED":
+                    item.readable_event = "Package subscribed";
+                    break;
+
+                case "CANDIDATE_UNLOCKED":
+                    item.readable_event = "Candidate unlocked";
+                    break;
+
+                default:
+                    item.readable_event = item.action || "History event";
+            }
+        });
 
         return res.status(200).json({ history: results });
     });
