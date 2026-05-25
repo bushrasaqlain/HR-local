@@ -2810,6 +2810,55 @@ const trackProfileView = (req, res) => {
     );
   });
 };
+const getCandidatePackages = (req, res) => {
+  const accountId = req.params.userId;
+
+  const sql = `
+    SELECT 
+      bo.id AS subscription_id,
+      bo.status,
+      bo.start_date,
+      bo.end_date,
+      bo.created_at,
+      p.id AS package_id,
+      p.name AS package_name,
+      p.price,
+      p.pricing_model,
+      p.boost_type,
+      p.boost_duration_days,
+      p.duration_days,
+      p.description,
+      COALESCE(c.code, 'PKR') AS currency
+    FROM boost_orders bo
+    JOIN candidate_info ci ON ci.id = bo.candidate_id
+    JOIN packages p ON p.id = bo.package_id
+    LEFT JOIN currencies c ON c.id = p.currency_id
+    WHERE ci.account_id = ?
+    ORDER BY bo.created_at DESC
+  `;
+
+  connection.query(sql, [accountId], (err, results) => {
+    if (err) return res.status(500).json({ error: "Database error" });
+
+    const packages = results.map(p => ({
+      subscription_id: p.subscription_id,
+      package_name: p.package_name,
+      pricing_model: p.pricing_model,
+      boost_type: p.boost_type,
+      status: p.status,
+      start_date: p.start_date,
+      end_date: p.end_date,
+      purchased_at: p.created_at,
+      price: p.price,
+      currency: p.currency,
+      duration_days: p.boost_duration_days || p.duration_days || 0,
+      description: p.description,
+      is_active: p.status === 'active',
+    }));
+
+    res.json({ success: true, data: packages });
+  });
+};
 
 module.exports = {
   getAllCandidates,
@@ -2853,4 +2902,5 @@ module.exports = {
   createProfileViewsTable,
   getProfileViewStats,
   trackProfileView,
+  getCandidatePackages,
 };

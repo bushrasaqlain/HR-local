@@ -47,6 +47,7 @@ const EMPLOYER_ROUTE_MAP = {
   packagesList: "/employer/packages",
   viewpackage: "/employer/pricing",
   wallet: "/employer/wallet",
+  messages: "/employer/messages",
 };
 
 const CANDIDATE_ROUTE_MAP = {
@@ -55,6 +56,8 @@ const CANDIDATE_ROUTE_MAP = {
   appliedJobs: "/candidate/applied-jobs",
   register: "/candidate/register",
   candidatewallet: "/candidate/wallet", 
+   messages: "/candidate/messages",      
+  jobAlerts: "/candidate/job-alerts",
 };
 
 const DB_ADMIN_ROUTE_MAP = {

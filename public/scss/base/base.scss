@@ -837,3 +837,13 @@
     border-bottom: 2px solid #e2e8f0;
   }
 }
+body.messages-page {
+    overflow: hidden !important;
+}
+
+body.messages-page #__next {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
