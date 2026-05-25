@@ -7,14 +7,18 @@ const Messages = ({ selectedContactProp = null }) => {
     const [searchValue, setSearchValue] = useState("");
     const [selectedContact, setSelectedContact] = useState(null);
     const [unreadCounts, setUnreadCounts] = useState({});
-    // ✅ Mobile view toggle: "list" ya "chat"
     const [mobileView, setMobileView] = useState("list");
     const [isMobile, setIsMobile] = useState(false);
 
     const userId = sessionStorage.getItem("userId");
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-    // ✅ Mobile detect karo
+    // ✅ Lock body scroll on this page only
+    useEffect(() => {
+        document.body.classList.add("messages-page");
+        return () => document.body.classList.remove("messages-page");
+    }, []);
+
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth <= 768);
         checkMobile();
@@ -31,7 +35,7 @@ const Messages = ({ selectedContactProp = null }) => {
     useEffect(() => {
         if (selectedContactProp && selectedContactProp.id) {
             setSelectedContact(selectedContactProp);
-            if (isMobile) setMobileView("chat"); // ✅ prop se aaye to chat dikhao
+            if (isMobile) setMobileView("chat");
         } else {
             setSelectedContact(null);
         }
@@ -60,7 +64,6 @@ const Messages = ({ selectedContactProp = null }) => {
         contact.full_name.toLowerCase().includes(searchValue.toLowerCase())
     );
 
-    // ✅ Contact select karna
     const handleContactSelect = (contact) => {
         fetch(`${apiBaseUrl}message/mark-as-read`, {
             method: "POST",
@@ -75,11 +78,10 @@ const Messages = ({ selectedContactProp = null }) => {
             setContacts(prev =>
                 prev.map(c => c.id === contact.id ? { ...c, is_read: 1 } : c)
             );
-            if (isMobile) setMobileView("chat"); // ✅ Mobile pe chat panel dikhao
+            if (isMobile) setMobileView("chat");
         }, 0);
     };
 
-    // ✅ Back button — list pe wapas
     const handleBack = () => {
         setSelectedContact(null);
         setMobileView("list");
@@ -87,7 +89,156 @@ const Messages = ({ selectedContactProp = null }) => {
 
     return (
         <>
-            <Head><title>Messages</title></Head>
+            <Head>
+                <title>Messages</title>
+                <style>{`
+                    /* ✅ Only active on messages page */
+                    body.messages-page {
+                        overflow: hidden !important;
+                    }
+                    body.messages-page #__next {
+                        height: 100vh;
+                        display: flex;
+                        flex-direction: column;
+                        overflow: hidden;
+                    }
+
+                    .user-dashboard {
+                        height: calc(100vh - 80px);
+                        display: flex;
+                        flex-direction: column;
+                        overflow: hidden;
+                    }
+                    .dashboard-outer {
+                        flex: 1;
+                        display: flex;
+                        flex-direction: column;
+                        overflow: hidden;
+                    }
+                    .messages-layout {
+                        display: flex;
+                        height: 100%;
+                        overflow: hidden;
+                    }
+
+                    /* LEFT SIDEBAR */
+                    .messages-sidebar {
+                        width: 320px;
+                        min-width: 320px;
+                        display: flex;
+                        flex-direction: column;
+                        border-right: 1px solid #e0e0e0;
+                        background: #fff;
+                        height: 100%;
+                        overflow: hidden;
+                    }
+                    .messages-sidebar-header {
+                        padding: 16px 20px;
+                        background: #36565f;
+                        color: #fff;
+                        flex-shrink: 0;
+                    }
+                    .messages-search-wrapper {
+                        padding: 10px 12px;
+                        border-bottom: 1px solid #e0e0e0;
+                        flex-shrink: 0;
+                    }
+                    .messages-search {
+                        width: 100%;
+                        padding: 8px 12px;
+                        border-radius: 8px;
+                        border: 1px solid #ddd;
+                        font-size: 13px;
+                        outline: none;
+                        box-sizing: border-box;
+                    }
+                    .messages-contact-list {
+                        flex: 1;
+                        overflow-y: auto;
+                    }
+                    .messages-contact-item {
+                        display: flex;
+                        align-items: center;
+                        gap: 12px;
+                        padding: 12px 16px;
+                        cursor: pointer;
+                        border-bottom: 1px solid #f0f0f0;
+                        transition: background 0.15s;
+                    }
+                    .messages-contact-item:hover,
+                    .messages-contact-item.active {
+                        background: #f0f5f6;
+                    }
+                    .messages-contact-item.unread .contact-name {
+                        font-weight: 700;
+                    }
+                    .contact-avatar {
+                        width: 40px;
+                        height: 40px;
+                        border-radius: 50%;
+                        background: #36565f;
+                        color: #fff;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-weight: 600;
+                        font-size: 15px;
+                        flex-shrink: 0;
+                    }
+                    .contact-name {
+                        font-size: 14px;
+                        font-weight: 500;
+                    }
+                    .contact-time {
+                        font-size: 11px;
+                        color: #999;
+                    }
+                    .contact-last-msg {
+                        font-size: 12px;
+                        color: #888;
+                    }
+
+                    /* RIGHT CHAT PANEL */
+                    .messages-chat-panel {
+                        flex: 1;
+                        display: flex;
+                        flex-direction: column;
+                        height: 100%;
+                        overflow: hidden;
+                        background: #f7f9fa;
+                    }
+
+                    /* EMPTY STATE */
+                    .messages-empty-state {
+                        flex: 1;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        height: 100%;
+                        color: #aaa;
+                        text-align: center;
+                    }
+                    .messages-empty-state .empty-icon {
+                        font-size: 48px;
+                        margin-bottom: 12px;
+                    }
+
+                    /* MOBILE */
+                    .mobile-hidden {
+                        display: none !important;
+                    }
+                    @media (max-width: 768px) {
+                        .user-dashboard {
+                            height: calc(100vh - 60px);
+                        }
+                        .messages-sidebar {
+                            width: 100%;
+                            min-width: unset;
+                        }
+                    }
+                `}</style>
+            </Head>
 
             <section className="user-dashboard">
                 <div className="dashboard-outer p-0" style={{ padding: 0, height: '100%' }}>
@@ -95,11 +246,9 @@ const Messages = ({ selectedContactProp = null }) => {
 
                         {/* LEFT SIDEBAR */}
                         <div className={`messages-sidebar ${isMobile && mobileView === "chat" ? "mobile-hidden" : ""}`}>
-
                             <div className="messages-sidebar-header">
                                 <h5 className="fw-bold mb-0">Messages</h5>
                             </div>
-
                             <div className="messages-search-wrapper">
                                 <input
                                     type="text"
@@ -109,7 +258,6 @@ const Messages = ({ selectedContactProp = null }) => {
                                     onChange={(e) => setSearchValue(e.target.value)}
                                 />
                             </div>
-
                             <div className="messages-contact-list">
                                 {filteredContacts.length === 0 ? (
                                     <p className="text-muted text-center mt-4 px-3">No contacts found.</p>
@@ -160,7 +308,7 @@ const Messages = ({ selectedContactProp = null }) => {
                                     selectedContactId={selectedContact.id}
                                     selectedContactName={selectedContact.full_name}
                                     selectedJobId={selectedContact.jobId}
-                                    onBack={handleBack} // ✅ Back button ChatBox ko pass karo
+                                    onBack={handleBack}
                                     embedded={true}
                                 />
                             ) : (

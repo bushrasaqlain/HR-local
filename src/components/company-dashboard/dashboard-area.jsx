@@ -291,8 +291,7 @@ const CompanyDashboardArea = ({
         return <ChatBox />;
       case "availableCandidates":
         return <AvailableCandidates onTabChange={onTabChange} />;
-      case "wallet":
-        return <CompanyWallet initialNotifId={walletNotifId} />;
+      
       case "messages":
         return <Messages selectedContactProp={selectedMessageContact} />;
       case "wallet":
@@ -306,14 +305,19 @@ const CompanyDashboardArea = ({
     }
   };
 
-  return (
+// To this:
+if (activeTab === "messages") {
+    return <Messages selectedContactProp={selectedMessageContact} />;
+}
+
+return (
     <section className="user-dashboard py-2 my-4">
-      <div className="container">
-        <TopCardBlock onTabChange={onTabChange} activeTab={activeTab} />
-        {renderContent()}
-      </div>
+        <div className="container">
+            <TopCardBlock onTabChange={onTabChange} activeTab={activeTab} />
+            {renderContent()}
+        </div>
     </section>
-  );
+);
 };
 
 export default CompanyDashboardArea;
