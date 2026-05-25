@@ -387,7 +387,7 @@ class Job extends Component {
 
                                       {/* History */}
                                       <button
-                                        onClick={() => this.props.router.push(`/history1/job/${item.jobpost_id}`)}
+                                        onClick={() => this.props.onViewHistory(item.jobpost_id)}
                                         className="icon-btn"
                                         title="View History"
                                       >

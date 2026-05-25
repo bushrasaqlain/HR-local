@@ -139,4 +139,6 @@ router.post(
   candidateController.trackProfileView
 );
 
+router.get("/candidate-packages/:userId", candidateController.getCandidatePackages);
+
 module.exports = router;

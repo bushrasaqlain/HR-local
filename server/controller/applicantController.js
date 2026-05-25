@@ -19,6 +19,10 @@ const unlockCandidate=(req,res)=>{
 const getApplicationStats=(req,res)=>{
   applicantModel.getApplicationStats(req,res);
 }
+const cancelApplication=(req,res)=>{
+  applicantModel.cancelApplication(req,res);
+}
+
 module.exports={
   unlockCandidate,
     getAllApplicants,
@@ -26,4 +30,5 @@ module.exports={
     applyJob,
     getAppliedJobs,
     getApplicationStats,
+    cancelApplication,
 }

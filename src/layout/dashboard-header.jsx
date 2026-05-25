@@ -54,6 +54,7 @@ const CANDIDATE_ROUTE_MAP = {
   lists: "/candidate/job-list",
   appliedJobs: "/candidate/applied-jobs",
   register: "/candidate/register",
+  candidatewallet: "/candidate/wallet", 
 };
 
 const DB_ADMIN_ROUTE_MAP = {
@@ -468,7 +469,8 @@ class DashboardHeader extends Component {
             item.key === "profile" ||
             item.key === "lists" ||
             item.key === "appliedJobs" ||
-            item.key === "chatbox",
+            item.key === "chatbox"||
+            item.key === "candidatewallet",
         )
         : candidatesmenuitem.filter((item) => item.key === "register");
     }

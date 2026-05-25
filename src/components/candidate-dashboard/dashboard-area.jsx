@@ -11,6 +11,7 @@ import AppliedJobs from "./dashboard/AppliedJobs.jsx";
 import SavedJobsPage from "./dashboard/saved-jobs.jsx";
 import Messages from "../company-dashboard/dashboard/Messages.jsx";
 import ChangePasswordForm from "../form/changepassword/changepasswordform.jsx";
+import CandidateWallet from "./dashboard/candidatewallet.jsx";
 
 const CandidateDashboardArea = ({ activeTab: parentActiveTab, selectedMessageContact, }) => {
   const router = useRouter();
@@ -95,6 +96,8 @@ const CandidateDashboardArea = ({ activeTab: parentActiveTab, selectedMessageCon
         />;
       case "appliedJobs":
         return <AppliedJobs onClick={() => setActiveTab("appliedJobs")} />;
+      case "candidatewallet":
+        return <CandidateWallet onBack={() => setActiveTab("profile")} />;
       case "chatbox":
         return (
           <ChatBox

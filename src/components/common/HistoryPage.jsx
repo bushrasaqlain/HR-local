@@ -2,12 +2,32 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import api from "../lib/api";
 import DashboardFooter from "../../layout/dashboard-footer";
+import Head from "next/head";
 
 const badgeConfig = {
-    ADDED: { label: "Added", cls: "badge-added", dot: "dot-added", sym: "+" },
-    UPDATED: { label: "Updated", cls: "badge-updated", dot: "dot-updated", sym: "↻" },
-    ACTIVE: { label: "Active", cls: "badge-active", dot: "dot-active", sym: "✓" },
-    INACTIVE: { label: "Inactive", cls: "badge-inactive", dot: "dot-inactive", sym: "✕" },
+    ADDED:              { label: "Added",       bg: "#EEEDFE", color: "#3C3489" },
+    ACTIVE:             { label: "Active",      bg: "#EAF3DE", color: "#27500A" },
+    UPDATED:            { label: "Updated",     bg: "#E6F1FB", color: "#0C447C" },
+    INACTIVE:           { label: "Inactive",    bg: "#FCEBEB", color: "#791F1F" },
+    PAYMENT:            { label: "Payment",     bg: "#FAEEDA", color: "#633806" },
+    PACKAGE_SUBSCRIBED: { label: "Subscribed",  bg: "#E1F5EE", color: "#085041" },
+    CREATED:            { label: "Created",     bg: "#FBEAF0", color: "#72243E" },
+    APPROVED:           { label: "Approved",    bg: "#EAF3DE", color: "#27500A" },
+    SHORTLISTED:        { label: "Shortlisted", bg: "#EEEDFE", color: "#3C3489" },
+    CARD_SAVED: { label: "Card Saved", bg: "#FAEEDA", color: "#633806" },
+};
+
+const accentColor = {
+    ADDED:              "#534AB7",
+    ACTIVE:             "#3B6D11",
+    UPDATED:            "#185FA5",
+    INACTIVE:           "#A32D2D",
+    PAYMENT:            "#854F0B",
+    PACKAGE_SUBSCRIBED: "#0F6E56",
+    CREATED:            "#993556",
+    APPROVED:           "#3B6D11",
+    SHORTLISTED:        "#534AB7",
+    CARD_SAVED: "#854F0B",
 };
 
 const formatKey = (key) =>
@@ -16,27 +36,140 @@ const formatKey = (key) =>
 const renderValue = (value) => {
     if (value === null || value === undefined) return "-";
     if (Array.isArray(value)) return value.join(", ");
-    if (typeof value === "object") {
-        if (value.name) return value.name;
-        return JSON.stringify(value);
-    }
+    if (typeof value === "object") return value.name || JSON.stringify(value);
     return String(value);
 };
 
-const HistoryPage = () => {
-    const router = useRouter();
-    const { id, type } = router.query; // URL se id aur type milega
+const formatDate = (str) =>
+    new Date(str).toLocaleString("en-GB", {
+        day: "2-digit", month: "short", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+    });
+
+// Builds a human-readable summary sentence
+const buildSummary = (item) => {
+    const who  = item.changed_by_name || item.changed_by || "System";
+    const when = formatDate(item.changed_at);
+    const event = item.readable_event || item.action;
+    return { who, when, event };
+};
+const actionTextMap = {
+    ADDED: "added",
+    ACTIVE: "activated",
+    UPDATED: "updated",
+    PAYMENT: "recorded a payment",
+    PACKAGE_SUBSCRIBED: "subscribed to a package",
+    CREATED: "created",
+    APPROVED: "approved",
+    SHORTLISTED: "shortlisted a candidate",
+};
+const fieldLabels = {
+    company_name:            "Company name",
+    Business_entity_type_id: "Business type",
+    phone:                   "Phone",
+    country_id:              "Country",
+    district_id:             "District",
+    city_id:                 "City",
+    company_address:         "Address",
+    company_website:         "Website",
+    NTN:                     "NTN",
+    size_of_company:         "Company size",
+    established_date:        "Established date",
+    username:                "Username",
+    email:                   "Email",
+};
+
+const buildSentence = (item) => {
+    const who = item.data?.company_name || item.changed_by_name || item.changed_by || "System";
+    const when = new Date(item.changed_at).toLocaleString("en-GB", {
+        day: "2-digit", month: "short", year: "numeric",
+        hour: "2-digit", minute: "2-digit", hour12: true,
+    }).replace(",", " at");
+
+    const entity = item.entity_type;
+    const data = item.data || {};
+const actionMap = {
+    employer: {
+        ADDED: (data) => {
+            if (data?.event === "Company profile created") return "completed the company profile";
+            return "signed up";
+        },
+        CREATED:  "created a company profile",
+        UPDATED:  "updated the company profile",
+        ACTIVE:   "activated the account",
+        INACTIVE: "deactivated the account",
+         CARD_SAVED: () => "saved a payment card",
+    },
+        job: {
+            CREATED:  "created a job posting",
+            UPDATED:  "updated the job posting",
+            APPROVED: "approved the job",
+            ACTIVE:   "activated the job",
+            INACTIVE: "deactivated the job",
+        },
+    };
+const actionEntry = actionMap[entity]?.[item.action];
+    const actionText = typeof actionEntry === "function"
+    ? actionEntry(data)
+    : typeof actionEntry === "string"
+    ? actionEntry
+    : item.action.replace(/_/g, " ").toLowerCase();
+
+    const summary = `${who} ${actionText} on ${when}.`;
+    const details = [];
+    if (item.action === "ADDED" && data.event === "Company profile created") {
+    const profileFields = [
+        "company_name", "phone", "NTN", "size_of_company",
+        "established_date", "company_address", "company_website",
+        "username", "email"
+    ];
+    profileFields.forEach((key) => {
+        if (data[key]) {
+            const label = fieldLabels[key] || formatKey(key);
+            details.push(`${label}: ${data[key]}`);
+        }
+    });
+}
+
+    // ✅ Handle UPDATED with changes diff
+    if (item.action === "UPDATED" && data.changes && typeof data.changes === "object") {
+        Object.entries(data.changes).forEach(([key, val]) => {
+            if (!val || (val.from === val.to)) return;
+            const label = fieldLabels[key] || formatKey(key);
+            const from  = val.from ?? "-";
+            const to    = val.to   ?? "-";
+            details.push(`${label} changed from "${from}" → "${to}"`);
+        });
+    }
+
+    // Payment details
+    if (data.amount)   details.push(`Amount: ${data.amount} ${data.currency || ""}`);
+    if (data.method)   details.push(`Payment method: ${data.method}`);
+    if (data.package_name)   details.push(`Package: ${data.package_name}`);
+    if (data.pricing_model)  details.push(`Pricing model: ${data.pricing_model}`);
+    if (data.job_title && item.action !== "UPDATED") details.push(`Job: ${data.job_title}`);
+    if (data.billing_model)  details.push(`Billing model: ${data.billing_model}`);
+// Add this after the payment details block:
+if (item.action === "CARD_SAVED") {
+    if (data.card_brand) details.push(`Card brand: ${data.card_brand}`);
+    if (data.card_last4) details.push(`Card ending in: ${data.card_last4}`);
+}
+    return { summary, details };
+};
+const HistoryPage = ({ inlineId, inlineType, onBack }) => {
+  const router = useRouter();
+  const id   = inlineId  || router.query.id;
+  const type = inlineType || router.query.type;
 
     const [historyData, setHistoryData] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
+    const [loading, setLoading]         = useState(true);
+    const [error, setError]             = useState("");
+    const [openId, setOpenId]           = useState(null);
 
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
     useEffect(() => {
-        if (id && type) {
-            fetchHistory();
-        }
+        if (id && type) fetchHistory();
     }, [id, type]);
 
     const fetchHistory = async () => {
@@ -45,7 +178,6 @@ const HistoryPage = () => {
             const res = await api.get(`${apiBaseUrl}gethistory/${id}/${type}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
-
             const filtered = (res.data.history || []).map((item) => {
                 if (item.data) {
                     const { logo, ...rest } = item.data;
@@ -53,144 +185,440 @@ const HistoryPage = () => {
                 }
                 return item;
             });
-
             setHistoryData(filtered);
-        } catch (err) {
-            setError("History load nahi ho saki");
+        } catch {
+            setError("Failed to load history.");
         } finally {
             setLoading(false);
         }
     };
 
-    if (loading) {
-        return (
-            <div style={{ textAlign: "center", padding: "60px" }}>
-                <div className="spinner-border" style={{ color: "#36565F" }} />
-                <p style={{ marginTop: "12px", color: "#64748b" }}>Loading history...</p>
-            </div>
-        );
-    }
+    if (loading) return (
+        <div style={{ textAlign: "center", padding: "80px" }}>
+            <div className="spinner-border" style={{ color: "#36565F" }} />
+            <p style={{ marginTop: "12px", color: "#64748b", fontSize: "13px" }}>Loading history…</p>
+        </div>
+    );
 
-    if (error) {
-        return <p style={{ textAlign: "center", color: "red", padding: "40px" }}>{error}</p>;
-    }
+    if (error) return (
+        <p style={{ textAlign: "center", color: "red", padding: "60px" }}>{error}</p>
+    );
 
     return (
         <>
             <style>{`
-        .htimeline{position:relative;padding-left:32px}
-        .htimeline::before{content:'';position:absolute;left:11px;top:0;bottom:0;width:1.5px;background:#e2e8f0}
-        .hitem{position:relative;margin-bottom:18px}
-        .hitem:last-child{margin-bottom:0}
-        .hdot{position:absolute;left:-32px;top:14px;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;border:2px solid #f8fafc}
-        .dot-added{background:#ede9fe;color:#5b21b6}
-        .dot-updated{background:#dbeafe;color:#1e40af}
-        .dot-active{background:#d1fae5;color:#065f46}
-        .dot-inactive{background:#fee2e2;color:#991b1b}
-        .hcard{background:#ffffff;border:0.5px solid #e2e8f0;border-radius:10px;padding:20px 24px}
-        .hcard-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
-        .hbadge{font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px}
-        .badge-added{background:#ede9fe;color:#5b21b6}
-        .badge-updated{background:#dbeafe;color:#1e40af}
-        .badge-active{background:#d1fae5;color:#065f46}
-        .badge-inactive{background:#fee2e2;color:#991b1b}
-        .htime {font-size: 13px;color: #1e293b;font-weight: 500;margin-left: 6px;}
-        .hby{font-size:12px;color:#64748b;margin-bottom:8px}
-        .hby strong{color:#1e293b}
-        .hdata{border-top:0.5px solid #e2e8f0;padding-top:10px;display:grid;grid-template-columns:130px 1fr;row-gap:6px;column-gap:12px;margin-top:8px}
-        .hdata-label{font-size:12px;color:#64748b;font-weight:500}
-        .hdata-label-title{font-size:12px;color:#10b981;font-weight:600;grid-column:1 / -1;margin-bottom:2px}
-        .hdata-val{font-size:12px;color:#1e293b;font-weight:500;word-break:break-word}
-      `}</style>
+                .hp-wrap {
+                    padding: 24px;
+                    // padding-top: 110px;
+                    padding-bottom: 100px;
+                    background: #f8fafc;
+                    min-height: 100vh;
+                }
+                .hp-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    margin-bottom: 24px;
+                }
+                .hp-back {
+                    background: #fff;
+                    border: 0.5px solid #e2e8f0;
+                    border-radius: 8px;
+                    padding: 8px 14px;
+                    cursor: pointer;
+                    font-size: 13px;
+                    color: #36565F;
+                    font-weight: 500;
+                }
+                .hp-back:hover { background: #f1f5f9; }
+                .hp-title { margin: 0; font-size: 20px; font-weight: 600; color: #1e293b; }
 
-            <div className="container-fluid"
-                style={{
-                    padding: "24px",
-                    paddingTop: "120px",
-                    paddingBottom: "100px",
+                .hp-feed {
+                    display: flex;
+                    flex-direction: column;
+                    border: 0.5px solid #e2e8f0;
+                    border-radius: 12px;
+                    overflow: hidden;
+                    background: #fff;
+                }
+                .hp-item { border-bottom: 0.5px solid #f1f5f9; }
+                .hp-item:last-child { border-bottom: none; }
+
+                .hp-row {
+                    display: flex;
+                    align-items: center;
+                    padding: 14px 18px;
+                    cursor: pointer;
+                    gap: 14px;
+                    transition: background 0.12s;
+                    user-select: none;
+                }
+                .hp-row:hover { background: #f8fafc; }
+                .hp-item.hp-open .hp-row { background: #f8fafc; }
+
+                .hp-accent {
+                    width: 3px;
+                    height: 36px;
+                    border-radius: 2px;
+                    flex-shrink: 0;
+                }
+                .hp-badge {
+                    font-size: 11px;
+                    font-weight: 500;
+                    padding: 3px 10px;
+                    border-radius: 20px;
+                    flex-shrink: 0;
+                    min-width: 76px;
+                    text-align: center;
+                }
+                .hp-row-info { flex: 1; min-width: 0; }
+                .hp-row-by {
+                    font-size: 13px;
+                    color: #1e293b;
+                    font-weight: 500;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+                .hp-row-time { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+                .hp-chevron {
+                    color: #cbd5e1;
+                    font-size: 15px;
+                    flex-shrink: 0;
+                    transition: transform 0.22s ease;
+                }
+                .hp-item.hp-open .hp-chevron {
+                    transform: rotate(90deg);
+                    color: #64748b;
+                }
+
+                /* accordion body */
+                .hp-body {
+                    max-height: 0;
+                    overflow: hidden;
+                    transition: max-height 0.3s ease;
+                }
+                .hp-item.hp-open .hp-body { max-height: 800px; }
+
+                .hp-body-inner {
+                    padding: 16px 20px 20px 52px;
+                    border-top: 0.5px solid #f1f5f9;
+                }
+
+                /* summary sentence */
+                .hp-summary {
+                    font-size: 13.5px;
+                    color: #334155;
+                    line-height: 1.7;
+                    margin-bottom: 16px;
+                }
+                .hp-summary strong { color: #0f172a; font-weight: 600; }
+                .hp-summary .hp-when {
+                    display: inline-block;
+                    background: #f1f5f9;
+                    color: #475569;
+                    font-size: 11.5px;
+                    padding: 1px 7px;
+                    border-radius: 5px;
+                    font-weight: 500;
+                    margin-left: 2px;
+                }
+
+                /* fields grid */
+                .hp-fields-label {
+                    font-size: 10px;
+                    font-weight: 600;
+                    letter-spacing: 0.07em;
+                    text-transform: uppercase;
+                    color: #94a3b8;
+                    margin-bottom: 10px;
+                }
+                .hp-fields {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 8px;
+                }
+                .hp-field-chip {
+                    display: flex;
+                    align-items: baseline;
+                    gap: 5px;
+                    background: #f8fafc;
+                    border: 0.5px solid #e2e8f0;
+                    border-radius: 7px;
+                    padding: 5px 10px;
+                    font-size: 12px;
+                }
+                .hp-field-chip-key {
+                    color: #94a3b8;
+                    font-weight: 500;
+                    white-space: nowrap;
+                }
+                .hp-field-chip-val {
+                    color: #1e293b;
+                    font-weight: 600;
+                    word-break: break-word;
+                }
+
+                .hp-empty { text-align: center; padding: 60px 0; color: #94a3b8; font-size: 14px; }
+                .hp-changes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.hp-change-item {
+    background: #f8fafc;
+    border: 0.5px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12.5px;
+    color: #334155;
+    line-height: 1.5;
+}
+            `}</style>
+<Head>
+    <title>History</title>
+</Head>
+            <div className="hp-wrap">
+                <div className="hp-header">
+                    <button className="hp-back" onClick={onBack || (() => router.back())}>← Back</button>
+                    <h2 className="hp-title">History</h2>
+                </div>
+
+                {historyData.length === 0 ? (
+                    <div className="hp-empty">No history found.</div>
+                ) : (
+                    <div className="hp-feed">
+                        {historyData.map((item, index) => {
+                            const badge   = badgeConfig[item.action] || { label: item.action, bg: "#F1EFE8", color: "#5F5E5A" };
+                            const accent  = accentColor[item.action] || "#888780";
+                            const isOpen  = openId === (item.id || index);
+                            const { who, when, event } = buildSummary(item);
+
+                            const entries = item.data
+                                ? Object.entries(item.data).filter(
+                                    ([k, v]) =>
+                                        k !== "logo" &&
+                                        k !== "event" &&
+                                        v !== null &&
+                                        v !== undefined &&
+                                        v !== ""
+                                  )
+                                : [];
+
+                            return (
+                                <div
+                                    key={item.id || index}
+                                    className={`hp-item ${isOpen ? "hp-open" : ""}`}
+                                >
+                                    <div
+                                        className="hp-row"
+                                        onClick={() => setOpenId(isOpen ? null : (item.id || index))}
+                                    >
+                                        <div className="hp-accent" style={{ background: accent }} />
+                                        <span className="hp-badge" style={{ background: badge.bg, color: badge.color }}>
+                                            {badge.label}
+                                        </span>
+                                        <div className="hp-row-info">
+                                            <div className="hp-row-by">
+                                                 <strong style={{ color: "#0f172a" }}>{who}</strong>
+                                            </div>
+                                            <div className="hp-row-time">{when}</div>
+                                        </div>
+                                        <span className="hp-chevron">›</span>
+                                    </div>
+
+                                    <div className="hp-body">
+                                        <div className="hp-body-inner">
+
+                                            {/* Human-readable summary */}
+{/* Human-readable summary */}
+{(() => {
+    const result = buildSentence(item);
+
+    // Special card display
+    if (item.action === "CARD_SAVED" && item.data?.card_last4) {
+        const brandColors = {
+            visa:       { bg: "#1A1F71", label: "VISA" },
+            mastercard: { bg: "#EB001B", label: "MC" },
+            amex:       { bg: "#007BC1", label: "AMEX" },
+            discover:   { bg: "#FF6600", label: "DISC" },
+        };
+        const brand = brandColors[item.data.card_brand?.toLowerCase()] || { bg: "#64748b", label: "CARD" };
+
+        return (
+            <>
+                <p className="hp-summary">{result.summary}</p>
+                <div style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "12px",
                     background: "#f8fafc",
-                    minHeight: "100vh"
+                    border: "0.5px solid #e2e8f0",
+                    borderRadius: "10px",
+                    padding: "10px 16px",
+                    marginTop: "4px",
                 }}>
+                    <div style={{
+                        background: brand.bg,
+                        color: "#fff",
+                        fontSize: "10px",
+                        fontWeight: "700",
+                        padding: "4px 8px",
+                        borderRadius: "4px",
+                        letterSpacing: "0.05em",
+                    }}>
+                        {brand.label}
+                    </div>
+                    <span style={{
+                        fontSize: "13px",
+                        color: "#1e293b",
+                        fontWeight: "500",
+                        letterSpacing: "0.1em",
+                        fontFamily: "monospace",
+                    }}>
+                        •••• •••• •••• {item.data.card_last4}
+                    </span>
+                </div>
+            </>
+        );
+    }
 
-                {/* Header */}
-                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
-                    <button
-                        onClick={() => router.back()}
-                        style={{
-                            background: "white",
+    // Special payment display
+    if (item.action === "PAYMENT" && item.data?.amount) {
+        return (
+            <>
+                <p className="hp-summary">{result.summary}</p>
+                <div style={{
+                    display: "flex",
+                    gap: "8px",
+                    flexWrap: "wrap",
+                    marginTop: "4px",
+                }}>
+                    <div style={{
+                        background: "#FAEEDA",
+                        border: "0.5px solid #f5d9a8",
+                        borderRadius: "8px",
+                        padding: "8px 14px",
+                        fontSize: "13px",
+                        color: "#633806",
+                        fontWeight: "600",
+                    }}>
+                        {item.data.currency || "PKR"} {item.data.amount}
+                    </div>
+                    {item.data.method && (
+                        <div style={{
+                            background: "#f8fafc",
                             border: "0.5px solid #e2e8f0",
                             borderRadius: "8px",
                             padding: "8px 14px",
-                            cursor: "pointer",
-                            fontSize: "13px",
-                            color: "#36565F",
-                            fontWeight: "500"
-                        }}
-                    >
-                        ← Back
-                    </button>
-                    <div>
-                        <h2 style={{ margin: 0, color: "#1e293b", fontWeight: "600" }}>
-                            History
-                        </h2>
-                    </div>
+                            fontSize: "12px",
+                            color: "#64748b",
+                        }}>
+                            via {item.data.method}
+                        </div>
+                    )}
+                    {item.data.package_name && (
+                        <div style={{
+                            background: "#E1F5EE",
+                            border: "0.5px solid #9FE1CB",
+                            borderRadius: "8px",
+                            padding: "8px 14px",
+                            fontSize: "12px",
+                            color: "#085041",
+                        }}>
+                            {item.data.package_name}
+                        </div>
+                    )}
                 </div>
+            </>
+        );
+    }
 
-                {/* Timeline */}
-                {historyData.length === 0 ? (
-                    <p style={{ textAlign: "center", color: "#94a3b8", padding: "60px 0" }}>
-                        No history found
-                    </p>
-                ) : (
-                    <div style={{ width: "100%" }}>
-                        <div className="htimeline">
-                            {historyData.map((item, index) => {
-                                const cfg = badgeConfig[item.action] || badgeConfig.UPDATED;
-                                const dataEntries = item.data
-                                    ? Object.entries(item.data).filter(
-                                        ([k, v]) => k !== "logo" && v !== null && v !== undefined && v !== ""
-                                    )
-                                    : [];
+    // Special package subscribed display
+    if (item.action === "PACKAGE_SUBSCRIBED") {
+        return (
+            <>
+                <p className="hp-summary">{result.summary}</p>
+                <div style={{
+                    display: "flex",
+                    gap: "8px",
+                    flexWrap: "wrap",
+                    marginTop: "4px",
+                }}>
+                    {item.data?.package_name && (
+                        <div style={{
+                            background: "#E1F5EE",
+                            border: "0.5px solid #9FE1CB",
+                            borderRadius: "8px",
+                            padding: "8px 14px",
+                            fontSize: "13px",
+                            color: "#085041",
+                            fontWeight: "600",
+                        }}>
+                            {item.data.package_name}
+                        </div>
+                    )}
+                    {item.data?.pricing_model && (
+                        <div style={{
+                            background: "#f8fafc",
+                            border: "0.5px solid #e2e8f0",
+                            borderRadius: "8px",
+                            padding: "8px 14px",
+                            fontSize: "12px",
+                            color: "#64748b",
+                        }}>
+                            {item.data.pricing_model.replace(/_/g, " ")}
+                        </div>
+                    )}
+                </div>
+            </>
+        );
+    }
 
-                                return (
-                                    <div className="hitem" key={index}>
-                                        <div className={`hdot ${cfg.dot}`}>{cfg.sym}</div>
-                                        <div className="hcard">
-                                            <div className="hcard-top">
-                                                <span className={`hbadge ${cfg.cls}`}>{cfg.label}</span>
-                                            </div>
-                                            <div className="hby">
-                                                Changed by: <strong>{item.changed_by_name || item.changed_by}</strong>
-                                                <span className="htime"> • {new Date(item.changed_at).toLocaleString()}</span>
-                                            </div>
-                                            {dataEntries.length > 0 && (
-                                                <div className="hdata">
-                                                    <span className="hdata-label-title">Updated Data</span>
-                                                    {item.readable_event && (
-                                                        <>
-                                                            <span className="hdata-label">Event</span>
-                                                            <span className="hdata-val">{item.readable_event}</span>
-                                                        </>
-                                                    )}
-                                                    {dataEntries.map(([key, value]) =>
-                                                        key !== "event" ? (
-                                                            <React.Fragment key={key}>
-                                                                <span className="hdata-label">{formatKey(key)}</span>
-                                                                <span className="hdata-val">{renderValue(value)}</span>
-                                                            </React.Fragment>
-                                                        ) : null
-                                                    )}
-                                                </div>
-                                            )}
+    // Default: summary + change bullets
+    return (
+        <>
+            <p className="hp-summary">{result.summary}</p>
+            {(result.details || []).length > 0 && (
+                <div className="hp-changes">
+                    {result.details.map((change, idx) => (
+                        <div key={idx} className="hp-change-item">
+                            • {change}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </>
+    );
+})()}
+
+                                            {/* Updated fields as chips
+                                            {entries.length > 0 && (
+                                                <>
+                                                    <div className="hp-fields-label">Updated fields</div>
+                                                    <div className="hp-fields">
+                                                        {entries.map(([key, value]) => (
+                                                            <div className="hp-field-chip" key={key}>
+                                                                <span className="hp-field-chip-key">{formatKey(key)}:</span>
+                                                                <span className="hp-field-chip-val">{renderValue(value)}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            )} */}
+
                                         </div>
                                     </div>
-                                );
-                            })}
-                        </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
             </div>
-         <DashboardFooter />
+
+            <DashboardFooter />
         </>
     );
 };

@@ -53,7 +53,7 @@ class CandidateData extends Component {
     };
     this.tableHeaders = [
       // { key: "candidate_id", label: "Id" },
-      { key: "username", label: "User Name" },
+      { key: "full_name", label: "User Name" },
       { key: "email", label: "Email" },
       { key: "password", label: "Password" },
       { key: "gender", label: "Gender" },
@@ -344,7 +344,7 @@ class CandidateData extends Component {
 
                                   {/* History */}
                                   <button
-                                    onClick={() => this.props.router.push(`/history1/candidate/${item.account_id}`)}
+                                    onClick={() => this.props.onViewHistory(item.account_id)}
                                     className="icon-btn"
                                     title="View History"
                                   >

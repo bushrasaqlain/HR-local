@@ -129,6 +129,9 @@ const getProfileViewStats = (req, res) => {
 const trackProfileView = (req, res) => {
     candidateModel.trackProfileView(req, res);
 };
+const getCandidatePackages = (req, res) => {
+    candidateModel.getCandidatePackages(req, res);
+};
 
 module.exports = {
     getAllCandidates,
@@ -160,4 +163,5 @@ module.exports = {
     markAllJobAlertsRead,
     getProfileViewStats,
     trackProfileView,
+    getCandidatePackages,
 }

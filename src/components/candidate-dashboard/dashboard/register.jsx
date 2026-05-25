@@ -14,18 +14,18 @@
   let faceapiLoaded = false;
 
   const T = {
-    primary:   "#1D9E75",
-    primary2:  "#0F6E56",
-    primary3:  "#E1F5EE",
-    primary4:  "#9FE1CB",
+    primary:   "#36565f",
+    primary2:  "#36565f",
+    primary3:  "#e2f0f0",
+    primary4:  "#5f8190",
     slate:     "#36565F",
     slateLight:"#EEF3F4",
-    danger:    "#D85A30",
+    danger:    "#36565f",
     text:      "#1a1a1a",
     textMuted: "#6b7280",
     textLight: "#9ca3af",
     border:    "#e5e7eb",
-    borderFocus:"#1D9E75",
+    borderFocus:"#36565f",
     bg:        "#f8fafb",
     bgCard:    "#ffffff",
     bgSection: "#f4f7f8",
@@ -775,14 +775,28 @@
       return (res.data.degreefields || []).map((t) => ({ value: t.id, label: t.name }));
     };
 
-    loadFaceModels = async () => {
-      try {
-        faceapi = await import("@vladmandic/face-api");
-        await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
-      } catch (err) {
-        console.error("Face model load failed:", err);
-      }
-    };
+loadFaceModels = async () => {
+  try {
+    // Load TensorFlow first
+    const tf = await import("@tensorflow/tfjs");
+
+    // Set backend
+    await tf.setBackend("webgl");
+
+    // Wait until backend is initialized
+    await tf.ready();
+
+    // Then load face-api
+    faceapi = await import("@vladmandic/face-api");
+
+    // Load models
+    await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
+
+    console.log("Face models loaded successfully");
+  } catch (err) {
+    console.error("Face model load failed:", err);
+  }
+};
 
     componentDidMount() {
       this.loadFaceModels();

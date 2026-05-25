@@ -115,7 +115,7 @@ class Profile extends Component {
     this.setState({ applyingJobId: jobId });
     try {
       const token = sessionStorage.getItem("token");
-      await api.post("/apply",
+      await api.post("/applicant/apply",
         { job_id: jobId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -126,6 +126,35 @@ class Profile extends Component {
       console.error("Apply failed", err);
     }
     this.setState({ applyingJobId: null });
+  };
+
+  handleCancelApplication = async (e, jobId) => {
+    e.stopPropagation();
+
+    const confirmed = window.confirm(
+      "Are you sure you want to cancel this application?\n\n" +
+      "Once cancelled, you cannot undo this action. You can reapply later if the job is still open."
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      const res = await api.post("/applicant/cancel-application",
+        { job_id: jobId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (res.data.success) {
+        alert("Application cancelled successfully!");
+        this.fetchMatchingJobs();
+        this.fetchSavedJobIds();
+      }
+    } catch (err) {
+      console.error("Failed to cancel application:", err);
+      const errorMsg = err.response?.data?.message || err.response?.data?.error || "Failed to cancel application";
+      alert(errorMsg);
+    }
   };
 
   handleJobClick = async (jobId) => {
@@ -565,9 +594,31 @@ class Profile extends Component {
                                 </div>
                                 <div onClick={(e) => e.stopPropagation()}>
                                   {job.already_applied ? (
-                                    <span className="badge" style={{ background: "#d1fae5", color: "#065f46" }}>
-                                      ✓ Applied
-                                    </span>
+                                    <div className="d-flex gap-2 align-items-center">
+                                      <span className="badge" style={{ background: "#d1fae5", color: "#065f46" }}>
+                                        ✓ Applied
+                                      </span>
+                                      {job.application_status === "Pending" && (
+                                        <button
+                                          onClick={(e) => this.handleCancelApplication(e, job.id)}
+                                          style={{
+                                            background: "#fee2e2",
+                                            color: "#991b1b",
+                                            border: "1px solid #fca5a5",
+                                            borderRadius: "8px",
+                                            padding: "6px 12px",
+                                            fontSize: "11px",
+                                            fontWeight: 500,
+                                            cursor: "pointer",
+                                            transition: "all 0.2s"
+                                          }}
+                                          onMouseEnter={(e) => e.currentTarget.style.background = "#fecaca"}
+                                          onMouseLeave={(e) => e.currentTarget.style.background = "#fee2e2"}
+                                        >
+                                          Cancel Request
+                                        </button>
+                                      )}
+                                    </div>
                                   ) : !this.state.boostStatus?.isBoosted ? (
                                     <span style={{
                                       fontSize: 11, color: "#a16207", background: "#fffbeb",
@@ -707,7 +758,7 @@ class JobDetailModal extends React.Component {
             )}
             {job.min_experience && (
               <span style={{ background: "#dbeafe", color: "#1e40af", borderRadius: "20px", padding: "4px 12px", fontSize: "12px", fontWeight: 600 }}>
-                🕒 {job.min_experience} - {job.max_experience} yrs exp
+                🕒 {job.min_experience} - {job.max_experience} exp
               </span>
             )}
             {job.job_type && (

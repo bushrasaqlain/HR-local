@@ -144,9 +144,10 @@ const addPackage = (req, res) => {
 
   // 3. Duplicate Check
   const duplicateQuery = `
-    SELECT id FROM packages 
-    WHERE name = ? AND pricing_model = ? AND package_type = ? AND currency_id = ? 
-    LIMIT 1
+      SELECT id FROM packages 
+      WHERE name = ? AND pricing_model = ? AND package_type = ? AND currency_id = ?
+      AND status = 'Active'
+      LIMIT 1
   `;
 
   connection.query(

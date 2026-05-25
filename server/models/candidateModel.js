@@ -267,6 +267,7 @@ const getAllCandidates = (req, res) => {
     email: "a.email",
     phone: "c.phone",
     password: "a.password",
+    full_name: "c.full_name",
     created_at: "a.created_at",
     isActive: "a.isActive",
   };
@@ -306,6 +307,7 @@ const getAllCandidates = (req, res) => {
   const query = `
     SELECT a.*,
            c.account_id,
+           c.full_name,
            c.id as candidate_id,
            c.full_name,
            c.phone,
@@ -1546,7 +1548,10 @@ const getMatchingJobsForCandidate = (req, res) => {
         ci.company_name, ci.logo,
         c.name AS city_name,
         (SELECT COUNT(*) FROM applications a 
-        WHERE a.job_id = jp.id AND a.candidate_id = ?) AS already_applied
+        WHERE a.job_id = jp.id AND a.candidate_id = ? AND a.status != 'Cancelled') AS already_applied,
+        (SELECT a.status FROM applications a 
+        WHERE a.job_id = jp.id AND a.candidate_id = ? AND a.status != 'Cancelled'
+        ORDER BY a.id DESC LIMIT 1) AS application_status
       FROM job_posts jp
       LEFT JOIN company_info ci ON ci.account_id = jp.account_id
       LEFT JOIN cities c ON c.id = JSON_UNQUOTE(JSON_EXTRACT(jp.city_id, '$[0]'))
@@ -1561,7 +1566,7 @@ const getMatchingJobsForCandidate = (req, res) => {
 
     connection.query(
       jobsSql,
-      [candidate.id, JSON.stringify(skills)],
+      [candidate.id, candidate.id, JSON.stringify(skills)],
       (err2, jobs) => {
         if (err2) {
           console.error("jobsSql error:", err2);
@@ -1574,6 +1579,7 @@ const getMatchingJobsForCandidate = (req, res) => {
           ...job,
           logo: job.logo ? job.logo.toString("base64") : null,
           already_applied: job.already_applied > 0,
+          application_status: job.application_status || null,
         }));
 
         res.json({ success: true, data: result });
@@ -2231,6 +2237,56 @@ const trackProfileView = (req, res) => {
   });
 };
 
+const getCandidatePackages = (req, res) => {
+  const accountId = req.params.userId;
+
+  const sql = `
+    SELECT 
+      bo.id AS subscription_id,
+      bo.status,
+      bo.start_date,
+      bo.end_date,
+      bo.created_at,
+      p.id AS package_id,
+      p.name AS package_name,
+      p.price,
+      p.pricing_model,
+      p.boost_type,
+      p.boost_duration_days,
+      p.duration_days,
+      p.description,
+      COALESCE(c.code, 'PKR') AS currency
+    FROM boost_orders bo
+    JOIN candidate_info ci ON ci.id = bo.candidate_id
+    JOIN packages p ON p.id = bo.package_id
+    LEFT JOIN currencies c ON c.id = p.currency_id
+    WHERE ci.account_id = ?
+    ORDER BY bo.created_at DESC
+  `;
+
+  connection.query(sql, [accountId], (err, results) => {
+    if (err) return res.status(500).json({ error: "Database error" });
+
+    const packages = results.map(p => ({
+      subscription_id: p.subscription_id,
+      package_name: p.package_name,
+      pricing_model: p.pricing_model,
+      boost_type: p.boost_type,
+      status: p.status,
+      start_date: p.start_date,
+      end_date: p.end_date,
+      purchased_at: p.created_at,
+      price: p.price,
+      currency: p.currency,
+      duration_days: p.boost_duration_days || p.duration_days || 0,
+      description: p.description,
+      is_active: p.status === 'active',
+    }));
+
+    res.json({ success: true, data: packages });
+  });
+};
+
 module.exports = {
   getAllCandidates,
   updateStatus,
@@ -2270,4 +2326,5 @@ module.exports = {
   createProfileViewsTable,
   getProfileViewStats,
   trackProfileView,
+  getCandidatePackages,
 };

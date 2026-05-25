@@ -25,7 +25,12 @@ function logAudit({ tableName, entityType, entityId, action, data, changedBy }, 
     ],
     (err, result) => {
       if (err) {
-        console.error("❌ Audit log insert failed:", err);
+        console.error("❌ Audit log insert failed:", {
+          error: err.message,
+          entityType,
+          entityId,
+          action,
+          });
         if (callback) callback(err);
         return;
       }

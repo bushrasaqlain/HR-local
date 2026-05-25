@@ -4,7 +4,6 @@ const connection = require("../connection");
 const logAudit = require("../utils/auditLogger.js");
 const { CompanyModule } = require("@faker-js/faker");
 
-
 const createJobPostTable = () => {
   const createjob_postsTableQuery = `
 CREATE TABLE IF NOT EXISTS job_posts (
@@ -134,24 +133,29 @@ const getAllJobs = (req, res) => {
 
     const transformedResults = await Promise.all(
       results.map(async (job) => {
-
         // ── Parse district_id and city_id JSON arrays ──
         const districtIds = (() => {
           try {
-            const parsed = typeof job.district_id === "string"
-              ? JSON.parse(job.district_id)
-              : job.district_id;
+            const parsed =
+              typeof job.district_id === "string"
+                ? JSON.parse(job.district_id)
+                : job.district_id;
             return Array.isArray(parsed) ? parsed : [];
-          } catch { return []; }
+          } catch {
+            return [];
+          }
         })();
 
         const cityIds = (() => {
           try {
-            const parsed = typeof job.city_id === "string"
-              ? JSON.parse(job.city_id)
-              : job.city_id;
+            const parsed =
+              typeof job.city_id === "string"
+                ? JSON.parse(job.city_id)
+                : job.city_id;
             return Array.isArray(parsed) ? parsed : [];
-          } catch { return []; }
+          } catch {
+            return [];
+          }
         })();
 
         // ── Fetch district names ──
@@ -162,7 +166,7 @@ const getAllJobs = (req, res) => {
               connection.query(
                 `SELECT id, name FROM districts WHERE id IN (?)`,
                 [districtIds],
-                (err, rows) => err ? reject(err) : resolve(rows)
+                (err, rows) => (err ? reject(err) : resolve(rows)),
               );
             });
           } catch (e) {
@@ -178,7 +182,7 @@ const getAllJobs = (req, res) => {
               connection.query(
                 `SELECT id, name FROM cities WHERE id IN (?)`,
                 [cityIds],
-                (err, rows) => err ? reject(err) : resolve(rows)
+                (err, rows) => (err ? reject(err) : resolve(rows)),
               );
             });
           } catch (e) {
@@ -189,11 +193,14 @@ const getAllJobs = (req, res) => {
         // ── Fetch skill names ──
         const skillIds = (() => {
           try {
-            const parsed = typeof job.skill_ids === "string"
-              ? JSON.parse(job.skill_ids)
-              : job.skill_ids;
+            const parsed =
+              typeof job.skill_ids === "string"
+                ? JSON.parse(job.skill_ids)
+                : job.skill_ids;
             return Array.isArray(parsed) ? parsed : [];
-          } catch { return []; }
+          } catch {
+            return [];
+          }
         })();
 
         let skills = [];
@@ -203,7 +210,7 @@ const getAllJobs = (req, res) => {
               connection.query(
                 `SELECT id, name FROM skills WHERE id IN (?)`,
                 [skillIds],
-                (err, rows) => err ? reject(err) : resolve(rows)
+                (err, rows) => (err ? reject(err) : resolve(rows)),
               );
             });
           } catch (e) {
@@ -221,15 +228,17 @@ const getAllJobs = (req, res) => {
           cities: cities.map((c) => ({ id: c.id, name: c.name })),
           package: job.package_snapshot
             ? (() => {
-              try {
-                return typeof job.package_snapshot === "string"
-                  ? JSON.parse(job.package_snapshot)
-                  : job.package_snapshot;
-              } catch { return null; }
-            })()
+                try {
+                  return typeof job.package_snapshot === "string"
+                    ? JSON.parse(job.package_snapshot)
+                    : job.package_snapshot;
+                } catch {
+                  return null;
+                }
+              })()
             : null,
         };
-      })
+      }),
     );
 
     res.status(200).json(transformedResults);
@@ -244,7 +253,7 @@ const getJobbyRegAdmin = (req, res) => {
   let params = [];
 
   if (status) {
-    if (['Approved', 'Pending', 'UnApproved'].includes(status)) {
+    if (["Approved", "Pending", "UnApproved"].includes(status)) {
       whereClause += " AND jp.approval_status = ?";
     } else {
       whereClause += " AND jp.status = ?";
@@ -255,17 +264,28 @@ const getJobbyRegAdmin = (req, res) => {
   if (search && name) {
     let column;
     switch (name) {
-      case "packageprice": column = "pkg.price"; break;
-      case "currency": column = "pkg.currency"; break;
-      case "duration_days": column = "pkg.duration_days"; break;
-      case "package_name": column = "pkg.name"; break;
-      case "status": column = "jp.status"; break;
-      default: column = name;
+      case "packageprice":
+        column = "pkg.price";
+        break;
+      case "currency":
+        column = "pkg.currency";
+        break;
+      case "duration_days":
+        column = "pkg.duration_days";
+        break;
+      case "package_name":
+        column = "pkg.name";
+        break;
+      case "status":
+        column = "jp.status";
+        break;
+      default:
+        column = name;
     }
 
     if (name === "packageprice") {
       const num = Number(search);
-      if (!isNaN(num) && search.trim() !== '') {
+      if (!isNaN(num) && search.trim() !== "") {
         whereClause += ` AND (pkg_ccy.code LIKE ? OR pkg.price LIKE ?)`;
         params.push(`%${search}%`, `%${search}%`);
       } else {
@@ -285,7 +305,7 @@ const getJobbyRegAdmin = (req, res) => {
     SELECT 
       jp.id AS jobpost_id,
       jp.account_id,
-      a.username,
+      COALESCE(ci.company_name, a.username) AS username,
       jp.job_title,
       jp.job_description,
       jp.skill_ids,
@@ -326,6 +346,7 @@ pkg.credit_count,
       jp.approval_status
     FROM job_posts jp
     LEFT JOIN account a ON jp.account_id = a.id
+    LEFT JOIN company_info ci ON a.id = ci.account_id
     LEFT JOIN jobtypes jt ON jp.job_type_id = jt.id
     LEFT JOIN currencies ccy ON jp.currency_id = ccy.id
     LEFT JOIN packages pkg ON jp.package_id = pkg.id
@@ -347,46 +368,49 @@ pkg.credit_count,
     }
 
     // ── Resolve JSON arrays for districts, cities, skills ──
-    const transformed = await Promise.all(results.map(async (job) => {
+    const transformed = await Promise.all(
+      results.map(async (job) => {
+        const parseJsonIds = (val) => {
+          try {
+            const parsed = typeof val === "string" ? JSON.parse(val) : val;
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return [];
+          }
+        };
 
-      const parseJsonIds = (val) => {
-        try {
-          const parsed = typeof val === "string" ? JSON.parse(val) : val;
-          return Array.isArray(parsed) ? parsed : [];
-        } catch { return []; }
-      };
+        const districtIds = parseJsonIds(job.district_id);
+        const cityIds = parseJsonIds(job.city_id);
+        const skillIds = parseJsonIds(job.skill_ids);
 
-      const districtIds = parseJsonIds(job.district_id);
-      const cityIds = parseJsonIds(job.city_id);
-      const skillIds = parseJsonIds(job.skill_ids);
+        const fetchNames = (table, ids) => {
+          if (!ids.length) return Promise.resolve([]);
+          return new Promise((resolve, reject) => {
+            connection.query(
+              `SELECT id, name FROM ${table} WHERE id IN (?)`,
+              [ids],
+              (err, rows) => (err ? reject(err) : resolve(rows)),
+            );
+          });
+        };
 
-      const fetchNames = (table, ids) => {
-        if (!ids.length) return Promise.resolve([]);
-        return new Promise((resolve, reject) => {
-          connection.query(
-            `SELECT id, name FROM ${table} WHERE id IN (?)`,
-            [ids],
-            (err, rows) => err ? reject(err) : resolve(rows)
-          );
-        });
-      };
+        const [districts, cities, skills] = await Promise.all([
+          fetchNames("districts", districtIds).catch(() => []),
+          fetchNames("cities", cityIds).catch(() => []),
+          fetchNames("skills", skillIds).catch(() => []),
+        ]);
 
-      const [districts, cities, skills] = await Promise.all([
-        fetchNames("districts", districtIds).catch(() => []),
-        fetchNames("cities", cityIds).catch(() => []),
-        fetchNames("skills", skillIds).catch(() => []),
-      ]);
-
-      return {
-        ...job,
-        skill_ids: skillIds,
-        skills: skills.map((s) => s.name),
-        district_id: districtIds,
-        districts: districts.map((d) => ({ id: d.id, name: d.name })),
-        city_id: cityIds,
-        cities: cities.map((c) => ({ id: c.id, name: c.name })),
-      };
-    }));
+        return {
+          ...job,
+          skill_ids: skillIds,
+          skills: skills.map((s) => s.name),
+          district_id: districtIds,
+          districts: districts.map((d) => ({ id: d.id, name: d.name })),
+          city_id: cityIds,
+          cities: cities.map((c) => ({ id: c.id, name: c.name })),
+        };
+      }),
+    );
 
     // ── Count ──
     const countQuery = `
@@ -428,17 +452,23 @@ const approveJob = (req, res) => {
     (err, jobs) => {
       if (err) {
         console.error("approveJob fetch error:", err);
-        return res.status(500).json({ success: false, message: "Failed to fetch job" });
+        return res
+          .status(500)
+          .json({ success: false, message: "Failed to fetch job" });
       }
 
       if (!jobs.length) {
-        return res.status(404).json({ success: false, message: "Job not found" });
+        return res
+          .status(404)
+          .json({ success: false, message: "Job not found" });
       }
 
       const job = jobs[0];
 
       if (job.approval_status === "Approved") {
-        return res.status(400).json({ success: false, message: "Job is already approved" });
+        return res
+          .status(400)
+          .json({ success: false, message: "Job is already approved" });
       }
 
       // ─────────────────────────────────────────────
@@ -451,11 +481,37 @@ const approveJob = (req, res) => {
           (updateErr) => {
             if (updateErr) {
               console.error("Approval update error:", updateErr);
-              return res.status(500).json({ success: false, message: "Approval failed" });
+              return res
+                .status(500)
+                .json({ success: false, message: "Approval failed" });
             }
 
+            // ✅ ALREADY EXISTS — job timeline
+            logAudit({
+              tableName: "history",
+              entityType: "job",
+              entityId: jobId,
+              action: "APPROVED",
+              data: { event: "Job approved", billing_model: job.billing_model },
+              changedBy: job.account_id,
+            });
+
+            // ✅ ADD THIS — employer timeline
+            logAudit({
+              tableName: "history",
+              entityType: "employer",
+              entityId: job.account_id,
+              action: "APPROVED",
+              data: {
+                event: "Job approved by admin",
+                job_id: jobId,
+                billing_model: job.billing_model,
+              },
+              changedBy: job.account_id,
+            });
+
             return res.json({ success: true, message: "Job approved ✅" });
-          }
+          },
         );
         return;
       }
@@ -472,13 +528,16 @@ const approveJob = (req, res) => {
         (cardErr, cards) => {
           if (cardErr) {
             console.error("Card lookup error:", cardErr);
-            return res.status(500).json({ success: false, message: "Card lookup failed" });
+            return res
+              .status(500)
+              .json({ success: false, message: "Card lookup failed" });
           }
 
           if (!cards.length) {
             return res.status(402).json({
               success: false,
-              message: "No saved card found for this account — cannot approve daily budget job",
+              message:
+                "No saved card found for this account — cannot approve daily budget job",
             });
           }
 
@@ -489,7 +548,9 @@ const approveJob = (req, res) => {
           // ─────────────────────────────────────────────
           connection.beginTransaction((txErr) => {
             if (txErr) {
-              return res.status(500).json({ success: false, message: "Transaction failed" });
+              return res
+                .status(500)
+                .json({ success: false, message: "Transaction failed" });
             }
 
             // Insert payment record
@@ -519,7 +580,12 @@ const approveJob = (req, res) => {
                 if (payErr) {
                   console.error("Payment insert error:", payErr);
                   return connection.rollback(() =>
-                    res.status(500).json({ success: false, message: "Payment record failed" })
+                    res
+                      .status(500)
+                      .json({
+                        success: false,
+                        message: "Payment record failed",
+                      }),
                   );
                 }
 
@@ -531,16 +597,69 @@ const approveJob = (req, res) => {
                     if (updateErr) {
                       console.error("Job approval error:", updateErr);
                       return connection.rollback(() =>
-                        res.status(500).json({ success: false, message: "Job approval failed" })
+                        res
+                          .status(500)
+                          .json({
+                            success: false,
+                            message: "Job approval failed",
+                          }),
                       );
                     }
 
                     connection.commit((commitErr) => {
                       if (commitErr) {
                         return connection.rollback(() =>
-                          res.status(500).json({ success: false, message: "Commit failed" })
+                          res
+                            .status(500)
+                            .json({ success: false, message: "Commit failed" }),
                         );
                       }
+
+                      // ✅ ALREADY EXISTS — job timeline
+                      logAudit({
+                        tableName: "history",
+                        entityType: "job",
+                        entityId: jobId,
+                        action: "APPROVED",
+                        data: {
+                          event: "Job approved with card charge",
+                          billing_model: "daily_budget",
+                          daily_budget: job.daily_budget,
+                          payment_id: payResult.insertId,
+                        },
+                        changedBy: job.account_id,
+                      });
+
+                      // ✅ ADD THIS — employer timeline
+                      logAudit({
+                        tableName: "history",
+                        entityType: "employer",
+                        entityId: job.account_id,
+                        action: "APPROVED",
+                        data: {
+                          event: "Job approved by admin with card charge",
+                          job_id: jobId,
+                          billing_model: "daily_budget",
+                          daily_budget: job.daily_budget,
+                          payment_id: payResult.insertId,
+                        },
+                        changedBy: job.account_id,
+                      });
+
+                      // ✅ ADD THIS — also log the payment on employer timeline
+                      logAudit({
+                        tableName: "history",
+                        entityType: "employer",
+                        entityId: job.account_id,
+                        action: "PAYMENT",
+                        data: {
+                          event: "Daily budget charge on job approval",
+                          job_id: jobId,
+                          amount: job.daily_budget,
+                          payment_id: payResult.insertId,
+                        },
+                        changedBy: job.account_id,
+                      });
 
                       return res.json({
                         success: true,
@@ -548,14 +667,14 @@ const approveJob = (req, res) => {
                         payment_id: payResult.insertId,
                       });
                     });
-                  }
+                  },
                 );
-              }
+              },
             );
           });
-        }
+        },
       );
-    }
+    },
   );
 };
 const updateJobPostStatus = (req, res) => {
@@ -568,7 +687,8 @@ const updateJobPostStatus = (req, res) => {
   }
 
   const normalizedStatus = status.trim();
-  const isActiveStatus = normalizedStatus === "Active" || normalizedStatus === "Inactive";
+  const isActiveStatus =
+    normalizedStatus === "Active" || normalizedStatus === "Inactive";
   const columnToUpdate = isActiveStatus ? "status" : "approval_status";
 
   // ✅ Action decide karo status ke hisaab se
@@ -577,6 +697,10 @@ const updateJobPostStatus = (req, res) => {
     auditAction = "ACTIVE";
   } else if (normalizedStatus === "Inactive") {
     auditAction = "INACTIVE";
+  } else if (normalizedStatus === "Approved") {
+    auditAction = "APPROVED";
+  } else if (normalizedStatus === "UnApproved") {
+    auditAction = "UNAPPROVED";
   } else {
     auditAction = "UPDATED";
   }
@@ -584,8 +708,10 @@ const updateJobPostStatus = (req, res) => {
   const selectSql = `SELECT ${columnToUpdate} FROM job_posts WHERE id = ?`;
 
   connection.query(selectSql, [id], (selectErr, rows) => {
-    if (selectErr) return res.status(500).json({ error: "Internal Server Error" });
-    if (!rows.length) return res.status(404).json({ error: "Job post not found" });
+    if (selectErr)
+      return res.status(500).json({ error: "Internal Server Error" });
+    if (!rows.length)
+      return res.status(404).json({ error: "Job post not found" });
 
     const previousValue = rows[0][columnToUpdate];
 
@@ -593,21 +719,55 @@ const updateJobPostStatus = (req, res) => {
     connection.query(updateSql, [normalizedStatus, id], (err, result) => {
       if (err) return res.status(500).json({ error: "Internal Server Error" });
 
-      // ✅ Sahi action pass karo
+      // ✅ ALREADY EXISTS — job timeline
       logAudit({
         tableName: "history",
         entityType: "job",
         entityId: id,
-        action: auditAction,  // ACTIVE / INACTIVE / UPDATED
+        action: auditAction,
         data: {
           previousValue,
           newValue: normalizedStatus,
-          event: normalizedStatus === "Active" ? "Job activated" :
-            normalizedStatus === "Inactive" ? "Job deactivated" :
-              `Approval status changed to ${normalizedStatus}`
+          event:
+            normalizedStatus === "Active"
+              ? "Job activated"
+              : normalizedStatus === "Inactive"
+                ? "Job deactivated"
+                : `Approval status changed to ${normalizedStatus}`,
         },
         changedBy: userId,
       });
+
+      // ✅ ADD THIS — fetch job's account_id then log on employer timeline
+      connection.query(
+        `SELECT account_id FROM job_posts WHERE id = ? LIMIT 1`,
+        [id],
+        (fetchErr, jobRows) => {
+          if (!fetchErr && jobRows.length > 0) {
+            const employerAccountId = jobRows[0].account_id;
+
+            logAudit({
+              tableName: "history",
+              entityType: "employer",
+              entityId: employerAccountId,
+              action: auditAction,
+              data: {
+                event:
+                  normalizedStatus === "Active"
+                    ? "Job activated by admin"
+                    : normalizedStatus === "Inactive"
+                      ? "Job deactivated by admin"
+                      : `Job approval status changed to ${normalizedStatus}`,
+                job_id: id,
+                changed_by_admin: userId,
+                previousValue,
+                newValue: normalizedStatus,
+              },
+              changedBy: userId,
+            });
+          }
+        },
+      );
 
       return res.status(200).json({
         message: `Job post ${columnToUpdate} updated to ${normalizedStatus}`,
@@ -615,7 +775,6 @@ const updateJobPostStatus = (req, res) => {
     });
   });
 };
-
 
 const getSingleJob = (req, res) => {
   const jobId = req.params.jobId;
@@ -681,19 +840,16 @@ const getSingleJob = (req, res) => {
       return res.status(404).json({ error: "Job not found" });
     }
 
-    const transformedResults = results.map(job => ({
+    const transformedResults = results.map((job) => ({
       ...job,
       skill_ids: job.skill_ids
         ? String(job.skill_ids)
-          .replace(/\s+/g, '') // remove spaces
-          .split(',')
-          .map(Number)
+            .replace(/\s+/g, "") // remove spaces
+            .split(",")
+            .map(Number)
         : [],
-      skills: job.skills
-        ? String(job.skills).split(',')
-        : [],
+      skills: job.skills ? String(job.skills).split(",") : [],
     }));
-
 
     res.status(200).json(transformedResults[0]); // single job
   });
@@ -729,8 +885,14 @@ const triggerJobAlerts = (jobId) => {
       jp.id,
       jp.job_title,
       jp.skill_ids,
-      jp.city_id
+      jp.min_salary,
+      jp.max_salary,
+      jp.city_id,
+      jp.country_id,
+      jp.job_type_id,
+      jt.name AS job_type_name
     FROM job_posts jp
+    LEFT JOIN jobtypes jt ON jt.id = jp.job_type_id
     WHERE jp.id = ?
     LIMIT 1
   `;
@@ -742,23 +904,29 @@ const triggerJobAlerts = (jobId) => {
 
     const parseJSON = (val) => {
       if (!val) return [];
-      try { return typeof val === "string" ? JSON.parse(val) : val; }
-      catch { return []; }
+      try {
+        return typeof val === "string" ? JSON.parse(val) : val;
+      } catch {
+        return [];
+      }
     };
 
-    const jobSkillIds = parseJSON(job.skill_ids).map(Number);
-    const jobCityIds = parseJSON(job.city_id).map(Number);
+    const jobSkillIds = parseJSON(job.skill_ids);
+    const jobCityIds = parseJSON(job.city_id);
 
     const candidatesSql = `
       SELECT 
-        ci.id AS candidate_id,
-        ci.skills,
-        ci.city,
-        ci.otherPreferredCities
-      FROM candidate_info ci
-      INNER JOIN account a ON a.id = ci.account_id
-      WHERE ci.profile_completed = 1
-        AND a.isActive = 'Active'
+        jp.candidate_id,
+        jp.desired_job_titles,
+        jp.job_type,
+        jp.min_salary,
+        jp.max_salary,
+        jp.preferred_country_id,
+        jp.preferred_city_ids,
+        ci.skills AS candidate_skills
+      FROM job_preferences jp
+      JOIN candidate_info ci ON ci.id = jp.candidate_id
+      WHERE jp.alerts_enabled = 1
     `;
 
     connection.query(candidatesSql, (err2, candidates) => {
@@ -767,22 +935,64 @@ const triggerJobAlerts = (jobId) => {
       const alertsToInsert = [];
 
       candidates.forEach((candidate) => {
-        const candidateSkills = parseJSON(candidate.skills).map(Number);
-        const candidateCity = Number(candidate.city);
-        const preferredCities = parseJSON(candidate.otherPreferredCities)
-          .map((c) => Number(typeof c === "object" ? c.id : c));
+        const desiredTitles = parseJSON(candidate.desired_job_titles);
+        const preferredJobTypes = parseJSON(candidate.job_type);
+        const preferredCityIds = parseJSON(candidate.preferred_city_ids);
+        const candidateSkills = parseJSON(candidate.candidate_skills);
 
-        const skillsMatch = jobSkillIds.some((id) =>
-          candidateSkills.includes(id)
+        let matchScore = 0;
+
+        // 1. Job Title match
+        const jobTitleLower = (job.job_title || "").toLowerCase();
+        const titleMatch = desiredTitles.some(
+          (title) =>
+            jobTitleLower.includes(title.toLowerCase()) ||
+            title.toLowerCase().includes(jobTitleLower),
         );
+        if (titleMatch) matchScore += 3;
 
-        // 2. City match — main city ya preferred city
-        const cityMatch =
-          jobCityIds.includes(candidateCity) ||
-          jobCityIds.some((id) => preferredCities.includes(id));
+        // 2. Skills match
+        const skillsMatch = candidateSkills.some((skillId) =>
+          jobSkillIds.includes(skillId),
+        );
+        if (skillsMatch) matchScore += 2;
 
-        // Dono match hone chahiye
-        if (skillsMatch && cityMatch) {
+        // 3. Salary match
+        if (candidate.min_salary && candidate.max_salary) {
+          if (
+            (job.max_salary || 0) >= candidate.min_salary &&
+            (job.min_salary || 0) <= candidate.max_salary
+          ) {
+            matchScore += 1;
+          }
+        }
+
+        // 4. Country match
+        if (
+          candidate.preferred_country_id &&
+          job.country_id &&
+          Number(candidate.preferred_country_id) === Number(job.country_id)
+        ) {
+          matchScore += 1;
+        }
+
+        // 5. City match
+        if (preferredCityIds.length && jobCityIds.length) {
+          const cityMatch = preferredCityIds.some((cityId) =>
+            jobCityIds.includes(Number(cityId)),
+          );
+          if (cityMatch) matchScore += 1;
+        }
+
+        // 6. Job Type match
+        if (preferredJobTypes.length && job.job_type_name) {
+          const typeMatch = preferredJobTypes.some(
+            (type) => type.toLowerCase() === job.job_type_name.toLowerCase(),
+          );
+          if (typeMatch) matchScore += 1;
+        }
+
+        if (matchScore >= 2) {
           alertsToInsert.push([candidate.candidate_id, jobId]);
         }
       });
@@ -797,8 +1007,10 @@ const triggerJobAlerts = (jobId) => {
             console.error("triggerJobAlerts insert error:", err3);
             return;
           }
-          console.log(`✅ Job alerts created: ${result.affectedRows} for job ${jobId}`);
-        }
+          console.log(
+            `Job alerts created: ${result.affectedRows} for job ${jobId}`,
+          );
+        },
       );
     });
   });
@@ -808,20 +1020,36 @@ const postJob = (req, res) => {
   const userId = req.params.userId;
 
   const {
-    job_title, job_description, skill_ids,
-    time_from, time_to, job_type_id,
-    min_salary, max_salary, salary_period, currency_id,
-    min_experience, max_experience,
-    speciality_id, degree_id, degreefields_id,
-    application_deadline, no_of_positions, industry,
-    country_id, district_id, city_id,
+    job_title,
+    job_description,
+    skill_ids,
+    time_from,
+    time_to,
+    job_type_id,
+    min_salary,
+    max_salary,
+    salary_period,
+    currency_id,
+    min_experience,
+    max_experience,
+    speciality_id,
+    degree_id,
+    degreefields_id,
+    application_deadline,
+    no_of_positions,
+    industry,
+    country_id,
+    district_id,
+    city_id,
     daily_budget,
     job_location_type,
-    screening_start, screening_end,
-    interview_start, interview_end,
+    screening_start,
+    screening_end,
+    interview_start,
+    interview_end,
     expected_joining_date,
     chosen_package_id,
-    chosen_daily_package_id,  // ← ADD THIS to destructuring
+    chosen_daily_package_id, // ← ADD THIS to destructuring
   } = req.body;
 
   // ─────────────────────────────────────────────
@@ -859,9 +1087,10 @@ const postJob = (req, res) => {
     // ─────────────────────────────────────────────
     if (rows.length) {
       const pkg = rows[0];
-      const snapshot = typeof pkg.package_snapshot === "string"
-        ? JSON.parse(pkg.package_snapshot || "{}")
-        : (pkg.package_snapshot || {});
+      const snapshot =
+        typeof pkg.package_snapshot === "string"
+          ? JSON.parse(pkg.package_snapshot || "{}")
+          : pkg.package_snapshot || {};
 
       if (pkg.pricing_model === "duration_bundle") {
         if (pkg.used_posts < (snapshot.num_posts || 0)) {
@@ -907,19 +1136,21 @@ const postJob = (req, res) => {
     // ─────────────────────────────────────────────
     const proceedWithJobInsert = () => {
       if (finalBillingModel === "daily_budget" && chosen_daily_package_id) {
-
         // 1. Fetch the package template to get rate_per_unit and duration
         connection.query(
           `SELECT * FROM packages WHERE id = ?`,
           [chosen_daily_package_id],
           (err, pkgRows) => {
             if (err || !pkgRows.length) {
-              return res.status(500).json({ error: "Invalid daily budget package" });
+              return res
+                .status(500)
+                .json({ error: "Invalid daily budget package" });
             }
 
             const pkg = pkgRows[0];
             const resolvedCpc = parseFloat(pkg.rate_per_unit || 0);
-            const duration = pkg.campaign_duration_days || pkg.duration_days || 30;
+            const duration =
+              pkg.campaign_duration_days || pkg.duration_days || 30;
 
             // 2. Create a company_packages row for this daily budget subscription
             connection.query(
@@ -929,8 +1160,13 @@ const postJob = (req, res) => {
               [userId, chosen_daily_package_id, duration, JSON.stringify(pkg)],
               (err2, result2) => {
                 if (err2) {
-                  console.error("Failed to create company_package for daily_budget:", err2);
-                  return res.status(500).json({ error: "Failed to create package subscription" });
+                  console.error(
+                    "Failed to create company_package for daily_budget:",
+                    err2,
+                  );
+                  return res
+                    .status(500)
+                    .json({ error: "Failed to create package subscription" });
                 }
 
                 const newCompanyPackageId = result2.insertId;
@@ -938,15 +1174,16 @@ const postJob = (req, res) => {
                 finalPackageId = pkg.id;
 
                 insertJob(resolvedCpc);
-              }
+              },
             );
-          }
+          },
         );
       } else {
         insertJob(0);
       }
     };
     function insertJob(resolvedCpc) {
+      const parsedUserId = parseInt(userId);
       const sql = `
         INSERT INTO job_posts (
           account_id, job_title, job_description, skill_ids,
@@ -989,15 +1226,19 @@ const postJob = (req, res) => {
         no_of_positions,
         industry,
         country_id || null,
-        Array.isArray(district_id) && district_id.length ? JSON.stringify(district_id) : null,
-        Array.isArray(city_id) && city_id.length ? JSON.stringify(city_id) : null,
+        Array.isArray(district_id) && district_id.length
+          ? JSON.stringify(district_id)
+          : null,
+        Array.isArray(city_id) && city_id.length
+          ? JSON.stringify(city_id)
+          : null,
         isSponsored,
         daily_budget || 0,
-        resolvedCpc,          // ← from package
-        0,                    // spent_amount
+        resolvedCpc, // ← from package
+        0, // spent_amount
         "Pending",
         "Active",
-        finalCompanyPackageId,  // ← now correctly set to chosen_daily_package_id
+        finalCompanyPackageId, // ← now correctly set to chosen_daily_package_id
         finalPackageId,
         finalBillingModel,
         job_location_type || null,
@@ -1021,16 +1262,46 @@ const postJob = (req, res) => {
           connection.query(
             `UPDATE company_packages SET ${deductField} = ${deductField} + 1 WHERE id = ?`,
             [finalCompanyPackageId],
-            (err3) => { if (err3) console.error("Deduction error:", err3); }
+            (err3) => {
+              if (err3) console.error("Deduction error:", err3);
+            },
           );
         }
 
         triggerJobAlerts(jobId);
 
+        // Audit log
+        logAudit({
+          tableName: "history",
+          entityType: "job",
+          entityId: jobId,
+          action: "CREATED",
+          data: {
+            event: "Job posted",
+            job_title,
+            billing_model: finalBillingModel,
+          },
+          changedBy: parsedUserId,
+        });
+        // ✅ ADD THIS — saves under entity_type: "employer" so it shows in employer history
+        logAudit({
+          tableName: "history",
+          entityType: "employer",
+          entityId: parsedUserId, // ← employer's account_id, NOT job id
+          action: "CREATED",
+          data: {
+            event: "Job posted",
+            job_id: jobId,
+            job_title,
+            billing_model: finalBillingModel,
+          },
+          changedBy: parsedUserId,
+        });
         return res.status(201).json({
-          message: finalBillingModel === "daily_budget"
-            ? "Job posted successfully ✅ — pending admin approval. Your saved card will be charged once approved."
-            : "Job posted successfully ✅",
+          message:
+            finalBillingModel === "daily_budget"
+              ? "Job posted successfully ✅ — pending admin approval. Your saved card will be charged once approved."
+              : "Job posted successfully ✅",
           job_id: jobId,
           billing_model: finalBillingModel,
         });
@@ -1045,15 +1316,17 @@ const postJob = (req, res) => {
         `SELECT id FROM saved_cards WHERE account_id = ? LIMIT 1`,
         [userId],
         (cardErr, cards) => {
-          if (cardErr) return res.status(500).json({ error: "Card lookup failed" });
+          if (cardErr)
+            return res.status(500).json({ error: "Card lookup failed" });
           if (!cards.length) {
             return res.status(402).json({
               error: "no_saved_card",
-              message: "A saved card is required to post a daily budget job. Please add a card first.",
+              message:
+                "A saved card is required to post a daily budget job. Please add a card first.",
             });
           }
           proceedWithJobInsert();
-        }
+        },
       );
     } else {
       proceedWithJobInsert();
@@ -1144,7 +1417,9 @@ const updatePostJob = (req, res) => {
     industry,
     package_id || null,
     country_id || null,
-    Array.isArray(district_id) && district_id.length ? JSON.stringify(district_id) : null,
+    Array.isArray(district_id) && district_id.length
+      ? JSON.stringify(district_id)
+      : null,
     Array.isArray(city_id) && city_id.length ? JSON.stringify(city_id) : null,
     job_location_type || null,
     screening_start || null,
@@ -1258,13 +1533,16 @@ CREATE TABLE IF NOT EXISTS company_packages (
 `;
 
   // Execute the queries to create the tables
-  connection.query(createcompany_packagesTableQuery, function (err, results, fields) {
-    if (err) {
-      return console.error(err.message);
-    }
-    console.log("company_packages  table created successfully");
-  })
-}
+  connection.query(
+    createcompany_packagesTableQuery,
+    function (err, results, fields) {
+      if (err) {
+        return console.error(err.message);
+      }
+      console.log("company_packages  table created successfully");
+    },
+  );
+};
 const subcribePackage = (req, res) => {
   const body = req.body ?? req;
   const { userId, packageId, jobId, paymentId } = body;
@@ -1272,7 +1550,8 @@ const subcribePackage = (req, res) => {
   const resolvedPaymentId = paymentId || jobId || 0;
 
   if (!userId || !packageId) {
-    if (typeof res === "function") return res(new Error("userId and packageId required"));
+    if (typeof res === "function")
+      return res(new Error("userId and packageId required"));
     return res.status(400).json({ error: "userId and packageId required" });
   }
 
@@ -1285,75 +1564,161 @@ const subcribePackage = (req, res) => {
     LIMIT 1
   `;
 
-  connection.query(duplicateCheck, [userId, packageId], (errCheck, existing) => {
-    if (errCheck) {
-      if (typeof res === "function") return res(new Error("Duplicate check failed"));
-      return res.status(500).json({ error: "Duplicate check failed" });
-    }
-
-    if (existing.length > 0) {
-      if (typeof res === "function") return res(new Error("Package already active. You can repurchase after it expires."));
-      return res.status(409).json({ error: "Package already active. You can repurchase after it expires." });
-    }
-
-    // proceed with normal subscribe flow
-    connection.query(`SELECT * FROM packages WHERE id = ?`, [packageId], (err, result) => {
-      if (err || !result.length) {
-        if (typeof res === "function") return res(new Error("Invalid package"));
-        return res.status(404).json({ error: "Invalid package" });
+  connection.query(
+    duplicateCheck,
+    [userId, packageId],
+    (errCheck, existing) => {
+      if (errCheck) {
+        if (typeof res === "function")
+          return res(new Error("Duplicate check failed"));
+        return res.status(500).json({ error: "Duplicate check failed" });
       }
 
-      const pkg = result[0];
-      const duration =
-        pkg.duration_days ||
-        pkg.bundle_validity_days ||
-        pkg.credit_expiry_days ||
-        pkg.campaign_duration_days ||
-        30;
+      if (existing.length > 0) {
+        if (typeof res === "function")
+          return res(
+            new Error(
+              "Package already active. You can repurchase after it expires.",
+            ),
+          );
+        return res
+          .status(409)
+          .json({
+            error:
+              "Package already active. You can repurchase after it expires.",
+          });
+      }
 
+      // proceed with normal subscribe flow
       connection.query(
-        `INSERT INTO company_packages
-         (account_id, package_id, payment_id, pricing_model, start_date, end_date, package_snapshot)
-         VALUES (?, ?, ?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL ? DAY), ?)`,
-        [userId, packageId, resolvedPaymentId, pkg.pricing_model, duration, JSON.stringify(pkg)],
-        (err2, result2) => {
-          if (err2) {
-            console.error("Subscription insert error:", err2);
-            if (typeof res === "function") return res(new Error("Subscription failed"));
-            return res.status(500).json({ error: "Subscription failed" });
+        `SELECT * FROM packages WHERE id = ?`,
+        [packageId],
+        (err, result) => {
+          if (err || !result.length) {
+            if (typeof res === "function")
+              return res(new Error("Invalid package"));
+            return res.status(404).json({ error: "Invalid package" });
           }
 
-          if (typeof res === "function") return res(null, { subscriptionId: result2.insertId });
+          const pkg = result[0];
+          const duration =
+            pkg.duration_days ||
+            pkg.bundle_validity_days ||
+            pkg.credit_expiry_days ||
+            pkg.campaign_duration_days ||
+            30;
 
-          return res.status(201).json({
-            message: "Package subscribed successfully ✅",
-            subscriptionId: result2.insertId,
-          });
-        }
+          connection.query(
+            `INSERT INTO company_packages
+         (account_id, package_id, payment_id, pricing_model, start_date, end_date, package_snapshot)
+         VALUES (?, ?, ?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL ? DAY), ?)`,
+            [
+              userId,
+              packageId,
+              resolvedPaymentId,
+              pkg.pricing_model,
+              duration,
+              JSON.stringify(pkg),
+            ],
+            (err2, result2) => {
+              if (err2) {
+                console.error("Subscription insert error:", err2);
+
+                if (typeof res === "function") {
+                  return res(new Error("Subscription failed"));
+                }
+
+                return res.status(500).json({
+                  error: "Subscription failed",
+                });
+              }
+
+              // Audit log
+              logAudit({
+                tableName: "history",
+                entityType: "employer",
+                entityId: userId,
+                action: "PACKAGE_SUBSCRIBED",
+                data: {
+                  event: "Package subscribed",
+                  packageId,
+                  pricing_model: pkg.pricing_model,
+                  subscriptionId: result2.insertId,
+                },
+                changedBy: userId,
+              });
+
+              if (typeof res === "function") {
+                return res(null, {
+                  subscriptionId: result2.insertId,
+                });
+              }
+
+              return res.status(201).json({
+                message: "Package subscribed successfully ✅",
+                subscriptionId: result2.insertId,
+              });
+            },
+          );
+        },
       );
-    });
-  });
+    },
+  );
 };
 // Sirf internal use ke liye (no res/req)
 const subcribePackageInternal = ({ userId, packageId, paymentId }) => {
   return new Promise((resolve, reject) => {
-    connection.query(`SELECT * FROM packages WHERE id = ?`, [packageId], (err, result) => {
-      if (err || !result.length) return reject(new Error("Invalid package"));
-
-      const pkg = result[0];
-      const duration = pkg.duration_days || pkg.bundle_validity_days || 30;
-
-      connection.query(
-        `INSERT INTO company_packages
-         (account_id, package_id, payment_id, pricing_model, start_date, end_date, package_snapshot)
-         VALUES (?, ?, ?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL ? DAY), ?)`,
-        [userId, packageId, paymentId, pkg.pricing_model, duration, JSON.stringify(pkg)],
-        (err2, result2) => {
-          if (err2) return reject(new Error("Subscription failed"));
-          resolve({ subscriptionId: result2.insertId });
+    connection.query(
+      `SELECT * FROM packages WHERE id = ?`,
+      [packageId],
+      (err, result) => {
+        if (err || !result.length) {
+          return reject(new Error("Invalid package"));
         }
-      );
-    });
+
+        const pkg = result[0];
+
+        const duration = pkg.duration_days || pkg.bundle_validity_days || 30;
+
+        connection.query(
+          `INSERT INTO company_packages
+           (account_id, package_id, payment_id, pricing_model, start_date, end_date, package_snapshot)
+           VALUES (?, ?, ?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL ? DAY), ?)`,
+          [
+            userId,
+            packageId,
+            paymentId,
+            pkg.pricing_model,
+            duration,
+            JSON.stringify(pkg),
+          ],
+          (err2, result2) => {
+            if (err2) {
+              return reject(new Error("Subscription failed"));
+            }
+
+            // Audit log
+            logAudit({
+              tableName: "history",
+              entityType: "employer",
+              entityId: userId,
+              action: "PACKAGE_SUBSCRIBED",
+              data: {
+                event: "Package subscribed",
+                packageId,
+                pricing_model: pkg.pricing_model,
+                subscriptionId: result2.insertId,
+              },
+              changedBy: userId,
+            });
+
+            resolve({
+              subscriptionId: result2.insertId,
+            });
+          },
+        );
+      },
+    );
   });
 };
 
@@ -1394,12 +1759,16 @@ const getUserPackages = (req, res) => {
     if (err) return res.status(500).json({ error: "Failed to fetch packages" });
 
     connection.query(dailyJobsQuery, [userId], (err2, dailyJobs) => {
-      if (err2) return res.status(500).json({ error: "Failed to fetch daily budget jobs" });
+      if (err2)
+        return res
+          .status(500)
+          .json({ error: "Failed to fetch daily budget jobs" });
 
       const packages = subsResult.map((p) => {
-        const pkg = typeof p.package_snapshot === "string"
-          ? JSON.parse(p.package_snapshot)
-          : (p.package_snapshot || {});
+        const pkg =
+          typeof p.package_snapshot === "string"
+            ? JSON.parse(p.package_snapshot)
+            : p.package_snapshot || {};
 
         return {
           subscription_id: p.subscription_id || p.id,
@@ -1411,7 +1780,10 @@ const getUserPackages = (req, res) => {
           used_credits: p.used_credits,
           used_slots: p.used_slots,
           package: { ...pkg, id: pkg.id },
-          remaining_credits: Math.max((pkg.credit_count || 0) - (p.used_credits || 0), 0),
+          remaining_credits: Math.max(
+            (pkg.credit_count || 0) - (p.used_credits || 0),
+            0,
+          ),
           is_daily_budget: false,
         };
       });
@@ -1479,10 +1851,16 @@ const getTransactionHistory = (req, res) => {
   `;
 
   connection.query(packageQuery, [userId], (err, packageResults) => {
-    if (err) return res.status(500).json({ error: "Failed to fetch transaction history" });
+    if (err)
+      return res
+        .status(500)
+        .json({ error: "Failed to fetch transaction history" });
 
     connection.query(dailyBudgetQuery, [userId], (err2, dailyResults) => {
-      if (err2) return res.status(500).json({ error: "Failed to fetch daily budget jobs" });
+      if (err2)
+        return res
+          .status(500)
+          .json({ error: "Failed to fetch daily budget jobs" });
 
       // Format package transactions (your existing logic, unchanged)
       const packageTransactions = packageResults.map((item) => {
@@ -1527,26 +1905,32 @@ const getTransactionHistory = (req, res) => {
       // Format daily budget jobs to match the same shape
       const dailyTransactions = dailyResults.map((job) => ({
         transaction_id: `job_${job.id}`,
-        package_name: job.billing_model.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
+        package_name: job.billing_model
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (c) => c.toUpperCase()),
         package_type: "daily_budget",
         pricing_model: "daily_budget",
-        amount_paid: job.spent_amount || 0,   // actual spend so far
+        amount_paid: job.spent_amount || 0, // actual spend so far
         status: job.status,
         start_date: job.created_at,
         end_date: job.application_deadline,
         purchased_at: job.created_at,
-        total_units: job.daily_budget || 0,  // the cap they set
-        used_units: job.spent_amount || 0,  // what's been spent
-        remaining_units: Math.max((job.daily_budget || 0) - (job.spent_amount || 0), 0),
+        total_units: job.daily_budget || 0, // the cap they set
+        used_units: job.spent_amount || 0, // what's been spent
+        remaining_units: Math.max(
+          (job.daily_budget || 0) - (job.spent_amount || 0),
+          0,
+        ),
         is_daily_budget: true,
         // extra detail useful for the UI
         cost_per_click: job.cost_per_click || 0,
       }));
 
       // Merge and sort everything by date descending
-      const allTransactions = [...packageTransactions, ...dailyTransactions].sort(
-        (a, b) => new Date(b.purchased_at) - new Date(a.purchased_at)
-      );
+      const allTransactions = [
+        ...packageTransactions,
+        ...dailyTransactions,
+      ].sort((a, b) => new Date(b.purchased_at) - new Date(a.purchased_at));
 
       res.json(allTransactions);
     });
@@ -1565,8 +1949,8 @@ const getJobTitle = (req, res) => {
 
   connection.query(jobPostsQuery, [userId], (err, results) => {
     if (err) {
-      console.error('Error fetching job posts:', err);
-      return res.status(500).json({ error: 'Internal Server Error' });
+      console.error("Error fetching job posts:", err);
+      return res.status(500).json({ error: "Internal Server Error" });
     }
     res.status(200).json(results);
   });
@@ -1597,7 +1981,7 @@ const getTopCompanies = (req, res) => {
     // returns an array: [ { id: 1, company_name: 'ABC Corp', totalPosts: 12 }, ... ]
     return res.json(results);
   });
-}
+};
 
 const popularCategory = (req, res) => {
   const limit = parseInt(req.params.limit) || 10;
@@ -1625,7 +2009,7 @@ const popularCategory = (req, res) => {
     // returns an array:  [ { industry: 'Pathologists', totalPosts: 24 }, ... ]
     return res.json(results);
   });
-}
+};
 
 const getTotalJobPosts = (accountId, type, value) => {
   return new Promise((resolve, reject) => {
@@ -1662,7 +2046,7 @@ const getTotalJobPosts = (accountId, type, value) => {
 
     connection.query(query, params, (err, results) => {
       if (err) {
-        console.log(err)
+        console.log(err);
         return reject(err);
       }
       resolve(results);
@@ -1686,11 +2070,15 @@ const viewCandidate = (req, res) => {
     (err, jobs) => {
       if (err) {
         console.error("viewCandidate job fetch error:", err);
-        return res.status(500).json({ success: false, message: "Failed to fetch job" });
+        return res
+          .status(500)
+          .json({ success: false, message: "Failed to fetch job" });
       }
 
       if (!jobs.length) {
-        return res.status(404).json({ success: false, message: "Job not found" });
+        return res
+          .status(404)
+          .json({ success: false, message: "Job not found" });
       }
 
       const job = jobs[0];
@@ -1714,18 +2102,22 @@ const viewCandidate = (req, res) => {
           (candErr, candidates) => {
             if (candErr) {
               console.error("Candidate fetch error:", candErr);
-              return res.status(500).json({ success: false, message: "Failed to fetch candidate" });
+              return res
+                .status(500)
+                .json({ success: false, message: "Failed to fetch candidate" });
             }
 
             if (!candidates.length) {
-              return res.status(404).json({ success: false, message: "Candidate not found" });
+              return res
+                .status(404)
+                .json({ success: false, message: "Candidate not found" });
             }
 
             return res.json({
               success: true,
               candidate: candidates[0],
             });
-          }
+          },
         );
       };
 
@@ -1741,7 +2133,8 @@ const viewCandidate = (req, res) => {
         return res.status(402).json({
           success: false,
           error: "daily_budget_exceeded",
-          message: "You have reached your daily budget cap. You can view more candidates tomorrow.",
+          message:
+            "You have reached your daily budget cap. You can view more candidates tomorrow.",
           spent_amount: job.spent_amount,
           daily_budget: job.daily_budget,
         });
@@ -1759,13 +2152,16 @@ const viewCandidate = (req, res) => {
         (cardErr, cards) => {
           if (cardErr) {
             console.error("Card lookup error:", cardErr);
-            return res.status(500).json({ success: false, message: "Card lookup failed" });
+            return res
+              .status(500)
+              .json({ success: false, message: "Card lookup failed" });
           }
 
           if (!cards.length) {
             return res.status(402).json({
               success: false,
-              message: "No saved card found. Please add a card to view candidates.",
+              message:
+                "No saved card found. Please add a card to view candidates.",
             });
           }
 
@@ -1776,7 +2172,9 @@ const viewCandidate = (req, res) => {
           // ─────────────────────────────────────────────
           connection.beginTransaction((txErr) => {
             if (txErr) {
-              return res.status(500).json({ success: false, message: "Transaction failed" });
+              return res
+                .status(500)
+                .json({ success: false, message: "Transaction failed" });
             }
 
             // Insert payment record for this click
@@ -1806,7 +2204,9 @@ const viewCandidate = (req, res) => {
                 if (payErr) {
                   console.error("CPC payment insert error:", payErr);
                   return connection.rollback(() =>
-                    res.status(500).json({ success: false, message: "Payment failed" })
+                    res
+                      .status(500)
+                      .json({ success: false, message: "Payment failed" }),
                   );
                 }
 
@@ -1820,14 +2220,21 @@ const viewCandidate = (req, res) => {
                     if (updateErr) {
                       console.error("spent_amount update error:", updateErr);
                       return connection.rollback(() =>
-                        res.status(500).json({ success: false, message: "Spend update failed" })
+                        res
+                          .status(500)
+                          .json({
+                            success: false,
+                            message: "Spend update failed",
+                          }),
                       );
                     }
 
                     connection.commit((commitErr) => {
                       if (commitErr) {
                         return connection.rollback(() =>
-                          res.status(500).json({ success: false, message: "Commit failed" })
+                          res
+                            .status(500)
+                            .json({ success: false, message: "Commit failed" }),
                         );
                       }
 
@@ -1836,14 +2243,14 @@ const viewCandidate = (req, res) => {
                       // ─────────────────────────────────────────────
                       fetchCandidate();
                     });
-                  }
+                  },
                 );
-              }
+              },
             );
           });
-        }
+        },
       );
-    }
+    },
   );
 };
 
@@ -1866,8 +2273,10 @@ const resetDailyBudgets = () => {
         return;
       }
 
-      console.log(`✅ Reset spent_amount for ${result.affectedRows} daily budget job(s)`);
-    }
+      console.log(
+        `✅ Reset spent_amount for ${result.affectedRows} daily budget job(s)`,
+      );
+    },
   );
 };
 
@@ -1897,7 +2306,7 @@ cron.schedule("0 0 * * *", () => {
           // No card → pause job
           connection.query(
             `UPDATE job_posts SET status = 'Inactive' WHERE id = ?`,
-            [job.id]
+            [job.id],
           );
           return;
         }
@@ -1910,40 +2319,46 @@ cron.schedule("0 0 * * *", () => {
           connection.query(
             `INSERT INTO daily_budget_charges (job_id, account_id, amount, status, payment_token)
              VALUES (?, ?, ?, 'success', ?)`,
-            [job.id, job.account_id, job.daily_budget, job.payment_token]
+            [job.id, job.account_id, job.daily_budget, job.payment_token],
           );
 
           // Log in payment table
           connection.query(
             `INSERT INTO payment (account_id, job_id, card_last4, card_brand, card_holder, amount, currency, payment_type, payment_method, payment_status, payment_reference)
              VALUES (?, ?, ?, ?, ?, ?, 'PKR', 'job', 'Card', 'Paid', ?)`,
-            [job.account_id, job.id, job.card_last4, job.card_brand, job.card_holder, job.daily_budget,
-            `daily_cron_job${job.id}_${Date.now()}`]
+            [
+              job.account_id,
+              job.id,
+              job.card_last4,
+              job.card_brand,
+              job.card_holder,
+              job.daily_budget,
+              `daily_cron_job${job.id}_${Date.now()}`,
+            ],
           );
 
           // Reset spent_amount for new day
           connection.query(
             `UPDATE job_posts SET spent_amount = 0 WHERE id = ?`,
-            [job.id]
+            [job.id],
           );
-
         } else {
           // Charge failed → pause job
           connection.query(
             `INSERT INTO daily_budget_charges (job_id, account_id, amount, status, payment_token)
              VALUES (?, ?, ?, 'failed', ?)`,
-            [job.id, job.account_id, job.daily_budget, job.payment_token]
+            [job.id, job.account_id, job.daily_budget, job.payment_token],
           );
 
           connection.query(
             `UPDATE job_posts SET status = 'Inactive' WHERE id = ?`,
-            [job.id]
+            [job.id],
           );
 
           console.log(`⚠️ Job ${job.id} paused — charge failed`);
         }
       });
-    }
+    },
   );
 });
 const createDailyBudgetChargesTable = () => {
@@ -1961,7 +2376,8 @@ const createDailyBudgetChargesTable = () => {
     );
   `;
   connection.query(sql, (err) => {
-    if (err) return console.error("Daily budget charges table error:", err.message);
+    if (err)
+      return console.error("Daily budget charges table error:", err.message);
     console.log("✅ daily_budget_charges table ready");
   });
 };
@@ -1988,6 +2404,6 @@ module.exports = {
   resetDailyBudgets,
   viewCandidate,
   triggerJobAlerts,
-  viewCandidate
-
-}
+  viewCandidate,
+  subcribePackageInternal,
+};

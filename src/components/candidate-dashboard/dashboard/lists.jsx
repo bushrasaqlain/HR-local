@@ -9,7 +9,7 @@ import {
   Table,
 } from "reactstrap";
 import axios from "axios";
-import { FaCheckCircle, FaCalendarAlt, FaEnvelope } from "react-icons/fa";
+import { FaCheckCircle, FaCalendarAlt, FaEnvelope, FaTimesCircle } from "react-icons/fa";
 import CompanyInfo from "./companyinfo";
 import CandidateChatBox from "../messages/chatbox";
 import Head from "next/head";
@@ -33,6 +33,9 @@ class JobList extends Component {
     selectedConfirmCompany: null, // Add this
     showSuccessMessage: false,
     successMessage: "",
+    showApprovalModal: false,
+    selectedApprovalCompany: null,
+    approvalAction: null,
   };
   showTemporaryMessage = (message) => {
     this.setState({ showSuccessMessage: true, successMessage: message });
@@ -153,6 +156,41 @@ class JobList extends Component {
     }
   };
 
+  handleApprovalResponse = async (action) => {
+    const { selectedApprovalCompany } = this.state;
+    if (!selectedApprovalCompany) return;
+
+    const token = sessionStorage.getItem("token");
+    try {
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}applicant/updatestatus`,
+        {
+          candidateId: selectedApprovalCompany.candidate_id,
+          jobId: selectedApprovalCompany.job_id,
+          candidate_response: action,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      this.showTemporaryMessage(
+        action === "Accepted"
+          ? "Approval accepted successfully!"
+          : "Approval rejected successfully!"
+      );
+
+      this.setState({
+        showApprovalModal: false,
+        selectedApprovalCompany: null,
+        approvalAction: null,
+      });
+
+      this.refreshList();
+    } catch (error) {
+      console.error("Error responding to approval:", error);
+      this.showTemporaryMessage("Something went wrong. Please try again.");
+    }
+  };
+
   // Add this method to refresh the list after actions
   refreshList = async () => {
     const token = sessionStorage.getItem("token");
@@ -248,6 +286,9 @@ class JobList extends Component {
                   <th>Actions</th>
                 </>
               )}
+              {this.state.selected === "approved" && (
+                <th>Your Response</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -298,6 +339,57 @@ class JobList extends Component {
                   </td>
 
                   <td>{company.job_title || "-"}</td>
+
+                  {this.state.selected === "approved" && (
+                    <td className="text-center">
+                      {company.candidate_response === "Accepted" ? (
+                        <span className="badge bg-success bg-opacity-10 text-success px-3 py-2">
+                          <FaCheckCircle className="me-1" /> You Accepted
+                        </span>
+                      ) : company.candidate_response === "Rejected" ? (
+                        <span className="badge bg-danger bg-opacity-10 text-danger px-3 py-2">
+                          ✕ You Rejected
+                        </span>
+                      ) : (
+                        <div className="d-flex justify-content-center gap-3">
+                          <button
+                            title="Accept"
+                            onClick={() => this.setState({
+                              showApprovalModal: true,
+                              selectedApprovalCompany: company,
+                              approvalAction: "Accepted",
+                            })}
+                            style={{
+                              background: "none", border: "none", cursor: "pointer",
+                              color: "#36565f", fontSize: "22px", padding: "4px",
+                              transition: "transform 0.2s, color 0.2s",
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.3)"}
+                            onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+                          >
+                            <FaCheckCircle />
+                          </button>
+                          <button
+                            title="Reject"
+                            onClick={() => this.setState({
+                              showApprovalModal: true,
+                              selectedApprovalCompany: company,
+                              approvalAction: "Rejected",
+                            })}
+                            style={{
+                              background: "none", border: "none", cursor: "pointer",
+                              color: "#dc2626", fontSize: "22px", padding: "4px",
+                              transition: "transform 0.2s, color 0.2s",
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.3)"}
+                            onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+                          >
+                            <FaTimesCircle />
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  )}
 
                   {/* Conditional Company Status cell */}
                   {/* {hasConfirmedStatus && (
@@ -684,6 +776,70 @@ class JobList extends Component {
                       </div>
                     </>
                   )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {this.state.showApprovalModal && (
+          <div
+            className="modal fade show"
+            style={{
+              display: "block", backgroundColor: "rgba(0,0,0,0.5)",
+              position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 1050,
+            }}
+            onClick={() => this.setState({ showApprovalModal: false })}
+          >
+            <div
+              className="modal-dialog modal-dialog-centered"
+              style={{ maxWidth: "420px" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-content">
+                <div className="modal-header" style={{ background: "#36565f", color: "white" }}>
+                  <h5 className="modal-title">
+                    {this.state.approvalAction === "Accepted" ? "✓ Accept Offer" : "✕ Reject Offer"}
+                  </h5>
+                  <button
+                    type="button" className="btn-close btn-close-white"
+                    onClick={() => this.setState({ showApprovalModal: false })}
+                  />
+                </div>
+                <div className="modal-body">
+                  <p>
+                    Are you sure you want to{" "}
+                    <strong style={{ color: this.state.approvalAction === "Accepted" ? "#36565f" : "#dc2626" }}>
+                      {this.state.approvalAction === "Accepted" ? "accept" : "reject"}
+                    </strong>{" "}
+                    the approval from{" "}
+                    <strong>{this.state.selectedApprovalCompany?.company_name}</strong>?
+                  </p>
+                  <div className="bg-light p-3 rounded">
+                    <p className="mb-1"><strong>Job:</strong> {this.state.selectedApprovalCompany?.job_title}</p>
+                  </div>
+                  {this.state.approvalAction === "Rejected" && (
+                    <p className="text-danger mt-3 small">
+                      ⚠️ This action cannot be undone.
+                    </p>
+                  )}
+                </div>
+                <div className="modal-footer">
+                  <button
+                    className="btn btn-outline-secondary"
+                    onClick={() => this.setState({ showApprovalModal: false })}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="btn"
+                    style={{
+                      background: this.state.approvalAction === "Accepted" ? "#36565f" : "#dc2626",
+                      color: "white"
+                    }}
+                    onClick={() => this.handleApprovalResponse(this.state.approvalAction)}
+                  >
+                    {this.state.approvalAction === "Accepted" ? "✓ Yes, Accept" : "✕ Yes, Reject"}
+                  </button>
                 </div>
               </div>
             </div>

@@ -351,7 +351,7 @@ class CompanyData extends Component {
 
                                   {/* History */}
                                   <button
-                                     onClick={() => this.props.router.push(`/history1/employer/${item.account_id}`)}
+                                     onClick={() => this.props.onViewHistory(item.account_id)}
                                     className="icon-btn"
                                     title="View History"
                                   >

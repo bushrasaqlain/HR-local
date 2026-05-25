@@ -290,7 +290,7 @@ function NotificationCenter({ userId, apiBaseUrl }) {
                 onClick={handleViewAll}
                 style={{
                   background: "none", border: "none",
-                  fontSize: 12, color: "#2164f3",
+                  fontSize: 12, color: "#36565f",
                   cursor: "pointer", fontFamily: "inherit",
                   fontWeight: 700, padding: 0,
                 }}

@@ -26,6 +26,7 @@ const DASHBOARD_STYLES = `
 
   .user-dashboard {
     padding-bottom: 10px !important;
+    padding-bottom: 10px !important;
   }
 
   .user-dashboard > .container {
@@ -51,6 +52,7 @@ const DASHBOARD_STYLES = `
       padding-bottom: 0px !important;
     }
     .user-dashboard > .container {
+      padding-bottom: 10px !important;
       padding-bottom: 10px !important;
     }
   }
@@ -237,6 +239,22 @@ const CompanyDashboardArea = ({
     window.addEventListener("openNotifications", handler);
     return () => window.removeEventListener("openNotifications", handler);
   }, []);
+  useEffect(() => {
+    const handler = (e) => {
+      setWalletNotifId(e?.detail?.selectedId || null);
+      onTabChange("wallet");           // switches main nav to wallet
+      // tell the wallet to open notifications tab after it mounts
+      setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent("walletOpenNotifications", {
+            detail: { selectedId: e?.detail?.selectedId || null }
+          })
+        );
+      }, 100);
+    };
+    window.addEventListener("openNotifications", handler);
+    return () => window.removeEventListener("openNotifications", handler);
+  }, []);
   if (!ready) return <div>Loading dashboard…</div>;
 
   // 🔥 SAME STYLE AS CANDIDATE (hard gate)
@@ -277,6 +295,8 @@ const CompanyDashboardArea = ({
         return <CompanyWallet initialNotifId={walletNotifId} />;
       case "messages":
         return <Messages selectedContactProp={selectedMessageContact} />;
+      case "wallet":
+        return <CompanyWallet initialNotifId={walletNotifId} />;
 
       case "changepassword":
         return <ChangePasswordForm />;
