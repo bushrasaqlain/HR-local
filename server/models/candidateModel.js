@@ -623,84 +623,84 @@ const addCandidateInfo = async (req, res) => {
         isFresherVal,
       ];
 
-     // First fetch existing data before update
-connection.query(
-  `SELECT * FROM candidate_info WHERE account_id = ? LIMIT 1`,
-  [accountId],
-  (errFetch, existingRows) => {
-    if (errFetch) return res.status(500).json({ success: false, error: errFetch.message });
+      // First fetch existing data before update
+      connection.query(
+        `SELECT * FROM candidate_info WHERE account_id = ? LIMIT 1`,
+        [accountId],
+        (errFetch, existingRows) => {
+          if (errFetch) return res.status(500).json({ success: false, error: errFetch.message });
 
-    const existingData = existingRows[0] || null;
-    const isFirstTime = !existingData || !existingData.full_name; // no profile yet
+          const existingData = existingRows[0] || null;
+          const isFirstTime = !existingData || !existingData.full_name; // no profile yet
 
-    connection.query(sql, params, (err2, result) => {
-      if (err2) {
-        console.error("DB Error:", err2);
-        return res.status(500).json({ success: false, error: err2.message });
-      }
+          connection.query(sql, params, (err2, result) => {
+            if (err2) {
+              console.error("DB Error:", err2);
+              return res.status(500).json({ success: false, error: err2.message });
+            }
 
-      if (isFirstTime) {
-        // First time — just log ADDED, no diff needed
-        logAudit({
-          tableName: "history",
-          entityType: "candidate",
-          entityId: accountId,
-          action: "ADDED",
-          data: {
-            event: "Candidate profile created",
-            profile_completed: profileCompleted,
-          },
-          changedBy: accountId,
-        });
-      } else {
-        // Not first time — compute diff of old vs new
-        const fieldsToTrack = {
-          full_name,
-          phone,
-          date_of_birth,
-          gender,
-          marital_status,
-          total_experience,
-          license_number,
-          address,
-          country,
-          district,
-          city,
-          current_salary,
-          expected_salary,
-        };
+            if (isFirstTime) {
+              // First time — just log ADDED, no diff needed
+              logAudit({
+                tableName: "history",
+                entityType: "candidate",
+                entityId: accountId,
+                action: "ADDED",
+                data: {
+                  event: "Candidate profile created",
+                  profile_completed: profileCompleted,
+                },
+                changedBy: accountId,
+              });
+            } else {
+              // Not first time — compute diff of old vs new
+              const fieldsToTrack = {
+                full_name,
+                phone,
+                date_of_birth,
+                gender,
+                marital_status,
+                total_experience,
+                license_number,
+                address,
+                country,
+                district,
+                city,
+                current_salary,
+                expected_salary,
+              };
 
-        const diff = {};
-        for (const [key, newVal] of Object.entries(fieldsToTrack)) {
-          const oldVal = String(existingData[key] ?? "");
-          const newValStr = String(newVal ?? "");
-          if (oldVal !== newValStr) {
-            diff[key] = { from: existingData[key], to: newVal };
-          }
+              const diff = {};
+              for (const [key, newVal] of Object.entries(fieldsToTrack)) {
+                const oldVal = String(existingData[key] ?? "");
+                const newValStr = String(newVal ?? "");
+                if (oldVal !== newValStr) {
+                  diff[key] = { from: existingData[key], to: newVal };
+                }
+              }
+
+              logAudit({
+                tableName: "history",
+                entityType: "candidate",
+                entityId: accountId,
+                action: "UPDATED",
+                data: {
+                  event: "Candidate profile updated",
+                  changes: diff,
+                  profile_completed: profileCompleted,
+                },
+                changedBy: accountId,
+              });
+            }
+
+            return res.json({
+              success: true,
+              message: "Candidate profile saved successfully",
+              profile_completed: profileCompleted,
+            });
+          });
         }
-
-        logAudit({
-          tableName: "history",
-          entityType: "candidate",
-          entityId: accountId,
-          action: "UPDATED",
-          data: {
-            event: "Candidate profile updated",
-            changes: diff,
-            profile_completed: profileCompleted,
-          },
-          changedBy: accountId,
-        });
-      }
-
-      return res.json({
-        success: true,
-        message: "Candidate profile saved successfully",
-        profile_completed: profileCompleted,
-      });
-    });
-  }
-);
+      );
     });
   } catch (error) {
     console.error("Save Candidate Error:", error);
@@ -1386,13 +1386,13 @@ const placeBoostOrder = (req, res) => {
                 return res.status(500).json({ error: "Database error", details: err3.message }); // ✅
               }
               logAudit({
-  tableName: "history",
-  entityType: "candidate",
-  entityId: accountId,
-  action: "BOOST_REQUESTED",
-  data: { event: "Boost order placed", package_id },
-  changedBy: accountId,
-});
+                tableName: "history",
+                entityType: "candidate",
+                entityId: accountId,
+                action: "BOOST_REQUESTED",
+                data: { event: "Boost order placed", package_id },
+                changedBy: accountId,
+              });
               res.json({
                 success: true,
                 message: "Boost order placed successfully. Waiting for admin approval.",
@@ -1435,10 +1435,13 @@ const getMyBoostStatus = (req, res) => {
 
         if (expiry < now) {
           connection.query(
-            "UPDATE candidate_info SET is_boosted = 0 WHERE id = ?",
+            "UPDATE candidate_info SET is_boosted = 0, boost_expires_at = NULL WHERE id = ?",
             [data.candidate_id]
           );
-
+          connection.query(
+            "UPDATE boost_orders SET status = 'expired' WHERE candidate_id = ? AND status = 'active'",
+            [data.candidate_id]
+          );
           data.is_boosted = false;
         }
       }
@@ -1480,10 +1483,12 @@ const activateBoost = (req, res) => {
   const { orderId } = req.params;
 
   connection.query(
-    `SELECT bo.*, p.duration_days, bo.candidate_id
-      FROM boost_orders bo
-      JOIN packages p ON p.id = bo.package_id
-      WHERE bo.id = ?`,
+    `SELECT bo.*, 
+            COALESCE(p.duration_days, p.boost_duration_days) AS duration_days,
+            bo.candidate_id
+     FROM boost_orders bo
+     JOIN packages p ON p.id = bo.package_id
+     WHERE bo.id = ?`,
     [orderId],
     (err, rows) => {
       if (err) {
@@ -1523,13 +1528,13 @@ const activateBoost = (req, res) => {
                 (err4, rows) => {
                   if (!err4 && rows.length > 0) {
                     logAudit({
-  tableName: "history",
-  entityType: "candidate",
-  entityId: rows[0].account_id,
-  action: "BOOST_ACTIVATED",
-  data: { event: "Boost activated by admin", boost_expires_at: end },
-  changedBy: req.user.userId,
-});
+                      tableName: "history",
+                      entityType: "candidate",
+                      entityId: rows[0].account_id,
+                      action: "BOOST_ACTIVATED",
+                      data: { event: "Boost activated by admin", boost_expires_at: end },
+                      changedBy: req.user.userId,
+                    });
                   }
                 }
               );
@@ -1695,8 +1700,8 @@ const getMatchingJobsForCandidate = async (req, res) => {
         (err, rows) => (err ? reject(err) : resolve(rows))
       )
     );
-    const hasDegree          = educationRows.length > 0;
-    const candDegreeTypeIds  = educationRows.map((e) => Number(e.degree_type_id)).filter(Boolean);
+    const hasDegree = educationRows.length > 0;
+    const candDegreeTypeIds = educationRows.map((e) => Number(e.degree_type_id)).filter(Boolean);
     const candDegreeFieldIds = educationRows.map((e) => Number(e.degree_id)).filter(Boolean);
 
     // ── STEP 6: Fetch candidate availability ──
@@ -1726,7 +1731,12 @@ const getMatchingJobsForCandidate = async (req, res) => {
            CASE WHEN EXISTS (
              SELECT 1 FROM applications a
              WHERE a.job_id = jp.id AND a.candidate_id = ?
-           ) THEN 1 ELSE 0 END AS already_applied
+             AND a.status != 'Cancelled'
+            ) THEN 1 ELSE 0 END AS already_applied,
+            (SELECT a.status FROM applications a 
+             WHERE a.job_id = jp.id AND a.candidate_id = ? 
+             AND a.status != 'Cancelled'
+             ORDER BY a.id DESC LIMIT 1) AS application_status
          FROM job_posts jp
          LEFT JOIN company_info ci  ON ci.account_id  = jp.account_id
          LEFT JOIN jobtypes jt      ON jt.id          = jp.job_type_id
@@ -1736,7 +1746,7 @@ const getMatchingJobsForCandidate = async (req, res) => {
            AND jp.application_deadline >= CURDATE()
          ORDER BY jp.is_sponsored DESC, jp.created_at DESC
          LIMIT 100`,
-        [candidate.id],
+        [candidate.id, candidate.id],
         (err, rows) => (err ? reject(err) : resolve(rows))
       )
     );
@@ -1750,9 +1760,9 @@ const getMatchingJobsForCandidate = async (req, res) => {
     }
 
     // ── STEP 8: Score each job against the candidate ──
-    const candExp    = parseFloat(candidate.total_experience || 0);
-    const candSalary = parseFloat(candidate.expected_salary  || 0);
-    const tierOrder  = { strong: 0, good: 1, weak: 2 };
+    const candExp = parseFloat(candidate.total_experience || 0);
+    const candSalary = parseFloat(candidate.expected_salary || 0);
+    const tierOrder = { strong: 0, good: 1, weak: 2 };
 
     const tieredJobs = jobsRaw.map((job) => {
       const matched = [];
@@ -1786,14 +1796,14 @@ const getMatchingJobsForCandidate = async (req, res) => {
         locationScore = 10;
         location_type = "remote";
       } else {
-        const mainCityMatch      = jobCityIds.includes(candCityId);
+        const mainCityMatch = jobCityIds.includes(candCityId);
         const preferredCityMatch = jobCityIds.some((id) => candOtherCityIds.includes(id));
         locationScore = mainCityMatch ? 10 : preferredCityMatch ? 6 : 0;
         location_type = mainCityMatch
           ? "main_city"
           : preferredCityMatch
-          ? "preferred_city"
-          : "pipeline";
+            ? "preferred_city"
+            : "pipeline";
       }
       score += locationScore;
 
@@ -1845,7 +1855,7 @@ const getMatchingJobsForCandidate = async (req, res) => {
       score += specScore;
 
       // ── Degree (10pts) ──
-      const jobDegreeTypeId  = job.degree_id       ? Number(job.degree_id)       : null;
+      const jobDegreeTypeId = job.degree_id ? Number(job.degree_id) : null;
       const jobDegreeFieldId = job.degreefields_id ? Number(job.degreefields_id) : null;
       let degreeScore = 0;
 
@@ -1854,21 +1864,21 @@ const getMatchingJobsForCandidate = async (req, res) => {
         if (hasDegree) matched.push("Education");
         else missing.push("Education");
       } else {
-        const degreeTypeMatch  = candDegreeTypeIds.includes(jobDegreeTypeId);
+        const degreeTypeMatch = candDegreeTypeIds.includes(jobDegreeTypeId);
         const degreeFieldMatch = candDegreeFieldIds.includes(jobDegreeFieldId);
         if (jobDegreeFieldId && jobDegreeTypeId) {
-          if (degreeFieldMatch && degreeTypeMatch)      { degreeScore = 10; matched.push("Education (degree & field match)"); }
-          else if (degreeTypeMatch || degreeFieldMatch) { degreeScore = 5;  matched.push(`Education (partial: ${degreeTypeMatch ? "type" : "field"} matched)`); }
-          else if (hasDegree)                           { degreeScore = 2;  missing.push("Education (wrong degree type & field)"); }
-          else                                          { degreeScore = 0;  missing.push("Education (none)"); }
+          if (degreeFieldMatch && degreeTypeMatch) { degreeScore = 10; matched.push("Education (degree & field match)"); }
+          else if (degreeTypeMatch || degreeFieldMatch) { degreeScore = 5; matched.push(`Education (partial: ${degreeTypeMatch ? "type" : "field"} matched)`); }
+          else if (hasDegree) { degreeScore = 2; missing.push("Education (wrong degree type & field)"); }
+          else { degreeScore = 0; missing.push("Education (none)"); }
         } else if (jobDegreeFieldId) {
-          if (degreeFieldMatch)  { degreeScore = 10; matched.push("Education (field match)"); }
-          else if (hasDegree)    { degreeScore = 3;  missing.push("Education (wrong field)"); }
-          else                   { degreeScore = 0;  missing.push("Education (none)"); }
+          if (degreeFieldMatch) { degreeScore = 10; matched.push("Education (field match)"); }
+          else if (hasDegree) { degreeScore = 3; missing.push("Education (wrong field)"); }
+          else { degreeScore = 0; missing.push("Education (none)"); }
         } else if (jobDegreeTypeId) {
-          if (degreeTypeMatch)   { degreeScore = 10; matched.push("Education (degree type match)"); }
-          else if (hasDegree)    { degreeScore = 3;  missing.push("Education (wrong degree type)"); }
-          else                   { degreeScore = 0;  missing.push("Education (none)"); }
+          if (degreeTypeMatch) { degreeScore = 10; matched.push("Education (degree type match)"); }
+          else if (hasDegree) { degreeScore = 3; missing.push("Education (wrong degree type)"); }
+          else { degreeScore = 0; missing.push("Education (none)"); }
         }
       }
       score += degreeScore;
@@ -1878,7 +1888,7 @@ const getMatchingJobsForCandidate = async (req, res) => {
       const jobMinSalary = parseFloat(job.min_salary || 0);
       const jobMaxSalary = parseFloat(job.max_salary || 0);
       let salaryScore = 15;
-      let salaryOver  = false;
+      let salaryOver = false;
       if (jobMinSalary || jobMaxSalary) {
         if (candSalary >= jobMinSalary && candSalary <= jobMaxSalary) {
           salaryScore = 15; matched.push("Salary");
@@ -1886,8 +1896,8 @@ const getMatchingJobsForCandidate = async (req, res) => {
           salaryScore = 10; matched.push("Salary (you expect less)");
         } else {
           const overage = ((candSalary - jobMaxSalary) / jobMaxSalary) * 100;
-          salaryScore   = overage > 50 ? 0 : overage > 25 ? 5 : 8;
-          salaryOver    = true;
+          salaryScore = overage > 50 ? 0 : overage > 25 ? 5 : 8;
+          salaryOver = true;
           missing.push("Salary (your expectation exceeds job budget)");
         }
       } else {
@@ -1919,39 +1929,40 @@ const getMatchingJobsForCandidate = async (req, res) => {
 
       // ── Tier (same logic as getAllApplicants) ──
       const skillsMatched = skillScore >= 20;
-      const expMatched    = expScore   >= 20;
-      const specMatched   = specScore  === 20;
+      const expMatched = expScore >= 20;
+      const specMatched = specScore === 20;
       const coreCriteriaCount = [skillsMatched, expMatched, specMatched, degreeMatched].filter(Boolean).length;
 
       // filter out jobs where nothing at all matched
       if (coreCriteriaCount === 0) return null;
 
       let tier, tier_label, tier_color;
-      if      (coreCriteriaCount === 4) { tier = "strong"; tier_label = "Strong Match"; tier_color = "green"; }
-      else if (coreCriteriaCount >= 2)  { tier = "good";   tier_label = "Good Match";   tier_color = "blue";  }
-      else                              { tier = "weak";   tier_label = "Partial Match"; tier_color = "amber"; }
+      if (coreCriteriaCount === 4) { tier = "strong"; tier_label = "Strong Match"; tier_color = "green"; }
+      else if (coreCriteriaCount >= 2) { tier = "good"; tier_label = "Good Match"; tier_color = "blue"; }
+      else { tier = "weak"; tier_label = "Partial Match"; tier_color = "amber"; }
 
       if (salaryOver && tier === "strong") {
         tier = "good"; tier_label = "Good Match"; tier_color = "blue";
       }
 
       return {
-        id:              job.id,
-        job_title:       job.job_title,
+        id: job.id,
+        job_title: job.job_title,
         job_description: job.job_description,
-        job_type:        job.job_type,
-        currency:        job.currency,
-        min_salary:      job.min_salary,
-        max_salary:      job.max_salary,
-        min_experience:  job.min_experience,
-        max_experience:  job.max_experience,
-        company_name:    job.company_name,
-        logo:            job.logo ? job.logo.toString("base64") : null,
-        created_at:      job.created_at,
+        job_type: job.job_type,
+        currency: job.currency,
+        min_salary: job.min_salary,
+        max_salary: job.max_salary,
+        min_experience: job.min_experience,
+        max_experience: job.max_experience,
+        company_name: job.company_name,
+        logo: job.logo ? job.logo.toString("base64") : null,
+        created_at: job.created_at,
         already_applied: !!job.already_applied,
-        is_sponsored:    !!job.is_sponsored,
+        application_status: job.application_status || null,
+        is_sponsored: !!job.is_sponsored,
         location_type,
-        ai_score:        Math.min(100, score),
+        ai_score: Math.min(100, score),
         tier,
         tier_label,
         tier_color,
@@ -1959,21 +1970,21 @@ const getMatchingJobsForCandidate = async (req, res) => {
         missing,
       };
     })
-    .filter(Boolean)
-    .sort((a, b) => {
-      if (tierOrder[a.tier] !== tierOrder[b.tier]) return tierOrder[a.tier] - tierOrder[b.tier];
-      const locOrder = { remote: 0, main_city: 0, preferred_city: 1, pipeline: 2 };
-      if (locOrder[a.location_type] !== locOrder[b.location_type]) return locOrder[a.location_type] - locOrder[b.location_type];
-      if (b.is_sponsored !== a.is_sponsored) return b.is_sponsored ? 1 : -1;
-      return b.ai_score - a.ai_score;
-    });
+      .filter(Boolean)
+      .sort((a, b) => {
+        if (tierOrder[a.tier] !== tierOrder[b.tier]) return tierOrder[a.tier] - tierOrder[b.tier];
+        const locOrder = { remote: 0, main_city: 0, preferred_city: 1, pipeline: 2 };
+        if (locOrder[a.location_type] !== locOrder[b.location_type]) return locOrder[a.location_type] - locOrder[b.location_type];
+        if (b.is_sponsored !== a.is_sponsored) return b.is_sponsored ? 1 : -1;
+        return b.ai_score - a.ai_score;
+      });
 
     // ── STEP 9: Summary + response ──
     const summary = {
-      total:  tieredJobs.length,
+      total: tieredJobs.length,
       strong: tieredJobs.filter((j) => j.tier === "strong").length,
-      good:   tieredJobs.filter((j) => j.tier === "good").length,
-      weak:   tieredJobs.filter((j) => j.tier === "weak").length,
+      good: tieredJobs.filter((j) => j.tier === "good").length,
+      weak: tieredJobs.filter((j) => j.tier === "weak").length,
     };
 
     return res.json({ success: true, summary, data: tieredJobs });
@@ -2657,32 +2668,32 @@ const markAllJobAlertsRead = (req, res) => {
 const getProfileViewStats = (req, res) => {
   const accountId = req.user.userId;
   const { period = '28days' } = req.query;
- 
+
   const getCandidateIdSql = `SELECT id FROM candidate_info WHERE account_id = ? LIMIT 1`;
- 
+
   connection.query(getCandidateIdSql, [accountId], (err, candidateRows) => {
     if (err) return res.status(500).json({ error: "Database error" });
     if (!candidateRows.length) return res.json({ success: true, data: [], current_total: 0, previous_total: 0 });
- 
+
     const candidateInfoId = candidateRows[0].id;
- 
+
     let currentInterval, previousInterval, groupFormat, labelFormat;
- 
+
     if (period === '28days') {
-      currentInterval  = 'INTERVAL 28 DAY';
+      currentInterval = 'INTERVAL 28 DAY';
       previousInterval = 'INTERVAL 56 DAY';
-      groupFormat      = '%Y-%m-%d';   // group by day
+      groupFormat = '%Y-%m-%d';   // group by day
     } else if (period === 'weekly') {
-      currentInterval  = 'INTERVAL 8 WEEK';
+      currentInterval = 'INTERVAL 8 WEEK';
       previousInterval = 'INTERVAL 16 WEEK';
-      groupFormat      = '%x-%v';      // ISO year-week
+      groupFormat = '%x-%v';      // ISO year-week
     } else {
       // monthly
-      currentInterval  = 'INTERVAL 6 MONTH';
+      currentInterval = 'INTERVAL 6 MONTH';
       previousInterval = 'INTERVAL 12 MONTH';
-      groupFormat      = '%Y-%m';
+      groupFormat = '%Y-%m';
     }
- 
+
     // Fetch current period data
     const currentSql = `
       SELECT 
@@ -2694,7 +2705,7 @@ const getProfileViewStats = (req, res) => {
       GROUP BY period_key
       ORDER BY period_key ASC
     `;
- 
+
     // Fetch previous period total (for % change)
     const previousSql = `
       SELECT COUNT(*) AS total
@@ -2703,44 +2714,44 @@ const getProfileViewStats = (req, res) => {
         AND searched_at >= DATE_SUB(NOW(), ${previousInterval})
         AND searched_at <  DATE_SUB(NOW(), ${currentInterval})
     `;
- 
+
     connection.query(currentSql, [groupFormat, candidateInfoId], (err2, currentRows) => {
       if (err2) return res.status(500).json({ error: "Database error" });
- 
+
       connection.query(previousSql, [candidateInfoId], (err3, prevRows) => {
         if (err3) return res.status(500).json({ error: "Database error" });
- 
+
         const previousTotal = prevRows[0]?.total || 0;
-        const currentTotal  = currentRows.reduce((sum, r) => sum + r.count, 0);
- 
+        const currentTotal = currentRows.reduce((sum, r) => sum + r.count, 0);
+
         let filledData = [];
- 
+
         if (period === '28days') {
           for (let i = 27; i >= 0; i--) {
             const d = new Date();
             d.setDate(d.getDate() - i);
             const key = d.toISOString().slice(0, 10); // "2026-05-18"
- 
+
             // Label: "5 May", "6 May" etc
             const label = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
- 
+
             const found = currentRows.find(r => r.period_key === key);
             filledData.push({ label, count: found ? found.count : 0 });
           }
- 
+
         } else if (period === 'weekly') {
           filledData = currentRows.map(r => {
             const [year, week] = r.period_key.split('-').map(Number);
             const jan4 = new Date(year, 0, 4);
-            const dow  = jan4.getDay() || 7;
-            const mon  = new Date(jan4);
+            const dow = jan4.getDay() || 7;
+            const mon = new Date(jan4);
             mon.setDate(jan4.getDate() - (dow - 1) + (week - 1) * 7);
             const sun = new Date(mon);
             sun.setDate(mon.getDate() + 6);
             const fmt = d => d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
             return { label: `${fmt(mon)} – ${fmt(sun)}`, count: r.count };
           });
- 
+
         } else {
           // monthly
           filledData = currentRows.map(r => {
@@ -2750,11 +2761,11 @@ const getProfileViewStats = (req, res) => {
             return { label, count: r.count };
           });
         }
- 
+
         return res.json({
-          success:        true,
-          data:           filledData,
-          current_total:  currentTotal,
+          success: true,
+          data: filledData,
+          current_total: currentTotal,
           previous_total: previousTotal,
           period,
         });
@@ -2811,6 +2822,56 @@ const trackProfileView = (req, res) => {
   });
 };
 
+const getCandidatePackages = (req, res) => {
+  const accountId = req.params.userId;
+
+  const sql = `
+    SELECT 
+      bo.id AS subscription_id,
+      bo.status,
+      bo.start_date,
+      bo.end_date,
+      bo.created_at,
+      p.id AS package_id,
+      p.name AS package_name,
+      p.price,
+      p.pricing_model,
+      p.boost_type,
+      p.boost_duration_days,
+      p.duration_days,
+      p.description,
+      COALESCE(c.code, 'PKR') AS currency
+    FROM boost_orders bo
+    JOIN candidate_info ci ON ci.id = bo.candidate_id
+    JOIN packages p ON p.id = bo.package_id
+    LEFT JOIN currencies c ON c.id = p.currency_id
+    WHERE ci.account_id = ?
+    ORDER BY bo.created_at DESC
+  `;
+
+  connection.query(sql, [accountId], (err, results) => {
+    if (err) return res.status(500).json({ error: "Database error" });
+
+    const packages = results.map(p => ({
+      subscription_id: p.subscription_id,
+      package_name: p.package_name,
+      pricing_model: p.pricing_model,
+      boost_type: p.boost_type,
+      status: p.status,
+      start_date: p.start_date,
+      end_date: p.end_date,
+      purchased_at: p.created_at,
+      price: p.price,
+      currency: p.currency,
+      duration_days: p.boost_duration_days || p.duration_days || 0,
+      description: p.description,
+      is_active: p.status === 'active',
+    }));
+
+    res.json({ success: true, data: packages });
+  });
+};
+
 module.exports = {
   getAllCandidates,
   updateStatus,
@@ -2853,4 +2914,5 @@ module.exports = {
   createProfileViewsTable,
   getProfileViewStats,
   trackProfileView,
+  getCandidatePackages,
 };

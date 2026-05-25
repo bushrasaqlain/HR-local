@@ -3,6 +3,7 @@ import axios from "axios";
 import Head from "next/head";
 import api from "../../lib/api";
 import Payment from "../../company-dashboard/payment";
+import PricingPage, { PaymentModal } from "../../company-dashboard/viewpackage";
 import {
     Chart as ChartJS,
     ArcElement,
@@ -959,15 +960,18 @@ class BoostModal extends React.Component {
         const { packages, selected, loading, showPayment, selectedPkg } = this.state;
 
         if (showPayment && selectedPkg) {
+            const userId = sessionStorage.getItem("userId") || localStorage.getItem("userId");
             return (
-                <Payment
-                    isOpen={true}
-                    toggle={() => this.setState({ showPayment: false, selectedPkg: null })}
-                    amount={selectedPkg.price}
-                    currency={selectedPkg.currency}
-                    packageId={selectedPkg.id}
-                    paymentType="candidate_boost"
-                    onPaymentSuccess={this.handlePaymentSuccess}
+                <PaymentModal
+                    pkg={selectedPkg}           // full package object — already have this
+                    userId={userId}
+                    onClose={() => this.setState({ showPayment: false, selectedPkg: null })}
+                    onSubmit={async (formState) => {
+                        // First close the payment modal
+                        this.setState({ showPayment: false, selectedPkg: null });
+                        // Then place the boost order
+                        await this.handlePaymentSuccess();
+                    }}
                 />
             );
         }
