@@ -189,10 +189,12 @@ class Profile extends Component {
     this.fetchMatchingJobs();
     this.fetchSavedJobIds();
     window.addEventListener('highlightJob', this.handleHighlightJobEvent);
+    window.addEventListener('focus', this.fetchCandidateInfo);
   }
 
   componentWillUnmount() {
     window.removeEventListener('highlightJob', this.handleHighlightJobEvent);
+    window.removeEventListener('focus', this.fetchCandidateInfo);
   }
 
   handleHighlightJobEvent = (event) => {
@@ -848,24 +850,24 @@ class BoostModal extends React.Component {
   render() {
     const { packages, selected, loading, showPayment, selectedPkg } = this.state;
 
-   // In BoostModal, replace the showPayment block:
-if (showPayment && selectedPkg) {
-  const userId = sessionStorage.getItem("userId") || localStorage.getItem("userId");
+    // In BoostModal, replace the showPayment block:
+    if (showPayment && selectedPkg) {
+      const userId = sessionStorage.getItem("userId") || localStorage.getItem("userId");
 
-  return (
-    <PaymentModal
-      pkg={selectedPkg}           // full package object — already have this
-      userId={userId}
-      onClose={() => this.setState({ showPayment: false, selectedPkg: null })}
-      onSubmit={async (formState) => {
-        // First close the payment modal
-        this.setState({ showPayment: false, selectedPkg: null });
-        // Then place the boost order
-        await this.handlePaymentSuccess();
-      }}
-    />
-  );
-}
+      return (
+        <PaymentModal
+          pkg={selectedPkg}           // full package object — already have this
+          userId={userId}
+          onClose={() => this.setState({ showPayment: false, selectedPkg: null })}
+          onSubmit={async (formState) => {
+            // First close the payment modal
+            this.setState({ showPayment: false, selectedPkg: null });
+            // Then place the boost order
+            await this.handlePaymentSuccess();
+          }}
+        />
+      );
+    }
 
     return (
       <div style={{
