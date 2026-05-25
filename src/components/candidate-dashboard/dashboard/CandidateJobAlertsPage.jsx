@@ -1,3 +1,4 @@
+import Head from "next/head";
 import React from "react";
 
 const SEVERITY = {
@@ -128,6 +129,7 @@ class CandidateJobAlertsPage extends React.Component {
         const visible = filter === "unread" ? alerts.filter((a) => !a.is_read) : alerts;
 
         return (
+           
             <div
                 style={{
                     width: isMobile ? "100%" : 300,
@@ -138,6 +140,9 @@ class CandidateJobAlertsPage extends React.Component {
                     background: "#fafafa",
                 }}
             >
+                 <Head>
+                <title>Alerts</title>
+            </Head>
                 {/* Filter tabs */}
                 <div style={{ display: "flex", borderBottom: "1px solid #e5e7eb", flexShrink: 0 }}>
                     {["all", "unread"].map((f) => (
