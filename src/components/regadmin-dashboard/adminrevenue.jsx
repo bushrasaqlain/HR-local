@@ -8,6 +8,7 @@ import AlertsPanel from "./AlertsPanel";
 import PaymentMethods from "./PaymentMethods";
 import ModelBreakdown from "./ModelBreakdown";
 import CompanyDetailModal from "./CompanyDetailModal";
+import Head from "next/head";
 
 class AdminRevenuePage extends Component {
   constructor(props) {
@@ -132,6 +133,9 @@ class AdminRevenuePage extends Component {
 
     return (
       <Container fluid>
+        <Head>
+          <title>Revenue</title>
+        </Head>
 
         {/* KPI Strip */}
         <KpiStrip summary={summary} />

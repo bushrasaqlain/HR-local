@@ -107,6 +107,7 @@ function Database() {
   // candidateModel.createsaveJobsTableQuery();
   jobModel.createJobPostTable()
   jobModel.createCompanyPackagesTable();
+  // jobModel.createDailyBudgetChargesTable();
   paymentModel.createPaymentTable()
   paymentModel.createSaveCardTable()
   applicantModel.createApplicantsTable();

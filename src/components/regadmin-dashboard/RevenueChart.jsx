@@ -1,8 +1,8 @@
 import React, { Component } from "react";
 import { Card, CardBody, CardHeader } from "reactstrap";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
 import api from "../../../lib/api";
 
@@ -11,12 +11,10 @@ const CustomTooltip = ({ active, payload, label }) => {
   return (
     <div style={{
       background: "#1f2937", color: "#fff",
-      borderRadius: "10px", padding: "10px 14px",
-      fontSize: "12px", boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+      borderRadius: "8px", padding: "9px 13px", fontSize: "12px",
     }}>
-      <div style={{ fontWeight: 600, marginBottom: "4px" }}>{label}</div>
+      <div style={{ fontWeight: 500, marginBottom: "3px" }}>{label}</div>
       <div>PKR {Number(payload[0].value).toLocaleString()}</div>
-      {payload[1] && <div style={{ color: "#93c5fd" }}>{payload[1].value} companies</div>}
     </div>
   );
 };
@@ -24,11 +22,11 @@ const CustomTooltip = ({ active, payload, label }) => {
 class RevenueChart extends Component {
   constructor(props) {
     super(props);
-    this.state = { months: 6, data: props.trend || [] };
+    this.state = { months: 6, data: props.trend || [], activeIndex: null };
   }
 
   handleMonthChange = async (months) => {
-    this.setState({ months });
+    this.setState({ months, activeIndex: null });
     try {
       const token = localStorage.getItem("token");
       const res = await api.get("/admin/revenue/trend", {
@@ -42,64 +40,84 @@ class RevenueChart extends Component {
   };
 
   render() {
-    const { months, data } = this.state;
+    const { months, data, activeIndex } = this.state;
     const options = [3, 6, 12, 24];
+    const total = data.reduce((s, d) => s + (d.revenue || 0), 0);
+    const avg = data.length ? Math.round(total / data.length) : 0;
+    const peak = data.reduce((p, d) => d.revenue > (p?.revenue || 0) ? d : p, null);
+
+    const btnStyle = (m) => ({
+      padding: "4px 11px", borderRadius: "20px", fontSize: "11px",
+      fontWeight: 500, cursor: "pointer",
+      border: `0.5px solid ${months === m ? "#36565f" : "#e5e7eb"}`,
+      background: months === m ? "#36565f" : "transparent",
+      color: months === m ? "#fff" : "#6b7280",
+      transition: "all .15s",
+    });
+
+    const statStyle = {
+      background: "#f9fafb", borderRadius: "8px",
+      padding: "10px 14px", flex: 1,
+    };
 
     return (
-      <Card style={{ border: "1px solid #e5e7eb", borderRadius: "14px" }}>
+      <Card style={{ border: "0.5px solid #e5e7eb", borderRadius: "12px" }}>
         <CardHeader style={{
-          background: "#fff", borderBottom: "1px solid #f3f4f6",
-          borderRadius: "14px 14px 0 0",
+          background: "#fff", borderBottom: "0.5px solid #f3f4f6",
+          borderRadius: "12px 12px 0 0",
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "14px 20px",
+          padding: "14px 18px",
         }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: "14px", color: "#111827" }}>Revenue Trend</div>
-            <div style={{ fontSize: "11px", color: "#6b7280" }}>Monthly earnings overview</div>
+            <div style={{ fontWeight: 500, fontSize: "14px", color: "#111827" }}>Revenue trend</div>
+            <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "2px" }}>Monthly earnings overview</div>
           </div>
-          <div style={{ display: "flex", gap: "6px" }}>
+          <div style={{ display: "flex", gap: "5px" }}>
             {options.map((m) => (
-              <button
-                key={m}
-                onClick={() => this.handleMonthChange(m)}
-                style={{
-                  padding: "4px 10px", borderRadius: "20px", fontSize: "11px",
-                  fontWeight: 600, cursor: "pointer", border: "1px solid",
-                  borderColor: months === m ? "#36565f" : "#e5e7eb",
-                  background: months === m ? "#36565f" : "#fff",
-                  color: months === m ? "#fff" : "#6b7280",
-                }}
-              >
+              <button key={m} onClick={() => this.handleMonthChange(m)} style={btnStyle(m)}>
                 {m}M
               </button>
             ))}
           </div>
         </CardHeader>
-        <CardBody style={{ padding: "16px 8px 8px" }}>
+
+        <CardBody style={{ padding: "16px 18px 18px" }}>
+          {/* stat strip */}
+          <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
+            {[
+              ["Peak month", peak ? `${peak.month_label} · PKR ${(peak.revenue/1000).toFixed(0)}k` : "—"],
+              ["Period total", `PKR ${(total/1000).toFixed(0)}k`],
+              ["Monthly avg", `PKR ${(avg/1000).toFixed(0)}k`],
+            ].map(([lbl, val]) => (
+              <div key={lbl} style={statStyle}>
+                <div style={{ fontSize: "11px", color: "#9ca3af" }}>{lbl}</div>
+                <div style={{ fontSize: "15px", fontWeight: 500, color: "#111827", marginTop: "2px" }}>{val}</div>
+              </div>
+            ))}
+          </div>
+
           {data.length === 0 ? (
             <div style={{ textAlign: "center", padding: "40px", color: "#9ca3af", fontSize: "13px" }}>
               No trend data available
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={240}>
-              <AreaChart data={data} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#36565f" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#36565f" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                <XAxis dataKey="month_label" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+                onMouseLeave={() => this.setState({ activeIndex: null })}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+                <XAxis dataKey="month_label" tick={{ fontSize: 11, fill: "#9ca3af" }}
+                  axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false}
                   tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                <Tooltip content={<CustomTooltip />} />
-                <Area
-                  type="monotone" dataKey="revenue"
-                  stroke="#36565f" strokeWidth={2.5}
-                  fill="url(#revenueGrad)" dot={{ r: 3, fill: "#36565f" }}
-                />
-              </AreaChart>
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
+                <Bar dataKey="revenue" radius={[5, 5, 0, 0]} barSize={28}
+                  onMouseEnter={(_, i) => this.setState({ activeIndex: i })}>
+                  {data.map((_, i) => (
+                    <Cell key={i}
+                      fill={activeIndex === i ? "#4a7a87" : "#36565f"} />
+                  ))}
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           )}
         </CardBody>

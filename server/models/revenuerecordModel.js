@@ -88,56 +88,59 @@ const computeConsumption = (pricingModel, row, snapshot) => {
 
 const getRevenueSummary = () => {
   return new Promise((resolve, reject) => {
-    const sql = `
+const sql = `
+  SELECT
+    COALESCE(SUM(amount), 0) AS total_revenue,
+    COALESCE(SUM(CASE
+      WHEN MONTH(created_at) = MONTH(CURDATE())
+       AND YEAR(created_at)  = YEAR(CURDATE())
+      THEN amount ELSE 0 END), 0) AS revenue_this_month,
+    COALESCE(SUM(CASE
+      WHEN MONTH(created_at) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
+       AND YEAR(created_at)  = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
+      THEN amount ELSE 0 END), 0) AS revenue_last_month,
+    COUNT(DISTINCT account_id) AS total_companies
+  FROM (
+    SELECT amount, created_at, account_id
+    FROM payment
+    WHERE payment_status = 'Paid' AND package_id IS NOT NULL
+
+    UNION ALL
+
+    SELECT spent_amount AS amount, created_at, account_id
+    FROM job_posts
+    WHERE billing_model = 'daily_budget'
+      AND approval_status = 'Approved'
+      AND spent_amount > 0
+  ) AS all_revenue
+`;
+    // active_subscriptions and expiring_soon stay as subqueries
+    const sql2 = `
       SELECT
-        -- Overall revenue (all Paid payments linked to a package)
-        COALESCE(SUM(pay.amount), 0)                                      AS total_revenue,
-
-        -- This calendar month
-        COALESCE(SUM(CASE
-          WHEN MONTH(pay.created_at) = MONTH(CURDATE())
-           AND YEAR(pay.created_at)  = YEAR(CURDATE())
-          THEN pay.amount ELSE 0 END), 0)                                 AS revenue_this_month,
-
-        -- Last calendar month
-        COALESCE(SUM(CASE
-          WHEN MONTH(pay.created_at) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
-           AND YEAR(pay.created_at)  = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
-          THEN pay.amount ELSE 0 END), 0)                                 AS revenue_last_month,
-
-        -- Distinct paying companies
-        COUNT(DISTINCT pay.account_id)                                    AS total_companies,
-
-        -- Active subscriptions right now
         (SELECT COUNT(*) FROM company_packages
-         WHERE status = 'active' AND end_date >= CURDATE())               AS active_subscriptions,
-
-        -- Expiring within 7 days (admin attention needed)
+         WHERE status = 'active' AND end_date >= CURDATE())           AS active_subscriptions,
         (SELECT COUNT(*) FROM company_packages
          WHERE status = 'active'
            AND end_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)) AS expiring_soon
-
-      FROM payment pay
-      WHERE pay.payment_status = 'Paid'
-        AND pay.package_id IS NOT NULL
     `;
 
     connection.query(sql, (err, rows) => {
       if (err) return reject(err);
-      const r = rows[0];
-      resolve({
-        total_revenue:         parseFloat(r.total_revenue),
-        revenue_this_month:    parseFloat(r.revenue_this_month),
-        revenue_last_month:    parseFloat(r.revenue_last_month),
-        total_companies:       r.total_companies,
-        active_subscriptions:  r.active_subscriptions,
-        expiring_soon:         r.expiring_soon,
-        // MoM growth %
-        mom_growth: r.revenue_last_month > 0
-          ? parseFloat(
-              (((r.revenue_this_month - r.revenue_last_month) / r.revenue_last_month) * 100).toFixed(1)
-            )
-          : null,
+      connection.query(sql2, (err2, rows2) => {
+        if (err2) return reject(err2);
+        const r  = rows[0];
+        const r2 = rows2[0];
+        resolve({
+          total_revenue:        parseFloat(r.total_revenue),
+          revenue_this_month:   parseFloat(r.revenue_this_month),
+          revenue_last_month:   parseFloat(r.revenue_last_month),
+          total_companies:      r.total_companies,
+          active_subscriptions: r2.active_subscriptions,
+          expiring_soon:        r2.expiring_soon,
+          mom_growth: r.revenue_last_month > 0
+            ? parseFloat((((r.revenue_this_month - r.revenue_last_month) / r.revenue_last_month) * 100).toFixed(1))
+            : null,
+        });
       });
     });
   });
@@ -145,18 +148,33 @@ const getRevenueSummary = () => {
 
 const getRevenueByModel = () => {
   return new Promise((resolve, reject) => {
-    const sql = `
-      SELECT
-        p.pricing_model,
-        COUNT(DISTINCT pay.account_id)  AS companies,
-        COUNT(pay.id)                   AS transactions,
-        SUM(pay.amount)                 AS revenue
-      FROM payment pay
-      JOIN packages p ON p.id = pay.package_id
-      WHERE pay.payment_status = 'Paid'
-      GROUP BY p.pricing_model
-      ORDER BY revenue DESC
-    `;
+const sql = `
+  SELECT pricing_model, companies, transactions, revenue
+  FROM (
+    SELECT
+      p.pricing_model,
+      COUNT(DISTINCT pay.account_id) AS companies,
+      COUNT(pay.id)                  AS transactions,
+      SUM(pay.amount)                AS revenue
+    FROM payment pay
+    JOIN packages p ON p.id = pay.package_id
+    WHERE pay.payment_status = 'Paid'
+    GROUP BY p.pricing_model
+
+    UNION ALL
+
+    SELECT
+      'daily_budget'                 AS pricing_model,
+      COUNT(DISTINCT account_id)     AS companies,
+      COUNT(id)                      AS transactions,
+      COALESCE(SUM(spent_amount), 0) AS revenue
+    FROM job_posts
+    WHERE billing_model = 'daily_budget'
+      AND approval_status = 'Approved'
+      AND spent_amount > 0
+  ) AS combined
+  ORDER BY revenue DESC
+`;
 
     connection.query(sql, (err, rows) => {
       if (err) return reject(err);
@@ -172,22 +190,34 @@ const getRevenueByModel = () => {
 
 const getMonthlyRevenueTrend = (months = 6) => {
   return new Promise((resolve, reject) => {
-    const sql = `
-      SELECT
-        DATE_FORMAT(pay.created_at, '%b %Y')  AS month_label,
-        DATE_FORMAT(pay.created_at, '%Y-%m')  AS month_key,
-        COALESCE(SUM(pay.amount), 0)           AS revenue,
-        COUNT(DISTINCT pay.account_id)         AS companies,
-        COUNT(pay.id)                          AS transactions
-      FROM payment pay
-      WHERE pay.payment_status = 'Paid'
-        AND pay.package_id IS NOT NULL
-        AND pay.created_at >= DATE_SUB(CURDATE(), INTERVAL ? MONTH)
-      GROUP BY month_key, month_label
-      ORDER BY month_key ASC
-    `;
+  const sql = `
+  SELECT
+    DATE_FORMAT(created_at, '%b %Y') AS month_label,
+    DATE_FORMAT(created_at, '%Y-%m') AS month_key,
+    COALESCE(SUM(amount), 0)          AS revenue,
+    COUNT(DISTINCT account_id)        AS companies,
+    COUNT(*)                          AS transactions
+  FROM (
+    SELECT amount, created_at, account_id
+    FROM payment
+    WHERE payment_status = 'Paid'
+      AND package_id IS NOT NULL
+      AND created_at >= DATE_SUB(CURDATE(), INTERVAL ? MONTH)
 
-    connection.query(sql, [months], (err, rows) => {
+    UNION ALL
+
+    SELECT spent_amount AS amount, created_at, account_id
+    FROM job_posts
+    WHERE billing_model = 'daily_budget'
+      AND approval_status = 'Approved'
+      AND spent_amount > 0
+      AND created_at >= DATE_SUB(CURDATE(), INTERVAL ? MONTH)
+  ) AS all_revenue
+  GROUP BY month_key, month_label
+  ORDER BY month_key ASC
+`;
+
+    connection.query(sql, [months, months], (err, rows) => {
       if (err) return reject(err);
       resolve(rows.map(r => ({
         ...r,
@@ -201,8 +231,8 @@ const getCompanyPackageTable = ({
   page          = 1,
   limit         = 15,
   search        = "",
-  pricing_model = "",   // filter: job_slot | cv_credits | duration_bundle | daily_budget | all
-  status        = "",   // filter: active | expired | used | cancelled | all
+  pricing_model = "",
+  status        = "",
   sort          = "paid_at",
   order         = "DESC",
 } = {}) => {
@@ -212,16 +242,15 @@ const getCompanyPackageTable = ({
     const offset = (page - 1) * limit;
 
     const allowedSort = {
-      paid_at:      "pay.created_at",
-      revenue:      "pay.amount",
-      company_name: "ci.company_name",
-      end_date:     "cp.end_date",
-      pricing_model:"cp.pricing_model",
+      paid_at:      "paid_at",
+      revenue:      "revenue",
+      company_name: "company_name",
+      end_date:     "end_date",
+      pricing_model:"pricing_model",
     };
-    const sortCol   = allowedSort[sort] || "pay.created_at";
+    const sortCol   = allowedSort[sort] || "paid_at";
     const sortOrder = order === "ASC" ? "ASC" : "DESC";
 
-    // ── build WHERE conditions ──
     const conditions = ["pay.payment_status = 'Paid'", "pay.package_id IS NOT NULL"];
     const params     = [];
 
@@ -249,67 +278,99 @@ const getCompanyPackageTable = ({
     const where = "WHERE " + conditions.join(" AND ");
 
     const sql = `
-      SELECT
-        -- Company
-        a.id                                      AS account_id,
-        COALESCE(ci.company_name, a.username)     AS company_name,
-        ci.phone,
-        co.name                                   AS country,
-        ci_city.name                              AS city,
+      SELECT * FROM (
+        SELECT
+          a.id                                      AS account_id,
+          COALESCE(ci.company_name, a.username)     AS company_name,
+          ci.phone,
+          co.name                                   AS country,
+          ci_city.name                              AS city,
+          cp.id                                     AS subscription_id,
+          cp.pricing_model,
+          cp.status                                 AS sub_status,
+          cp.start_date,
+          cp.end_date,
+          DATEDIFF(cp.end_date, CURDATE())          AS days_remaining,
+          cp.used_posts, cp.used_credits, cp.used_slots,
+          cp.used_budget, cp.used_applies,
+          cp.package_snapshot,
+          pkg.name                                  AS package_name,
+          pkg.slot_count, pkg.credit_count, pkg.num_posts,
+          pkg.daily_budget_cap, pkg.boost_duration_days,
+          pay.id                                    AS payment_id,
+          pay.amount                                AS revenue,
+          pay.payment_method,
+          pay.created_at                            AS paid_at,
+          (SELECT DATEDIFF(CURDATE(), MAX(jp2.created_at))
+           FROM job_posts jp2 WHERE jp2.account_id = a.id) AS days_since_last_job
+        FROM payment pay
+        JOIN company_packages cp  ON cp.payment_id  = pay.id
+        JOIN account a            ON a.id            = cp.account_id
+        JOIN packages pkg         ON pkg.id          = pay.package_id
+        LEFT JOIN company_info ci ON ci.account_id   = a.id
+        LEFT JOIN countries co    ON co.id           = ci.country_id
+        LEFT JOIN cities ci_city  ON ci_city.id      = ci.city_id
+        ${where}
 
-        -- Subscription
-        cp.id                                     AS subscription_id,
-        cp.pricing_model,
-        cp.status                                 AS sub_status,
-        cp.start_date,
-        cp.end_date,
-        DATEDIFF(cp.end_date, CURDATE())          AS days_remaining,
-        cp.used_posts,
-        cp.used_credits,
-        cp.used_slots,
-        cp.used_budget,
-        cp.used_applies,
-        cp.package_snapshot,
+        UNION ALL
 
-        -- Package meta
-        pkg.name                                  AS package_name,
-        pkg.slot_count,
-        pkg.credit_count,
-        pkg.num_posts,
-        pkg.daily_budget_cap,
-        pkg.boost_duration_days,
-
-        -- Revenue
-        pay.id                                    AS payment_id,
-        pay.amount                                AS revenue,
-        pay.payment_method,
-        pay.created_at                            AS paid_at,
-
-        -- Days since last job post (activity signal)
-        (SELECT DATEDIFF(CURDATE(), MAX(jp.created_at))
-         FROM job_posts jp
-         WHERE jp.account_id = a.id)              AS days_since_last_job
-
-      FROM payment pay
-      JOIN company_packages cp  ON cp.payment_id  = pay.id
-      JOIN account a            ON a.id            = cp.account_id
-      JOIN packages pkg         ON pkg.id          = pay.package_id
-      LEFT JOIN company_info ci ON ci.account_id   = a.id
-      LEFT JOIN countries co    ON co.id           = ci.country_id
-      LEFT JOIN cities ci_city  ON ci_city.id      = ci.city_id
-      ${where}
+        SELECT
+          a.id                                         AS account_id,
+          COALESCE(ci.company_name, a.username)        AS company_name,
+          ci.phone,
+          co.name                                      AS country,
+          ci_city.name                                 AS city,
+          jp.id                                        AS subscription_id,
+          'daily_budget'                               AS pricing_model,
+          jp.status                                    AS sub_status,
+          DATE(jp.created_at)                          AS start_date,
+          DATE(jp.application_deadline)                AS end_date,
+          DATEDIFF(jp.application_deadline, CURDATE()) AS days_remaining,
+          0 AS used_posts, 0 AS used_credits, 0 AS used_slots,
+          jp.spent_amount                              AS used_budget,
+          0 AS used_applies,
+          NULL                                         AS package_snapshot,
+          COALESCE(pkg2.name, jp.job_title)            AS package_name,
+          NULL AS slot_count, NULL AS credit_count, NULL AS num_posts,
+          jp.daily_budget                              AS daily_budget_cap,
+          NULL                                         AS boost_duration_days,
+          jp.id                                        AS payment_id,
+          jp.spent_amount                              AS revenue,
+          'Card'                                       AS payment_method,
+          jp.created_at                                AS paid_at,
+          0                                            AS days_since_last_job
+        FROM job_posts jp
+        JOIN account a             ON a.id          = jp.account_id
+        LEFT JOIN company_info ci  ON ci.account_id = a.id
+        LEFT JOIN countries co     ON co.id         = ci.country_id
+        LEFT JOIN cities ci_city   ON ci_city.id    = ci.city_id
+        LEFT JOIN company_packages cp2 ON cp2.id    = jp.company_package_id
+        LEFT JOIN packages pkg2        ON pkg2.id   = cp2.package_id
+        WHERE jp.billing_model = 'daily_budget'
+          AND jp.approval_status = 'Approved'
+          AND jp.spent_amount > 0
+      ) AS combined
       ORDER BY ${sortCol} ${sortOrder}
       LIMIT ? OFFSET ?
     `;
 
     const countSql = `
-      SELECT COUNT(*) AS total
-      FROM payment pay
-      JOIN company_packages cp  ON cp.payment_id  = pay.id
-      JOIN account a            ON a.id            = cp.account_id
-      JOIN packages pkg         ON pkg.id          = pay.package_id
-      LEFT JOIN company_info ci ON ci.account_id   = a.id
-      ${where}
+      SELECT (
+        SELECT COUNT(*)
+        FROM payment pay
+        JOIN company_packages cp  ON cp.payment_id = pay.id
+        JOIN account a            ON a.id = cp.account_id
+        JOIN packages pkg         ON pkg.id = pay.package_id
+        LEFT JOIN company_info ci ON ci.account_id = a.id
+        ${where}
+      ) + (
+        SELECT COUNT(*)
+        FROM job_posts jp
+        JOIN account a ON a.id = jp.account_id
+        WHERE jp.billing_model = 'daily_budget'
+          AND jp.approval_status = 'Approved'
+          AND jp.spent_amount > 0
+      ) AS total
     `;
 
     connection.query(sql, [...params, limit, offset], (err, rows) => {
@@ -320,13 +381,11 @@ const getCompanyPackageTable = ({
 
         const total = countRows[0]?.total || 0;
 
-        // ── enrich each row with consumption + health signal ──
         const data = rows.map((row) => {
           const snapshot    = parseSnapshot(row.package_snapshot);
           const consumption = computeConsumption(row.pricing_model, row, snapshot);
           const daysLeft    = row.days_remaining ?? 0;
 
-          // health: ok | warning | critical | inactive
           let health = "ok";
           if (row.sub_status !== "active") {
             health = "inactive";
@@ -344,35 +403,29 @@ const getCompanyPackageTable = ({
           }
 
           return {
-            account_id:       row.account_id,
-            company_name:     row.company_name,
-            phone:            row.phone,
-            country:          row.country,
-            city:             row.city,
-            subscription_id:  row.subscription_id,
-            pricing_model:    row.pricing_model,
-            package_name:     row.package_name || snapshot.name || "-",
-            sub_status:       row.sub_status,
-            start_date:       row.start_date,
-            end_date:         row.end_date,
-            days_remaining:   daysLeft,
-            payment_id:       row.payment_id,
-            revenue:          parseFloat(row.revenue),
-            payment_method:   row.payment_method,
-            paid_at:          row.paid_at,
+            account_id:          row.account_id,
+            company_name:        row.company_name,
+            phone:               row.phone,
+            country:             row.country,
+            city:                row.city,
+            subscription_id:     row.subscription_id,
+            pricing_model:       row.pricing_model,
+            package_name:        row.package_name || snapshot.name || "-",
+            sub_status:          row.sub_status,
+            start_date:          row.start_date,
+            end_date:            row.end_date,
+            days_remaining:      daysLeft,
+            payment_id:          row.payment_id,
+            revenue:             parseFloat(row.revenue),
+            payment_method:      row.payment_method,
+            paid_at:             row.paid_at,
             days_since_last_job: row.days_since_last_job,
             consumption,
             health,
           };
         });
 
-        resolve({
-          data,
-          total,
-          page,
-          limit,
-          total_pages: Math.ceil(total / limit),
-        });
+        resolve({ data, total, page, limit, total_pages: Math.ceil(total / limit) });
       });
     });
   });
@@ -416,12 +469,7 @@ const getDailyBudgetRevenue = ({
         jp.application_deadline,
         jp.created_at,
 
-        -- total charged via daily_budget_charges
-        COALESCE((
-          SELECT SUM(dbc.amount)
-          FROM daily_budget_charges dbc
-          WHERE dbc.job_id = jp.id AND dbc.status = 'success'
-        ), 0)                                   AS total_charged
+        jp.spent_amount AS total_charged
 
       FROM job_posts jp
       JOIN account a           ON a.id = jp.account_id
@@ -647,17 +695,25 @@ const getCompanyRevenueDetail = (accountId) => {
 
 const getRevenueByPaymentMethod = () => {
   return new Promise((resolve, reject) => {
-    const sql = `
-      SELECT
-        payment_method,
-        COUNT(*)        AS transactions,
-        SUM(amount)     AS revenue
-      FROM payment
-      WHERE payment_status = 'Paid'
-        AND package_id IS NOT NULL
-      GROUP BY payment_method
-      ORDER BY revenue DESC
-    `;
+   // REPLACE the entire sql string with:
+const sql = `
+  SELECT payment_method, COUNT(*) AS transactions, SUM(amount) AS revenue
+  FROM (
+    SELECT payment_method, amount
+    FROM payment
+    WHERE payment_status = 'Paid' AND package_id IS NOT NULL
+
+    UNION ALL
+
+    SELECT 'Card' AS payment_method, spent_amount AS amount
+    FROM job_posts
+    WHERE billing_model = 'daily_budget'
+      AND approval_status = 'Approved'
+      AND spent_amount > 0
+  ) AS all_payments
+  GROUP BY payment_method
+  ORDER BY revenue DESC
+`;
     connection.query(sql, (err, rows) => {
       if (err) return reject(err);
       resolve(rows.map(r => ({ ...r, revenue: parseFloat(r.revenue) })));
