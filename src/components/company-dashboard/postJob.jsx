@@ -435,7 +435,7 @@ class PostBoxForm extends Component {
         max_experience: "",
         speciality_id: null,
         degree_id: null,
-        degreefields_id: null,
+        degreefields_id: [],
         application_deadline: "",
         screening_start: "",
         screening_end: "",
@@ -644,9 +644,9 @@ loadIndustry = async (inputValue) => {
           degree_id: job.degree_id
             ? { label: job.degree, value: job.degree_id }
             : null,
-          degreefields_id: job.degreefields_id
-  ? { label: job.degreefield, value: job.degreefields_id }
-  : null,
+          degreefields_id: job.degreefields_ids
+  ? job.degreefields_ids.map((id, i) => ({ label: job.degreefields_names?.[i] || `Field ${id}`, value: id }))
+  : (job.degreefields_id ? [{ label: job.degreefield, value: job.degreefields_id }] : []),
           application_deadline: job.application_deadline?.split("T")[0] || "",
           no_of_positions: job.no_of_positions || "",
         },
@@ -933,8 +933,8 @@ if (name === "min_salary" || name === "max_salary") {
       errors.max_experience = "Maximum experience is required.";
     if (!values.speciality_id) errors.speciality_id = "Speciality is required.";
     if (!values.degree_id) errors.degree_id = "Qualification is required.";
-    if (!values.degreefields_id)
-  errors.degreefields_id = "Degree field is required.";
+    if (!values.degreefields_id?.length)
+  errors.degreefields_id = "At least one field of study is required.";
     if (!values.no_of_positions)
       errors.no_of_positions = "Number of positions is required.";
     if (!values.application_deadline) {
@@ -978,7 +978,7 @@ if (name === "min_salary" || name === "max_salary") {
       currency_id: values.currency_id?.value,
       speciality_id: values.speciality_id?.value,
       degree_id: values.degree_id?.value,
-      degreefields_id: values.degreefields_id?.value,
+      degreefields_id: values.degreefields_id?.map((f) => f.value) ?? [],
       skill_ids: values.skill_ids.map((s) => s.value),
       application_deadline: new Date(values.application_deadline)
         .toISOString()
@@ -1708,27 +1708,29 @@ renderPage1 = () => {
     />
             </Field>
             <Field
-    label="Degree Field"
+    label="Field of Study"
     required
     error={errors.degreefields_id}
   >
- <AsyncSelect
-  key={values.degree_id?.value || "degree-field"}  // 👈 MAGIC LINE
+<AsyncSelect
+  key={values.degree_id?.value || "degree-field"}
+  isMulti                              // ← ADD THIS
   cacheOptions
   defaultOptions
- loadOptions={(inputValue) => {
-  const degreeId = this.state.values.degree_id?.value;
-
-  if (!degreeId) return [];
-
-  return this.loadDegreeFields(degreeId, inputValue);
-}}
-  value={values.degreefields_id}
-  onChange={(option) =>
-    this.handleSelectChange("degreefields_id", option)
+  loadOptions={(inputValue) => {
+    const degreeId = this.state.values.degree_id?.value;
+    if (!degreeId) return [];
+    return this.loadDegreeFields(degreeId, inputValue);
+  }}
+  value={values.degreefields_id}       // already array now
+  onChange={(options) =>
+    this.setState((prev) => ({
+      values: { ...prev.values, degreefields_id: options || [] },
+      errors: { ...prev.errors, degreefields_id: undefined },
+    }))
   }
   isDisabled={!values.degree_id}
-  placeholder="Select degree field..."
+  placeholder="Select field(s) of study..."
   styles={indeedSelectStyles}
 />
   </Field>
@@ -1791,7 +1793,7 @@ renderPage1 = () => {
             </Field>
           </div>
           {/* ── Hiring Timeline ── */}
-          <div
+          {/* <div
             style={{
               marginTop: "20px",
               paddingTop: "20px",
@@ -1892,7 +1894,7 @@ renderPage1 = () => {
                 />
               </Field>
             </div>
-          </div>
+          </div> */}
         </div>
 
         <div style={s.actions}>
@@ -1959,22 +1961,23 @@ renderPage1 = () => {
       ],
       ["Speciality", values.speciality_id?.label],
       ["Qualification", values.degree_id?.label],
+      ["Field of Study", values.degreefields_id?.map((f) => f.label).join(", ") || "—"],
       ["No. of Positions", values.no_of_positions],
       ["Application Deadline", values.application_deadline],
       // ["Application Deadline", values.application_deadline],
-      [
-        "Screening Period",
-        values.screening_start && values.screening_end
-          ? `${values.screening_start} – ${values.screening_end}`
-          : values.screening_start || "—",
-      ],
-      [
-        "Interview Dates",
-        values.interview_start && values.interview_end
-          ? `${values.interview_start} – ${values.interview_end}`
-          : values.interview_start || "—",
-      ],
-      ["Expected Joining Date", values.expected_joining_date || "—"],
+      // [
+      //   "Screening Period",
+      //   values.screening_start && values.screening_end
+      //     ? `${values.screening_start} – ${values.screening_end}`
+      //     : values.screening_start || "—",
+      // ],
+      // [
+      //   "Interview Dates",
+      //   values.interview_start && values.interview_end
+      //     ? `${values.interview_start} – ${values.interview_end}`
+      //     : values.interview_start || "—",
+      // ],
+      // ["Expected Joining Date", values.expected_joining_date || "—"],
     ];
 
     return (

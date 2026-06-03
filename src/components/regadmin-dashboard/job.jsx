@@ -57,7 +57,7 @@ class Job extends Component {
       { key: "username", label: "Company Name" },
       { key: "job_title", label: "Job Title" },
       { key: "packageprice", label: "Packages Price" },
-      { key: "duration_value", label: "Duration" },
+      // { key: "duration_value", label: "Duration" },
       { key: "approval_status", label: "Approval Status" },
       { key: "status", label: "Status" },
       { key: "action", label: "Action" },

@@ -197,24 +197,10 @@
       />
       <div className="flex-grow-1" style={{ minWidth: 0 /* Prevents text overflow */ }}>
         <h4 className="mb-1 fs-5 fs-md-4">{candidateData.full_name}</h4>
-        <div className="text-muted small">
+      <div className="text-muted small">
           {candidateData.date_of_birth
             ? `${new Date().getFullYear() - new Date(candidateData.date_of_birth).getFullYear()} years old`
             : "-"}
-        </div>
-        <div className="text-muted small">
-          <i className="fas fa-phone me-1"></i>
-          {candidateData.phone || "Not specified"}
-        </div>
-        <div className="text-muted small">
-          <i className="fas fa-envelope me-1"></i>
-          <a href={`mailto:${candidateData.email}`} className="text-muted text-decoration-none">
-            {candidateData.email || "not specified"}
-          </a>
-        </div>
-        <div className="text-muted small">
-          <i className="fas fa-map-marker-alt me-1"></i>
-          {candidateData.address || "Location not specified"}
         </div>
       </div>
     </div>
@@ -252,13 +238,148 @@
     </div>
   </div>
 </div>
-
+<div className="card shadow-sm rounded-4 p-4 mb-4">
+                      <h5 className="mb-3">Contact Details</h5>
+    
+        <div className="text-muted small">
+          <i className="fas fa-phone me-1"></i>
+          {candidateData.phone || "Not specified"}
+        </div>
+        <div className="text-muted small">
+          <i className="fas fa-envelope me-1"></i>
+          <a href={`mailto:${candidateData.email}`} className="text-muted text-decoration-none">
+            {candidateData.email || "not specified"}
+          </a>
+        </div>
+        <div className="text-muted small">
+          <i className="fas fa-map-marker-alt me-1"></i>
+          {candidateData.address || "Location not specified"}
+        </div>
+</div>
                 {/* ================= BODY ================= */}
-                <div className="row g-4">
+                <div className="d-flex flex-column gap-4">
+
+  {/* Availability */}
+  <div className="card shadow-sm rounded-4 p-4">
+    <h5 className="mb-3">Availability</h5>
+    {candidateData.availability?.length ? (
+      <div className="d-flex flex-column gap-2">
+        {candidateData.availability.map((av, idx) => {
+          const formatTime = (time) => {
+            const [hour, min] = time.split(":");
+            const h = parseInt(hour, 10);
+            const ampm = h >= 12 ? "PM" : "AM";
+            const hour12 = h % 12 === 0 ? 12 : h % 12;
+            return `${hour12}:${min} ${ampm}`;
+          };
+          return (
+            <div key={idx} className="d-flex gap-3">
+              <div className="fw-bold" style={{ minWidth: "120px" }}>
+                {av.day}
+              </div>
+              <div>
+                {formatTime(av.startTime)} – {formatTime(av.endTime)} ({av.shift})
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    ) : (
+      <p>-</p>
+    )}
+  </div>
+
+  {/* Documents */}
+  <div className="card shadow-sm rounded-4 p-4">
+    <h5 className="mb-3">Documents</h5>
+
+    <div className="mb-3">
+      <strong>Resume</strong>
+      <div className="mt-2">
+        {candidateData.resume ? (
+          
+           <a href={`${process.env.NEXT_PUBLIC_API_BASE_URL}${candidateData.resume.replace(/^\/+/, "")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-outline-primary btn-sm"
+          >
+            View Resume
+          </a>
+        ) : (
+          <div className="text-muted">N/A</div>
+        )}
+      </div>
+    </div>
+
+    <hr />
+
+    <div className="mb-3">
+      <strong>Certificates</strong>
+      <div className="mt-2">
+        {candidateData.certificates?.length ? (
+          candidateData.certificates.map((cert, idx) => {
+            if (!cert?.document_path) return null;
+            const fileName = cert.document_path.split("\\").pop();
+            return (
+              <div key={idx} className="mb-2">
+                
+                 <a href={`${process.env.NEXT_PUBLIC_API_BASE_URL}uploads/certificate/${fileName}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-outline-secondary btn-sm"
+                >
+                  {cert.document_name || `Certificate ${idx + 1}`}
+                </a>
+              </div>
+            );
+          })
+        ) : (
+          <div className="text-muted">N/A</div>
+        )}
+      </div>
+    </div>
+  </div>
+
+  {/* License & Status */}
+  <div className="card shadow-sm rounded-4 p-4">
+    <h6 className="fw-bold">License Type</h6>
+    <p>{candidateData.license_type || "-"}</p>
+    <h6 className="fw-bold">License No.</h6>
+    <p>{candidateData.license_number || "-"}</p>
+    <h6 className="fw-bold">Candidate Status</h6>
+    <p
+      className="mt-2"
+      style={{
+        color:
+          candidateData.candidateStatus === "Pending"
+            ? "black"
+            : candidateData.candidateStatus === "Rejected"
+            ? "red"
+            : "green",
+        fontWeight: "bold",
+      }}
+    >
+      {candidateData.candidateStatus || "-"}
+    </p>
+  </div>
+
+</div>
+              </>
+            )}
+          </div>
+        </Container>
+      );
+    }
+  }
+
+  export default CandidateInfo;
+
+
+
+{/* <div className="row g-4"> */}
                   {/* LEFT SIDE - PROFILE DETAILS */}
-                  <div className="col-lg-8">
-                    {/* Education */}
-                    <div className="card shadow-sm rounded-4 p-4 mb-4">
+                  {/* <div className="col-lg-8"> */}
+                    {/* <div className="card shadow-sm rounded-4 p-4 mb-4">
                       <h5 className="mb-3">Education</h5>
                       {candidateData.education?.length ? (
                         <div className="d-flex flex-column gap-3">
@@ -287,12 +408,12 @@
                       ) : (
                         <p>No education details provided.</p>
                       )}
-                    </div>
+                    </div> */}
 
                     {/* Experience */}
                     {/* ========== Experience ========== */}
                     {/* ========== Work Experience ========== */}
-                    <div className="card shadow-sm rounded-4 p-4 mb-4">
+                    {/* <div className="card shadow-sm rounded-4 p-4 mb-4">
                       <h5 className="mb-3">Work Experience</h5>
 
                       {candidateData.experience?.length ? (
@@ -320,17 +441,14 @@
 
                             return (
                               <div key={idx} className="d-flex flex-column">
-                                {/* Company */}
                                 <div className="fw-bold fs-6">
                                   {exp.company_name || "-"}
                                 </div>
 
-                                {/* Duration */}
                                 <div className="text-muted small  ">
                                   {start} – {end}
                                 </div>
 
-                                {/* Role */}
                                 <div className="mt-2 ms-3">
                                   • {exp.designation || "-"}
                                 </div>
@@ -341,10 +459,10 @@
                       ) : (
                         <p>No experience details provided.</p>
                       )}
-                    </div>
+                    </div> */}
 
                     {/* Skills & Specialities */}
-                    <div className="card shadow-sm rounded-4 p-4 mb-4">
+                    {/* <div className="card shadow-sm rounded-4 p-4 mb-4">
                       <h5 className="mb-3">Skills</h5>
                       {candidateData.skills?.length ? (
                         <div className="d-flex flex-wrap gap-2">
@@ -376,10 +494,10 @@
                       ) : (
                         <p>-</p>
                       )}
-                    </div>
+                    </div> */}
 
                     {/* Availability */}
-                    <div className="card shadow-sm rounded-4 p-4 mb-4">
+                    {/* <div className="card shadow-sm rounded-4 p-4 mb-4">
                       <h5 className="mb-3">Availability</h5>
                       {candidateData.availability?.length ? (
                         <div className="d-flex flex-column gap-2">
@@ -415,116 +533,72 @@
 
                     {/* Resume */}
                     {/* Documents Section */}
-                    <div className="card shadow-sm rounded-4 p-4">
-                      <h5 className="mb-3">Documents</h5>
-                      {/* <hr className="mt-2 mb-4" /> */}
+                    // <div className="card shadow-sm rounded-4 p-4">
+                    //   <h5 className="mb-3">Documents</h5>
+                    //   {/* <hr className="mt-2 mb-4" /> */}
 
-                      {/* Resume */}
-                      <div className="mb-3">
-                        <strong>Resume</strong>
-                        <div className="mt-2">
-                          {candidateData.resume ? (
-                            <a
-                              href={`${process.env.NEXT_PUBLIC_API_BASE_URL}${candidateData.resume.replace(/^\/+/, "")}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="btn btn-outline-primary btn-sm"
-                            >
-                              View Resume
-                            </a>
-                          ) : (
-                            <div className="text-muted">N/A</div>
-                          )}
-                        </div>
-                      </div>
+                    //   {/* Resume */}
+                    //   <div className="mb-3">
+                    //     <strong>Resume</strong>
+                    //     <div className="mt-2">
+                    //       {candidateData.resume ? (
+                    //         <a
+                    //           href={`${process.env.NEXT_PUBLIC_API_BASE_URL}${candidateData.resume.replace(/^\/+/, "")}`}
+                    //           target="_blank"
+                    //           rel="noopener noreferrer"
+                    //           className="btn btn-outline-primary btn-sm"
+                    //         >
+                    //           View Resume
+                    //         </a>
+                    //       ) : (
+                    //         <div className="text-muted">N/A</div>
+                    //       )}
+                    //     </div>
+                    //   </div>
 
-                      <hr />
+                    //   <hr />
 
-                      {/* Certificates */}
-                      <div className="mb-3">
-                        <strong>Certificates</strong>
-                        <div className="mt-2">
-                          {candidateData.certificates?.length ? (
-                            candidateData.certificates.map((cert, idx) => {
-                              if (!cert?.document_path) return null;
+                    //   {/* Certificates */}
+                    //   <div className="mb-3">
+                    //     <strong>Certificates</strong>
+                    //     <div className="mt-2">
+                    //       {candidateData.certificates?.length ? (
+                    //         candidateData.certificates.map((cert, idx) => {
+                    //           if (!cert?.document_path) return null;
 
-                              // Extract file name from full path
-                              const fileName = cert.document_path
-                                .split("\\")
-                                .pop();
+                    //           // Extract file name from full path
+                    //           const fileName = cert.document_path
+                    //             .split("\\")
+                    //             .pop();
 
-                              return (
-                                <div key={idx} className="mb-2">
-                                  <a
-                                    href={`${process.env.NEXT_PUBLIC_API_BASE_URL}uploads/certificate/${fileName}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="btn btn-outline-secondary btn-sm"
-                                  >
-                                    {cert.document_name ||
-                                      `Certificate ${idx + 1}`}
-                                  </a>
-                                </div>
-                              );
-                            })
-                          ) : (
-                            <div className="text-muted">N/A</div>
-                          )}
-                        </div>
-                      </div>
+                    //           return (
+                    //             <div key={idx} className="mb-2">
+                    //               <a
+                    //                 href={`${process.env.NEXT_PUBLIC_API_BASE_URL}uploads/certificate/${fileName}`}
+                    //                 target="_blank"
+                    //                 rel="noopener noreferrer"
+                    //                 className="btn btn-outline-secondary btn-sm"
+                    //               >
+                    //                 {cert.document_name ||
+                    //                   `Certificate ${idx + 1}`}
+                    //               </a>
+                    //             </div>
+                    //           );
+                    //         })
+                    //       ) : (
+                    //         <div className="text-muted">N/A</div>
+                    //       )}
+                    //     </div>
+                    //   </div>
 
-                      <hr />
+                    //   <hr />
 
-                      {/* Research */}
-                      <div>
-                        <strong>Research</strong>
-                        <div className="mt-2">
-                          {candidateData.research?.length ? (
-                            candidateData.research.map((res, idx) => {
-                              if (!res.document_path && !res.research_link)
-                                return null;
-
-                              const fileName = res.document_path
-                                ? res.document_path.split("\\").pop()
-                                : null;
-                              const url =
-                                res.research_link ||
-                                (fileName
-                                  ? `${process.env.NEXT_PUBLIC_API_BASE_URL}uploads/research/${fileName}`
-                                  : null);
-                              const isLink = !!res.research_link;
-
-                              return (
-                                <div key={idx} className="mb-2">
-                                  {url ? (
-                                    <a
-                                      href={url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className={`btn btn-outline-${isLink ? "success" : "secondary"} btn-sm`}
-                                    >
-                                      {res.research_title ||
-                                        `Research ${idx + 1}`}
-                                    </a>
-                                  ) : (
-                                    <span className="text-muted">
-                                      {res.research_title ||
-                                        `Research ${idx + 1}`}
-                                    </span>
-                                  )}
-                                </div>
-                              );
-                            })
-                          ) : (
-                            <div className="text-muted">N/A</div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                      
+                    // </div>
+                  // </div> */}
 
                   {/* RIGHT SIDE - RECRUITER PANEL */}
-                  <div className="col-lg-4">
+                  {/* <div className="col-lg-4">
                     <div className="card shadow-sm rounded-4 p-4 mb-4">
                       <h6 className="fw-bold">License Type</h6>
                       <p>{candidateData.license_type || "-"}</p>
@@ -545,7 +619,7 @@
                       >
                         {candidateData.candidateStatus || "-"}
                       </p>
-                    </div>
+                    </div> */}
 
                     {/* <div className="card shadow-sm rounded-4 p-4">
                       <h6 className="fw-bold">Internal Notes</h6>
@@ -569,14 +643,5 @@
                         Save Note
                       </button>
                     </div> */}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </Container>
-      );
-    }
-  }
-
-  export default CandidateInfo;
+                  {/* </div>
+                </div> */}

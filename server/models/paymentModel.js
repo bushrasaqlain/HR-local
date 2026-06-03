@@ -348,36 +348,36 @@ logAudit({
   });
 };
 
-const getSavedCards = (req, res) => {
-  const { userId } = req.params;
+  const getSavedCards = (req, res) => {
+    const { userId } = req.params;
 
-  const query = `
-  SELECT id, card_last4, card_brand, card_holder, accepted_types, payment_token
-  FROM saved_cards
-  WHERE account_id = ?
-  ORDER BY id DESC
-`;
+    const query = `
+    SELECT id, card_last4, card_brand, card_holder, card_expiry, accepted_types, payment_token
+    FROM saved_cards
+    WHERE account_id = ?
+    ORDER BY id DESC
+  `;
 
 
-  connection.query(query, [userId], (err, results) => {
-    if (err) {
-      console.error("getSavedCards error:", err.message);
-      return res.status(500).json({ success: false, error: err.message });
-    }
-
-    const cards = results.map(c => {
-      let accepted_types = [];
-      try {
-        accepted_types = c.accepted_types ? JSON.parse(c.accepted_types) : [];
-      } catch (e) {
-        accepted_types = [];
+    connection.query(query, [userId], (err, results) => {
+      if (err) {
+        console.error("getSavedCards error:", err.message);
+        return res.status(500).json({ success: false, error: err.message });
       }
-      return { ...c, accepted_types };
-    });
 
-    res.json({ success: true, cards });
-  });
-};
+      const cards = results.map(c => {
+        let accepted_types = [];
+        try {
+          accepted_types = c.accepted_types ? JSON.parse(c.accepted_types) : [];
+        } catch (e) {
+          accepted_types = [];
+        }
+        return { ...c, accepted_types };
+      });
+
+      res.json({ success: true, cards });
+    });
+  };
 const addRegistrationPayment = (req, res) => {
   const { userId } = req.params;
 

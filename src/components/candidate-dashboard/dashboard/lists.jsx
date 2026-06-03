@@ -324,7 +324,11 @@ class JobList extends Component {
               // Check if company confirmed
               const isCompanyConfirmed = company.company_status === "confirmed";
               // Determine if actions should be shown
-              const showActions = !isAccepted && !isCompanyConfirmed;
+              const isDateExpired = company.interview_day
+  ? new Date(company.interview_day) < new Date(new Date().toDateString())
+  : false;
+
+const showActions = !isAccepted && !isCompanyConfirmed && !isDateExpired;
 
               return (
                 <tr key={index}>
@@ -456,24 +460,27 @@ class JobList extends Component {
                                 }
                               />
                             </>
-                          ) : /* Show appropriate badge when no actions */
-                            isCompanyConfirmed ? (
-                              <span className="badge bg-success bg-opacity-10 text-success px-3 py-2">
-                                <FaCheckCircle className="me-1" /> Company
-                                Confirmed
-                              </span>
-                            ) : isAccepted ? (
-                              <span className="badge bg-success bg-opacity-10 text-success px-3 py-2">
-                                <FaCheckCircle className="me-1" /> You Confirmed
-                              </span>
-                            ) : null}
+                          ) : isCompanyConfirmed ? (
+  <span className="badge bg-success bg-opacity-10 text-success px-3 py-2">
+    <FaCheckCircle className="me-1" /> Company Confirmed
+  </span>
+) : isAccepted ? (
+  <span className="badge bg-success bg-opacity-10 text-success px-3 py-2">
+    <FaCheckCircle className="me-1" /> You Confirmed
+  </span>
+) : isDateExpired ? (
+  <span className="badge bg-secondary bg-opacity-10 text-secondary px-3 py-2">
+    <FaTimesCircle className="me-1" /> Date Expired
+  </span>
+) : null}
 
                           {/* Chat button - Always visible even after confirmation */}
-                          <FaEnvelope
-                            size={22}
-                            className="text-info action-icon"
-                            style={{ cursor: "pointer" }}
-                            title="Chat with Company"
+                          {!isDateExpired && (
+  <FaEnvelope
+    size={22}
+    className="text-info action-icon"
+    style={{ cursor: "pointer" }}
+    title="Chat with Company"
                             onClick={() =>
                               this.openChatWithCompany(
                                 company.company_id,
@@ -483,6 +490,7 @@ class JobList extends Component {
                               )
                             }
                           />
+                          )}
                         </div>
                       </td>
                     </>

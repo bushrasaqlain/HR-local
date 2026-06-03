@@ -80,7 +80,14 @@ class JobListings extends Component {
       "updated_at",
     ];
   }
-
+billingModelLabels = {
+  cv_credits: "CV Credits",
+  job_slot: "Job Slots",
+  daily_budget: "Daily Budget",
+  basic: "Basic",
+  premium: "Premium",
+  // add more as needed
+};
   componentDidMount() {
     if (this.userId) {
       this.fetchData(this.userId);
@@ -443,13 +450,13 @@ handleSort = (key) => {
                   value: jobListings.filter(j => j.approval_status === 'Pending').length, 
                   change: 'Awaiting' 
                 },
-                { 
-                  label: 'Pending Payment', 
-                  value: jobListings.filter(j => j.approval_status === 'Pending Payment').length, 
-                  change: 'Action needed' 
-                }
+                // { 
+                //   label: 'Pending Payment', 
+                //   value: jobListings.filter(j => j.approval_status === 'Pending Payment').length, 
+                //   change: 'Action needed' 
+                // }
               ].map((stat, idx) => (
-                <Col md={3} key={idx}>
+                <Col md={4} key={idx}>
                   <div style={{
                     background: 'white',
                     borderRadius: '16px',
@@ -628,11 +635,11 @@ handleSort = (key) => {
                               </div>
                             </div>
                           </td>
-                          <td className="text-start" style={{ padding: '18px 20px', color: '#475569' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              {job.billing_model}
-                            </div>
-                          </td>
+                          <td className="text-center" style={{ padding: '18px 20px', color: '#475569' }}>
+  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+    {this.billingModelLabels[job.billing_model] || job.billing_model}
+  </div>
+</td>
                           <td className="text-center" style={{ padding: '18px 20px' }}>
                             <span style={{ 
                               background: '#f1f5f9',

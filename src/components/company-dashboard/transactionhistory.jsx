@@ -50,11 +50,22 @@ class TransactionHistory extends Component {
         return;
       }
       const res = await axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}job/getTransactionHistory/${userId}`);
-      const formatted = (res.data || []).map((t) => ({
-        id: t.transaction_id, name: t.package_name, type: t.pricing_model,
-        price: t.amount_paid, status: t.status, purchasedAt: t.purchased_at,
-        expiresAt: t.end_date, total: t.total_units, used: t.used_units, remaining: t.remaining_units,
-      }));
+      const now = new Date();
+const formatted = (res.data || []).map((t) => {
+  const isExpired = t.end_date && new Date(t.end_date) < now;
+  return {
+    id:          t.transaction_id,
+    name:        t.package_name,
+    type:        t.pricing_model,
+    price:       t.amount_paid,
+    status:      isExpired ? "expired" : (t.status?.toLowerCase() || "active"),
+    purchasedAt: t.purchased_at,
+    expiresAt:   t.end_date,
+    total:       t.total_units,
+    used:        t.used_units,
+    remaining:   t.remaining_units,
+  };
+});
       this.setState({ transactions: formatted, loading: false });
     } catch (err) {
       this.setState({ error: "Failed to load transactions. Please check your connection and try again.", loading: false });
@@ -162,8 +173,7 @@ class TransactionHistory extends Component {
 
     const FILTERS = [
       { key: "all", label: "All" }, { key: "active", label: "Active" }, { key: "expired", label: "Expired" },
-      { key: "cv_credits", label: "CV Credits" }, { key: "job_slot", label: "Job Slots" },
-      { key: "subscription", label: "Subscription" }, { key: "bundle", label: "Bundle" }, { key: "daily_budget", label: "Daily Budget" },
+      { key: "cv_credits", label: "CV Credits" }, { key: "job_slot", label: "Job Slots" },{ key: "daily_budget", label: "Daily Budget" },
     ];
 
     const pageNums = Array.from({ length: totalPages }, (_, i) => i + 1)

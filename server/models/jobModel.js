@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS job_posts (
   max_experience VARCHAR(255),
   speciality_id INT,
   degree_id INT,
-  degreefields_id INT NULL,
+  degreefields_id JSON NULL,
   application_deadline TIMESTAMP,
   no_of_positions INT,
   industry INT NULL,
@@ -59,7 +59,6 @@ CREATE TABLE IF NOT EXISTS job_posts (
   FOREIGN KEY (job_type_id) REFERENCES jobtypes(id), 
   FOREIGN KEY (speciality_id) REFERENCES speciality(id),
   FOREIGN KEY (degree_id) REFERENCES degreetypes(id),
-  FOREIGN KEY (degreefields_id) REFERENCES degreefields(id),
   FOREIGN KEY (currency_id) REFERENCES currencies(id),
   FOREIGN KEY (country_id) REFERENCES countries(id),
   FOREIGN KEY (company_package_id) REFERENCES company_packages(id),
@@ -1221,7 +1220,9 @@ const postJob = (req, res) => {
         max_experience,
         speciality_id,
         degree_id,
-        degreefields_id,
+        Array.isArray(degreefields_id) && degreefields_id.length
+  ? JSON.stringify(degreefields_id)
+  : null,
         application_deadline,
         no_of_positions,
         industry,
@@ -1724,7 +1725,8 @@ const subcribePackageInternal = ({ userId, packageId, paymentId }) => {
 
 // In jobModel.js, replace getUserPackages with this:
 const getUserPackages = (req, res) => {
-  const userId = req.params.userId; // ← extract userId from req HERE
+  const userId = req.params.userId;
+  const now = new Date();
 
   const subsQuery = `
     SELECT 
@@ -1759,55 +1761,54 @@ const getUserPackages = (req, res) => {
     if (err) return res.status(500).json({ error: "Failed to fetch packages" });
 
     connection.query(dailyJobsQuery, [userId], (err2, dailyJobs) => {
-      if (err2)
-        return res
-          .status(500)
-          .json({ error: "Failed to fetch daily budget jobs" });
+      if (err2) return res.status(500).json({ error: "Failed to fetch daily budget jobs" });
 
       const packages = subsResult.map((p) => {
-        const pkg =
-          typeof p.package_snapshot === "string"
-            ? JSON.parse(p.package_snapshot)
-            : p.package_snapshot || {};
+        const pkg = typeof p.package_snapshot === "string"
+          ? JSON.parse(p.package_snapshot)
+          : p.package_snapshot || {};
+
+        const isExpired = p.end_date && new Date(p.end_date) < now;
 
         return {
           subscription_id: p.subscription_id || p.id,
-          start_date: p.start_date,
-          end_date: p.end_date,
-          pricing_model: p.pricing_model,
-          status: p.status,
-          used_posts: p.used_posts,
-          used_credits: p.used_credits,
-          used_slots: p.used_slots,
-          package: { ...pkg, id: pkg.id },
-          remaining_credits: Math.max(
-            (pkg.credit_count || 0) - (p.used_credits || 0),
-            0,
-          ),
+          start_date:      p.start_date,
+          end_date:        p.end_date,
+          pricing_model:   p.pricing_model,
+          status:          isExpired ? "expired" : (p.status?.toLowerCase() || "active"),
+          used_posts:      p.used_posts,
+          used_credits:    p.used_credits,
+          used_slots:      p.used_slots,
+          package:         { ...pkg, id: pkg.id },
+          remaining_credits: Math.max((pkg.credit_count || 0) - (p.used_credits || 0), 0),
           is_daily_budget: false,
         };
       });
 
-      const dailyPackages = dailyJobs.map((job) => ({
-        subscription_id: `job_${job.id}`,
-        start_date: null,
-        end_date: job.application_deadline,
-        pricing_model: "daily_budget",
-        status: job.status,
-        used_posts: 0,
-        used_credits: 0,
-        used_slots: 0,
-        is_daily_budget: true,
-        package: {
-          name: job.job_title,
-          pricing_model: "daily_budget",
-          billing_model: job.billing_model,
-          daily_budget_cap: job.daily_budget_cap,
-          daily_spend_today: 0,
-          total_spend: job.total_spend,
-          price: job.total_spend,
-        },
-      }));
+      const dailyPackages = dailyJobs.map((job) => {
+        const isExpired = job.application_deadline && new Date(job.application_deadline) < now;
+
+        return {
+          subscription_id: `job_${job.id}`,
+          start_date:      null,
+          end_date:        job.application_deadline,
+          pricing_model:   "daily_budget",
+          status:          isExpired ? "expired" : (job.status?.toLowerCase() || "active"),
+          used_posts:      0,
+          used_credits:    0,
+          used_slots:      0,
+          is_daily_budget: true,
+          package: {
+            name:              job.job_title,
+            pricing_model:     "daily_budget",
+            billing_model:     job.billing_model,
+            daily_budget_cap:  job.daily_budget_cap,
+            daily_spend_today: 0,
+            total_spend:       job.total_spend,
+            price:             job.total_spend,
+          },
+        };
+      });
 
       res.json([...packages, ...dailyPackages]);
     });

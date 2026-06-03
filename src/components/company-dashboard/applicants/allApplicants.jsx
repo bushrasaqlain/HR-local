@@ -179,7 +179,7 @@ class AllApplicants extends Component {
 
       // For locked candidates we skip the expensive mapping — they have no PII anyway
       const candidates = candidatesRaw.map((c) => {
-        if (c.locked) return c; // pass through as-is
+        // if (c.locked) return c; // pass through as-is
 
         const otherPreferredCities = (c.otherPreferredCities || []).map((city) => {
           if (typeof city === "number") return { id: city, name: cityMapObj[city] || "" };
@@ -776,32 +776,61 @@ class AllApplicants extends Component {
                                 style={{ cursor: isLocked ? "default" : "pointer" }}
                               >
                                 {isLocked ? (
-                                  <div className="locked-avatar-placeholder">
-                                    <i className="fas fa-lock" style={{ color: "#a0aec0", fontSize: "14px" }}></i>
-                                  </div>
-                                ) : (
-                                  <img
-                                    src={candidate.passport_photo
-                                      ? `${process.env.NEXT_PUBLIC_API_BASE_URL}${candidate.passport_photo.replace(/^\/+/, "")}`
-                                      : "/images/user.png"}
-                                    alt={candidate.full_name}
-                                    className="compact-avatar"
-                                    onError={(e) => { e.target.src = "/images/user.png"; }}
-                                  />
+  <div className="locked-avatar-placeholder" style={{
+    fontSize: "16px", fontWeight: 700, color: "white",
+    background: "linear-gradient(135deg, #667eea, #764ba2)",
+    border: "2px solid #667eea",
+    boxShadow: "0 2px 8px rgba(102,126,234,0.35)",
+  }}>
+    {(candidate.full_name || "?").charAt(0).toUpperCase()}
+  </div>
+) : (
+                                <img
+  src={candidate.passport_photo
+    ? `${process.env.NEXT_PUBLIC_API_BASE_URL}${candidate.passport_photo.replace(/^\/+/, "")}`
+    : "/images/user.png"}
+  alt={candidate.full_name}
+  className="candidate-avatar"
+  onError={(e) => { e.target.src = "/images/user.png"; }}
+/>
                                 )}
                                 <div className="compact-info">
-                                  {isLocked ? (
-                                    <>
-                                      <div className="blurred-text">██████████</div>
-                                      <div style={{ marginTop: "4px" }}>{this.renderTierBadge(candidate)}</div>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <div className="compact-name">{candidate.full_name}</div>
-                                      <div className="compact-email">{candidate.email || ""}</div>
-                                      {this.renderTierBadge(candidate)}
-                                    </>
-                                  )}
+                                  <>
+  <div className="compact-name">{candidate.full_name || "Candidate"}</div>
+ <div style={{ fontSize: "0.72rem", marginTop: "2px", display: "flex", flexDirection: "column", gap: "2px" }}>
+  {(() => {
+    const specName = candidate.experience?.length > 0 && candidate.experience[0].speciality?.name
+      ? candidate.experience[0].speciality.name
+      : candidate.speciality_name && candidate.speciality_name !== "-"
+      ? candidate.speciality_name : null;
+    const skillNames = candidate.skill_names?.length > 0
+      ? candidate.skill_names
+      : (candidate.skills || []).map(s => s.name || s).filter(Boolean);
+    const avail = candidate.availability || candidate.availabilityList || [];
+    return (
+      <>
+        {/* {!isLocked && candidate.email && (
+          <span style={{ color: "#718096" }}>{candidate.email}</span>
+        )} */}
+        {specName && (
+          <span style={{ color: "#36565f", fontWeight: 600 }}> {specName}</span>
+        )}
+        {skillNames.length > 0 && (
+          <span style={{ color: "#4a5568" }}>
+             {skillNames.slice(0, 3).join(", ")}
+          </span>
+        )}
+        {avail.length > 0 && (
+          <span style={{ color: "#2b6cb0" }}>
+             {avail[0].day} {avail[0].shift || avail[0].time || ""}
+          </span>
+        )}
+      </>
+    );
+  })()}
+</div>
+  {this.renderTierBadge(candidate)}
+</>
                                 </div>
                                 {isLocked && (
                                   <button
@@ -906,38 +935,73 @@ class AllApplicants extends Component {
                                       {/* Candidate column */}
                                       <td>
                                         <div className="d-flex align-items-center gap-2 gap-md-3">
-                                          {isLocked ? (
-                                            <div className="locked-avatar-placeholder">
-                                              <i className="fas fa-lock" style={{ color: "#a0aec0", fontSize: "16px" }}></i>
-                                            </div>
-                                          ) : (
-                                            <img
-                                              src={candidate.passport_photo
-                                                ? `${process.env.NEXT_PUBLIC_API_BASE_URL}${candidate.passport_photo.replace(/^\/+/, "")}`
-                                                : "/images/user.png"}
-                                              alt={candidate.full_name}
-                                              className="candidate-avatar"
-                                              onError={(e) => { e.target.src = "/images/user.png"; }}
-                                            />
-                                          )}
+<div style={{ position: "relative", display: "inline-block", flexShrink: 0 }}>
+ <img
+  src={candidate.passport_photo
+    ? `${process.env.NEXT_PUBLIC_API_BASE_URL}${candidate.passport_photo.replace(/^\/+/, "")}`
+    : "/images/user.png"}
+  alt={candidate.full_name}
+  className="compact-avatar"
+  onError={(e) => { e.target.src = "/images/user.png"; }}
+/>
+  {isLocked && (
+    <div style={{
+      position: "absolute", inset: 0, borderRadius: "50%",
+      background: "rgba(102,126,234,0.15)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: "18px",
+    }}></div>
+  )}
+</div> 
                                           <div>
-                                            {isLocked ? (
-                                              <div className="blurred-text">███████████</div>
-                                            ) : (
-                                              <>
-                                                <div className="candidate-name">{candidate.full_name}</div>
-                                                {!isMobile && <small className="text-muted">{candidate.email}</small>}
-                                              </>
-                                            )}
-                                          </div>
+  <div className="candidate-name">{candidate.full_name || "Candidate"}</div>
+  <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "2px" }}>
+  {(() => {
+    const specName = candidate.speciality_name && candidate.speciality_name !== "-"
+      ? candidate.speciality_name
+      : candidate.experience?.length > 0 && candidate.experience[0].speciality?.name
+      ? candidate.experience[0].speciality.name
+      : null;
+    const skillNames = candidate.skill_names?.length > 0
+      ? candidate.skill_names
+      : (candidate.skills || []).map(s => s.name || s).filter(Boolean);
+    const avail = candidate.availability || candidate.availabilityList || [];
+    return (
+      <>
+        {specName && (
+          <span style={{ fontSize: "0.73rem", color: "#805ad5", fontWeight: 600 }}>
+             {specName}
+          </span>
+        )}
+        {skillNames.length > 0 && (
+          <span style={{ fontSize: "0.73rem", color: "#4a5568" }}>
+            {skillNames.slice(0, 2).join(", ")}
+          </span>
+        )}
+        {avail.length > 0 && (
+          <span style={{ fontSize: "0.73rem", color: "#2b6cb0" }}>
+             {avail[0].day} {avail[0].shift || avail[0].time || ""}
+          </span>
+        )}
+      </>
+    );
+  })()}
+</div>
+</div>
                                         </div>
                                       </td>
 
                                       {/* Status */}
                                       <td className="text-center">
-                                        {isLocked ? (
-                                          <span className="status-badge status-pending" style={{ opacity: 0.4 }}>—</span>
-                                        ) : (
+                                       {isLocked ? (
+  <span className={`status-badge ${
+    candidate.candidateStatus === "Rejected" ? "status-rejected"
+    : candidate.candidateStatus === "Shortlisted" ? "status-shortlisted"
+    : "status-pending"
+  }`}>
+    {candidate.candidateStatus || "Pending"}
+  </span>
+) : (
                                           <span className={`status-badge ${
                                             candidate.candidateStatus === "Pending"
                                               ? "status-pending"

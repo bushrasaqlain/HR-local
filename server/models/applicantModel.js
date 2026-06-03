@@ -12,7 +12,10 @@ const createApplicantsTable = () => {
       job_id INT,
       message VARCHAR(500),
       candidate_id INT,
-      status ENUM('Pending', 'Shortlisted', 'Approved', 'Rejected', 'Cancelled') DEFAULT 'Pending',
+      status ENUM('Pending','Saved','Shortlisted','Considered','Offered','Selected','Joined','Rejected','Refused to Join','Cancelled') DEFAULT 'Pending',
+offer_date DATE NULL,
+offered_salary DECIMAL(10,2) NULL,
+joining_date DATE NULL,
       interview_day DATE NULL,
       interview_time TIME NULL,
       candidate_response VARCHAR(50) DEFAULT NULL,
@@ -548,16 +551,31 @@ const getAllApplicants = async (req, res) => {
       if (unlockedIds.has(c.candidate_id)) return { ...c, locked: false };
 
       return {
-        candidate_id: c.candidate_id, locked: true,
-        tier: c.tier, tier_label: c.tier_label, tier_color: c.tier_color,
-        ai_score: c.ai_score, location_type: c.location_type,
-        matched: c.matched, missing: c.missing,
-        is_boosted: c.is_boosted, city_name: c.city_name,
-        total_experience: c.total_experience, expected_salary: c.expected_salary,
-        skills: c.skills, candidateStatus: c.candidateStatus,
-        has_applied: c.has_applied, billing_info: c.billing_info,
-        full_name: null, email: null, passport_photo: null,
-      };
+  candidate_id: c.candidate_id, locked: true,
+  tier: c.tier, tier_label: c.tier_label, tier_color: c.tier_color,
+  ai_score: c.ai_score, location_type: c.location_type,
+  matched: c.matched, missing: c.missing,
+  is_boosted: c.is_boosted,
+  total_experience: c.total_experience,
+  has_applied: c.has_applied, billing_info: c.billing_info,
+  candidateStatus: c.candidateStatus,
+
+  // ✅ Safe to show — no PII
+  full_name: c.full_name,
+  skills: c.skills,
+  experience: c.experience,        // needed for speciality_name on frontend
+  availability: c.availability,    // needed for availabilityList on frontend
+
+  // ❌ Intentionally hidden
+  email: null,
+  phone: null,
+   passport_photo: c.passport_photo || null, 
+  resume: null,
+  address: null,
+  date_of_birth: null,
+  city_name: c.city_name || null,                 // hide exact location
+  expected_salary: null,           // hide salary expectation
+};
     });
 
     // STEP 14: Summary + response
@@ -845,6 +863,8 @@ const updateApplcantStatus = (req, res) => {
     candidateId, jobId, status, interview_day, interview_time, message,
     candidate_response, requested_interview_day, requested_interview_time,
     candidate_response_message, company_status, company_offered_day, company_offered_time,
+    // ── new fields from ApplicantCard modals ──
+    offerDate, offeredSalary, joiningDate,
   } = req.body;
 
   if (!candidateId || !jobId) return res.status(400).json({ error: "Candidate ID and Job ID are required" });
@@ -858,8 +878,13 @@ const updateApplcantStatus = (req, res) => {
   `;
 
   const logStatusHistory = (employerId, jobTitle, companyName) => {
-    if (status === "Shortlisted" || status === "Approved" || status === "Rejected") {
-      const actionMap = { Shortlisted: "SHORTLISTED", Approved: "APPROVED", Rejected: "REJECTED" };
+    const loggableStatuses = ["Shortlisted","Considered","Offered","Selected","Joined","Rejected","Refused to Join","Saved"];
+    if (loggableStatuses.includes(status)) {
+      const actionMap = {
+        Saved: "SAVED", Shortlisted: "SHORTLISTED", Considered: "CONSIDERED",
+        Offered: "OFFERED", Selected: "SELECTED", Joined: "JOINED",
+        Rejected: "REJECTED", "Refused to Join": "REFUSED_TO_JOIN",
+      };
       const action = actionMap[status];
       logAudit({ tableName: "history", entityType: "employer", entityId: employerId, action, data: { event: `Candidate ${status.toLowerCase()} for job: ${jobTitle}`, candidateId, jobId, status }, changedBy: employerId });
       logAudit({ tableName: "history", entityType: "candidate", entityId: candidateId, action, data: { event: `You were ${status.toLowerCase()} for job: ${jobTitle} at ${companyName}`, jobId, status }, changedBy: employerId });
@@ -874,17 +899,21 @@ const updateApplcantStatus = (req, res) => {
       const fields = [];
       const values = [];
 
-      if (status !== undefined) { fields.push("status = ?"); values.push(status); }
-      if (interview_day !== undefined) { fields.push("interview_day = ?"); values.push(interview_day); }
-      if (interview_time !== undefined) { fields.push("interview_time = ?"); values.push(interview_time); }
-      if (message !== undefined) { fields.push("message = ?"); values.push(message); }
-      if (candidate_response !== undefined) { fields.push("candidate_response = ?"); values.push(candidate_response); }
-      if (requested_interview_day !== undefined) { fields.push("requested_interview_day = ?"); values.push(requested_interview_day); }
-      if (requested_interview_time !== undefined) { fields.push("requested_interview_time = ?"); values.push(requested_interview_time); }
-      if (candidate_response_message !== undefined) { fields.push("candidate_response_message = ?"); values.push(candidate_response_message); }
-      if (company_status !== undefined) { fields.push("company_status = ?"); values.push(company_status); }
-      if (company_offered_day !== undefined) { fields.push("company_offered_day = ?"); values.push(company_offered_day); }
-      if (company_offered_time !== undefined) { fields.push("company_offered_time = ?"); values.push(company_offered_time); }
+      if (status !== undefined)                    { fields.push("status = ?");                     values.push(status); }
+      if (interview_day !== undefined)             { fields.push("interview_day = ?");              values.push(interview_day); }
+      if (interview_time !== undefined)            { fields.push("interview_time = ?");             values.push(interview_time); }
+      if (message !== undefined)                   { fields.push("message = ?");                    values.push(message); }
+      if (candidate_response !== undefined)        { fields.push("candidate_response = ?");         values.push(candidate_response); }
+      if (requested_interview_day !== undefined)   { fields.push("requested_interview_day = ?");    values.push(requested_interview_day); }
+      if (requested_interview_time !== undefined)  { fields.push("requested_interview_time = ?");   values.push(requested_interview_time); }
+      if (candidate_response_message !== undefined){ fields.push("candidate_response_message = ?"); values.push(candidate_response_message); }
+      if (company_status !== undefined)            { fields.push("company_status = ?");             values.push(company_status); }
+      if (company_offered_day !== undefined)       { fields.push("company_offered_day = ?");        values.push(company_offered_day); }
+      if (company_offered_time !== undefined)      { fields.push("company_offered_time = ?");       values.push(company_offered_time); }
+      // ── new fields ──
+      if (offerDate !== undefined)                 { fields.push("offer_date = ?");                 values.push(offerDate); }
+      if (offeredSalary !== undefined)             { fields.push("offered_salary = ?");             values.push(offeredSalary); }
+      if (joiningDate !== undefined)               { fields.push("joining_date = ?");               values.push(joiningDate); }
 
       if (fields.length === 0) return res.status(400).json({ error: "No fields provided to update" });
 
