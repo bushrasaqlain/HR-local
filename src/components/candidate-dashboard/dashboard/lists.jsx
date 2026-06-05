@@ -17,9 +17,15 @@ import Head from "next/head";
 class JobList extends Component {
   state = {
     selected: this.props.selectedType || "shortlisted",
-    shortlistedList: [],
-    approvedList: [],
-    loading: true,
+  shortlistedList: [],
+  approvedList: [],
+  savedList: [],
+  interviewScheduledList: [],
+  interviewConductedList: [],
+  consideredList: [],
+  offeredList: [],
+  rejectedList: [],
+  loading: true,
     showCompanyInfo: false,
     selectedCompany: null,
     companyLoading: false,
@@ -43,30 +49,32 @@ class JobList extends Component {
       this.setState({ showSuccessMessage: false, successMessage: "" });
     }, 3000); // Message disappears after 3 seconds
   };
-  componentDidMount() {
-    const token = sessionStorage.getItem("token");
-    if (!token) return;
+ componentDidMount() {
+  const token = sessionStorage.getItem("token");
+  if (!token) return;
 
-    axios
-      .get(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}candidateProfile/candidate`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      )
-      .then((res) => {
-        const data = res.data || {};
-        this.setState({
-          shortlistedList: data.shortlisted_companies || [],
-          approvedList: data.approved_companies || [],
-          loading: false,
-        });
-      })
-      .catch((err) => {
-        console.error("Error fetching companies:", err);
-        this.setState({ loading: false });
-      });
-  }
+  axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}candidateProfile/candidate`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  .then((res) => {
+    const data = res.data || {};
+    this.setState({
+      shortlistedList:         data.shortlisted_companies       || [],
+      approvedList:            data.approved_companies          || [],
+      savedList:               data.saved_companies             || [],
+      interviewScheduledList:  data.interview_scheduled_companies || [],
+      interviewConductedList:  data.interview_conducted_companies || [],
+      consideredList:          data.considered_companies        || [],
+      offeredList:             data.offered_companies           || [],
+      rejectedList:            data.rejected_companies          || [],
+      loading: false,
+    });
+  })
+  .catch((err) => {
+    console.error("Error fetching companies:", err);
+    this.setState({ loading: false });
+  });
+}
 
   componentDidUpdate(prevProps) {
     if (
@@ -192,27 +200,28 @@ class JobList extends Component {
   };
 
   // Add this method to refresh the list after actions
-  refreshList = async () => {
-    const token = sessionStorage.getItem("token");
-    if (!token) return;
-
-    try {
-      const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}candidateProfile/candidate`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-
-      const data = res.data || {};
-      this.setState({
-        shortlistedList: data.shortlisted_companies || [],
-        approvedList: data.approved_companies || [],
-      });
-    } catch (err) {
-      console.error("Error refreshing companies:", err);
-    }
-  };
+refreshList = async () => {
+  const token = sessionStorage.getItem("token");
+  if (!token) return;
+  try {
+    const res = await axios.get(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}candidateProfile/candidate`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = res.data || {};
+    this.setState({
+      savedList:               data.saved_companies               || [],
+      interviewScheduledList:  data.interview_scheduled_companies || [],
+      interviewConductedList:  data.interview_conducted_companies || [],
+      consideredList:          data.considered_companies          || [],
+      offeredList:             data.offered_companies             || [],
+      approvedList:            data.approved_companies            || [],
+      rejectedList:            data.rejected_companies            || [],
+    });
+  } catch (err) {
+    console.error("Error refreshing:", err);
+  }
+};
   handleRescheduleFromModal = async () => {
     const { newDate, newTime, selectedRescheduleCompany } = this.state;
 
@@ -286,9 +295,12 @@ class JobList extends Component {
                   <th>Actions</th>
                 </>
               )}
-              {this.state.selected === "approved" && (
-                <th>Your Response</th>
-              )}
+              {this.state.selected === "offered" && (
+  <th>Your Response</th>
+)}
+{this.state.selected === "approved" && (
+  <th>Your Response</th>
+)}
             </tr>
           </thead>
           <tbody>
@@ -335,7 +347,7 @@ const showActions = !isAccepted && !isCompanyConfirmed && !isDateExpired;
                   <td>{index + 1}</td>
 
                   <td
-                    className="text-primary fw-semibold"
+                    className="text-primary text-start fw-semibold"
                     style={{ cursor: "pointer" }}
                     onClick={() => this.handleCompanyClick(company)}
                   >
@@ -343,6 +355,76 @@ const showActions = !isAccepted && !isCompanyConfirmed && !isDateExpired;
                   </td>
 
                   <td>{company.job_title || "-"}</td>
+{this.state.selected === "offered" && (
+  <td className="text-center">
+    {company.candidate_response === "Accepted" ? (
+      <span className="badge bg-success bg-opacity-10 text-success px-3 py-2">
+        <FaCheckCircle className="me-1" /> You Accepted
+      </span>
+
+    ) : company.candidate_response === "Rejected" ? (
+      <span className="badge bg-danger bg-opacity-10 text-danger px-3 py-2">
+        <FaTimesCircle className="me-1" /> You Rejected
+      </span>
+
+    ) : (
+      <div className="d-flex justify-content-center align-items-center gap-2">
+        {/* Accept */}
+        <button
+          title="Accept Offer"
+          onClick={() => this.setState({
+            showApprovalModal: true,
+            selectedApprovalCompany: company,
+            approvalAction: "Accepted",
+          })}
+          style={{
+            background: "none", border: "none", cursor: "pointer",
+            color: "#36565f", fontSize: "22px", padding: "4px",
+            transition: "transform 0.2s",
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.3)"}
+          onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+        >
+          <FaCheckCircle />
+        </button>
+
+        {/* Reject */}
+        <button
+          title="Reject Offer"
+          onClick={() => this.setState({
+            showApprovalModal: true,
+            selectedApprovalCompany: company,
+            approvalAction: "Rejected",
+          })}
+          style={{
+            background: "none", border: "none", cursor: "pointer",
+            color: "#dc2626", fontSize: "22px", padding: "4px",
+            transition: "transform 0.2s",
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.3)"}
+          onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+        >
+          <FaTimesCircle />
+        </button>
+
+        {/* Message */}
+        <FaEnvelope
+          size={22}
+          className="text-info"
+          style={{ cursor: "pointer" }}
+          title="Chat with Company"
+          onClick={() => this.openChatWithCompany(
+            company.company_id,
+            company.company_name || company.name,
+            company.job_id,
+            company.accountId
+          )}
+        />
+      </div>
+    )}
+  </td>
+)}
+
 
                   {this.state.selected === "approved" && (
                     <td className="text-center">
@@ -410,91 +492,80 @@ const showActions = !isAccepted && !isCompanyConfirmed && !isDateExpired;
                   </td>
                 )} */}
 
-                  {this.state.selected === "shortlisted" && (
-                    <>
-                      <td>
-                        {formattedDate !== "-" ? (
-                          <>
-                            {formattedDate}(
-                            <small className="text-muted">{formattedDay}</small>
-                            )
-                          </>
-                        ) : (
-                          "-"
-                        )}
-                      </td>
+{this.state.selected === "shortlisted" && (
+  <>
+    <td className="text-center">{formattedDate}</td>
+    <td className="text-center">{formattedTime}</td>
+<td className="text-center">
+  {company.status === "Interview_Conducted" ? (
+    <span style={{
+      background: "#e0f2fe", color: "#0369a1",
+      borderRadius: "20px", padding: "4px 12px",
+      fontSize: "12px", fontWeight: 600,
+    }}>
+       Awaiting employer decision
+    </span>
 
-                      <td>{formattedTime}</td>
-
-                      <td className="text-center">
-                        <div className="d-flex justify-content-center gap-2">
-                          {showActions ? (
-                            /* Show both buttons when actions are available */
-                            <>
-                              {/* Confirm button */}
-                              <FaCheckCircle
-                                size={22}
-                                className=" action-icon"
-                                style={{ cursor: "pointer", color: "#407186" }}
-                                title="Confirm Interview"
-                                onClick={() =>
-                                  this.setState({
-                                    showConfirmModal: true,
-                                    selectedConfirmCompany: company,
-                                  })
-                                }
-                              />
-
-                              {/* Calendar/Reschedule button */}
-                              <FaCalendarAlt
-                                size={22}
-                                className=" action-icon"
-                                style={{ color: "#36565f", cursor: "pointer" }}
-                                title="Request Reschedule"
-                                onClick={() =>
-                                  this.setState({
-                                    showRescheduleModal: true,
-                                    selectedRescheduleCompany: company,
-                                    rescheduleCompanyId: company.company_id,
-                                  })
-                                }
-                              />
-                            </>
-                          ) : isCompanyConfirmed ? (
-  <span className="badge bg-success bg-opacity-10 text-success px-3 py-2">
-    <FaCheckCircle className="me-1" /> Company Confirmed
+  ) : company.status === "Considered" ? (       // ← ADD THIS
+  <span style={{
+    background: "#ede9fe", color: "#6d28d9",
+    borderRadius: "20px", padding: "4px 12px",
+    fontSize: "12px", fontWeight: 600,
+  }}>
+    👀 Under Consideration
   </span>
+
 ) : isAccepted ? (
-  <span className="badge bg-success bg-opacity-10 text-success px-3 py-2">
-    <FaCheckCircle className="me-1" /> You Confirmed
-  </span>
-) : isDateExpired ? (
-  <span className="badge bg-secondary bg-opacity-10 text-secondary px-3 py-2">
-    <FaTimesCircle className="me-1" /> Date Expired
-  </span>
-) : null}
+    <span className="badge bg-success bg-opacity-10 text-success px-3 py-2">
+      <FaCheckCircle className="me-1" /> You Confirmed
+    </span>
 
-                          {/* Chat button - Always visible even after confirmation */}
-                          {!isDateExpired && (
+  ) : isCompanyConfirmed ? (
+    <span className="badge bg-success bg-opacity-10 text-success px-3 py-2">
+      <FaCheckCircle className="me-1" /> Company Confirmed
+    </span>
+
+  ) : isDateExpired ? (
+    <span className="badge bg-secondary bg-opacity-10 text-secondary px-3 py-2">
+      <FaTimesCircle className="me-1" /> Date Expired
+    </span>
+
+  ) : (
+    <div className="d-flex justify-content-center align-items-center gap-2">
+      <FaCheckCircle
+        size={22}
+        style={{ cursor: "pointer", color: "#407186" }}
+        title="Confirm Interview"
+        onClick={() => this.setState({ showConfirmModal: true, selectedConfirmCompany: company })}
+      />
+      <FaCalendarAlt
+        size={22}
+        style={{ color: "#36565f", cursor: "pointer" }}
+        title="Request Reschedule"
+        onClick={() => this.setState({
+          showRescheduleModal: true,
+          selectedRescheduleCompany: company,
+          rescheduleCompanyId: company.company_id
+        })}
+      />
+    </div>
+  )}
+
   <FaEnvelope
     size={22}
-    className="text-info action-icon"
+    className="text-info mt-1"
     style={{ cursor: "pointer" }}
     title="Chat with Company"
-                            onClick={() =>
-                              this.openChatWithCompany(
-                                company.company_id,
-                                company.company_name || company.name,
-                                company.job_id,
-                                company.accountId,
-                              )
-                            }
-                          />
-                          )}
-                        </div>
-                      </td>
-                    </>
-                  )}
+    onClick={() => this.openChatWithCompany(
+      company.company_id,
+      company.company_name || company.name,
+      company.job_id,
+      company.accountId
+    )}
+  />
+</td>
+  </>
+)}
                 </tr>
               );
             })}
@@ -876,12 +947,17 @@ const showActions = !isAccepted && !isCompanyConfirmed && !isDateExpired;
   render() {
     const { selected, shortlistedList, approvedList, loading } = this.state;
 
-    const lists = {
-      shortlisted: shortlistedList,
-      approved: approvedList,
-      appeared: [], // optional for appeared-in-search
-    };
-
+const lists = {
+  saved:       this.state.savedList,
+  shortlisted: [
+    ...this.state.interviewScheduledList,
+    ...this.state.interviewConductedList,
+    ...this.state.consideredList, 
+  ],
+  offered:     this.state.offeredList,
+  approved:    this.state.approvedList,
+  rejected:    this.state.rejectedList,
+};
     if (loading) return <div>Loading companies...</div>;
     if (this.state.showCompanyInfo && this.state.selectedCompany) {
       return (
@@ -943,27 +1019,32 @@ const showActions = !isAccepted && !isCompanyConfirmed && !isDateExpired;
           <CardHeader>Select Category</CardHeader>
           <CardBody>
             <div style={{ borderBottom: "2px solid #e0e0e0", marginBottom: "1rem", display: "flex", gap: "0" }}>
-              {["shortlisted", "approved"].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => this.setState({ selected: tab })}
-                  style={{
-                    padding: "10px 24px",
-                    border: "none",
-                    background: "transparent",
-                    cursor: "pointer",
-                    fontWeight: selected === tab ? "600" : "400",
-                    color: selected === tab ? "#36565f" : "#6c757d",
-                    borderBottom: selected === tab ? "3px solid #36565f" : "3px solid transparent",
-                    marginBottom: "-2px",
-                    textTransform: "capitalize",
-                    fontSize: "15px",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  {tab === "shortlisted" ? "Shortlisted" : "Approved"}
-                </button>
-              ))}
+ {[
+  { key: "saved",       label: "Saved" },
+  { key: "shortlisted", label: "Shortlisted" }, 
+  { key: "offered",     label: "Offered" },
+  { key: "rejected",    label: "Rejected" },
+].map((tab) => (
+  <button
+    key={tab.key}
+    onClick={() => this.setState({ selected: tab.key })}
+    style={{
+      padding: "10px 20px",
+      border: "none",
+      background: "transparent",
+      cursor: "pointer",
+      fontWeight: selected === tab.key ? "600" : "400",
+      color: selected === tab.key ? "#36565f" : "#6c757d",
+      borderBottom: selected === tab.key ? "3px solid #36565f" : "3px solid transparent",
+      marginBottom: "-2px",
+      fontSize: "14px",
+      transition: "all 0.2s",
+      whiteSpace: "nowrap",
+    }}
+  >
+    {tab.label}
+  </button>
+))}
             </div>
 
 

@@ -313,23 +313,26 @@ class AllApplicants extends Component {
     this.setState({ counts });
   };
 
-  handleApplicationStatus = async (
-    candidateId, jobId, status = "Shortlisted",
-    interview_day = null, interview_time = null,
-  ) => {
-    if (!jobId) { console.error("Job ID is required to update status"); return; }
-    try {
-      await axios.post(`${this.apiBaseUrl}applicant/updatestatus`, {
-        candidateId, jobId, status,
-        ...(interview_day  && { interview_day  }),
-        ...(interview_time && { interview_time }),
-      });
-      this.fetchAllCandidates();
-    } catch (error) {
-      console.error(error.response?.data);
-    }
-  };
+ handleApplicationStatus = async (candidateId, jobId, status = "Shortlisted", interview_day = null, interview_time = null) => {
+  if (!jobId) { console.error("Job ID is required to update status"); return; }
+  try {
+    await axios.post(`${this.apiBaseUrl}applicant/updatestatus`, {
+      candidateId, jobId, status,
+      ...(interview_day  && { interview_day  }),
+      ...(interview_time && { interview_time }),
+    });
+    await this.fetchAllCandidates();
 
+    // ← ADD THIS: sync selectedCandidate with fresh data
+    if (this.state.selectedCandidate?.candidate_id === candidateId) {
+      const updated = this.state.allApplicants.find(c => c.candidate_id === candidateId);
+      if (updated) this.setState({ selectedCandidate: updated });
+    }
+
+  } catch (error) {
+    console.error(error.response?.data);
+  }
+};
   handlePageChange   = (page)        => this.setState({ currentPage: page });
   handleFilterChange = async (key, value) => {
     await this.setState({ [key]: value, currentPage: 1 });

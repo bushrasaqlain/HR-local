@@ -909,6 +909,12 @@ const getCandidateInfo = (req, res) => {
           // Detailed lists
           shortlisted_companies: [],
           approved_companies: [],
+          saved_companies:               [],
+  interview_scheduled_companies: [],
+  interview_conducted_companies: [],
+  considered_companies:          [],
+  offered_companies:             [],
+  rejected_companies:            [],
           is_fresher: !!candidate.is_fresher,
         };
 
@@ -929,7 +935,7 @@ const getCandidateInfo = (req, res) => {
 
         const companyDetailsSql = `
         SELECT 
-          a.status,
+          a.status AS application_status,
            a.interview_day,
           a.interview_time,
           a.job_id,
@@ -945,7 +951,7 @@ const getCandidateInfo = (req, res) => {
         JOIN job_posts jp ON a.job_id = jp.id
         JOIN company_info ci ON jp.account_id = ci.account_id
         WHERE a.candidate_id = ?
-        AND a.status IN ('Shortlisted', 'Approved')
+        AND a.status IN ('Saved', 'Shortlisted', 'Interview_Scheduled', 'Interview_Conducted', 'Considered', 'Offered', 'Approved', 'Rejected')
       `;
 
         Promise.all([
@@ -987,6 +993,7 @@ const getCandidateInfo = (req, res) => {
                 if (err) return reject(err);
                 rows.forEach((row) => {
                   const companyData = {
+                     status: row.application_status,
                     accountId: row.account_id,
                     candidate_response: row.candidate_response,
                     company_status: row.company_status,
@@ -1000,10 +1007,14 @@ const getCandidateInfo = (req, res) => {
                     candidate_id: row.candidate_id,
                     // account_id: row.account_id
                   };
-                  if (row.status === "Shortlisted")
-                    response.shortlisted_companies.push(companyData);
-                  if (row.status === "Approved")
-                    response.approved_companies.push(companyData);
+                  if (row.application_status === "Saved")               response.saved_companies.push(companyData);
+if (row.application_status === "Shortlisted")         response.shortlisted_companies.push(companyData);
+if (row.application_status === "Interview_Scheduled") response.interview_scheduled_companies.push(companyData);
+if (row.application_status === "Interview_Conducted") response.interview_conducted_companies.push(companyData);
+if (row.application_status === "Considered")          response.considered_companies.push(companyData);
+if (row.application_status === "Offered")             response.offered_companies.push(companyData);
+if (row.application_status === "Approved")            response.approved_companies.push(companyData);
+if (row.application_status === "Rejected")            response.rejected_companies.push(companyData);
                 });
                 resolve();
               },
@@ -2583,6 +2594,8 @@ const getJobAlerts = (req, res) => {
       ja.id AS alert_id,
       ja.is_read,
       ja.sent_at,
+       ja.alert_type,        
+      ja.message,  
       jp.id AS job_id,
       jp.job_title,
       jp.min_salary,
@@ -2614,6 +2627,8 @@ const getJobAlerts = (req, res) => {
     const alerts = results.map((alert) => ({
       ...alert,
       logo: alert.logo ? alert.logo.toString("base64") : null,
+       alert_type: alert.alert_type || 'job_match',  // ← add this
+  message: alert.message || null,  
     }));
 
     return res.status(200).json({

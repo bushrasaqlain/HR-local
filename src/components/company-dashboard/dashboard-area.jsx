@@ -17,6 +17,10 @@ import CompanyWallet from "./wallet.jsx";
 import PricingForm2 from "./viewpackage.jsx";
 import AvailableCandidates from "./Available Candidates.jsx";
 import Messages from "./dashboard/Messages.jsx";
+import Considered from "./considered.jsx";
+import Offered from "./offered.jsx";
+import Interview from "./interview.jsx";
+import Saved from "./saved.jsx";
 const DASHBOARD_STYLES = `
   html, body {
     overflow-x: hidden;
@@ -137,16 +141,28 @@ const JobsLayout = ({ activeTab, onTabChange }) => {
 const ApplicantsLayout = ({ activeTab, onTabChange }) => {
   const tabs = [
     { key: "allApplicants", label: "All Applicants" },
-    { key: "shortlistedcandidates", label: "Shortlisted" },
-    { key: "approved", label: "Approved" },
+    {key: "saved", label: "Saved"},
+    { key: "interview", label: "Shortlisted" },
+    { key: "considered", label: "Considered" },
+    // { key: "shortlistedcandidates", label: "Shortlisted" },
+    { key: "offered", label: "Approved"},
+    // { key: "approved", label: "Approved" },
   ];
 
   const renderTab = () => {
     switch (activeTab) {
       case "allApplicants":
         return <AllApplicants />;
-      case "shortlistedcandidates":
-        return <ShortlistedCandidates />;
+      case "saved":
+        return <Saved />;
+        case "interview":
+        return <Interview />;
+      case "considered":
+        return <Considered />;
+      // case "shortlistedcandidates":
+      //   return <ShortlistedCandidates />;
+        case "offered":
+        return <Offered />;
       case "approved":
         return <ApprovedCandidates />;
       default:
@@ -275,7 +291,11 @@ const CompanyDashboardArea = ({
         return <CompanyProfile />;
 
       case "allApplicants":
-      case "shortlistedcandidates":
+      case "saved":
+      case "interview":
+      case "considered":
+        // case "shortlistedcandidates":
+        case "offered":
       case "approved":
         return (
           <ApplicantsLayout activeTab={activeTab} onTabChange={onTabChange} />

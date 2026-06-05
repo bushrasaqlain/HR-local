@@ -3,46 +3,55 @@ import { Button } from "reactstrap";
 
 // ── Status meta ──────────────────────────────────────────────────
 const STATUS_META = {
-  Pending:         { label: "Pending",          icon: "⏳", color: "#92400e", bg: "#fef3c7", border: "#fcd34d" },
-  Saved:           { label: "Saved",            icon: "🔖", color: "#1e40af", bg: "#dbeafe", border: "#93c5fd" },
-  Shortlisted:     { label: "Interview Scheduled", icon: "📅", color: "#0f766e", bg: "#ccfbf1", border: "#5eead4" },
-  Considered:      { label: "Considered",       icon: "👁",  color: "#0369a1", bg: "#e0f2fe", border: "#7dd3fc" },
-  Offered:         { label: "Offered",          icon: "💼", color: "#7c3aed", bg: "#ede9fe", border: "#c4b5fd" },
-  Selected:        { label: "Selected",         icon: "✅", color: "#15803d", bg: "#dcfce7", border: "#86efac" },
-  Joined:          { label: "Joined",           icon: "🎉", color: "#065f46", bg: "#d1fae5", border: "#6ee7b7" },
-  Rejected:        { label: "Rejected",         icon: "❌", color: "#991b1b", bg: "#fee2e2", border: "#fca5a5" },
-  "Refused to Join": { label: "Refused to Join", icon: "🚫", color: "#92400e", bg: "#fff7ed", border: "#fdba74" },
+  Pending:              { label: "Pending",              color: "#92400e", bg: "#fef3c7", border: "#fcd34d" },
+  Saved:                { label: "Saved",                 color: "#1e40af", bg: "#dbeafe", border: "#93c5fd" },
+  Interview_Scheduled:  { label: "Interview Scheduled",  color: "#0f766e", bg: "#ccfbf1", border: "#5eead4" },
+  Interview_Conducted:  { label: "Interview Conducted",   color: "#0369a1", bg: "#e0f2fe", border: "#7dd3fc" },
+  Shortlisted:          { label: "Shortlisted",          color: "#b45309", bg: "#fef3c7", border: "#fcd34d" },
+  Considered:           { label: "Considered",            color: "#6d28d9", bg: "#ede9fe", border: "#c4b5fd" },
+  Offered:              { label: "Offered",               color: "#7c3aed", bg: "#f5f3ff", border: "#a78bfa" },
+  Selected:             { label: "Selected",             color: "#15803d", bg: "#dcfce7", border: "#86efac" },
+  Joined:               { label: "Joined",               color: "#065f46", bg: "#d1fae5", border: "#6ee7b7" },
+  Rejected:             { label: "Rejected",              color: "#991b1b", bg: "#fee2e2", border: "#fca5a5" },
+  "Refused to Join":    { label: "Refused to Join",      color: "#92400e", bg: "#fff7ed", border: "#fdba74" },
 };
-
 // ── What buttons to show per current status ──────────────────────
 const ACTIONS = {
-  Pending:     ["Saved", "Shortlisted"],
-  Saved:       ["Shortlisted"],
-  Shortlisted: ["Considered", "Offered", "Rejected"],
-  Considered:  ["Shortlisted", "Offered", "Rejected"],
-  Offered:     ["Selected", "Refused to Join"],
-  Selected:    ["Joined", "Refused to Join"],
+  Pending:             ["Saved", "Interview_Scheduled"],
+  Saved:               ["Interview_Scheduled", "Rejected"],
+  Interview_Scheduled: ["Interview_Conducted", "Rejected"],
+  Interview_Conducted: [ "Considered", "Offered", "Rejected"],
+  Shortlisted:         ["Offered", "Rejected"],
+  Considered:          ["Offered", "Rejected"],
+  // Offered:             ["Selected", "Refused to Join"],
+  // Selected:            ["Joined", "Refused to Join"],
 };
-
 // Statuses that need a modal before firing
 const MODAL_REQUIRED = {
-  Shortlisted: "interview",
-  Offered:     "offer",
-  Selected:    "joining",
+  Interview_Scheduled: "interview",
+  Offered:             "offer",
+  Selected:            "joining",
 };
 
 // Button style variant per action
 const BTN_STYLE = {
-  Saved:             { bg: "#dbeafe",  color: "#1e40af", border: "#93c5fd"  },
-  Shortlisted:       { bg: "#ccfbf1",  color: "#0f766e", border: "#5eead4"  },
-  Considered:        { bg: "#e0f2fe",  color: "#0369a1", border: "#7dd3fc"  },
-  Offered:           { bg: "#ede9fe",  color: "#7c3aed", border: "#c4b5fd"  },
-  Selected:          { bg: "#dcfce7",  color: "#15803d", border: "#86efac"  },
-  Joined:            { bg: "#d1fae5",  color: "#065f46", border: "#6ee7b7"  },
-  Rejected:          { bg: "#fee2e2",  color: "#991b1b", border: "#fca5a5"  },
-  "Refused to Join": { bg: "#fff7ed",  color: "#92400e", border: "#fdba74"  },
+  Saved:               { bg: "#dbeafe", color: "#1e40af", border: "#93c5fd" },
+  Interview_Scheduled: { bg: "#ccfbf1", color: "#0f766e", border: "#5eead4" },
+  Interview_Conducted: { bg: "#e0f2fe", color: "#0369a1", border: "#7dd3fc" },
+  Shortlisted:         { bg: "#fef3c7", color: "#b45309", border: "#fcd34d" },
+  Considered:          { bg: "#ede9fe", color: "#6d28d9", border: "#c4b5fd" },
+  Offered:             { bg: "#f5f3ff", color: "#7c3aed", border: "#a78bfa" },
+  Selected:            { bg: "#dcfce7", color: "#15803d", border: "#86efac" },
+  Joined:              { bg: "#d1fae5", color: "#065f46", border: "#6ee7b7" },
+  Rejected:            { bg: "#fee2e2", color: "#991b1b", border: "#fca5a5" },
+  "Refused to Join":   { bg: "#fff7ed", color: "#92400e", border: "#fdba74" },
 };
 
+const BTN_LABEL = {
+  Saved:      "Save",
+  Considered: "Consider",
+  Offered:    "Offer",
+};
 class ApplicantCard extends React.Component {
   constructor(props) {
     super(props);
@@ -77,19 +86,18 @@ class ApplicantCard extends React.Component {
       }
     };
 
-    if (isHired && ["Shortlisted", "Offered", "Selected", "Joined"].includes(statusKey)) {
+    if (isHired && ["Interview_Scheduled", "Shortlisted", "Offered", "Selected", "Joined"].includes(statusKey)) {
       if (!window.confirm(`⚠️ ${candidate.full_name} has already been hired elsewhere. Continue?`)) return;
     }
     proceed();
   };
 
-  confirmInterview = () => {
+confirmInterview = () => {
     const { interviewDay, interviewTime } = this.state;
     if (!interviewDay || !interviewTime) return alert("Please select both date and time.");
-    this.props.onStatusChange(this.props.candidate.candidate_id, "Shortlisted", interviewDay, interviewTime);
+    this.props.onStatusChange(this.props.candidate.candidate_id, "Interview_Scheduled", interviewDay, interviewTime);
     this.closeModal();
   };
-
   confirmOffer = () => {
     const { offerDate, offeredSalary } = this.state;
     if (!offerDate || !offeredSalary) return alert("Please fill in offer date and salary.");
@@ -112,6 +120,7 @@ class ApplicantCard extends React.Component {
     const meta       = STATUS_META[current] || STATUS_META.Pending;
     const actions    = ACTIONS[current] || null;
     const isTerminal = !actions;
+    const isWaitingForCandidate = current === "Offered";
 
     return (
       <div>
@@ -126,24 +135,25 @@ class ApplicantCard extends React.Component {
 
         {/* ── Current status badge ── */}
         {/* ── Current status badge — terminal only ── */}
-        {isTerminal && (
-          <div style={{ marginBottom: "6px" }}>
-            <span style={{
-              background: meta.bg, color: meta.color, border: `1px solid ${meta.border}`,
-              borderRadius: "20px", padding: "3px 10px",
-              fontSize: "11px", fontWeight: 600, display: "inline-block",
-            }}>
-              {meta.icon} {meta.label}
-            </span>
-          </div>
-        )}
+        {/* ── Current status badge — always show ── */}
+        {/* ── Current status badge — hide for Pending, show others ── */}
+{current !== "Pending" && (
+  <div style={{ marginBottom: "6px" }}>
+    
+    {isWaitingForCandidate && (
+      <div style={{ fontSize: "11px", color: "#718096", marginTop: "4px" }}>
+        Waiting for candidate response
+      </div>
+    )}
+  </div>
+)}
 
         {/* ── Action buttons ── */}
         {!isTerminal && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
             {actions.map((statusKey) => {
               const s = BTN_STYLE[statusKey];
-              const label = STATUS_META[statusKey];
+              // const label = STATUS_META[statusKey];
               return (
                 <button
                   key={statusKey}
@@ -159,7 +169,7 @@ class ApplicantCard extends React.Component {
                   onMouseEnter={e => e.currentTarget.style.opacity = "0.8"}
                   onMouseLeave={e => e.currentTarget.style.opacity = "1"}
                 >
-                  {label.icon} {label.label}
+                  {BTN_LABEL[statusKey] || STATUS_META[statusKey].label}  
                 </button>
               );
             })}
