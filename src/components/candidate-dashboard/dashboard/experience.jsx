@@ -1,8 +1,42 @@
 import React, { Component } from "react";
 import AsyncSelect from "react-select/async";
 import api from "../../lib/api";
-// import { toast } from "react-toastify";
 import { Container } from "reactstrap";
+
+// ✅ Helper function to format date from UTC to local YYYY-MM-DD
+const formatDateToLocal = (dateString) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  // Check if date is valid
+  if (isNaN(date.getTime())) return "";
+
+  // Convert to local date without timezone offset
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// ✅ Helper to format date for display (e.g., "2021-10-21" or "Oct 21, 2021")
+const formatDateForDisplay = (dateString) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return "";
+
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};
+
+const isDateOngoing = (dateStr) => {
+  if (!dateStr) return true;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const endDate = new Date(dateStr);
+  return endDate > today;
+};
 
 const emptyExperienceDraft = {
   companyName: "",
@@ -12,9 +46,11 @@ const emptyExperienceDraft = {
   specialityObj: null,
   startDate: "",
   endDate: "",
-  ongoing: false,
+  job_type_id: "",
+  job_type_label: "",
+  jobTypeObj: null,
   id: null,
-  editingSkills: false, // ✅ new flag
+  editingSkills: false,
 };
 
 class ExperienceStep extends Component {
@@ -24,6 +60,7 @@ class ExperienceStep extends Component {
     },
     experienceDraft: { ...emptyExperienceDraft },
     specialityOptions: [],
+    jobTypeOptions: [],
     showExperienceModal: false,
     skills: "",
     successMessage: "",
@@ -34,9 +71,25 @@ class ExperienceStep extends Component {
     this.fetchCandidateExperience();
     this.loadSkills();
     this.loadSpecialities();
+    this.loadJobTypesAsync();
   }
 
-  // Fetch all experiences
+  loadJobTypesAsync = async () => {
+    try {
+      const res = await api.get("/getalljobtypes");
+      const jobTypes = res.data?.jobtypes || [];
+      const options = jobTypes.map(jt => ({
+        value: jt.id,
+        label: jt.name,
+      }));
+      this.setState({ jobTypeOptions: options });
+      return options;
+    } catch (err) {
+      console.error("Failed to load job types:", err);
+      return [];
+    }
+  };
+
   fetchCandidateExperience = async () => {
     try {
       const [expRes, infoRes] = await Promise.all([
@@ -54,9 +107,14 @@ class ExperienceStep extends Component {
           specialityObj: item.speciality_id
             ? { value: item.speciality_id, label: item.speciality_name }
             : null,
-          startDate: item.start_date || "",
-          endDate: item.end_date || "",
-          ongoing: Boolean(item.is_ongoing),
+          // ✅ Format start date correctly
+          startDate: item.start_date ? formatDateToLocal(item.start_date) : "",
+          endDate: item.is_ongoing ? "" : (item.end_date ? formatDateToLocal(item.end_date) : ""),
+          job_type_id: item.job_type_id_value || "",
+          job_type_label: item.job_type_name || "",
+          jobTypeObj: item.job_type_id_value
+            ? { value: item.job_type_id_value, label: item.job_type_name }
+            : null,
         }))
         : [];
 
@@ -74,11 +132,6 @@ class ExperienceStep extends Component {
           skills: candidateSkills,
         },
       }));
-
-      console.log("data fetched", {
-        experienceList,
-        candidateSkills,
-      });
     } catch (err) {
       console.error("Profile load failed", err);
       this.setState({ errorMessage: "Failed to load profile data" });
@@ -86,20 +139,15 @@ class ExperienceStep extends Component {
     }
   };
 
-
-
-  loadSkills = async (inputValue) => {
+  loadSkills = async () => {
     try {
       const res = await api.get("/getAllskills");
       const skillsArray = Array.isArray(res.data.skills) ? res.data.skills : [];
-
-      // map to value/label
       const options = skillsArray.map((s) => ({
         value: s.id,
         label: s.name,
       }));
-
-      return options; // important: AsyncSelect expects return of options
+      return options;
     } catch (err) {
       console.error("Failed to load skills", err);
       this.setState({ errorMessage: "Could not load skills" });
@@ -130,27 +178,20 @@ class ExperienceStep extends Component {
     }
   };
 
-  // Load speciality options for AsyncSelect
-  loadSpecialities = async (inputValue) => {
-
+  loadSpecialities = async () => {
     try {
       const res = await api.get("/getAllspeciality");
-
       const options = (res.data.speciality || []).map(s => ({
         value: s.id,
         label: s.name,
       }));
-
-      this.setState({ specialityOptions: options }, () => {
-      });
-
+      this.setState({ specialityOptions: options });
       return options;
     } catch (err) {
       console.error("Failed to load specialities:", err);
       return [];
     }
   };
-
 
   handleDraftChange = (key, value, type = "normal") => {
     this.setState((prev) => {
@@ -168,15 +209,15 @@ class ExperienceStep extends Component {
     });
   };
 
-  // Open Edit Modal
+  shouldBeOngoing = (endDate) => {
+    if (!endDate) return true;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const endDateObj = new Date(endDate);
+    return endDateObj > today;
+  };
+
   openEditModal = (expRow) => {
-    const formatDate = (date) => {
-      if (!date) return "";
-      const d = new Date(date);
-      const offset = d.getTimezoneOffset();
-      const adjusted = new Date(d.getTime() - offset * 60000);
-      return adjusted.toISOString().split("T")[0];
-    };
     const draft = {
       id: expRow.id,
       companyName: expRow.companyName,
@@ -186,9 +227,11 @@ class ExperienceStep extends Component {
       specialityObj: expRow.speciality_id
         ? { value: expRow.speciality_id, label: expRow.speciality_label }
         : null,
-      startDate: formatDate(expRow.startDate),
-      endDate: formatDate(expRow.endDate),
-      ongoing: expRow.ongoing || false,
+      startDate: expRow.startDate || "",
+      endDate: expRow.endDate || "",
+      job_type_id: expRow.job_type_id || "",
+      job_type_label: expRow.job_type_label || "",
+      jobTypeObj: expRow.jobTypeObj || null,
     };
 
     this.setState({
@@ -197,11 +240,8 @@ class ExperienceStep extends Component {
     });
   };
 
-
-
   saveExperience = async () => {
     const { experienceDraft } = this.state;
-    console.log("EDIT ID:", experienceDraft.id);
 
     if (!experienceDraft.companyName || !experienceDraft.designation) {
       this.setState({ errorMessage: "Please fill required fields" });
@@ -209,23 +249,10 @@ class ExperienceStep extends Component {
       return;
     }
 
-    try {
-      const payload = {
-        experience: [
-          {
-            companyName: experienceDraft.companyName,
-            designation: experienceDraft.designation,
-            speciality_id: experienceDraft.specialityObj
-              ? Number(experienceDraft.specialityObj.value)
-              : null,
-            startDate: experienceDraft.startDate,
-            endDate: experienceDraft.ongoing ? null : experienceDraft.endDate,
-            ongoing: experienceDraft.ongoing,
-          },
-        ],
-        mode: "save",
-      };
+    const isOngoing = this.shouldBeOngoing(experienceDraft.endDate);
+    const finalEndDate = isOngoing ? null : (experienceDraft.endDate || null);
 
+    try {
       if (experienceDraft.id) {
         await api.put(
           `/candidateexperience/updateexperience/${experienceDraft.id}`,
@@ -236,40 +263,40 @@ class ExperienceStep extends Component {
               ? Number(experienceDraft.specialityObj.value)
               : null,
             startDate: experienceDraft.startDate,
-            endDate: experienceDraft.ongoing ? null : experienceDraft.endDate,
-            ongoing: experienceDraft.ongoing,
+            endDate: finalEndDate,
+            ongoing: isOngoing,
+            job_type_id: experienceDraft.jobTypeObj
+              ? Number(experienceDraft.jobTypeObj.value)
+              : null,
           }
         );
       } else {
-        await api.post("/candidateexperience/addexperience", payload);
+        await api.post("/candidateexperience/addexperience", {
+          experience: [{
+            companyName: experienceDraft.companyName,
+            designation: experienceDraft.designation,
+            speciality_id: experienceDraft.specialityObj
+              ? Number(experienceDraft.specialityObj.value)
+              : null,
+            startDate: experienceDraft.startDate,
+            endDate: finalEndDate,
+            ongoing: isOngoing,
+            job_type_id: experienceDraft.jobTypeObj
+              ? Number(experienceDraft.jobTypeObj.value)
+              : null,
+          }],
+          mode: "save",
+        });
       }
 
-      // ✅ Always refresh from backend
       await this.fetchCandidateExperience();
 
       this.setState({
         showExperienceModal: false,
         experienceDraft: { ...emptyExperienceDraft },
-        successMessage: experienceDraft.id
-          ? "Experience updated"
-          : "Experience added",
+        successMessage: experienceDraft.id ? "Experience updated" : "Experience added",
       });
       setTimeout(() => this.setState({ successMessage: "" }), 3000);
-
-      // this.setState((prev) => ({
-      //   formData: {
-      //     ...prev.formData,
-      //     experience: experienceDraft.id
-      //       ? prev.formData.experience.map((e) =>
-      //         e.id === experienceDraft.id
-      //           ? { ...e, ...payload.experience[0] }
-      //           : e
-      //       )
-      //       : [...(prev.formData.experience || []), payload.experience[0]],
-      //   },
-      //   showExperienceModal: false,
-      //   experienceDraft: { ...emptyExperienceDraft },
-      // }));
     } catch (err) {
       console.error(err);
       this.setState({ errorMessage: "Failed to save experience" });
@@ -278,12 +305,11 @@ class ExperienceStep extends Component {
   };
 
   render() {
-    const { formData, experienceDraft, showExperienceModal, editingSkills } = this.state;
+    const { formData, experienceDraft, showExperienceModal, editingSkills, jobTypeOptions } = this.state;
 
     return (
       <Container fluid>
         <div className="table-responsive">
-
           {this.state.successMessage && (
             <div className="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
               <i className="bi bi-check-circle-fill text-success"></i>
@@ -298,18 +324,17 @@ class ExperienceStep extends Component {
               <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ errorMessage: "" })} />
             </div>
           )}
-          <h5>Experince</h5>
+          <h5>Experience</h5>
           <table className="table table-bordered align-middle">
             <thead>
               <tr>
                 <th>Company</th>
                 <th>Designation</th>
                 <th>Speciality</th>
+                <th>Job Type</th>
                 <th>Start Date</th>
                 <th>End Date</th>
-                <th style={{ width: "120px" }} className="text-center">
-                  Action
-                </th>
+                <th style={{ width: "120px" }} className="text-center">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -319,13 +344,15 @@ class ExperienceStep extends Component {
                     <td>{exp.companyName || "-"}</td>
                     <td>{exp.designation || "-"}</td>
                     <td>{exp.speciality_label || "-"}</td>
-                    <td>{exp.startDate || "-"}</td>
+                    <td>{exp.job_type_label || "-"}</td>
+                    {/* ✅ Format start date for display */}
+                    <td>{formatDateForDisplay(exp.startDate) || "-"}</td>
                     <td>
-                      {exp.endDate
-                        ? new Date(exp.endDate).getFullYear()
-                        : exp.ongoing
-                          ? "Ongoing"
-                          : "-"}
+                      {exp.endDate ? (
+                        formatDateForDisplay(exp.endDate)
+                      ) : (
+                        <span className="badge bg-info">Ongoing</span>
+                      )}
                     </td>
                     <td className="text-center">
                       <button
@@ -339,7 +366,7 @@ class ExperienceStep extends Component {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="text-center text-muted">
+                  <td colSpan="7" className="text-center text-muted">
                     No experience added
                   </td>
                 </tr>
@@ -359,11 +386,9 @@ class ExperienceStep extends Component {
             + Add Experience
           </button>
 
-
-
           {showExperienceModal && (
             <div className="modal d-block" tabIndex="-1" role="dialog">
-              <div className="modal-dialog">
+              <div className="modal-dialog modal-lg">
                 <div className="modal-content">
                   <div className="modal-header">
                     <h5 className="modal-title">
@@ -372,50 +397,73 @@ class ExperienceStep extends Component {
                     <button
                       type="button"
                       className="btn-close"
-                      onClick={() =>
-                        this.setState({ showExperienceModal: false })
-                      }
-                    ></button>
+                      onClick={() => this.setState({ showExperienceModal: false })}
+                    />
                   </div>
                   <div className="modal-body">
-                    <div className="mb-3">
-                      <label>Company Name</label>
-                      <input
-                        className="form-control"
-                        value={experienceDraft.companyName}
-                        onChange={(e) =>
-                          this.handleDraftChange("companyName", e.target.value)
-                        }
-                      />
-                    </div>
+                    <div className="row">
+                      <div className="col-md-6 mb-3">
+                        <label>Company Name *</label>
+                        <input
+                          className="form-control"
+                          value={experienceDraft.companyName}
+                          onChange={(e) =>
+                            this.handleDraftChange("companyName", e.target.value)
+                          }
+                        />
+                      </div>
 
-                    <div className="mb-3">
-                      <label>Designation</label>
-                      <input
-                        className="form-control"
-                        value={experienceDraft.designation}
-                        onChange={(e) =>
-                          this.handleDraftChange("designation", e.target.value)
-                        }
-                      />
-                    </div>
-
-                    <div className="mb-3">
-                      <label>Speciality</label>
-                      <AsyncSelect
-                        cacheOptions
-                        defaultOptions={this.state.specialityOptions} // preloaded for immediate display
-                        loadOptions={this.loadSpecialities} // still fetches dynamically on search
-                        value={experienceDraft.specialityObj} // object like {value, label}
-                        onChange={(opt) => this.handleDraftChange("speciality", opt, "select")}
-                        placeholder="Select Speciality"
-                      />
-
+                      <div className="col-md-6 mb-3">
+                        <label>Designation *</label>
+                        <input
+                          className="form-control"
+                          value={experienceDraft.designation}
+                          onChange={(e) =>
+                            this.handleDraftChange("designation", e.target.value)
+                          }
+                        />
+                      </div>
                     </div>
 
                     <div className="row">
                       <div className="col-md-6 mb-3">
-                        <label>Start Date</label>
+                        <label>Speciality</label>
+                        <AsyncSelect
+                          cacheOptions
+                          defaultOptions={this.state.specialityOptions}
+                          loadOptions={this.loadSpecialities}
+                          value={experienceDraft.specialityObj}
+                          onChange={(opt) => this.handleDraftChange("speciality", opt, "select")}
+                          placeholder="Select Speciality"
+                        />
+                      </div>
+
+                      <div className="col-md-6 mb-3">
+                        <label>Job Type</label>
+                        <AsyncSelect
+                          cacheOptions
+                          defaultOptions={this.state.jobTypeOptions}
+                          loadOptions={this.loadJobTypesAsync}
+                          value={experienceDraft.jobTypeObj}
+                          onChange={(opt) => this.handleDraftChange("jobType", opt, "select")}
+                          placeholder="Select Job Type"
+                          isClearable
+                          styles={{
+                            control: (base) => ({
+                              ...base,
+                              borderColor: "#e5e7eb",
+                              borderRadius: "7px",
+                              fontSize: 14,
+                              minHeight: 38,
+                            }),
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="row">
+                      <div className="col-md-6 mb-3">
+                        <label>Start Date *</label>
                         <input
                           type="date"
                           className="form-control"
@@ -430,34 +478,24 @@ class ExperienceStep extends Component {
                         <input
                           type="date"
                           className="form-control"
-                          disabled={experienceDraft.ongoing}
                           value={experienceDraft.endDate || ""}
                           onChange={(e) =>
                             this.handleDraftChange("endDate", e.target.value)
                           }
                         />
+                        <small className="text-muted">
+                          {experienceDraft.endDate && isDateOngoing(experienceDraft.endDate)
+                            ? "📅 Future date — will be marked as ongoing"
+                            : "Leave empty if currently working here"}
+                        </small>
                       </div>
-                    </div>
-
-                    <div className="form-check mb-3">
-                      <input
-                        type="checkbox"
-                        className="form-check-input"
-                        checked={experienceDraft.ongoing || false}
-                        onChange={(e) =>
-                          this.handleDraftChange("ongoing", e.target.checked)
-                        }
-                      />
-                      <label className="form-check-label">Ongoing</label>
                     </div>
                   </div>
 
                   <div className="modal-footer">
                     <button
                       className="btn btn-secondary"
-                      onClick={() =>
-                        this.setState({ showExperienceModal: false })
-                      }
+                      onClick={() => this.setState({ showExperienceModal: false })}
                     >
                       Cancel
                     </button>
@@ -472,17 +510,16 @@ class ExperienceStep extends Component {
               </div>
             </div>
           )}
-
         </div>
+
         <div className="mt-2">
           <label>Skills</label>
-
-          {this.state.editingSkills ? (
+          {editingSkills ? (
             <AsyncSelect
               isMulti
               cacheOptions
               defaultOptions
-              loadOptions={this.loadSkills} // now returns [{value, label}]
+              loadOptions={this.loadSkills}
               value={this.state.formData.skills || []}
               onChange={(selected) =>
                 this.setState((prev) => ({
@@ -491,7 +528,6 @@ class ExperienceStep extends Component {
               }
               placeholder="Select Skills"
             />
-
           ) : (
             <div
               className="form-control"
@@ -504,10 +540,7 @@ class ExperienceStep extends Component {
         </div>
         {editingSkills && (
           <div className="mt-1">
-            <button
-              className="btn btn-sm btn-primary me-2"
-              onClick={this.saveSkills}
-            >
+            <button className="btn btn-sm btn-primary me-2" onClick={this.saveSkills}>
               Save
             </button>
             <button
@@ -519,7 +552,6 @@ class ExperienceStep extends Component {
           </div>
         )}
       </Container>
-
     );
   }
 }

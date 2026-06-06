@@ -1139,627 +1139,1012 @@ handleCVUpload = async (e) => {
     );
 
     /* ─── STEP 1 ─── */
-    renderStep1 = (values, setFieldValue, errors, touched) => (
-      <>
-        {/* Photo upload */}
-        <div style={S.photoArea}>
-          <div style={S.photoCircle}>
-            {values.passport_photoPreview
-              ? <img src={values.passport_photoPreview} alt="Profile" style={S.photoImg} />
-              : <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-            }
-          </div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: T.text, marginBottom: 2 }}>Profile Photo</div>
-            <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 8 }}>Clear face photo — JPG or PNG, max 5MB</div>
-            <label style={{ ...S.btnAdd, display: "inline-block", cursor: "pointer" }}>
-              Choose photo
-              <input type="file" name="passport_photo" accept=".jpg,.jpeg,.png" style={{ display: "none" }}
-                onChange={async (e) => {
-                  const file = e.target.files[0];
-                  if (!file) return;
-                  const allowedTypes = ["image/jpeg","image/jpg","image/png"];
-                  if (!allowedTypes.includes(file.type)) {
-                    this.setState({ photoMessage: { type: "error", text: "Only JPG or PNG image is allowed!" } });
-                    e.target.value = ""; return;
-                  }
-                  const img = document.createElement("img");
-                  img.src = URL.createObjectURL(file);
-                  img.onload = async () => {
-                    try {
-                      if (!faceapi) {
-                        this.setState({ photoMessage: { type: "error", text: "Face detection not ready, please try again." } });
-                        e.target.value = ""; return;
-                      }
-                      const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions());
-                      if (!detection) {
-                        this.setState({ photoMessage: { type: "error", text: "No face detected! Please upload a clear face photo." } });
-                        e.target.value = ""; return;
-                      }
-                      this.setState({ photoMessage: { type: "success", text: "Photo accepted!" } });
-                      setFieldValue("passport_photo", file);
-                      const reader = new FileReader();
-                      reader.onload = () => setFieldValue("passport_photoPreview", reader.result);
-                      reader.readAsDataURL(file);
-                    } catch (err) {
-                      this.setState({ photoMessage: { type: "error", text: "Could not verify photo." } });
-                      e.target.value = "";
-                    }
-                  };
-                }}
-              />
-            </label>
-          </div>
+   renderStep1 = (values, setFieldValue, errors, touched) => (
+    <>
+      {/* Photo upload */}
+      <div style={S.photoArea}>
+        <div style={S.photoCircle}>
+          {values.passport_photoPreview
+            ? <img src={values.passport_photoPreview} alt="Profile" style={S.photoImg} />
+            : <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="1.5"><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" /></svg>
+          }
         </div>
-
-        {this.state.photoMessage && (
-          <div style={this.state.photoMessage.type === "success" ? S.alertSuccess : S.alertError}>
-            <span>{this.state.photoMessage.text}</span>
-            <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "inherit" }}
-              onClick={() => this.setState({ photoMessage: null })}>×</button>
-          </div>
-        )}
-
-        {/* Row 1 */}
-        <div style={S.grid2}>
-          <FieldWrap label="Full name" required error={touched.full_name && errors.full_name}>
-            <Field name="full_name">
-              {({ field, form }) => (
-                <StyledInput {...field} placeholder="e.g. Saba Khalid"
-                  onChange={(e) => {
-                    let v = e.target.value.replace(/[^A-Za-z ]/g, "").slice(0, 50);
-                    form.setFieldValue("full_name", v);
-                  }}
-                />
-              )}
-            </Field>
-          </FieldWrap>
-
-          <FieldWrap label="Contact number" required hint="Pakistani mobile or landline" error={touched.phone && errors.phone}>
-            <Field name="phone">
-              {({ field }) => (
-                <StyledInput {...field} placeholder="03XX-XXXXXXX"
-                  onChange={(e) => {
-                    let v = e.target.value.replace(/\D/g, "");
-                    if (v.startsWith("03")) {
-                      if (v.length > 4) v = v.slice(0, 4) + "-" + v.slice(4, 11);
-                      v = v.slice(0, 12);
-                    } else if (v.startsWith("0")) {
-                      if (v.length > 3) v = v.slice(0, 3) + "-" + v.slice(3, 10);
-                      if (v.length > 11) v = v.slice(0, 11);
-                    }
-                    setFieldValue("phone", v);
-                  }}
-                />
-              )}
-            </Field>
-          </FieldWrap>
-        </div>
-
-        {/* Row 2 */}
-        <div style={{ ...S.grid2, marginTop: 14 }}>
-          <FieldWrap label="Email address" hint="Cannot be changed">
-            <Field name="email" type="email">
-              {({ field }) => <StyledInput {...field} readOnly placeholder="you@email.com" />}
-            </Field>
-          </FieldWrap>
-          <FieldWrap label="Date of birth" required error={touched.date_of_birth && errors.date_of_birth}>
-            <Field name="date_of_birth">
-              {({ field, form }) => {
-                const today = new Date();
-                const maxDate = new Date(today.getFullYear() - 15, today.getMonth(), today.getDate());
-                return (
-                  <StyledInput {...field} type="date" max={maxDate.toISOString().split("T")[0]}
-                    onChange={(e) => {
-                      form.setFieldValue("date_of_birth", e.target.value);
-                      const bd = new Date(e.target.value);
-                      let age = today.getFullYear() - bd.getFullYear();
-                      const m = today.getMonth() - bd.getMonth();
-                      if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
-                      if (age < 15) form.setFieldError("date_of_birth", "You must be at least 15 years old");
-                      else form.setFieldError("date_of_birth", "");
-                    }}
-                  />
-                );
-              }}
-            </Field>
-          </FieldWrap>
-        </div>
-
-        {/* Row 3 */}
-        <div style={{ ...S.grid2, marginTop: 14 }}>
-          <FieldWrap label="Gender">
-            <Field as="select" name="gender" style={{ ...S.fieldInput, cursor: "pointer" }}>
-              <option value="">Select gender</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-            </Field>
-          </FieldWrap>
-          <FieldWrap label="Marital status">
-            <Field as="select" name="marital_status" style={{ ...S.fieldInput, cursor: "pointer" }}>
-              <option value="">Select status</option>
-              <option value="single">Single</option>
-              <option value="married">Married</option>
-            </Field>
-          </FieldWrap>
-        </div>
-
-        <Divider label="License information" />
-
-        <div style={S.grid2}>
-          <FieldWrap label="License type">
-            <Field as="select" name="license_type" style={{ ...S.fieldInput, cursor: "pointer" }}
-              onChange={(e) => setFieldValue("license_type", e.target.value)}>
-              <option value="">Select license type</option>
-              {(this.state.licenseTypes || []).map((l) => (
-                <option key={l.id} value={String(l.id)}>{l.name}</option>
-              ))}
-            </Field>
-          </FieldWrap>
-          <FieldWrap label="License number" required error={touched.license_number && errors.license_number}>
-            <Field name="license_number">
-              {({ field }) => <StyledInput {...field} placeholder="e.g. PMC-12345" />}
-            </Field>
-          </FieldWrap>
-        </div>
-
-        <Divider label="Salary & experience" />
-
-        <div style={S.grid3}>
-          <FieldWrap label="Current salary">
-            <Field name="current_salary">
-              {({ field, form }) => (
-                <div style={{ position: "relative" }}>
-                  <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: T.textMuted, pointerEvents: "none" }}></span>
-                  <StyledInput {...field} placeholder="0" style={{ paddingLeft: 40 }}
-                    value={field.value ? Number(field.value).toLocaleString() : ""}
-                    onChange={(e) => {
-                      const raw = e.target.value.replace(/,/g, "");
-                      if (/^\d*$/.test(raw)) form.setFieldValue("current_salary", raw);
-                    }}
-                  />
-                </div>
-              )}
-            </Field>
-          </FieldWrap>
-          <FieldWrap label="Expected salary">
-            <Field name="expected_salary">
-              {({ field, form }) => (
-                <div style={{ position: "relative" }}>
-                  <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: T.textMuted, pointerEvents: "none" }}></span>
-                  <StyledInput {...field} placeholder="0" style={{ paddingLeft: 40 }}
-                    value={field.value ? Number(field.value).toLocaleString() : ""}
-                    onChange={(e) => {
-                      const raw = e.target.value.replace(/,/g, "");
-                      if (/^\d*$/.test(raw)) form.setFieldValue("expected_salary", raw);
-                    }}
-                  />
-                </div>
-              )}
-            </Field>
-          </FieldWrap>
-          <FieldWrap label="Total experience (optional)">
-            <Field name="total_experience">
-              {({ field }) => <StyledInput {...field} placeholder="e.g. 3 years" />}
-            </Field>
-          </FieldWrap>
-        </div>
-
-        <Divider label="Location" />
-
-        <div style={S.grid3}>
-          <FieldWrap label="Country">
-            <Field as="select" name="country" style={{ ...S.fieldInput, cursor: "pointer" }}
-              onChange={(e) => {
-                const countryId = e.target.value;
-                setFieldValue("country", countryId);
-                setFieldValue("district", "");
-                setFieldValue("city", "");
-                this.loadDistricts(countryId);
-              }}>
-              <option value="">Select country</option>
-              {this.state.countries.map((c) => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
-            </Field>
-          </FieldWrap>
-          <FieldWrap label="District">
-            <Field as="select" name="district" style={{ ...S.fieldInput, cursor: "pointer" }}
-              onChange={(e) => {
-                const districtId = e.target.value;
-                setFieldValue("district", districtId);
-                setFieldValue("city", "");
-                this.loadCities(districtId);
-              }}>
-              <option value="">Select district</option>
-              {this.state.districts.map((d) => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
-            </Field>
-          </FieldWrap>
-          <FieldWrap label="City">
-            <Field as="select" name="city" style={{ ...S.fieldInput, cursor: "pointer" }}>
-              <option value="">Select city</option>
-              {this.state.cities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </Field>
-          </FieldWrap>
-        </div>
-
-        <div style={{ marginTop: 14 }}>
-          <FieldWrap label="Other preferred cities">
-            <Select isMulti
-              options={this.state.allCities.map((c) => ({ value: c.id, label: c.name }))}
-              value={values.otherPreferredCities.map((id) => {
-                const city = this.state.allCities.find((c) => c.id === id);
-                return city ? { value: city.id, label: city.name } : null;
-              }).filter(Boolean)}
-              onChange={(selected) => setFieldValue("otherPreferredCities", selected ? selected.map((o) => o.value) : [])}
-              styles={{ control: (b) => ({ ...b, borderColor: T.border, borderRadius: T.radiusSm, fontSize: 14, minHeight: 38 }) }}
-            />
-          </FieldWrap>
-        </div>
-
-        <div style={{ marginTop: 14 }}>
-          <FieldWrap label="Complete address">
-            <Field name="address">
-              {({ field }) => <StyledTextarea {...field} placeholder="Street, area, city..." />}
-            </Field>
-          </FieldWrap>
-        </div>
-      </>
-    );
-
-    /* ─── STEP 2 ─── */
-    renderStep2 = (values, setFieldValue) => (
-      <FieldArray name="education">
-        {({ push, remove }) => {
-          const draft = values.education?.[0] || { degree: "", degreeTitle: "", degreeTitle_label: "", institutes: "", startDate: "", endDate: "", ongoing: false };
-          return (
-            <>
-              <div style={{ background: T.bgSection, borderRadius: T.radius, border: `1px solid ${T.border}`, padding: "1.1rem", marginBottom: "1.2rem" }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: T.text, marginBottom: "0.9rem" }}>Add education</div>
-                <div style={S.grid2}>
-                  <FieldWrap label="Degree">
-                    <Field as="select" name="education.0.degree" style={{ ...S.fieldInput, cursor: "pointer" }}
-                      onChange={(e) => {
-                        setFieldValue("education.0.degree", e.target.value);
-                        setFieldValue("education.0.degreeTitle", "");
-                        setFieldValue("education.0.degreeTitle_label", "");
-                      }}>
-                      <option value="">Select degree</option>
-                      {this.state.degreeFieldData.map((d) => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
-                    </Field>
-                  </FieldWrap>
-                  <FieldWrap label="Degree title">
-                    <AsyncSelect key={draft.degree || "no-degree"} cacheOptions={false} defaultOptions
-                      isDisabled={!draft.degree}
-                      loadOptions={draft.degree ? this.loadDegreeTitles(Number(draft.degree)) : () => []}
-                      value={draft.degreeTitle ? { value: draft.degreeTitle, label: draft.degreeTitle_label } : null}
-                      onChange={(opt) => {
-                        setFieldValue("education.0.degreeTitle", opt?.value || "");
-                        setFieldValue("education.0.degreeTitle_label", opt?.label || "");
-                      }}
-                      placeholder="Select degree title"
-                      styles={{ control: (b) => ({ ...b, borderColor: T.border, borderRadius: T.radiusSm, fontSize: 14, minHeight: 38 }) }}
-                    />
-                  </FieldWrap>
-                </div>
-                <div style={{ ...S.grid2, marginTop: 14 }}>
-                  <FieldWrap label="Institute">
-                    <AsyncSelect cacheOptions defaultOptions loadOptions={this.loadInstitutes}
-                      value={draft.institutes ? { value: draft.institutes, label: draft.institutes_label } : null}
-                      onChange={(opt) => setFieldValue("education.0", { ...draft, institutes: opt?.value || "", institutes_label: opt?.label || "" })}
-                      styles={{ control: (b) => ({ ...b, borderColor: T.border, borderRadius: T.radiusSm, fontSize: 14, minHeight: 38 }) }}
-                    />
-                  </FieldWrap>
-                  <FieldWrap label="Start date">
-                    <Field type="date" name="education.0.startDate" style={{ ...S.fieldInput }} />
-                  </FieldWrap>
-                </div>
-                <div style={{ ...S.grid2, marginTop: 14 }}>
-                  <FieldWrap label="End date">
-                    <Field type="date" name="education.0.endDate" style={{ ...S.fieldInput }} disabled={draft.ongoing} />
-                  </FieldWrap>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: 22 }}>
-                    <Field type="checkbox" name="education.0.ongoing"
-                      style={{ width: 16, height: 16, accentColor: T.primary, cursor: "pointer" }} />
-                    <label style={{ fontSize: 13, color: T.textMuted, cursor: "pointer" }}>Ongoing</label>
-                  </div>
-                </div>
-                <button type="button" style={{ ...S.btnAdd, marginTop: "1rem" }}
-                  onClick={() => {
-                    if (!draft.degree || !draft.degreeTitle) {
-                      this.setState({ formMessage: { type: "error", text: "Please fill required fields" } });
-                      return;
-                    }
-                    if (draft.id) {
-                      const index = values.education.findIndex((e) => e.id === draft.id);
-                      if (index > -1) setFieldValue(`education.${index}`, draft);
-                    } else {
-                      push({ ...draft });
-                    }
-                    setFieldValue("education.0", { degree: "", degreeTitle: "", degreeTitle_label: "", institutes: "", startDate: "", endDate: "", ongoing: false, id: null });
-                    this.setState({ editID: null });
-                  }}>
-                  + Add education
-                </button>
-              </div>
-
-              {values.education.length > 1 && (
-                <div style={{ overflowX: "auto" }}>
-                  <table style={S.table}>
-                    <thead>
-                      <tr>
-                        {["Degree","Title","Institute","Start","End",""].map((h) => (
-                          <th key={h} style={S.th}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {values.education.slice(1).map((edu, i) => (
-                        <tr key={edu.id || i}>
-                          <td style={S.td}>{edu.degreeTitle_label}</td>
-                          <td style={S.td}>{edu.degreeTitle_label}</td>
-                          <td style={S.td}>{edu.institutes_label}</td>
-                          <td style={S.td}>{edu.startDate}</td>
-                          <td style={S.td}>{edu.endDate || "—"}</td>
-                          <td style={S.td}>
-                            <button type="button" style={S.btnInfo}
-                              onClick={() => { setFieldValue("education.0", { ...edu }); this.setState({ editID: edu.id, isEdit: true }); remove(i + 1); }}>
-                              Edit
-                            </button>
-                            <button type="button" style={S.btnDanger}
-                              onClick={() => {
-                                if (edu.id) {
-                                  api.delete(`${this.apiBaseUrl}candidateeducation/deletecandidateeducation/${edu.id}`)
-                                    .then(() => { this.setState({ formMessage: { type: "success", text: "Deleted" } }); remove(i + 1); });
-                                } else { remove(i + 1); }
-                              }}>
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </>
-          );
-        }}
-      </FieldArray>
-    );
-
-    /* ─── STEP 3 ─── */
-    renderStep3 = (values, setFieldValue) => (
-      <FieldArray name="experience">
-        {({ push, remove }) => {
-          const draft = values.experience?.[0] || { companyName: "", designation: "", speciality_id: "", startDate: "", endDate: "", ongoing: false, id: null };
-          return (
-            <>
-              {/* Fresher toggle */}
-              <div style={S.fresherBox(values.isFresher)}
-                onClick={() => {
-                  setFieldValue("isFresher", !values.isFresher);
-                  if (!values.isFresher) setFieldValue("experience", [{}]);
-                }}>
-                <div style={{ width: 36, height: 20, borderRadius: 10, background: values.isFresher ? T.primary : T.border, position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
-                  <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: values.isFresher ? 18 : 2, transition: "left 0.2s" }} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: values.isFresher ? T.primary2 : T.text }}>I am a Fresher</div>
-                  <div style={{ fontSize: 11, color: T.textMuted, marginTop: 1 }}>
-                    {values.isFresher ? "Work experience section will be skipped" : "Check this if you have no work experience"}
-                  </div>
-                </div>
-              </div>
-
-              {/* Experience form */}
-              <div style={{ background: T.bgSection, borderRadius: T.radius, border: `1px solid ${T.border}`, padding: "1.1rem", marginBottom: "1.2rem" }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: T.text, marginBottom: "0.9rem" }}>Add experience</div>
-                <div style={S.grid2}>
-                  <FieldWrap label="Company name">
-                    <Field type="text" name="experience.0.companyName" style={S.fieldInput} placeholder="Company name" />
-                  </FieldWrap>
-                  <FieldWrap label="Designation">
-                    <Field type="text" name="experience.0.designation" style={S.fieldInput} placeholder="Your role" />
-                  </FieldWrap>
-                </div>
-                <div style={{ ...S.grid2, marginTop: 14 }}>
-                  <FieldWrap label="Speciality">
-                    <Field as="select" name="experience.0.speciality_id" style={{ ...S.fieldInput, cursor: "pointer" }}>
-                      <option value="">Select speciality</option>
-                      {Array.isArray(this.state.speciality) && this.state.speciality.map((s) => (
-                        <option key={s.id} value={String(s.id)}>{s.name}</option>
-                      ))}
-                    </Field>
-                  </FieldWrap>
-                  <FieldWrap label="Start date">
-                    <Field type="date" name="experience.0.startDate" style={S.fieldInput} max={new Date().toISOString().split("T")[0]} />
-                  </FieldWrap>
-                </div>
-                <div style={{ ...S.grid2, marginTop: 14 }}>
-                  <FieldWrap label="End date">
-                    <Field type="date" name="experience.0.endDate" style={S.fieldInput} disabled={draft.ongoing} max={new Date().toISOString().split("T")[0]} />
-                  </FieldWrap>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: 22 }}>
-                    <Field type="checkbox" name="experience.0.ongoing" style={{ width: 16, height: 16, accentColor: T.primary, cursor: "pointer" }} />
-                    <label style={{ fontSize: 13, color: T.textMuted }}>Ongoing</label>
-                  </div>
-                </div>
-                <button type="button" style={{ ...S.btnAdd, marginTop: "1rem" }}
-                  onClick={() => {
-                    if (!draft.companyName || !draft.designation || !draft.startDate) {
-                      this.setState({ formMessage: { type: "error", text: "Please fill required fields" } });
-                      return;
-                    }
-                    const expToPush = { ...draft, speciality_id: draft.speciality_id ? Number(draft.speciality_id) : "" };
-                    if (this.state.editexpID) push({ ...expToPush, id: this.state.editexpID });
-                    else push(expToPush);
-                    setFieldValue("experience.0", { companyName: "", designation: "", speciality_id: "", startDate: "", endDate: "", ongoing: false, id: null });
-                    this.setState({ editexpID: null });
-                  }}>
-                  + Add experience
-                </button>
-              </div>
-
-              {/* Skills */}
-              <div style={{ background: T.bgSection, borderRadius: T.radius, border: `1px solid ${T.border}`, padding: "1.1rem", marginBottom: "1.2rem" }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: T.text, marginBottom: "0.9rem" }}>Skills</div>
-                <Field name="skills">
-                  {({ field, form }) => (
-                    <Select isMulti
-                      value={field.value?.map((val) => {
-                        const s = this.state.skillsOptions.find((sk) => sk.id === val);
-                        return s ? { value: s.id, label: s.name } : null;
-                      }).filter(Boolean)}
-                      onChange={(selected) => form.setFieldValue("skills", selected ? selected.map((o) => o.value) : [])}
-                      options={this.state.skillsOptions.map((s) => ({ value: s.id, label: s.name }))}
-                      placeholder="Select skills..."
-                      styles={{ control: (b) => ({ ...b, borderColor: T.border, borderRadius: T.radiusSm, fontSize: 14, minHeight: 38 }) }}
-                    />
-                  )}
-                </Field>
-              </div>
-
-              {/* Experience table */}
-              {values.experience.length > 1 && (
-                <div style={{ overflowX: "auto" }}>
-                  <table style={S.table}>
-                    <thead>
-                      <tr>{["Company","Designation","Speciality","Start","End",""].map((h) => <th key={h} style={S.th}>{h}</th>)}</tr>
-                    </thead>
-                    <tbody>
-                      {values.experience.slice(1).map((exp, i) => (
-                        <tr key={exp.id || i}>
-                          <td style={S.td}>{exp.companyName}</td>
-                          <td style={S.td}>{exp.designation}</td>
-                          <td style={S.td}>{this.state.speciality?.find((s) => s.id === exp.speciality_id)?.name || "—"}</td>
-                          <td style={S.td}>{exp.startDate}</td>
-                          <td style={S.td}>{exp.endDate || "—"}</td>
-                          <td style={S.td}>
-                            <button type="button" style={S.btnInfo}
-                              onClick={() => { setFieldValue("experience.0", { ...exp }); remove(i + 1); this.setState({ editexpID: exp.id, isExpEdit: true }); }}>
-                              Edit
-                            </button>
-                            <button type="button" style={S.btnDanger}
-                              onClick={() => {
-                                if (exp.id) {
-                                  api.delete(`${this.apiBaseUrl}candidateexperience/deleteexperience/${exp.id}`)
-                                    .then(() => { this.setState({ formMessage: { type: "success", text: "Deleted" } }); remove(i + 1); });
-                                } else { remove(i + 1); }
-                              }}>
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </>
-          );
-        }}
-      </FieldArray>
-    );
-
-    /* ─── STEP 4 ─── */
-    renderStep4 = (values, setFieldValue, errors, touched, setFieldTouched, setFieldError) => (
-      <>
-        {values.resume && (
-          <div style={{ ...S.alertInfo, marginBottom: "1.2rem" }}>
-            <span>
-              Uploaded:{" "}
-              <a href={values.resume.url || URL.createObjectURL(values.resume)} target="_blank" rel="noopener noreferrer"
-                style={{ color: "inherit", fontWeight: 500 }}>
-                {values.resume.name}
-              </a>
-            </span>
-            {!values.resume.isExisting && (
-              <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "inherit" }}
-                onClick={() => setFieldValue("resume", null)}>×</button>
-            )}
-          </div>
-        )}
-
-        <div style={{ border: `2px dashed ${T.primary4}`, borderRadius: T.radius, padding: "2.5rem 1.5rem", textAlign: "center", background: T.primary3 }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>📄</div>
-          <div style={{ fontSize: 15, fontWeight: 500, color: T.text, marginBottom: 4 }}>Click to upload your resume</div>
-          <div style={{ fontSize: 12, color: T.textMuted, marginBottom: "1.2rem" }}>PDF, DOC, DOCX — max 3MB</div>
-          <label style={{ ...S.btnNext, display: "inline-flex", cursor: "pointer" }}>
-            Browse file
-            <input type="file" name="resume" accept=".doc,.docx,application/msword,application/pdf"
-              style={{ display: "none" }}
-              onChange={(e) => {
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: T.text, marginBottom: 2 }}>Profile Photo</div>
+          <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 8 }}>Clear face photo — JPG or PNG, max 5MB</div>
+          <label style={{ ...S.btnAdd, display: "inline-block", cursor: "pointer" }}>
+            Choose photo
+            <input type="file" name="passport_photo" accept=".jpg,.jpeg,.png" style={{ display: "none" }}
+              onChange={async (e) => {
                 const file = e.target.files[0];
-                setFieldTouched("resume", true);
-                if (file) {
-                  const maxSize = 3 * 1024 * 1024;
-                  const allowedTypes = ["application/pdf","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
-                  if (!allowedTypes.includes(file.type)) { setFieldError("resume", "Invalid file type"); setFieldValue("resume", null); }
-                  else if (file.size > maxSize) { setFieldError("resume", "File too large — max 3MB"); setFieldValue("resume", null); }
-                  else { setFieldValue("resume", file); setFieldError("resume", ""); }
+                if (!file) return;
+
+                const allowedTypes = ["image/jpeg", "image/jpg", "image/png"];
+                if (!allowedTypes.includes(file.type)) {
+                  this.setState({ photoMessage: { type: "error", text: "Only JPG or PNG image is allowed!" } });
+                  e.target.value = "";
+                  return;
                 }
+
+                // Show loading state
+                this.setState({ isFaceDetecting: true, photoMessage: { type: "info", text: "🔍 Detecting face in photo... Please wait" } });
+
+                const img = document.createElement("img");
+                img.src = URL.createObjectURL(file);
+                img.onload = async () => {
+                  try {
+                    if (!faceapi) {
+                      this.setState({
+                        isFaceDetecting: false,
+                        photoMessage: { type: "error", text: "Face detection not ready, please try again." }
+                      });
+                      e.target.value = "";
+                      return;
+                    }
+
+                    const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions());
+
+                    if (!detection) {
+                      this.setState({
+                        isFaceDetecting: false,
+                        photoMessage: { type: "error", text: "No face detected! Please upload a clear face photo." }
+                      });
+                      e.target.value = "";
+                      return;
+                    }
+
+                    // Success - face detected
+                    this.setState({
+                      isFaceDetecting: false,
+                      photoMessage: { type: "success", text: "✅ Photo accepted! Face detected successfully." }
+                    });
+
+                    setFieldValue("passport_photo", file);
+                    const reader = new FileReader();
+                    reader.onload = () => setFieldValue("passport_photoPreview", reader.result);
+                    reader.readAsDataURL(file);
+
+                  } catch (err) {
+                    this.setState({
+                      isFaceDetecting: false,
+                      photoMessage: { type: "error", text: "Could not verify photo. Please try again." }
+                    });
+                    e.target.value = "";
+                  } finally {
+                    URL.revokeObjectURL(img.src);
+                  }
+                };
+
+                img.onerror = () => {
+                  this.setState({
+                    isFaceDetecting: false,
+                    photoMessage: { type: "error", text: "Failed to load image" }
+                  });
+                  e.target.value = "";
+                };
               }}
             />
           </label>
-          {errors.resume && touched.resume && (
-            <div style={{ ...S.fieldError, marginTop: 8 }}>{errors.resume}</div>
+
+          {/* Show loading indicator */}
+          {this.state.isFaceDetecting && (
+            <div style={{ ...S.alertInfo, marginTop: 8 }}>
+              <span>⏳ Processing image... Please wait</span>
+            </div>
           )}
         </div>
-      </>
-    );
+      </div>
 
-    /* ─── STEP 5 ─── */
-    renderStep5 = () => (
+      {this.state.photoMessage && (
+        <div style={this.state.photoMessage.type === "success" ? S.alertSuccess : S.alertError}>
+          <span>{this.state.photoMessage.text}</span>
+          <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "inherit" }}
+            onClick={() => this.setState({ photoMessage: null })}>×</button>
+        </div>
+      )}
+
+      {/* Row 1 */}
+      <div style={S.grid2}>
+        <FieldWrap label="Full name" required error={touched.full_name && errors.full_name}>
+          <Field name="full_name">
+            {({ field, form }) => (
+              <StyledInput {...field} placeholder="e.g. Saba Khalid"
+                onChange={(e) => {
+                  let v = e.target.value.replace(/[^A-Za-z ]/g, "").slice(0, 50);
+                  form.setFieldValue("full_name", v);
+                }}
+              />
+            )}
+          </Field>
+        </FieldWrap>
+
+        <FieldWrap label="Contact number" required hint="Pakistani mobile or landline" error={touched.phone && errors.phone}>
+          <Field name="phone">
+            {({ field }) => (
+              <StyledInput {...field} placeholder="03XX-XXXXXXX"
+                onChange={(e) => {
+                  let v = e.target.value.replace(/\D/g, "");
+                  if (v.startsWith("03")) {
+                    if (v.length > 4) v = v.slice(0, 4) + "-" + v.slice(4, 11);
+                    v = v.slice(0, 12);
+                  } else if (v.startsWith("0")) {
+                    if (v.length > 3) v = v.slice(0, 3) + "-" + v.slice(3, 10);
+                    if (v.length > 11) v = v.slice(0, 11);
+                  }
+                  setFieldValue("phone", v);
+                }}
+              />
+            )}
+          </Field>
+        </FieldWrap>
+      </div>
+
+      {/* Row 2 */}
+      <div style={{ ...S.grid2, marginTop: 14 }}>
+        <FieldWrap label="Email address" hint="Cannot be changed">
+          <Field name="email" type="email">
+            {({ field }) => <StyledInput {...field} readOnly placeholder="you@email.com" />}
+          </Field>
+        </FieldWrap>
+        <FieldWrap label="Date of birth" required error={touched.date_of_birth && errors.date_of_birth}>
+          <Field name="date_of_birth">
+            {({ field, form }) => {
+              const today = new Date();
+              const maxDate = new Date(today.getFullYear() - 15, today.getMonth(), today.getDate());
+              return (
+                <StyledInput {...field} type="date" max={maxDate.toISOString().split("T")[0]}
+                  onChange={(e) => {
+                    form.setFieldValue("date_of_birth", e.target.value);
+                    const bd = new Date(e.target.value);
+                    let age = today.getFullYear() - bd.getFullYear();
+                    const m = today.getMonth() - bd.getMonth();
+                    if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
+                    if (age < 15) form.setFieldError("date_of_birth", "You must be at least 15 years old");
+                    else form.setFieldError("date_of_birth", "");
+                  }}
+                />
+              );
+            }}
+          </Field>
+        </FieldWrap>
+      </div>
+
+      {/* Row 3 */}
+      <div style={{ ...S.grid2, marginTop: 14 }}>
+        <FieldWrap label="Gender">
+          <Field as="select" name="gender" style={{ ...S.fieldInput, cursor: "pointer" }}>
+            <option value="">Select gender</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </Field>
+        </FieldWrap>
+        <FieldWrap label="Marital status">
+          <Field as="select" name="marital_status" style={{ ...S.fieldInput, cursor: "pointer" }}>
+            <option value="">Select status</option>
+            <option value="single">Single</option>
+            <option value="married">Married</option>
+            <option value="divorced">Divorced</option>
+            <option value="widowed">Widowed</option>
+            <option value="separated">Separated</option>
+          </Field>
+        </FieldWrap>
+      </div>
+
+      <Divider label="License information" />
+
+      <div style={S.grid2}>
+        <FieldWrap label="License type">
+          <Field as="select" name="license_type" style={{ ...S.fieldInput, cursor: "pointer" }}
+            onChange={(e) => setFieldValue("license_type", e.target.value)}>
+            <option value="">Select license type</option>
+            {(this.state.licenseTypes || []).map((l) => (
+              <option key={l.id} value={String(l.id)}>{l.name}</option>
+            ))}
+          </Field>
+        </FieldWrap>
+        <FieldWrap label="License number" required error={touched.license_number && errors.license_number}>
+          <Field name="license_number">
+            {({ field }) => <StyledInput {...field} placeholder="e.g. PMC-12345" />}
+          </Field>
+        </FieldWrap>
+      </div>
+
+      <Divider label="Salary & experience" />
+
+      <div style={S.grid3}>
+        <FieldWrap label="Current salary">
+          <Field name="current_salary">
+            {({ field, form }) => (
+              <div style={{ position: "relative" }}>
+                <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: T.textMuted, pointerEvents: "none" }}></span>
+                <StyledInput {...field} placeholder="0" style={{ paddingLeft: 40 }}
+                  value={field.value ? Number(field.value).toLocaleString() : ""}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/,/g, "");
+                    if (/^\d*$/.test(raw)) form.setFieldValue("current_salary", raw);
+                  }}
+                />
+              </div>
+            )}
+          </Field>
+        </FieldWrap>
+        <FieldWrap label="Expected salary">
+          <Field name="expected_salary">
+            {({ field, form }) => (
+              <div style={{ position: "relative" }}>
+                <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: T.textMuted, pointerEvents: "none" }}></span>
+                <StyledInput {...field} placeholder="0" style={{ paddingLeft: 40 }}
+                  value={field.value ? Number(field.value).toLocaleString() : ""}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/,/g, "");
+                    if (/^\d*$/.test(raw)) form.setFieldValue("expected_salary", raw);
+                  }}
+                />
+              </div>
+            )}
+          </Field>
+        </FieldWrap>
+        {/* <FieldWrap label="Total experience (optional)">
+          <Field name="total_experience">
+            {({ field }) => <StyledInput {...field} placeholder="Total Experience in years (e.g., 3)" />}
+          </Field>
+        </FieldWrap> */}
+      </div>
+
+      <Divider label="Location" />
+
+      <div style={S.grid3}>
+        <FieldWrap label="Country">
+          <Field as="select" name="country" style={{ ...S.fieldInput, cursor: "pointer" }}
+            onChange={(e) => {
+              const countryId = e.target.value;
+              setFieldValue("country", countryId);
+              setFieldValue("district", "");
+              setFieldValue("city", "");
+              this.loadDistricts(countryId);
+            }}>
+            <option value="">Select country</option>
+            {this.state.countries.map((c) => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+          </Field>
+        </FieldWrap>
+        <FieldWrap label="District">
+          <Field as="select" name="district" style={{ ...S.fieldInput, cursor: "pointer" }}
+            onChange={(e) => {
+              const districtId = e.target.value;
+              setFieldValue("district", districtId);
+              setFieldValue("city", "");
+              this.loadCities(districtId);
+            }}>
+            <option value="">Select district</option>
+            {this.state.districts.map((d) => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
+          </Field>
+        </FieldWrap>
+        <FieldWrap label="City">
+          <Field as="select" name="city" style={{ ...S.fieldInput, cursor: "pointer" }}>
+            <option value="">Select city</option>
+            {this.state.cities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </Field>
+        </FieldWrap>
+      </div>
+
+      <div style={{ marginTop: 14 }}>
+        <FieldWrap label="Other preferred cities">
+          <Select isMulti
+            options={this.state.allCities.map((c) => ({ value: c.id, label: c.name }))}
+            value={values.otherPreferredCities.map((id) => {
+              const city = this.state.allCities.find((c) => c.id === id);
+              return city ? { value: city.id, label: city.name } : null;
+            }).filter(Boolean)}
+            onChange={(selected) => setFieldValue("otherPreferredCities", selected ? selected.map((o) => o.value) : [])}
+            styles={{ control: (b) => ({ ...b, borderColor: T.border, borderRadius: T.radiusSm, fontSize: 14, minHeight: 38 }) }}
+          />
+        </FieldWrap>
+      </div>
+
+      <div style={{ marginTop: 14 }}>
+        <FieldWrap label="Complete address">
+          <Field name="address">
+            {({ field }) => <StyledTextarea {...field} placeholder="Street, area, city..." />}
+          </Field>
+        </FieldWrap>
+      </div>
+    </>
+  );
+
+  /* ─── STEP 2 ─── */
+  renderStep2 = (values, setFieldValue) => (
+    <FieldArray name="education">
+      {({ push, remove }) => {
+        const draft = values.education?.[0] || { degree: "", degreeTitle: "", degreeTitle_label: "", institutes: "", startDate: "", endDate: "" };
+        return (
+          <>
+            <div style={{ background: T.bgSection, borderRadius: T.radius, border: `1px solid ${T.border}`, padding: "1.1rem", marginBottom: "1.2rem" }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: T.text, marginBottom: "0.9rem" }}>Add education</div>
+
+              {/* First row - Degree and Degree Title */}
+              <div style={S.grid2}>
+                <FieldWrap label="Degree">
+                  <Field as="select" name="education.0.degree" style={{ ...S.fieldInput, cursor: "pointer" }}
+                    onChange={(e) => {
+                      setFieldValue("education.0.degree", e.target.value);
+                      setFieldValue("education.0.degreeTitle", "");
+                      setFieldValue("education.0.degreeTitle_label", "");
+                    }}>
+                    <option value="">Select degree</option>
+                    {this.state.degreeFieldData.map((d) => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
+                  </Field>
+                </FieldWrap>
+                <FieldWrap label="Degree title">
+                  <AsyncSelect key={draft.degree || "no-degree"} cacheOptions={false} defaultOptions
+                    isDisabled={!draft.degree}
+                    loadOptions={draft.degree ? this.loadDegreeTitles(Number(draft.degree)) : () => []}
+                    value={draft.degreeTitle ? { value: draft.degreeTitle, label: draft.degreeTitle_label } : null}
+                    onChange={(opt) => {
+                      setFieldValue("education.0.degreeTitle", opt?.value || "");
+                      setFieldValue("education.0.degreeTitle_label", opt?.label || "");
+                    }}
+                    placeholder="Select degree title"
+                    styles={{ control: (b) => ({ ...b, borderColor: T.border, borderRadius: T.radiusSm, fontSize: 14, minHeight: 38 }) }}
+                  />
+                </FieldWrap>
+              </div>
+
+              {/* Second row - Institute and Start Date */}
+              <div style={{ ...S.grid2, marginTop: 14 }}>
+                <FieldWrap label="Institute">
+                  <AsyncSelect cacheOptions defaultOptions loadOptions={this.loadInstitutes}
+                    value={draft.institutes ? { value: draft.institutes, label: draft.institutes_label } : null}
+                    onChange={(opt) => setFieldValue("education.0", { ...draft, institutes: opt?.value || "", institutes_label: opt?.label || "" })}
+                    styles={{ control: (b) => ({ ...b, borderColor: T.border, borderRadius: T.radiusSm, fontSize: 14, minHeight: 38 }) }}
+                  />
+                </FieldWrap>
+                <FieldWrap label="Start date">
+                  <Field type="date" name="education.0.startDate" style={{ ...S.fieldInput }} />
+                </FieldWrap>
+              </div>
+
+              {/* ✅ Third row - End date only (using grid2 for equal width) */}
+              <div style={{ ...S.grid2, marginTop: 14 }}>
+                <FieldWrap
+                  label="End date"
+                  hint="Leave empty if currently studying"
+                >
+                  <Field type="date" name="education.0.endDate" style={{ ...S.fieldInput }} />
+                </FieldWrap>
+                {/* Empty div to maintain grid alignment */}
+                <div></div>
+              </div>
+
+              <button type="button" style={{ ...S.btnAdd, marginTop: "1rem" }}
+                onClick={() => {
+                  if (!draft.degree || !draft.degreeTitle) {
+                    this.setState({ formMessage: { type: "error", text: "Please fill required fields" } });
+                    return;
+                  }
+                  if (draft.id) {
+                    const index = values.education.findIndex((e) => e.id === draft.id);
+                    if (index > -1) setFieldValue(`education.${index}`, draft);
+                  } else {
+                    push({ ...draft });
+                  }
+                  setFieldValue("education.0", { degree: "", degreeTitle: "", degreeTitle_label: "", institutes: "", startDate: "", endDate: "", id: null });
+                  this.setState({ editID: null });
+                }}>
+                + Add education
+              </button>
+            </div>
+
+            {values.education.length > 1 && (
+              <div style={{ overflowX: "auto" }}>
+                <table style={S.table}>
+                  <thead>
+                    <tr>
+                      {["Degree", "Title", "Institute", "Start", "End / Status", ""].map((h) => (
+                        <th key={h} style={S.th}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {values.education.slice(1).map((edu, i) => (
+                      <tr key={edu.id || i}>
+                        <td style={S.td}>{edu.degreeTitle_label}</td>
+                        <td style={S.td}>{edu.degreeTitle_label}</td>
+                        <td style={S.td}>{edu.institutes_label}</td>
+                        <td style={S.td}>{edu.startDate}</td>
+                        {/* ✅ Show "Ongoing" badge if no end date or end date is in the future */}
+                        <td style={S.td}>
+                          {!edu.endDate || isDateOngoing(edu.endDate)
+                            ? <span style={S.ongoingBadge}>Ongoing</span>
+                            : edu.endDate
+                          }
+                        </td>
+                        <td style={S.td}>
+                          <button type="button" style={S.btnInfo}
+                            onClick={() => { setFieldValue("education.0", { ...edu }); this.setState({ editID: edu.id, isEdit: true }); remove(i + 1); }}>
+                            Edit
+                          </button>
+                          <button type="button" style={S.btnDanger}
+                            onClick={() => {
+                              if (edu.id) {
+                                api.delete(`${this.apiBaseUrl}candidateeducation/deletecandidateeducation/${edu.id}`)
+                                  .then(() => { this.setState({ formMessage: { type: "success", text: "Deleted" } }); remove(i + 1); });
+                              } else { remove(i + 1); }
+                            }}>
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        );
+      }}
+    </FieldArray>
+  );
+
+  /* ─── STEP 3 ─── */
+  renderStep3 = (values, setFieldValue) => (
+    <FieldArray name="experience">
+      {({ push, remove }) => {
+        const draft = values.experience?.[0] || { companyName: "", designation: "", speciality_id: "", startDate: "", endDate: "", job_type_id: "", id: null };
+        return (
+          <>
+            {/* Fresher toggle */}
+            <div style={S.fresherBox(values.isFresher)}
+              onClick={() => {
+                setFieldValue("isFresher", !values.isFresher);
+                if (!values.isFresher) setFieldValue("experience", [{}]);
+              }}>
+              <div style={{ width: 36, height: 20, borderRadius: 10, background: values.isFresher ? T.primary : T.border, position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
+                <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: values.isFresher ? 18 : 2, transition: "left 0.2s" }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 500, color: values.isFresher ? T.primary2 : T.text }}>I am a Fresher</div>
+                <div style={{ fontSize: 11, color: T.textMuted, marginTop: 1 }}>
+                  {values.isFresher ? "Work experience section will be skipped" : "Check this if you have no work experience"}
+                </div>
+              </div>
+            </div>
+
+            {/* Experience form */}
+            <div style={{ background: T.bgSection, borderRadius: T.radius, border: `1px solid ${T.border}`, padding: "1.1rem", marginBottom: "1.2rem" }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: T.text, marginBottom: "0.9rem" }}>Add experience</div>
+
+              {/* Row 1: Company Name and Designation */}
+              <div style={S.grid2}>
+                <FieldWrap label="Company name">
+                  <Field type="text" name="experience.0.companyName" style={S.fieldInput} placeholder="Company name" />
+                </FieldWrap>
+                <FieldWrap label="Designation">
+                  <Field type="text" name="experience.0.designation" style={S.fieldInput} placeholder="Your role" />
+                </FieldWrap>
+              </div>
+
+              {/* Row 2: Speciality and Job Type */}
+              <div style={{ ...S.grid2, marginTop: 14 }}>
+                <FieldWrap label="Speciality">
+                  <Field as="select" name="experience.0.speciality_id" style={{ ...S.fieldInput, cursor: "pointer" }}>
+                    <option value="">Select speciality</option>
+                    {Array.isArray(this.state.speciality) && this.state.speciality.map((s) => (
+                      <option key={s.id} value={String(s.id)}>{s.name}</option>
+                    ))}
+                  </Field>
+                </FieldWrap>
+                <FieldWrap label="Job Type">
+                  <Field as="select" name="experience.0.job_type_id" style={{ ...S.fieldInput, cursor: "pointer" }}>
+                    <option value="">Select job type</option>
+                    {Array.isArray(this.state.jobTypes) && this.state.jobTypes.map((jt) => (
+                      <option key={jt.id} value={String(jt.id)}>{jt.name}</option>
+                    ))}
+                  </Field>
+                </FieldWrap>
+              </div>
+
+              {/* ✅ Row 3: Start Date and End Date (both in same row) */}
+              <div style={{ ...S.grid2, marginTop: 14 }}>
+                <FieldWrap label="Start date">
+                  <Field type="date" name="experience.0.startDate" style={S.fieldInput} max={new Date().toISOString().split("T")[0]} />
+                </FieldWrap>
+                <FieldWrap
+                  label="End date"
+                  hint="Leave empty if currently working here"
+                >
+                  <Field type="date" name="experience.0.endDate" style={S.fieldInput} />
+                </FieldWrap>
+              </div>
+
+              <button type="button" style={{ ...S.btnAdd, marginTop: "1rem" }}
+                onClick={() => {
+                  if (!draft.companyName || !draft.designation || !draft.startDate) {
+                    this.setState({ formMessage: { type: "error", text: "Please fill required fields" } });
+                    return;
+                  }
+                  const expToPush = { ...draft, speciality_id: draft.speciality_id ? Number(draft.speciality_id) : "", job_type_id: draft.job_type_id ? Number(draft.job_type_id) : "" };
+                  if (this.state.editexpID) push({ ...expToPush, id: this.state.editexpID });
+                  else push(expToPush);
+                  setFieldValue("experience.0", { companyName: "", designation: "", speciality_id: "", startDate: "", endDate: "", job_type_id: "", id: null });
+                  this.setState({ editexpID: null });
+                }}>
+                + Add experience
+              </button>
+            </div>
+
+            {/* Skills */}
+            <div style={{ background: T.bgSection, borderRadius: T.radius, border: `1px solid ${T.border}`, padding: "1.1rem", marginBottom: "1.2rem" }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: T.text, marginBottom: "0.9rem" }}>Skills</div>
+              <Field name="skills">
+                {({ field, form }) => (
+                  <Select isMulti
+                    value={field.value?.map((val) => {
+                      const s = this.state.skillsOptions.find((sk) => sk.id === val);
+                      return s ? { value: s.id, label: s.name } : null;
+                    }).filter(Boolean)}
+                    onChange={(selected) => form.setFieldValue("skills", selected ? selected.map((o) => o.value) : [])}
+                    options={this.state.skillsOptions.map((s) => ({ value: s.id, label: s.name }))}
+                    placeholder="Select skills..."
+                    styles={{ control: (b) => ({ ...b, borderColor: T.border, borderRadius: T.radiusSm, fontSize: 14, minHeight: 38 }) }}
+                  />
+                )}
+              </Field>
+            </div>
+
+            {/* Experience table */}
+            {values.experience.length > 1 && (
+              <div style={{ overflowX: "auto" }}>
+                <table style={S.table}>
+                  <thead>
+                    <tr>
+                      {["Company", "Designation", "Speciality", "Job Type", "Start", "End / Status", ""].map((h) => (
+                        <th key={h} style={S.th}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {values.experience.slice(1).map((exp, i) => (
+                      <tr key={exp.id || i}>
+                        <td style={S.td}>{exp.companyName}</td>
+                        <td style={S.td}>{exp.designation}</td>
+                        <td style={S.td}>{this.state.speciality?.find((s) => s.id === exp.speciality_id)?.name || "—"}</td>
+                        {/* Job Type column */}
+                        <td style={S.td}>
+                          {this.state.jobTypes?.find((jt) => jt.id === exp.job_type_id)?.name || "—"}
+                        </td>
+                        <td style={S.td}>{exp.startDate}</td>
+                        <td style={S.td}>
+                          {!exp.endDate || isDateOngoing(exp.endDate)
+                            ? <span style={S.ongoingBadge}>Ongoing</span>
+                            : exp.endDate
+                          }
+                        </td>
+                        <td style={S.td}>
+                          <button type="button" style={S.btnInfo}
+                            onClick={() => {
+                              setFieldValue("experience.0", { ...exp });
+                              remove(i + 1);
+                              this.setState({ editexpID: exp.id, isExpEdit: true });
+                            }}>
+                            Edit
+                          </button>
+                          <button type="button" style={S.btnDanger}
+                            onClick={() => {
+                              if (exp.id) {
+                                api.delete(`${this.apiBaseUrl}candidateexperience/deleteexperience/${exp.id}`)
+                                  .then(() => {
+                                    this.setState({ formMessage: { type: "success", text: "Deleted" } });
+                                    remove(i + 1);
+                                  });
+                              } else {
+                                remove(i + 1);
+                              }
+                            }}>
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        );
+      }}
+    </FieldArray>
+  );
+
+  /* ─── STEP 4 ─── */
+  renderStep4 = (values, setFieldValue, errors, touched, setFieldTouched, setFieldError) => (
+    <>
+      {values.resume && (
+        <div style={{ ...S.alertInfo, marginBottom: "1.2rem" }}>
+          <span>
+            Uploaded:{" "}
+            <a href={values.resume.url || URL.createObjectURL(values.resume)} target="_blank" rel="noopener noreferrer"
+              style={{ color: "inherit", fontWeight: 500 }}>
+              {values.resume.name}
+            </a>
+          </span>
+          {!values.resume.isExisting && (
+            <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "inherit" }}
+              onClick={() => setFieldValue("resume", null)}>×</button>
+          )}
+        </div>
+      )}
+
+      <div style={{ border: `2px dashed ${T.primary4}`, borderRadius: T.radius, padding: "2.5rem 1.5rem", textAlign: "center", background: T.primary3 }}>
+        <div style={{ fontSize: 36, marginBottom: 8 }}>📄</div>
+        <div style={{ fontSize: 15, fontWeight: 500, color: T.text, marginBottom: 4 }}>Click to upload your resume</div>
+        <div style={{ fontSize: 12, color: T.textMuted, marginBottom: "1.2rem" }}>PDF, DOC, DOCX — max 3MB</div>
+        <label style={{ ...S.btnNext, display: "inline-flex", cursor: "pointer" }}>
+          Browse file
+          <input type="file" name="resume" accept=".doc,.docx,application/msword,application/pdf"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const file = e.target.files[0];
+              setFieldTouched("resume", true);
+              if (file) {
+                const maxSize = 3 * 1024 * 1024;
+                const allowedTypes = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+                if (!allowedTypes.includes(file.type)) { setFieldError("resume", "Invalid file type"); setFieldValue("resume", null); }
+                else if (file.size > maxSize) { setFieldError("resume", "File too large — max 3MB"); setFieldValue("resume", null); }
+                else { setFieldValue("resume", file); setFieldError("resume", ""); }
+              }
+            }}
+          />
+        </label>
+        {errors.resume && touched.resume && (
+          <div style={{ ...S.fieldError, marginTop: 8 }}>{errors.resume}</div>
+        )}
+      </div>
+    </>
+  );
+
+  /* ─── STEP 5 ─── */
+  renderStep5 = () => {
+    // Helper to format shift for display
+    const formatShiftForDisplay = (shift) => {
+      if (shift === "morning") return "Morning";
+      if (shift === "evening") return "Evening";
+      if (shift === "night") return "Night";
+      return shift;
+    };
+
+    // Helper to check if time crosses midnight
+    const isTimeCrossingMidnight = (startTime, endTime) => {
+      if (!startTime || !endTime) return false;
+      return startTime > endTime;
+    };
+
+    // ✅ Helper to check if selection is 24/7
+    const is247Selection = (day, shift) => {
+      return shift === "All Shifts";
+    };
+
+    // ✅ Shift validation - simple and clean
+    const validateShiftTiming = (shift, startTime, endTime) => {
+      if (!startTime || !endTime) {
+        return { isValid: false, error: "Please select both start and end time" };
+      }
+
+      switch (shift) {
+        case "morning":
+          // Morning shift should start before 12:00 PM (noon)
+          if (startTime >= "12:00") {
+            return { isValid: false, error: "❌ Morning shift must start before 12:00 PM (e.g., 09:00 AM)" };
+          }
+          if (startTime >= endTime) {
+            return { isValid: false, error: "❌ End time must be after start time" };
+          }
+          return { isValid: true, error: null };
+
+        case "evening":
+          // Evening shift should start after 12:00 PM (noon)
+          if (startTime <= "12:00") {
+            return { isValid: false, error: "❌ Evening shift must start after 12:00 PM (e.g., 15:00 PM)" };
+          }
+          if (startTime >= endTime) {
+            return { isValid: false, error: "❌ End time must be after start time" };
+          }
+          return { isValid: true, error: null };
+
+        case "night":
+          // Night shift must cross midnight (start time > end time)
+          if (startTime <= endTime) {
+            return { isValid: false, error: "❌ Night shift must cross midnight (e.g., 21:00 to 06:00 next day)" };
+          }
+          return { isValid: true, error: null };
+
+        default:
+          return { isValid: true, error: null };
+      }
+    };
+
+    const { currentEntry, allShiftsTimings, isAllShiftsMode, timingError } = this.state;
+    const is247 = is247Selection(currentEntry?.day, currentEntry?.shift);
+
+    // Real-time validation for single shift
+    const getTimingError = () => {
+      if (!currentEntry?.shift || !currentEntry?.startTime || !currentEntry?.endTime) return null;
+      const validation = validateShiftTiming(currentEntry.shift, currentEntry.startTime, currentEntry.endTime);
+      return validation.error;
+    };
+
+    return (
       <>
         <div style={{ background: T.bgSection, borderRadius: T.radius, border: `1px solid ${T.border}`, padding: "1.1rem", marginBottom: "1.2rem" }}>
           <div style={{ fontSize: 13, fontWeight: 500, color: T.text, marginBottom: "0.9rem" }}>Add availability</div>
-          <div style={S.grid2}>
-            <FieldWrap label="Day(s)">
-              <Select isMulti
-                options={this.state.dayOptions}
-                value={this.state.dayOptions.filter((o) => (this.state.currentEntry?.day || []).includes(o.value))}
-                onChange={(selected) => this.setState((prev) => ({ currentEntry: { ...prev.currentEntry, day: selected ? selected.map((o) => o.value) : [] } }))}
-                placeholder="Select days..."
-                styles={{ control: (b) => ({ ...b, borderColor: T.border, borderRadius: T.radiusSm, fontSize: 14, minHeight: 38 }) }}
-              />
+
+          {/* Day Select */}
+          <div style={{ marginBottom: "1rem" }}>
+            <FieldWrap label="Day">
+              <StyledSelect
+                value={currentEntry?.day || ""}
+                onChange={(e) => {
+                  const selectedDay = e.target.value;
+                  this.setState((prev) => ({
+                    currentEntry: {
+                      ...prev.currentEntry,
+                      day: selectedDay === "All Days" ? "All Days" : selectedDay
+                    },
+                    timingError: null
+                  }));
+                }}
+              >
+                <option value="">Select Day</option>
+                <option value="All Days">All Days</option>
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+                <option value="Sunday">Sunday</option>
+              </StyledSelect>
             </FieldWrap>
+          </div>
+
+          {/* Shift Select */}
+          <div style={{ marginBottom: "1rem" }}>
             <FieldWrap label="Shift">
-              <Select
-                options={this.state.shiftOptions}
-                value={this.state.shiftOptions.find((o) => o.value === this.state.currentEntry?.shift) || null}
-                onChange={(option) => this.setState((prev) => ({ currentEntry: { ...prev.currentEntry, shift: option.value } }))}
-                placeholder="Select shift"
-                styles={{ control: (b) => ({ ...b, borderColor: T.border, borderRadius: T.radiusSm, fontSize: 14, minHeight: 38 }) }}
-              />
+              <StyledSelect
+                value={currentEntry?.shift || ""}
+                onChange={(e) => {
+                  const selectedShift = e.target.value;
+                  const isAllShifts = selectedShift === "All Shifts";
+
+                  this.setState((prev) => ({
+                    currentEntry: {
+                      ...prev.currentEntry,
+                      shift: selectedShift,
+                      startTime: "",
+                      endTime: ""
+                    },
+                    isAllShiftsMode: isAllShifts,
+                    timingError: null,
+                    allShiftsTimings: isAllShifts ? {
+                      morning: { startTime: "09:00", endTime: "17:00" },
+                      evening: { startTime: "15:00", endTime: "23:00" },
+                      night: { startTime: "21:00", endTime: "06:00" },
+                    } : prev.allShiftsTimings
+                  }));
+                }}
+              >
+                <option value="">Select Shift</option>
+                <option value="All Shifts">All Shifts (24/7 availability)</option>
+                <option value="morning">Morning</option>
+                <option value="evening">Evening</option>
+                <option value="night">Night</option>
+              </StyledSelect>
             </FieldWrap>
           </div>
-          <div style={{ ...S.grid2, marginTop: 14 }}>
-            <FieldWrap label="Start time">
-              <StyledInput type="time" value={this.state.currentEntry?.startTime || ""}
-                onChange={(e) => this.setState((prev) => ({ currentEntry: { ...prev.currentEntry, startTime: e.target.value } }))} />
-            </FieldWrap>
-            <FieldWrap label="End time">
-              <StyledInput type="time" value={this.state.currentEntry?.endTime || ""}
-                onChange={(e) => this.setState((prev) => ({ currentEntry: { ...prev.currentEntry, endTime: e.target.value } }))} />
-            </FieldWrap>
-          </div>
+
+          {/* Time inputs based on selection */}
+          {currentEntry?.shift === "All Shifts" ? (
+            <div className="mt-3">
+              <label className="fw-semibold mb-2">Set timings for each shift:</label>
+              {[
+                { key: "morning", label: "Morning Shift" },
+                { key: "evening", label: "Evening Shift" },
+                { key: "night", label: "Night Shift" },
+              ].map((shift) => {
+                const timing = this.state.allShiftsTimings?.[shift.key] || { startTime: "", endTime: "" };
+                const validation = validateShiftTiming(shift.key, timing.startTime, timing.endTime);
+
+                return (
+                  <div key={shift.key} className="mb-3 p-2 border rounded" style={{ background: "#f8f9fa" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, alignItems: "center" }}>
+                      <div>
+                        <strong>{shift.label}</strong>
+                      </div>
+                      <div>
+                        <label className="small">Start Time</label>
+                        <StyledInput
+                          type="time"
+                          value={timing.startTime}
+                          onChange={(e) => {
+                            const newTimings = { ...this.state.allShiftsTimings };
+                            newTimings[shift.key] = { ...newTimings[shift.key], startTime: e.target.value };
+                            this.setState({ allShiftsTimings: newTimings, timingError: null });
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label className="small">End Time</label>
+                        <StyledInput
+                          type="time"
+                          value={timing.endTime}
+                          onChange={(e) => {
+                            const newTimings = { ...this.state.allShiftsTimings };
+                            newTimings[shift.key] = { ...newTimings[shift.key], endTime: e.target.value };
+                            this.setState({ allShiftsTimings: newTimings, timingError: null });
+                          }}
+                        />
+                      </div>
+                    </div>
+                    {validation.isValid === false && (
+                      <small className="text-danger d-block mt-1">{validation.error}</small>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : currentEntry?.shift && (
+            <>
+              <div style={{ ...S.grid2, marginTop: 14 }}>
+                <FieldWrap label="Start Time">
+                  <StyledInput
+                    type="time"
+                    value={currentEntry?.startTime || ""}
+                    onChange={(e) => {
+                      this.setState((prev) => ({
+                        currentEntry: { ...prev.currentEntry, startTime: e.target.value },
+                        timingError: null
+                      }));
+                    }}
+                  />
+                </FieldWrap>
+                <FieldWrap label="End Time">
+                  <StyledInput
+                    type="time"
+                    value={currentEntry?.endTime || ""}
+                    onChange={(e) => {
+                      this.setState((prev) => ({
+                        currentEntry: { ...prev.currentEntry, endTime: e.target.value },
+                        timingError: null
+                      }));
+                    }}
+                  />
+                </FieldWrap>
+              </div>
+
+              {/* Show validation error below fields */}
+              {getTimingError() && (
+                <div style={{ ...S.alertError, marginTop: 8, fontSize: 12, padding: "8px 12px" }}>
+                  <span>⚠️ {getTimingError()}</span>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Summary and Add button */}
+          {currentEntry?.day && currentEntry?.shift && (
+            <div style={{ ...S.alertInfo, marginTop: "1rem", fontSize: 13, padding: "8px 12px" }}>
+              <strong>📋 Summary:</strong> You are about to add{' '}
+              <strong>
+                {currentEntry.day === "All Days" ? 7 : 1} × {currentEntry.shift === "All Shifts" ? 3 : 1} ={' '}
+                {(currentEntry.day === "All Days" ? 7 : 1) * (currentEntry.shift === "All Shifts" ? 3 : 1)} entries
+              </strong>
+            </div>
+          )}
+
           <button type="button" style={{ ...S.btnAdd, marginTop: "1rem" }}
             onClick={async () => {
-              const { currentEntry } = this.state;
-              if (!currentEntry?.day?.length || !currentEntry.shift || !currentEntry.startTime || !currentEntry.endTime) {
-                this.setState({ formMessage: { type: "error", text: "Please fill all fields before adding" } });
+              const { currentEntry, allShiftsTimings } = this.state;
+
+              if (!currentEntry?.day || !currentEntry?.shift) {
+                this.setState({ formMessage: { type: "error", text: "Please select day and shift" } });
                 return;
               }
+
+              // Handle "All Days" and "All Shifts" logic
+              let daysToAdd = [];
+              let shiftsToAdd = [];
+              let availabilityArray = [];
+
+              // Set days
+              if (currentEntry.day === "All Days") {
+                daysToAdd = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+              } else {
+                daysToAdd = [currentEntry.day];
+              }
+
+              // Check if it's All Shifts
+              const isAllShifts = currentEntry.shift === "All Shifts";
+
+              if (isAllShifts) {
+                // Validate all shifts timings
+                shiftsToAdd = ["morning", "evening", "night"];
+                let hasError = false;
+
+                for (const shift of shiftsToAdd) {
+                  const timing = allShiftsTimings[shift];
+                  if (!timing.startTime || !timing.endTime) {
+                    this.setState({ formMessage: { type: "error", text: `Please set timings for ${shift} shift` } });
+                    hasError = true;
+                    break;
+                  }
+                  const validation = validateShiftTiming(shift, timing.startTime, timing.endTime);
+                  if (!validation.isValid) {
+                    this.setState({ formMessage: { type: "error", text: validation.error } });
+                    hasError = true;
+                    break;
+                  }
+                }
+
+                if (hasError) return;
+
+                for (const day of daysToAdd) {
+                  for (const shift of shiftsToAdd) {
+                    const timing = allShiftsTimings[shift];
+                    availabilityArray.push({
+                      day: day,
+                      shift: shift,
+                      startTime: timing.startTime,
+                      endTime: timing.endTime,
+                    });
+                  }
+                }
+              } else {
+                // Single shift - validate time fields and shift timing
+                if (!currentEntry.startTime || !currentEntry.endTime) {
+                  this.setState({ formMessage: { type: "error", text: "Please select start time and end time" } });
+                  return;
+                }
+
+                // Validate based on shift type
+                const validation = validateShiftTiming(currentEntry.shift, currentEntry.startTime, currentEntry.endTime);
+                if (!validation.isValid) {
+                  this.setState({ formMessage: { type: "error", text: validation.error } });
+                  return;
+                }
+
+                shiftsToAdd = [currentEntry.shift];
+                for (const day of daysToAdd) {
+                  for (const shift of shiftsToAdd) {
+                    availabilityArray.push({
+                      day: day,
+                      shift: shift,
+                      startTime: currentEntry.startTime,
+                      endTime: currentEntry.endTime,
+                    });
+                  }
+                }
+              }
+
               try {
-                const payload = currentEntry.day.map((dayValue) => ({ day: dayValue, shift: currentEntry.shift, startTime: currentEntry.startTime, endTime: currentEntry.endTime }));
-                await api.post(`${this.apiBaseUrl}candidate_availability/addavailability`, { availability: payload }, {
+                await api.post(`${this.apiBaseUrl}candidate_availability/addavailability`, {
+                  availability: availabilityArray
+                }, {
                   headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
                 });
+
                 this.setState((prev) => ({
-                  entries: [...prev.entries, ...payload],
-                  currentEntry: { day: [], shift: "", startTime: "", endTime: "" },
-                  formMessage: { type: "success", text: "Availability added" },
+                  entries: [...prev.entries, ...availabilityArray],
+                  currentEntry: { day: "", shift: "", startTime: "", endTime: "" },
+                  isAllShiftsMode: false,
+                  timingError: null,
+                  allShiftsTimings: {
+                    morning: { startTime: "09:00", endTime: "17:00" },
+                    evening: { startTime: "15:00", endTime: "23:00" },
+                    night: { startTime: "21:00", endTime: "06:00" },
+                  },
+                  formMessage: { type: "success", text: `${availabilityArray.length} availability entr${availabilityArray.length === 1 ? 'y' : 'ies'} added successfully` },
                 }));
               } catch (err) {
+                console.error("Failed to add availability:", err);
                 this.setState({ formMessage: { type: "error", text: "Failed to add availability" } });
               }
             }}>
@@ -1767,33 +2152,51 @@ handleCVUpload = async (e) => {
           </button>
         </div>
 
+        {/* Display added entries */}
         {this.state.entries.length > 0 && (
           <div style={{ overflowX: "auto" }}>
             <table style={S.table}>
               <thead>
-                <tr>{["Day","Shift","Start","End",""].map((h) => <th key={h} style={S.th}>{h}</th>)}</tr>
+                <tr>
+                  {["Day", "Shift", "Start", "End", ""].map((h) => (
+                    <th key={h} style={S.th}>{h}</th>
+                  ))}
+                </tr>
               </thead>
               <tbody>
-                {this.state.entries.map((e, i) => (
-                  <tr key={i}>
-                    <td style={S.td}><span style={S.tag}>{e.day}</span></td>
-                    <td style={S.td}>{e.shift}</td>
-                    <td style={S.td}>{e.startTime}</td>
-                    <td style={S.td}>{e.endTime}</td>
-                    <td style={S.td}>
-                      <button type="button" style={S.btnDanger}
-                        onClick={() => this.setState((prev) => ({ entries: prev.entries.filter((_, idx) => idx !== i) }))}>
-                        Remove
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {this.state.entries.map((e, i) => {
+                  const shiftName = e.shift === "morning" ? "Morning" : e.shift === "evening" ? "Evening" : e.shift === "night" ? "Night" : e.shift;
+                  const crossesMidnight = isTimeCrossingMidnight(e.startTime, e.endTime);
+                  const isFullDay = !e.startTime && !e.endTime;
+                  // Check if this entry has invalid timing
+                  const validation = validateShiftTiming(e.shift, e.startTime, e.endTime);
+                  return (
+                    <tr key={i}>
+                      <td style={S.td}><span style={S.tag}>{e.day}</span></td>
+                      <td style={S.td}>{shiftName}</td>
+                      <td style={S.td}>{isFullDay ? "24/7" : (e.startTime || "-")}</td>
+                      <td style={S.td}>
+                        {isFullDay ? "Available" : (e.endTime || "-")}
+                        {!isFullDay && e.shift === "night" && crossesMidnight && " (next day)"}
+                        {!validation.isValid && <span style={{ color: "#dc3545", marginLeft: 6 }}>⚠️</span>}
+                      </td>
+                      <td style={S.td}>
+                        <button type="button" style={S.btnDanger}
+                          onClick={() => this.setState((prev) => ({ entries: prev.entries.filter((_, idx) => idx !== i) }))}>
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </>
     );
+  };
+
 
     renderStep = (values, setFieldValue, errors, touched, setFieldTouched, setFieldError) => {
       const { step } = this.state;

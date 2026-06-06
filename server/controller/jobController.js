@@ -86,6 +86,22 @@ const viewCandidate = (req, res) => {
 const resetDailyBudgets = (req, res) => {
   jobModel.resetDailyBudgets(req, res);
 }
+const deactivateExpiredJobs = async () => {
+  try {
+    await jobModel.deactivateExpiredJobs();
+    console.log("Expired jobs deactivated successfully");
+  } catch (err) {
+    console.error("Error deactivating expired jobs:", err);
+  }
+};
+const checkExpiredJobs = (req, res) => {
+  deactivateExpiredJobs();
+  res.status(200).json({
+    success: true,
+    message: "Expired jobs check triggered"
+  });
+};
+
 module.exports = {
   getJobbyRegAdmin,
   updateJobPostStatus,
@@ -104,5 +120,7 @@ module.exports = {
   subcribePackageInternal,
   approveJob,
   resetDailyBudgets,
-  viewCandidate 
+  viewCandidate,
+  deactivateExpiredJobs,
+  checkExpiredJobs
 }

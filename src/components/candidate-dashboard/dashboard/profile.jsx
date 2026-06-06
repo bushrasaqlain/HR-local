@@ -861,6 +861,11 @@ class Profile extends Component {
 
 // ── JobDetailModal (identical in both files) ──
 class JobDetailModal extends React.Component {
+
+  handleModalContentClick = (e) => {
+    e.stopPropagation();
+  };
+
   render() {
     const { job, onClose } = this.props;
     if (!job) return null;
@@ -970,6 +975,7 @@ class JobDetailModal extends React.Component {
     );
   }
 }
+
 
 // ── BoostModal (identical in both files — using Doc1 version which is slightly cleaner) ──
 class BoostModal extends React.Component {

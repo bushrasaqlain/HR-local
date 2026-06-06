@@ -259,35 +259,46 @@
                 {/* ================= BODY ================= */}
                 <div className="d-flex flex-column gap-4">
 
-  {/* Availability */}
-  <div className="card shadow-sm rounded-4 p-4">
-    <h5 className="mb-3">Availability</h5>
-    {candidateData.availability?.length ? (
-      <div className="d-flex flex-column gap-2">
-        {candidateData.availability.map((av, idx) => {
-          const formatTime = (time) => {
-            const [hour, min] = time.split(":");
-            const h = parseInt(hour, 10);
-            const ampm = h >= 12 ? "PM" : "AM";
-            const hour12 = h % 12 === 0 ? 12 : h % 12;
-            return `${hour12}:${min} ${ampm}`;
-          };
-          return (
-            <div key={idx} className="d-flex gap-3">
-              <div className="fw-bold" style={{ minWidth: "120px" }}>
-                {av.day}
-              </div>
-              <div>
-                {formatTime(av.startTime)} – {formatTime(av.endTime)} ({av.shift})
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    ) : (
-      <p>-</p>
-    )}
-  </div>
+   {/* Availability */}
+                <div className="card shadow-sm rounded-4 p-4">
+                  <h5 className="mb-3">Availability</h5>
+                  {candidateData.availability?.length ? (
+                    <div className="d-flex flex-column gap-2">
+                      {candidateData.availability.map((av, idx) => {
+                        const formatTime = (time) => {
+                          if (!time) return "24/7"; // ✅ Handle null for 24/7
+                          const [hour, min] = time.split(":");
+                          const h = parseInt(hour, 10);
+                          const ampm = h >= 12 ? "PM" : "AM";
+                          const hour12 = h % 12 === 0 ? 12 : h % 12;
+                          return `${hour12}:${min} ${ampm}`;
+                        };
+
+                        const isFullDay = !av.startTime && !av.endTime;
+
+                        return (
+                          <div key={idx} className="d-flex gap-3">
+                            <div className="fw-bold" style={{ minWidth: "120px" }}>
+                              {av.day}
+                            </div>
+                            <div>
+                              {isFullDay ? (
+                                <span className="badge bg-success">✅ 24/7 Available</span>
+                              ) : (
+                                <>
+                                  {formatTime(av.startTime)} – {formatTime(av.endTime)} ({av.shift})
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p>-</p>
+                  )}
+                </div>
+
 
   {/* Documents */}
   <div className="card shadow-sm rounded-4 p-4">
@@ -346,302 +357,16 @@
     <p>{candidateData.license_type || "-"}</p>
     <h6 className="fw-bold">License No.</h6>
     <p>{candidateData.license_number || "-"}</p>
-    <h6 className="fw-bold">Candidate Status</h6>
-    <p
-      className="mt-2"
-      style={{
-        color:
-          candidateData.candidateStatus === "Pending"
-            ? "black"
-            : candidateData.candidateStatus === "Rejected"
-            ? "red"
-            : "green",
-        fontWeight: "bold",
-      }}
-    >
-      {candidateData.candidateStatus || "-"}
-    </p>
+    
   </div>
 
 </div>
               </>
             )}
           </div>
-        </Container>
+        </Container> 
       );
     }
   }
 
   export default CandidateInfo;
-
-
-
-{/* <div className="row g-4"> */}
-                  {/* LEFT SIDE - PROFILE DETAILS */}
-                  {/* <div className="col-lg-8"> */}
-                    {/* <div className="card shadow-sm rounded-4 p-4 mb-4">
-                      <h5 className="mb-3">Education</h5>
-                      {candidateData.education?.length ? (
-                        <div className="d-flex flex-column gap-3">
-                          {candidateData.education.map((ed, idx) => {
-                            const startYear = ed.start_date
-                              ? new Date(ed.start_date).getFullYear()
-                              : "";
-                            const endYear = ed.end_date
-                              ? new Date(ed.end_date).getFullYear()
-                              : "Present";
-
-                            return (
-                              <div key={idx} className="d-flex flex-column gap-1">
-                                <div className="fw-bold">
-                                  {ed.degreetype?.name || "N/A"} in{" "}
-                                  {ed.degreefield?.name || "N/A"}
-                                </div>
-                                <div className="text-muted">
-                                  {ed.institute?.name || "Institute Name"} in{" "}
-                                  {startYear} – {endYear}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <p>No education details provided.</p>
-                      )}
-                    </div> */}
-
-                    {/* Experience */}
-                    {/* ========== Experience ========== */}
-                    {/* ========== Work Experience ========== */}
-                    {/* <div className="card shadow-sm rounded-4 p-4 mb-4">
-                      <h5 className="mb-3">Work Experience</h5>
-
-                      {candidateData.experience?.length ? (
-                        <div className="d-flex flex-column gap-4">
-                          {candidateData.experience.map((exp, idx) => {
-                            const start = exp.start_date
-                              ? new Date(exp.start_date).toLocaleDateString(
-                                  "en-US",
-                                  {
-                                    month: "short",
-                                    year: "numeric",
-                                  },
-                                )
-                              : "";
-
-                            const end = exp.end_date
-                              ? new Date(exp.end_date).toLocaleDateString(
-                                  "en-US",
-                                  {
-                                    month: "short",
-                                    year: "numeric",
-                                  },
-                                )
-                              : "Present";
-
-                            return (
-                              <div key={idx} className="d-flex flex-column">
-                                <div className="fw-bold fs-6">
-                                  {exp.company_name || "-"}
-                                </div>
-
-                                <div className="text-muted small  ">
-                                  {start} – {end}
-                                </div>
-
-                                <div className="mt-2 ms-3">
-                                  • {exp.designation || "-"}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <p>No experience details provided.</p>
-                      )}
-                    </div> */}
-
-                    {/* Skills & Specialities */}
-                    {/* <div className="card shadow-sm rounded-4 p-4 mb-4">
-                      <h5 className="mb-3">Skills</h5>
-                      {candidateData.skills?.length ? (
-                        <div className="d-flex flex-wrap gap-2">
-                          {candidateData.skills.map((skill, idx) => (
-                            <span
-                              key={idx}
-                              className="badge bg-light text-dark border"
-                            >
-                              {skill.name || "-"}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <p>-</p>
-                      )}
-
-                      <h5 className="mt-3">Specialities</h5>
-                      {candidateData.experience?.length ? (
-                        <div className="d-flex flex-wrap gap-2">
-                          {candidateData.experience.map((exp, idx) => (
-                            <span
-                              key={idx}
-                              className="badge bg-light text-dark border"
-                            >
-                              {exp.speciality?.name || "N/A"}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <p>-</p>
-                      )}
-                    </div> */}
-
-                    {/* Availability */}
-                    {/* <div className="card shadow-sm rounded-4 p-4 mb-4">
-                      <h5 className="mb-3">Availability</h5>
-                      {candidateData.availability?.length ? (
-                        <div className="d-flex flex-column gap-2">
-                          {candidateData.availability.map((av, idx) => {
-                            const formatTime = (time) => {
-                              const [hour, min, sec] = time.split(":");
-                              const h = parseInt(hour, 10);
-                              const ampm = h >= 12 ? "PM" : "AM";
-                              const hour12 = h % 12 === 0 ? 12 : h % 12;
-                              return `${hour12}:${min} ${ampm}`;
-                            };
-
-                            return (
-                              <div key={idx} className="d-flex gap-3">
-                                <div
-                                  className="fw-bold"
-                                  style={{ minWidth: "120px" }}
-                                >
-                                  {av.day}
-                                </div>
-                                <div>
-                                  {formatTime(av.startTime)} -{" "}
-                                  {formatTime(av.endTime)} ({av.shift})
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <p>-</p>
-                      )}
-                    </div>
-
-                    {/* Resume */}
-                    {/* Documents Section */}
-                    // <div className="card shadow-sm rounded-4 p-4">
-                    //   <h5 className="mb-3">Documents</h5>
-                    //   {/* <hr className="mt-2 mb-4" /> */}
-
-                    //   {/* Resume */}
-                    //   <div className="mb-3">
-                    //     <strong>Resume</strong>
-                    //     <div className="mt-2">
-                    //       {candidateData.resume ? (
-                    //         <a
-                    //           href={`${process.env.NEXT_PUBLIC_API_BASE_URL}${candidateData.resume.replace(/^\/+/, "")}`}
-                    //           target="_blank"
-                    //           rel="noopener noreferrer"
-                    //           className="btn btn-outline-primary btn-sm"
-                    //         >
-                    //           View Resume
-                    //         </a>
-                    //       ) : (
-                    //         <div className="text-muted">N/A</div>
-                    //       )}
-                    //     </div>
-                    //   </div>
-
-                    //   <hr />
-
-                    //   {/* Certificates */}
-                    //   <div className="mb-3">
-                    //     <strong>Certificates</strong>
-                    //     <div className="mt-2">
-                    //       {candidateData.certificates?.length ? (
-                    //         candidateData.certificates.map((cert, idx) => {
-                    //           if (!cert?.document_path) return null;
-
-                    //           // Extract file name from full path
-                    //           const fileName = cert.document_path
-                    //             .split("\\")
-                    //             .pop();
-
-                    //           return (
-                    //             <div key={idx} className="mb-2">
-                    //               <a
-                    //                 href={`${process.env.NEXT_PUBLIC_API_BASE_URL}uploads/certificate/${fileName}`}
-                    //                 target="_blank"
-                    //                 rel="noopener noreferrer"
-                    //                 className="btn btn-outline-secondary btn-sm"
-                    //               >
-                    //                 {cert.document_name ||
-                    //                   `Certificate ${idx + 1}`}
-                    //               </a>
-                    //             </div>
-                    //           );
-                    //         })
-                    //       ) : (
-                    //         <div className="text-muted">N/A</div>
-                    //       )}
-                    //     </div>
-                    //   </div>
-
-                    //   <hr />
-
-                      
-                    // </div>
-                  // </div> */}
-
-                  {/* RIGHT SIDE - RECRUITER PANEL */}
-                  {/* <div className="col-lg-4">
-                    <div className="card shadow-sm rounded-4 p-4 mb-4">
-                      <h6 className="fw-bold">License Type</h6>
-                      <p>{candidateData.license_type || "-"}</p>
-                      <h6 className="fw-bold">License No.</h6>
-                      <p>{candidateData.license_number || "-"}</p>
-                      <h6 className="fw-bold">Candidate Status</h6>
-                      <p
-                        className="mt-2"
-                        style={{
-                          color:
-                            candidateData.candidateStatus === "Pending"
-                              ? "black"
-                              : candidateData.candidateStatus === "Rejected"
-                                ? "red"
-                                : "green",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {candidateData.candidateStatus || "-"}
-                      </p>
-                    </div> */}
-
-                    {/* <div className="card shadow-sm rounded-4 p-4">
-                      <h6 className="fw-bold">Internal Notes</h6>
-                      <textarea
-                        className="form-control mb-2"
-                        rows="3"
-                        placeholder="Add notes..."
-                        value={
-                          this.state.noteMessage ||
-                          this.props.candidate.message ||
-                          ""
-                        }
-                        onChange={(e) =>
-                          this.setState({ noteMessage: e.target.value })
-                        }
-                      />
-                      <button
-                        className="btn btn-primary w-100"
-                        onClick={this.handleSaveNote}
-                      >
-                        Save Note
-                      </button>
-                    </div> */}
-                  {/* </div>
-                </div> */}

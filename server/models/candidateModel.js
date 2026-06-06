@@ -920,11 +920,11 @@ const getCandidateInfo = (req, res) => {
 
         // -------- Tracking Queries --------
         const searchCountSql = `
-        SELECT COUNT(*) AS appeared_in_search,
-               COUNT(DISTINCT company_id) AS profile_views
-        FROM candidate_search_impressions
-        WHERE candidate_id = ?
-      `;
+         SELECT 
+            COUNT(*) AS total_impressions
+            FROM candidate_search_impressions
+            WHERE candidate_id = ?
+          `;
 
         const applicationStatusSql = `
         SELECT status, COUNT(*) AS count
@@ -961,8 +961,8 @@ const getCandidateInfo = (req, res) => {
               [candidate.candidate_id],
               (err, rows) => {
                 if (err) return reject(err);
-                response.appeared_in_search = rows[0]?.appeared_in_search || 0;
-                response.profile_views = rows[0]?.profile_views || 0;
+                response.appeared_in_search = rows[0]?.total_impressions || 0;
+                response.profile_views = rows[0]?.total_impressions || 0;
                 resolve();
               },
             );
@@ -2013,24 +2013,21 @@ const getAllCandidatesForEmployer = (req, res) => {
 
   const search = (req.query.search || "").trim();
   const cityId = (req.query.city_id || "").trim();
-  const degreeId = (req.query.degree_id || "").trim();   // optional if you have degree table
-  const experience = (req.query.experience || "").trim();   // e.g. "0-2", "3-5", "5+"
+  const experience = (req.query.experience || "").trim();
   const skillId = (req.query.skill_id || "").trim();
 
   let whereConditions = [
     `a.accountType = 'candidate'`,
-    `a.isActive = 'Active'`,           // only approved candidates
-    `ci.profile_completed = 1`,        // only complete profiles
+    `a.isActive = 'Active'`,
+    `ci.profile_completed = 1`,
   ];
   let values = [];
 
-  // Search by name only (no phone/email leak)
   if (search) {
     whereConditions.push(`ci.full_name LIKE ?`);
     values.push(`%${search}%`);
   }
 
-  // City filter
   if (cityId) {
     whereConditions.push(`ci.city = ?`);
     values.push(cityId);
@@ -2041,7 +2038,6 @@ const getAllCandidatesForEmployer = (req, res) => {
     values.push(parseInt(skillId));
   }
 
-  // Experience filter
   if (experience === "fresh") {
     whereConditions.push(`(ci.total_experience = '0' OR ci.total_experience IS NULL OR ci.total_experience = '' OR ci.is_fresher = 1)`);
   } else if (experience === "1-3") {
@@ -2054,7 +2050,7 @@ const getAllCandidatesForEmployer = (req, res) => {
 
   const whereClause = `WHERE ${whereConditions.join(" AND ")}`;
 
-  // ⚠️ INTENTIONALLY excluded: phone, email, resume, passport_photo path (privacy)
+  // ✅ ADDED passport_photo in SELECT
   const query = `
     SELECT
       ci.id                   AS candidate_id,
@@ -2064,12 +2060,19 @@ const getAllCandidatesForEmployer = (req, res) => {
       ci.is_boosted,
       ci.boost_expires_at,
       ci.gender,
+      ci.passport_photo,      -- ✅ Added this line
       city.name               AS city_name,
       ctry.name               AS country_name,
-
-      -- Masked initials for avatar (no real photo)
-      UPPER(LEFT(ci.full_name, 1))                                AS initial
-
+      UPPER(LEFT(ci.full_name, 1)) AS initial,
+      CASE 
+        WHEN EXISTS (
+          SELECT 1 FROM candidate_availability ca 
+          WHERE ca.candidate_id = ci.id 
+          AND ca.startTime IS NOT NULL
+          LIMIT 1
+        ) THEN 'Available'
+        ELSE 'Availability not set'
+      END AS availability_status
     FROM account a
     LEFT JOIN candidate_info ci  ON a.id = ci.account_id
     LEFT JOIN cities city        ON ci.city = city.id
@@ -2102,15 +2105,19 @@ const getAllCandidatesForEmployer = (req, res) => {
         return res.status(500).json({ error: "Database error" });
       }
 
-      // Parse skills JSON for each candidate
       const candidates = results.map((c) => {
-        let skillNames = [];
+        let skillIds = [];
         try {
           const parsed = typeof c.skills === "string" ? JSON.parse(c.skills) : (c.skills || []);
-          // skills is stored as array of IDs — we return raw IDs; frontend can show count
-          skillNames = Array.isArray(parsed) ? parsed : [];
+          skillIds = Array.isArray(parsed) ? parsed : [];
         } catch {
-          skillNames = [];
+          skillIds = [];
+        }
+
+        // ✅ Format passport_photo URL if exists
+        let photoUrl = null;
+        if (c.passport_photo) {
+          photoUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${c.passport_photo}`;
         }
 
         return {
@@ -2122,16 +2129,17 @@ const getAllCandidatesForEmployer = (req, res) => {
           country_name: c.country_name || null,
           is_boosted: !!c.is_boosted,
           gender: c.gender || null,
-          skills_count: skillNames.length,   // only count, not names (teaser)
+          skills_count: skillIds.length,
+          availability_status: c.availability_status || "Not specified",
+          passport_photo: photoUrl,  // ✅ Added this
         };
       });
 
-      // Stats query — total candidates in system
       const statsQuery = `
         SELECT
           COUNT(*) AS total_candidates,
           SUM(CASE WHEN a.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS new_this_week,
-          SUM(CASE WHEN ci.is_boosted = 1 THEN 1 ELSE 0 END)                               AS boosted_count
+          SUM(CASE WHEN ci.is_boosted = 1 THEN 1 ELSE 0 END) AS boosted_count
         FROM account a
         LEFT JOIN candidate_info ci ON a.id = ci.account_id
         WHERE a.accountType = 'candidate'
@@ -2141,7 +2149,6 @@ const getAllCandidatesForEmployer = (req, res) => {
 
       connection.query(statsQuery, (err3, statsResult) => {
         if (err3) {
-          // Non-fatal: return without stats
           return res.status(200).json({
             total: countResult[0].total,
             page,
@@ -2166,7 +2173,6 @@ const getAllCandidatesForEmployer = (req, res) => {
     });
   });
 };
-
 const parseCVAndSave = async (req, res) => {
   try {
     const accountId = req.user?.userId;

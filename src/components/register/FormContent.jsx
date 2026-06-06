@@ -20,7 +20,6 @@ class FormContent extends Component {
     this.state = {
       accountType: "candidate",
       values: {
-        // username: "",
         email: "",
         password: "",
         confirmPassword: "",
@@ -54,14 +53,43 @@ class FormContent extends Component {
       errors: { ...prev.errors, [name]: "" },
     }));
 
-    // if (name === "username" && !/^[A-Za-z0-9\s]+$/.test(value)) {
-    //   this.setState((prev) => ({
-    //     errors: {
-    //       ...prev.errors,
-    //       username: "Username can only contain letters and numbers",
-    //     },
-    //   }));
-    // }
+    // Real-time password validation (optional but user-friendly)
+    if (name === "password" && value) {
+      this.validatePasswordStrength(value);
+    }
+  };
+
+  // Password strength validation function
+  validatePasswordStrength = (password) => {
+    const errors = {};
+
+    if (password.length < 8) {
+      errors.password = "Password must be at least 8 characters long";
+    } else if (password.length > 50) {
+      errors.password = "Password must be less than 50 characters";
+    } else if (!/(?=.*[a-z])/.test(password)) {
+      errors.password = "Password must contain at least one lowercase letter";
+    } else if (!/(?=.*[A-Z])/.test(password)) {
+      errors.password = "Password must contain at least one uppercase letter";
+    } else if (!/(?=.*\d)/.test(password)) {
+      errors.password = "Password must contain at least one number";
+    } else if (!/(?=.*[@$!%*?&])/.test(password)) {
+      errors.password = "Password must contain at least one special character (@$!%*?&)";
+    } else if (/\s/.test(password)) {
+      errors.password = "Password cannot contain spaces";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      this.setState((prev) => ({
+        errors: { ...prev.errors, ...errors }
+      }));
+    } else {
+      this.setState((prev) => ({
+        errors: { ...prev.errors, password: "" }
+      }));
+    }
+
+    return Object.keys(errors).length === 0;
   };
 
   checkEmailExists = async (email) => {
@@ -73,54 +101,81 @@ class FormContent extends Component {
     }
   };
 
-handleSubmit = async (e) => {
-  e.preventDefault();
+  handleSubmit = async (e) => {
+    e.preventDefault();
 
-  const { values, accountType } = this.state;
-  const validationErrors = {};
+    const { values, accountType } = this.state;
+    const validationErrors = {};
 
-  if (!values.email.trim()) validationErrors.email = "Email is required";
-  if (!values.password.trim()) validationErrors.password = "Password is required";
-  if (values.password.length < 8) validationErrors.password = "Password must be at least 8 characters";
-  if (values.password !== values.confirmPassword) validationErrors.confirmPassword = "Passwords do not match";
-
-  if (Object.keys(validationErrors).length > 0) {
-    this.setState({ errors: validationErrors });
-    return;
-  }
-
-  try {
-    const formData = new FormData();
-    Object.entries(values).forEach(([key, value]) => formData.append(key, value));
-    formData.append("accountType", accountType);
-    formData.append("isActive", "Inactive");
-
-    const res = await axios.post(this.apiBaseUrl, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-
-    if (res.data && res.data.success) {
-      this.props.setUserId?.(res.data.accountId);
-      this.props.setAccountType?.(accountType);
-      this.setState({ successMessage: "Registration successful! Please check your email to verify.", errorMessage: "" });
-      setTimeout(() => { window.location.href = "/login"; }, 2000);
-    } else {
-      this.setState({ errorMessage: res.data?.error || "Registration failed.", successMessage: "" });
+    // Email validation
+    if (!values.email.trim()) {
+      validationErrors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
+      validationErrors.email = "Please enter a valid email address";
     }
-  } catch (err) {
-    const msg = err.response?.data?.error || "Registration failed. Try again.";
-    // Check for duplicate email from backend
-    if (err.response?.status === 409 || msg.toLowerCase().includes("already exists")) {
-  this.setState({ 
-    errors: { email: "An account with this email already exists." }, 
-    errorMessage: "An account with this email already exists.",  // ← add this
-    successMessage: "" 
-  });
-} else {
-  this.setState({ errorMessage: msg, successMessage: "" });
-}
-  }
-};
+
+    // Password validation - Comprehensive checks
+    if (!values.password) {
+      validationErrors.password = "Password is required";
+    } else if (values.password.length < 8) {
+      validationErrors.password = "Password must be at least 8 characters long";
+    } else if (values.password.length > 50) {
+      validationErrors.password = "Password must be less than 50 characters";
+    } else if (/\s/.test(values.password)) {
+      validationErrors.password = "Password cannot contain spaces";
+    } else if (!/(?=.*[a-z])/.test(values.password)) {
+      validationErrors.password = "Password must contain at least one lowercase letter";
+    } else if (!/(?=.*[A-Z])/.test(values.password)) {
+      validationErrors.password = "Password must contain at least one uppercase letter";
+    } else if (!/(?=.*\d)/.test(values.password)) {
+      validationErrors.password = "Password must contain at least one number";
+    } else if (!/(?=.*[@$!%*?&])/.test(values.password)) {
+      validationErrors.password = "Password must contain at least one special character (@$!%*?&)";
+    }
+
+    // Confirm password validation
+    if (!values.confirmPassword) {
+      validationErrors.confirmPassword = "Please confirm your password";
+    } else if (values.password !== values.confirmPassword) {
+      validationErrors.confirmPassword = "Passwords do not match";
+    }
+
+    if (Object.keys(validationErrors).length > 0) {
+      this.setState({ errors: validationErrors });
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      Object.entries(values).forEach(([key, value]) => formData.append(key, value));
+      formData.append("accountType", accountType);
+      formData.append("isActive", "Inactive");
+
+      const res = await axios.post(this.apiBaseUrl, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      if (res.data && res.data.success) {
+        this.props.setUserId?.(res.data.accountId);
+        this.props.setAccountType?.(accountType);
+        this.setState({ successMessage: "Registration successful! Please check your email to verify.", errorMessage: "" });
+        setTimeout(() => { window.location.href = "/login"; }, 2000);
+      } else {
+        this.setState({ errorMessage: res.data?.error || "Registration failed.", successMessage: "" });
+      }
+    } catch (err) {
+      const msg = err.response?.data?.error || "Registration failed. Try again.";
+      if (err.response?.status === 409 || msg.toLowerCase().includes("already exists")) {
+        this.setState({
+          errors: { email: "An account with this email already exists." },
+          errorMessage: "An account with this email already exists.",
+          successMessage: ""
+        });
+      } else {
+        this.setState({ errorMessage: msg, successMessage: "" });
+      }
+    }
+  };
 
   render() {
     const {
@@ -141,32 +196,19 @@ handleSubmit = async (e) => {
         <Form onSubmit={this.handleSubmit}>
           <div className="d-flex mb-3">
             <Button
-              className={`me-2 w-50 ${accountType === "candidate" ? "account-type-btn" : "account-type-btn outline"
-                }`}
+              className={`me-2 w-50 ${accountType === "candidate" ? "account-type-btn" : "account-type-btn outline"}`}
               onClick={() => this.setState({ accountType: "candidate" })}
             >
               Candidate
             </Button>
 
             <Button
-              className={`w-50 ${accountType === "employer" ? "account-type-btn" : "account-type-btn outline"
-                }`}
+              className={`w-50 ${accountType === "employer" ? "account-type-btn" : "account-type-btn outline"}`}
               onClick={() => this.setState({ accountType: "employer" })}
             >
               Employer
             </Button>
           </div>
-
-          {/* <FormGroup>
-            <Label>Username</Label>
-            <Input
-              name="username"
-              value={values.username}
-              onChange={this.handleChange}
-              invalid={!!errors.username}
-            />
-            <FormFeedback>{errors.username}</FormFeedback>
-          </FormGroup> */}
 
           <FormGroup>
             <Label>Email</Label>
@@ -199,6 +241,9 @@ handleSubmit = async (e) => {
               </Button>
               <FormFeedback>{errors.password}</FormFeedback>
             </InputGroup>
+            <small className="text-muted">
+              Password must contain: 8+ characters, uppercase, lowercase, number, and special character (@$!%*?&)
+            </small>
           </FormGroup>
 
           <FormGroup>

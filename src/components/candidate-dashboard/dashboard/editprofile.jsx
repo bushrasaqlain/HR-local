@@ -6,7 +6,7 @@ import AsyncSelect from "react-select/async";
 // import { toast } from "react-toastify";
 // import "react-toastify/dist/ReactToastify.css";
 import { Modal } from "react-bootstrap";
-import ResearchStep from "./research";
+// import ResearchStep from "./research";
 import EducationStep from "./EducationStep";
 import ExperienceStep from "./experience";
 import CertificatesStep from "./certificates";
@@ -51,7 +51,7 @@ class EditProfile extends Component {
       experience: React.createRef(),
       resume: React.createRef(),
       availability: React.createRef(),
-      research: React.createRef(),
+      // research: React.createRef(),
       certificates: React.createRef(),
     };
     this.resumeInputRef = React.createRef();
@@ -63,6 +63,7 @@ class EditProfile extends Component {
         Links: [],
       },
       loading: false,
+      isFaceDetecting: false,
       passportPhotoError: "", // 👈 add this
       showPersonalInfoModal: false,
       personalInfoErrors: {}, // <-- add this
@@ -116,14 +117,23 @@ class EditProfile extends Component {
   };
 
   detectFace = async (file) => {
-    const img = await faceapi.bufferToImage(file);
+    try {
+      if (!faceapiLoaded || !faceapi) {
+        await this.loadFaceModels();
+      }
 
-    const detections = await faceapi.detectAllFaces(
-      img,
-      new faceapi.TinyFaceDetectorOptions()
-    );
+      const img = await faceapi.bufferToImage(file);
 
-    return detections.length > 0;
+      const detections = await faceapi.detectAllFaces(
+        img,
+        new faceapi.TinyFaceDetectorOptions()
+      );
+
+      return detections.length > 0;
+    } catch (err) {
+      console.error("Face detection error:", err);
+      return false;
+    }
   };
 
   loadLicenseTypes = async () => {
@@ -210,7 +220,7 @@ class EditProfile extends Component {
       this.setState({ loading: true });
 
       // Fetch all endpoints in parallel
-      const [profileRes, eduRes, expRes, availRes, certRes, researchRes] =
+      const [profileRes, eduRes, expRes, availRes, certRes] =
         await Promise.all([
           api.get("/candidateProfile/candidate", {
             headers: { Authorization: `Bearer ${token}` },
@@ -219,9 +229,9 @@ class EditProfile extends Component {
           api.get("/candidateexperience/getexperience"),
           api.get("/candidate_availability/getavailability"),
           api.get("/candidateCertificate/getcertificate"),
-          api.get("/candidateResearch/getresearch", {
-            params: { status: "Active" },
-          }),
+          // api.get("/candidateResearch/getresearch", {
+          //   params: { status: "Active" },
+          // }),
         ]);
 
       const profile = profileRes.data || {};
@@ -282,18 +292,18 @@ class EditProfile extends Component {
         : [];
 
       // Map research
-      const researchList = Array.isArray(researchRes.data?.data)
-        ? researchRes.data.data.map((r) => ({
-          id: r.id,
-          title: r.research_title,
-          link: r.research_link || "",
-          file: null,
-          hasExistingFile: !!r.document_path,
-          filePreviewUrl: r.document_path
-            ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}/uploads/research/${r.document_path.split("\\").pop()}`
-            : "",
-        }))
-        : [];
+      // const researchList = Array.isArray(researchRes.data?.data)
+      //   ? researchRes.data.data.map((r) => ({
+      //     id: r.id,
+      //     title: r.research_title,
+      //     link: r.research_link || "",
+      //     file: null,
+      //     hasExistingFile: !!r.document_path,
+      //     filePreviewUrl: r.document_path
+      //       ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}/uploads/research/${r.document_path.split("\\").pop()}`
+      //       : "",
+      //   }))
+      //   : [];
 
       // Combine everything into formData
       const mappedData = {
@@ -303,7 +313,7 @@ class EditProfile extends Component {
         experience: experienceList,
         availability: availabilityList,
         certificates: certificatesList,
-        research: researchList,
+        // research: researchList,
         passport_photoPreview: profile.passport_photo
           ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${profile.passport_photo}`
           : "",
@@ -460,43 +470,43 @@ class EditProfile extends Component {
         }
 
         /* ===================== STEP 5 – Research ===================== */
-        case 5: {
-          const researchItems = values.research || [];
+        // case 5: {
+        //   const researchItems = values.research || [];
 
-          for (const item of researchItems) {
-            const formData = new FormData();
+        //   for (const item of researchItems) {
+        //     const formData = new FormData();
 
-            formData.append("research_title", item.title || "");
-            formData.append("research_link", item.link || "");
+        //     formData.append("research_title", item.title || "");
+        //     formData.append("research_link", item.link || "");
 
-            if (item.file instanceof File) {
-              formData.append("file", item.file);
-            } else if (item.id && item.filePreviewUrl) {
-              formData.append("keep_existing_file", "1");
-            }
+        //     if (item.file instanceof File) {
+        //       formData.append("file", item.file);
+        //     } else if (item.id && item.filePreviewUrl) {
+        //       formData.append("keep_existing_file", "1");
+        //     }
 
-            if (item.id) {
-              await api.put(
-                `/candidateResearch/updateresearch/${item.id}`,
-                formData,
-                {
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "multipart/form-data",
-                  },
-                },
-              );
-            } else {
-              await api.post(`/candidateResearch/addresearch`, formData, {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  "Content-Type": "multipart/form-data",
-                },
-              });
-            }
-          }
-          break;
-        }
+        //     if (item.id) {
+        //       await api.put(
+        //         `/candidateResearch/updateresearch/${item.id}`,
+        //         formData,
+        //         {
+        //           headers: {
+        //             Authorization: `Bearer ${token}`,
+        //             "Content-Type": "multipart/form-data",
+        //           },
+        //         },
+        //       );
+        //     } else {
+        //       await api.post(`/candidateResearch/addresearch`, formData, {
+        //         headers: {
+        //           Authorization: `Bearer ${token}`,
+        //           "Content-Type": "multipart/form-data",
+        //         },
+        //       });
+        //     }
+        //   }
+        //   break;
+        // }
 
         /* ===================== STEP 6 – Certificates ===================== */
         case 6: {
@@ -542,77 +552,100 @@ class EditProfile extends Component {
       return;
     }
 
-    // ✅ FACE VALIDATION
-    this.setState({ loading: true });
+    // Show loading state
+    this.setState({
+      loading: true,
+      isFaceDetecting: true,
+      passportPhotoError: "",
+      successMessage: "",
+      errorMessage: ""
+    });
 
-    const hasFace = await this.detectFace(file);
+    try {
+      // ✅ FACE VALIDATION
+      const hasFace = await this.detectFace(file);
 
-    if (!hasFace) {
-      this.setState({
-        passportPhotoError: "Only face images are allowed",
-        loading: false,
-      });
-      e.target.value = "";
-      return;
-    }
-
-    // ✅ OPTIONAL: multiple faces check (strict validation)
-    const img = await faceapi.bufferToImage(file);
-    const detections = await faceapi.detectAllFaces(
-      img,
-      new faceapi.TinyFaceDetectorOptions()
-    );
-
-    if (detections.length > 1) {
-      this.setState({
-        passportPhotoError: "Only single face image is allowed",
-        loading: false,
-      });
-      e.target.value = "";
-      return;
-    }
-
-    // ✅ Continue your existing code (preview + API call)
-    this.setState({ passportPhotoError: "" });
-
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      this.setState((prevState) => ({
-        formData: {
-          ...prevState.formData,
-          passport_photo: file,
-          passport_photoPreview: reader.result,
-        },
-      }));
-
-      try {
-        const token = localStorage.getItem("token");
-        const accountId = this.state.formData.account_id;
-
-        const formData = new FormData();
-        formData.append("passport_photo", file);
-
-        await api.put(`/candidateProfile/${accountId}`, formData, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-        });
-
+      if (!hasFace) {
         this.setState({
-          successMessage: "Photo updated successfully",
+          passportPhotoError: "❌ No face detected! Please upload a clear face photo.",
           loading: false,
+          isFaceDetecting: false,
         });
-
-      } catch (err) {
-        this.setState({
-          errorMessage: "Failed to upload photo",
-          loading: false,
-        });
+        e.target.value = "";
+        return;
       }
-    };
 
-    reader.readAsDataURL(file);
+      // ✅ OPTIONAL: multiple faces check (strict validation)
+      const img = await faceapi.bufferToImage(file);
+      const detections = await faceapi.detectAllFaces(
+        img,
+        new faceapi.TinyFaceDetectorOptions()
+      );
+
+      if (detections.length > 1) {
+        this.setState({
+          passportPhotoError: "❌ Multiple faces detected! Please upload a photo with only one face.",
+          loading: false,
+          isFaceDetecting: false,
+        });
+        e.target.value = "";
+        return;
+      }
+
+      // ✅ Face detection successful
+      this.setState({ passportPhotoError: "", isFaceDetecting: false });
+
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        this.setState((prevState) => ({
+          formData: {
+            ...prevState.formData,
+            passport_photo: file,
+            passport_photoPreview: reader.result,
+          },
+        }));
+
+        try {
+          const token = localStorage.getItem("token");
+          const accountId = this.state.formData.account_id;
+
+          const formData = new FormData();
+          formData.append("passport_photo", file);
+
+          await api.put(`/candidateProfile/${accountId}`, formData, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "multipart/form-data",
+            },
+          });
+
+          this.setState({
+            successMessage: "✅ Photo updated successfully! Face verified.",
+            loading: false,
+          });
+
+          // Clear success message after 3 seconds
+          setTimeout(() => this.setState({ successMessage: "" }), 3000);
+
+        } catch (err) {
+          this.setState({
+            errorMessage: "Failed to upload photo",
+            loading: false,
+          });
+          setTimeout(() => this.setState({ errorMessage: "" }), 3000);
+        }
+      };
+
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Face detection error:", err);
+      this.setState({
+        passportPhotoError: "Face detection failed. Please try again.",
+        loading: false,
+        isFaceDetecting: false,
+      });
+      e.target.value = "";
+    }
   };
 
   handleAddLink = () => {
@@ -794,7 +827,7 @@ class EditProfile extends Component {
     missing.resume = !formData.resume;
     missing.availability =
       !formData.availability || formData.availability.length === 0;
-    missing.research = !formData.research || formData.research.length === 0;
+    // missing.research = !formData.research || formData.research.length === 0;
     missing.certificates =
       !formData.certificates || formData.certificates.length === 0;
 
@@ -854,6 +887,7 @@ class EditProfile extends Component {
     { value: "married", label: "Married" },
     { value: "divorced", label: "Divorced" },
     { value: "widowed", label: "Widowed" },
+    { value: "separated", label: "Separated" },
   ];
   // Format number with commas
   formatNumberWithCommas = (num) => {
@@ -1071,7 +1105,7 @@ class EditProfile extends Component {
             {this.renderField("License No", "license_number")}
             {this.renderField("Current Salary", "current_salary")}
             {this.renderField("Expected Salary", "expected_salary")}
-            {this.renderField("Total Experience", "total_experience")}
+            {/* {this.renderField("Total Experience", "total_experience")} */}
             {this.renderField("Address", "address")}
           </>
         );
@@ -1181,14 +1215,14 @@ class EditProfile extends Component {
             <AvailabilityStep />
           </div>
         );
-      case 7:
-        return (
-          <div ref={this.sectionsRef.research}>
-            <ResearchStep />
-          </div>
-        );
+      // case 7:
+      //   return (
+      //     <div ref={this.sectionsRef.research}>
+      //       <ResearchStep />
+      //     </div>
+      //   );
 
-      case 8:
+      case 7:
         return (
           <div ref={this.sectionsRef.certificates}>
             <CertificatesStep />
@@ -1208,7 +1242,7 @@ class EditProfile extends Component {
       "Experience",
       "Resume",
       "Availability",
-      "Research",
+      // "Research",
       "Certificates",
     ];
     const { formData, personalInfoErrors } = this.state; // <-- add this line
@@ -1293,16 +1327,26 @@ class EditProfile extends Component {
                           objectFit: "cover",
                           borderRadius: "50%",
                           border: "2px solid #e5e7eb",
+                          opacity: this.state.isFaceDetecting ? 0.5 : 1,
                         }}
                       />
+
+                      {/* Loading spinner overlay */}
+                      {this.state.isFaceDetecting && (
+                        <div className="position-absolute" style={{ marginTop: "-55px" }}>
+                          <div className="spinner-border text-primary" role="status" style={{ width: "40px", height: "40px" }}>
+                            <span className="visually-hidden">Loading...</span>
+                          </div>
+                        </div>
+                      )}
 
                       {/* "Choose File" button */}
                       <label
                         htmlFor="profilePhotoInput"
-                        className="btn btn-sm custom-progress-bar text-white mt-2"
-                        style={{ cursor: "pointer" }}
+                        className={`btn btn-sm custom-progress-bar text-white mt-2 ${this.state.isFaceDetecting ? 'disabled' : ''}`}
+                        style={{ cursor: this.state.isFaceDetecting ? "not-allowed" : "pointer", opacity: this.state.isFaceDetecting ? 0.6 : 1 }}
                       >
-                        Update
+                        {this.state.isFaceDetecting ? "🔍 Detecting face..." : "Update Photo"}
                       </label>
                       <input
                         type="file"
@@ -1310,11 +1354,17 @@ class EditProfile extends Component {
                         accept="image/*"
                         style={{ display: "none" }}
                         onChange={this.handleProfilePhotoChange}
+                        disabled={this.state.isFaceDetecting}
                       />
                     </div>
                     {this.state.passportPhotoError && (
-                      <small className="text-danger mt-1">
+                      <small className="text-danger mt-1 d-block">
                         {this.state.passportPhotoError}
+                      </small>
+                    )}
+                    {this.state.isFaceDetecting && (
+                      <small className="text-info mt-1 d-block">
+                        ⏳ Analyzing photo... This may take a few seconds
                       </small>
                     )}
                   </div>
@@ -1350,10 +1400,10 @@ class EditProfile extends Component {
                     case 5:
                       stepKey = "availability";
                       break;
+                    // case 6:
+                    //   stepKey = "research";
+                    //   break;
                     case 6:
-                      stepKey = "research";
-                      break;
-                    case 7:
                       stepKey = "certificates";
                       break;
                   }
@@ -1765,10 +1815,11 @@ class EditProfile extends Component {
                       />
                     </div>
 
-                    <div className="mb-2">
+                    {/* <div className="mb-2">
                       <Label>Total Experience (Optional)</Label>
                       <Input
                         value={formData.total_experience || ""}
+                        placeholder="Total Experience in years (e.g., 3)"
                         onChange={(e) =>
                           this.setState({
                             formData: {
@@ -1778,7 +1829,7 @@ class EditProfile extends Component {
                           })
                         }
                       />
-                    </div>
+                    </div> */}
                   </Modal.Body>
 
                   <Modal.Footer>

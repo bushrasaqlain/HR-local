@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const connection = require("../connection");
 const logAudit = require("../utils/auditLogger.js");
+const cron = require("node-cron"); 
 const { CompanyModule } = require("@faker-js/faker");
 
 const createJobPostTable = () => {
@@ -74,11 +75,24 @@ CREATE TABLE IF NOT EXISTS job_posts (
     console.log("job_posts table created successfully");
   });
 };
-
 const getAllJobs = (req, res) => {
   const userId = req.params.userId;
 
-  const jobPostsQuery = `
+  const deactivateExpiredQuery = `
+    UPDATE job_posts 
+    SET status = 'Inactive', updated_at = NOW()
+    WHERE account_id = ? 
+      AND status = 'Active' 
+      AND application_deadline < NOW()
+      AND application_deadline IS NOT NULL
+  `;
+
+  connection.query(deactivateExpiredQuery, [userId], (deactivateErr) => {
+    if (deactivateErr) {
+      console.error("Error deactivating expired jobs:", deactivateErr);
+    }
+
+    const jobPostsQuery = `
     SELECT 
       jp.id,
       jp.account_id,
@@ -124,109 +138,109 @@ const getAllJobs = (req, res) => {
     ORDER BY jp.created_at DESC
   `;
 
-  connection.query(jobPostsQuery, [userId], async (err, results) => {
-    if (err) {
-      console.error("Error fetching job posts:", err);
-      return res.status(500).json({ error: "Internal Server Error" });
-    }
+    connection.query(jobPostsQuery, [userId], async (err, results) => {
+      if (err) {
+        console.error("Error fetching job posts:", err);
+        return res.status(500).json({ error: "Internal Server Error" });
+      }
 
-    const transformedResults = await Promise.all(
-      results.map(async (job) => {
-        // ── Parse district_id and city_id JSON arrays ──
-        const districtIds = (() => {
-          try {
-            const parsed =
-              typeof job.district_id === "string"
-                ? JSON.parse(job.district_id)
-                : job.district_id;
-            return Array.isArray(parsed) ? parsed : [];
-          } catch {
-            return [];
+      const transformedResults = await Promise.all(
+        results.map(async (job) => {
+          // ── Parse district_id and city_id JSON arrays ──
+          const districtIds = (() => {
+            try {
+              const parsed =
+                typeof job.district_id === "string"
+                  ? JSON.parse(job.district_id)
+                  : job.district_id;
+              return Array.isArray(parsed) ? parsed : [];
+            } catch {
+              return [];
+            }
+          })();
+
+          const cityIds = (() => {
+            try {
+              const parsed =
+                typeof job.city_id === "string"
+                  ? JSON.parse(job.city_id)
+                  : job.city_id;
+              return Array.isArray(parsed) ? parsed : [];
+            } catch {
+              return [];
+            }
+          })();
+
+          // ── Fetch district names ──
+          let districts = [];
+          if (districtIds.length > 0) {
+            try {
+              districts = await new Promise((resolve, reject) => {
+                connection.query(
+                  `SELECT id, name FROM districts WHERE id IN (?)`,
+                  [districtIds],
+                  (err, rows) => (err ? reject(err) : resolve(rows)),
+                );
+              });
+            } catch (e) {
+              console.error("Error fetching districts for job", job.id, e);
+            }
           }
-        })();
 
-        const cityIds = (() => {
-          try {
-            const parsed =
-              typeof job.city_id === "string"
-                ? JSON.parse(job.city_id)
-                : job.city_id;
-            return Array.isArray(parsed) ? parsed : [];
-          } catch {
-            return [];
+          // ── Fetch city names ──
+          let cities = [];
+          if (cityIds.length > 0) {
+            try {
+              cities = await new Promise((resolve, reject) => {
+                connection.query(
+                  `SELECT id, name FROM cities WHERE id IN (?)`,
+                  [cityIds],
+                  (err, rows) => (err ? reject(err) : resolve(rows)),
+                );
+              });
+            } catch (e) {
+              console.error("Error fetching cities for job", job.id, e);
+            }
           }
-        })();
 
-        // ── Fetch district names ──
-        let districts = [];
-        if (districtIds.length > 0) {
-          try {
-            districts = await new Promise((resolve, reject) => {
-              connection.query(
-                `SELECT id, name FROM districts WHERE id IN (?)`,
-                [districtIds],
-                (err, rows) => (err ? reject(err) : resolve(rows)),
-              );
-            });
-          } catch (e) {
-            console.error("Error fetching districts for job", job.id, e);
+          // ── Fetch skill names ──
+          const skillIds = (() => {
+            try {
+              const parsed =
+                typeof job.skill_ids === "string"
+                  ? JSON.parse(job.skill_ids)
+                  : job.skill_ids;
+              return Array.isArray(parsed) ? parsed : [];
+            } catch {
+              return [];
+            }
+          })();
+
+          let skills = [];
+          if (skillIds.length > 0) {
+            try {
+              skills = await new Promise((resolve, reject) => {
+                connection.query(
+                  `SELECT id, name FROM skills WHERE id IN (?)`,
+                  [skillIds],
+                  (err, rows) => (err ? reject(err) : resolve(rows)),
+                );
+              });
+            } catch (e) {
+              console.error("Error fetching skills for job", job.id, e);
+            }
           }
-        }
 
-        // ── Fetch city names ──
-        let cities = [];
-        if (cityIds.length > 0) {
-          try {
-            cities = await new Promise((resolve, reject) => {
-              connection.query(
-                `SELECT id, name FROM cities WHERE id IN (?)`,
-                [cityIds],
-                (err, rows) => (err ? reject(err) : resolve(rows)),
-              );
-            });
-          } catch (e) {
-            console.error("Error fetching cities for job", job.id, e);
-          }
-        }
-
-        // ── Fetch skill names ──
-        const skillIds = (() => {
-          try {
-            const parsed =
-              typeof job.skill_ids === "string"
-                ? JSON.parse(job.skill_ids)
-                : job.skill_ids;
-            return Array.isArray(parsed) ? parsed : [];
-          } catch {
-            return [];
-          }
-        })();
-
-        let skills = [];
-        if (skillIds.length > 0) {
-          try {
-            skills = await new Promise((resolve, reject) => {
-              connection.query(
-                `SELECT id, name FROM skills WHERE id IN (?)`,
-                [skillIds],
-                (err, rows) => (err ? reject(err) : resolve(rows)),
-              );
-            });
-          } catch (e) {
-            console.error("Error fetching skills for job", job.id, e);
-          }
-        }
-
-        return {
-          ...job,
-          skill_ids: skillIds,
-          skills: skills.map((s) => s.name),
-          district_id: districtIds,
-          districts: districts.map((d) => ({ id: d.id, name: d.name })),
-          city_id: cityIds,
-          cities: cities.map((c) => ({ id: c.id, name: c.name })),
-          package: job.package_snapshot
-            ? (() => {
+          return {
+            ...job,
+            skill_ids: skillIds,
+            skills: skills.map((s) => s.name),
+            district_id: districtIds,
+            districts: districts.map((d) => ({ id: d.id, name: d.name })),
+            city_id: cityIds,
+            cities: cities.map((c) => ({ id: c.id, name: c.name })),
+            package: job.package_snapshot
+              ? (() => {
                 try {
                   return typeof job.package_snapshot === "string"
                     ? JSON.parse(job.package_snapshot)
@@ -235,12 +249,13 @@ const getAllJobs = (req, res) => {
                   return null;
                 }
               })()
-            : null,
-        };
-      }),
-    );
+              : null,
+          };
+        }),
+      );
 
-    res.status(200).json(transformedResults);
+      res.status(200).json(transformedResults);
+    });
   });
 };
 
@@ -686,93 +701,112 @@ const updateJobPostStatus = (req, res) => {
   }
 
   const normalizedStatus = status.trim();
-  const isActiveStatus =
-    normalizedStatus === "Active" || normalizedStatus === "Inactive";
-  const columnToUpdate = isActiveStatus ? "status" : "approval_status";
 
-  // ✅ Action decide karo status ke hisaab se
-  let auditAction;
+  // First check if job is expired when trying to activate
   if (normalizedStatus === "Active") {
-    auditAction = "ACTIVE";
-  } else if (normalizedStatus === "Inactive") {
-    auditAction = "INACTIVE";
-  } else if (normalizedStatus === "Approved") {
-    auditAction = "APPROVED";
-  } else if (normalizedStatus === "UnApproved") {
-    auditAction = "UNAPPROVED";
+    connection.query(
+      `SELECT application_deadline FROM job_posts WHERE id = ?`,
+      [id],
+      (checkErr, results) => {
+        if (checkErr) {
+          return res.status(500).json({ error: "Internal Server Error" });
+        }
+
+        if (results.length === 0) {
+          return res.status(404).json({ error: "Job post not found" });
+        }
+
+        const deadline = results[0].application_deadline;
+        if (deadline && new Date(deadline) < new Date()) {
+          return res.status(400).json({
+            error: "Cannot activate job - application deadline has passed"
+          });
+        }
+
+        // Proceed with activation
+        performStatusUpdate();
+      }
+    );
   } else {
-    auditAction = "UPDATED";
+    performStatusUpdate();
   }
 
-  const selectSql = `SELECT ${columnToUpdate} FROM job_posts WHERE id = ?`;
+  function performStatusUpdate() {
+    const isActiveStatus = normalizedStatus === "Active" || normalizedStatus === "Inactive";
+    const columnToUpdate = isActiveStatus ? "status" : "approval_status";
 
-  connection.query(selectSql, [id], (selectErr, rows) => {
-    if (selectErr)
-      return res.status(500).json({ error: "Internal Server Error" });
-    if (!rows.length)
-      return res.status(404).json({ error: "Job post not found" });
+    let auditAction;
+    if (normalizedStatus === "Active") {
+      auditAction = "ACTIVE";
+    } else if (normalizedStatus === "Inactive") {
+      auditAction = "INACTIVE";
+    } else if (normalizedStatus === "Approved") {
+      auditAction = "APPROVED";
+    } else if (normalizedStatus === "UnApproved") {
+      auditAction = "UNAPPROVED";
+    } else {
+      auditAction = "UPDATED";
+    }
 
-    const previousValue = rows[0][columnToUpdate];
+    const selectSql = `SELECT ${columnToUpdate} FROM job_posts WHERE id = ?`;
 
-    const updateSql = `UPDATE job_posts SET ${columnToUpdate} = ? WHERE id = ?`;
-    connection.query(updateSql, [normalizedStatus, id], (err, result) => {
-      if (err) return res.status(500).json({ error: "Internal Server Error" });
+    connection.query(selectSql, [id], (selectErr, rows) => {
+      if (selectErr) return res.status(500).json({ error: "Internal Server Error" });
+      if (!rows.length) return res.status(404).json({ error: "Job post not found" });
 
-      // ✅ ALREADY EXISTS — job timeline
-      logAudit({
-        tableName: "history",
-        entityType: "job",
-        entityId: id,
-        action: auditAction,
-        data: {
-          previousValue,
-          newValue: normalizedStatus,
-          event:
-            normalizedStatus === "Active"
-              ? "Job activated"
-              : normalizedStatus === "Inactive"
-                ? "Job deactivated"
-                : `Approval status changed to ${normalizedStatus}`,
-        },
-        changedBy: userId,
-      });
+      const previousValue = rows[0][columnToUpdate];
 
-      // ✅ ADD THIS — fetch job's account_id then log on employer timeline
-      connection.query(
-        `SELECT account_id FROM job_posts WHERE id = ? LIMIT 1`,
-        [id],
-        (fetchErr, jobRows) => {
-          if (!fetchErr && jobRows.length > 0) {
-            const employerAccountId = jobRows[0].account_id;
+      const updateSql = `UPDATE job_posts SET ${columnToUpdate} = ?, updated_at = NOW() WHERE id = ?`;
+      connection.query(updateSql, [normalizedStatus, id], (err, result) => {
+        if (err) return res.status(500).json({ error: "Internal Server Error" });
 
-            logAudit({
-              tableName: "history",
-              entityType: "employer",
-              entityId: employerAccountId,
-              action: auditAction,
-              data: {
-                event:
-                  normalizedStatus === "Active"
-                    ? "Job activated by admin"
-                    : normalizedStatus === "Inactive"
-                      ? "Job deactivated by admin"
-                      : `Job approval status changed to ${normalizedStatus}`,
-                job_id: id,
-                changed_by_admin: userId,
-                previousValue,
-                newValue: normalizedStatus,
-              },
-              changedBy: userId,
-            });
-          }
-        },
-      );
+        logAudit({
+          tableName: "history",
+          entityType: "job",
+          entityId: id,
+          action: auditAction,
+          data: {
+            previousValue,
+            newValue: normalizedStatus,
+            event: normalizedStatus === "Active" ? "Job activated" :
+              normalizedStatus === "Inactive" ? "Job deactivated" :
+                `Approval status changed to ${normalizedStatus}`,
+          },
+          changedBy: userId,
+        });
 
-      return res.status(200).json({
-        message: `Job post ${columnToUpdate} updated to ${normalizedStatus}`,
+        connection.query(
+          `SELECT account_id FROM job_posts WHERE id = ? LIMIT 1`,
+          [id],
+          (fetchErr, jobRows) => {
+            if (!fetchErr && jobRows.length > 0) {
+              const employerAccountId = jobRows[0].account_id;
+              logAudit({
+                tableName: "history",
+                entityType: "employer",
+                entityId: employerAccountId,
+                action: auditAction,
+                data: {
+                  event: normalizedStatus === "Active" ? "Job activated by admin" :
+                    normalizedStatus === "Inactive" ? "Job deactivated by admin" :
+                      `Job approval status changed to ${normalizedStatus}`,
+                  job_id: id,
+                  changed_by_admin: userId,
+                  previousValue,
+                  newValue: normalizedStatus,
+                },
+                changedBy: userId,
+              });
+            }
+          },
+        );
+
+        return res.status(200).json({
+          message: `Job post ${columnToUpdate} updated to ${normalizedStatus}`,
+        });
       });
     });
-  });
+  }
 };
 
 const getSingleJob = (req, res) => {
@@ -1367,132 +1401,301 @@ const updatePostJob = (req, res) => {
     expected_joining_date,
   } = req.body;
 
-  const sql = `
-    UPDATE job_posts SET
-      job_title = ?,
-      job_description = ?,
-      skill_ids = ?,
-      time_from = ?,
-      time_to = ?,
-      job_type_id = ?,
-      min_salary = ?,
-      max_salary = ?,
-      currency_id = ?,
-      min_experience = ?,
-      max_experience = ?,
-      speciality_id = ?,
-      degree_id = ?,
-      application_deadline = ?,
-      no_of_positions = ?,
-      industry = ?,
-      package_id = ?,
-      country_id = ?,
-      district_id = ?,
-      city_id = ?,
-      job_location_type = ?,
-      screening_start = ?,
-      screening_end = ?,
-      interview_start = ?,
-      interview_end = ?,
-      expected_joining_date = ?,
-      updated_at = NOW()
-    WHERE id = ? AND account_id = ?
+  connection.query(
+    `SELECT approval_status, status, application_deadline as old_deadline FROM job_posts WHERE id = ? AND account_id = ?`,
+    [jobId, userId],
+    (checkErr, jobData) => {
+      if (checkErr || !jobData.length) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+
+      const currentJob = jobData[0];
+      const oldDeadline = currentJob.old_deadline;
+      const isApproved = currentJob.approval_status === 'Approved';
+      const isPending = currentJob.approval_status === 'Pending' ||
+        currentJob.approval_status === 'Pending Payment';
+
+      if (isApproved && application_deadline) {
+        const newDeadlineDate = new Date(application_deadline);
+        const oldDeadlineDate = new Date(oldDeadline);
+
+        if (newDeadlineDate < oldDeadlineDate) {
+          return res.status(400).json({
+            error: "Cannot reduce deadline after approval. Can only extend."
+          });
+        }
+      }
+
+      let newStatus = currentJob.status;
+      if (application_deadline && oldDeadline) {
+        const newDeadlineDate = new Date(application_deadline);
+        const oldDeadlineDate = new Date(oldDeadline);
+
+        if (newDeadlineDate > oldDeadlineDate && currentJob.status !== 'Active') {
+          newStatus = 'Active';
+        }
+      }
+
+      if (application_deadline && new Date(application_deadline) < new Date() && !isApproved) {
+        return res.status(400).json({
+          error: "Application deadline cannot be in the past"
+        });
+      }
+
+      // Proceed with update
+      performUpdate(newStatus);
+    }
+  );
+
+  function performUpdate(updatedStatus) {
+    const sql = `
+      UPDATE job_posts SET
+        job_title = ?,
+        job_description = ?,
+        skill_ids = ?,
+        time_from = ?,
+        time_to = ?,
+        job_type_id = ?,
+        min_salary = ?,
+        max_salary = ?,
+        currency_id = ?,
+        min_experience = ?,
+        max_experience = ?,
+        speciality_id = ?,
+        degree_id = ?,
+        application_deadline = ?,
+        no_of_positions = ?,
+        industry = ?,
+        package_id = ?,
+        country_id = ?,
+        district_id = ?,
+        city_id = ?,
+        job_location_type = ?,
+        screening_start = ?,
+        screening_end = ?,
+        interview_start = ?,
+        interview_end = ?,
+        expected_joining_date = ?,
+        status = ?,
+        updated_at = NOW()
+      WHERE id = ? AND account_id = ?
+    `;
+
+    const params = [
+      job_title,
+      job_description,
+      JSON.stringify(skill_ids),
+      time_from,
+      time_to,
+      job_type_id,
+      min_salary || null,
+      max_salary || null,
+      currency_id || null,
+      min_experience,
+      max_experience,
+      speciality_id,
+      degree_id,
+      application_deadline,
+      no_of_positions,
+      industry,
+      package_id || null,
+      country_id || null,
+      Array.isArray(district_id) && district_id.length
+        ? JSON.stringify(district_id)
+        : null,
+      Array.isArray(city_id) && city_id.length ? JSON.stringify(city_id) : null,
+      job_location_type || null,
+      screening_start || null,
+      screening_end || null,
+      interview_start || null,
+      interview_end || null,
+      expected_joining_date || null,
+      updatedStatus,  // ← Updated status
+      jobId,
+      userId,
+    ];
+
+    connection.query(sql, params, (error, result) => {
+      if (error) {
+        console.error("ERROR updating job post:", error);
+        return res.status(500).json({ error: "Database error" });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: "Job not found or unauthorized" });
+      }
+
+      if (updatedStatus === 'Active') {
+        logAudit({
+          tableName: "history",
+          entityType: "job",
+          entityId: jobId,
+          action: "REACTIVATED",
+          data: {
+            event: "Job reactivated due to deadline extension",
+            new_deadline: application_deadline,
+          },
+          changedBy: userId,
+        });
+
+        logAudit({
+          tableName: "history",
+          entityType: "employer",
+          entityId: userId,
+          action: "REACTIVATED",
+          data: {
+            event: `Job "${job_title}" reactivated - deadline extended`,
+            job_id: jobId,
+            new_deadline: application_deadline,
+          },
+          changedBy: userId,
+        });
+      }
+
+      logAudit({
+        tableName: "history",
+        entityType: "job",
+        entityId: jobId,
+        action: "UPDATED",
+        data: {
+          userId,
+          job_title,
+          job_description,
+          skill_ids,
+          time_from,
+          time_to,
+          job_type_id,
+          min_salary,
+          max_salary,
+          currency_id,
+          min_experience,
+          max_experience,
+          speciality_id,
+          degree_id,
+          application_deadline,
+          no_of_positions,
+          industry,
+          package_id,
+          country_id,
+          district_id,
+          city_id,
+          job_location_type,
+          screening_start,
+          screening_end,
+          interview_start,
+          interview_end,
+          expected_joining_date,
+          status: updatedStatus,
+        },
+        changedBy: userId,
+      });
+
+      logAudit({
+        tableName: "history",
+        entityType: "employer",
+        entityId: userId,
+        action: "UPDATED",
+        data: {
+          event: "Job updated",
+          job_title,
+          job_id: jobId,
+          status: updatedStatus,
+          deadline_extended: application_deadline ? true : false,
+        },
+        changedBy: userId,
+      });
+
+      return res.status(200).json({
+        message: updatedStatus === 'Active'
+          ? "Job updated successfully and reactivated (deadline extended)"
+          : "Job updated successfully",
+        job_id: jobId,
+        status: updatedStatus,
+      });
+    });
+  }
+};
+
+
+const deactivateExpiredJobs = () => {
+  console.log("⏰ Checking for expired jobs...", new Date().toISOString());
+
+  const query = `
+    UPDATE job_posts 
+    SET status = 'Inactive', 
+        updated_at = NOW()
+    WHERE status = 'Active' 
+      AND application_deadline < NOW()
+      AND application_deadline IS NOT NULL
   `;
 
-  const params = [
-    job_title,
-    job_description,
-    JSON.stringify(skill_ids),
-    time_from,
-    time_to,
-    job_type_id,
-    min_salary || null,
-    max_salary || null,
-    currency_id || null,
-    min_experience,
-    max_experience,
-    speciality_id,
-    degree_id,
-    application_deadline,
-    no_of_positions,
-    industry,
-    package_id || null,
-    country_id || null,
-    Array.isArray(district_id) && district_id.length
-      ? JSON.stringify(district_id)
-      : null,
-    Array.isArray(city_id) && city_id.length ? JSON.stringify(city_id) : null,
-    job_location_type || null,
-    screening_start || null,
-    screening_end || null,
-    interview_start || null,
-    interview_end || null,
-    expected_joining_date || null,
-    jobId,
-    userId,
-  ];
-
-  connection.query(sql, params, (error, result) => {
-    if (error) {
-      console.error("ERROR updating job post:", error);
-      return res.status(500).json({ error: "Database error" });
+  connection.query(query, [], (err, result) => {
+    if (err) {
+      console.error("❌ Failed to deactivate expired jobs:", err.message);
+      return;
     }
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Job not found or unauthorized" });
+    if (result.affectedRows > 0) {
+      console.log(`✅ Deactivated ${result.affectedRows} expired job(s)`);
+
+      // Log each deactivated job for audit
+      connection.query(
+        `SELECT id, account_id, job_title FROM job_posts 
+         WHERE application_deadline < NOW() AND status = 'Inactive'
+         AND updated_at >= DATE_SUB(NOW(), INTERVAL 1 MINUTE)`,
+        [],
+        (err2, jobs) => {
+          if (!err2 && jobs.length) {
+            jobs.forEach(job => {
+              logAudit({
+                tableName: "history",
+                entityType: "job",
+                entityId: job.id,
+                action: "AUTO_DEACTIVATED",
+                data: {
+                  event: "Job automatically deactivated due to deadline expiration",
+                  deadline_passed: true,
+                  job_title: job.job_title
+                },
+                changedBy: job.account_id
+              });
+
+              logAudit({
+                tableName: "history",
+                entityType: "employer",
+                entityId: job.account_id,
+                action: "AUTO_DEACTIVATED",
+                data: {
+                  event: `Job "${job.job_title}" automatically deactivated - deadline passed`,
+                  job_id: job.id
+                },
+                changedBy: job.account_id
+              });
+            });
+          }
+        }
+      );
     }
-
-    logAudit({
-      tableName: "history",
-      entityType: "job",
-      entityId: jobId,
-      action: "UPDATED",
-      data: {
-        userId,
-        job_title,
-        job_description,
-        skill_ids,
-        time_from,
-        time_to,
-        job_type_id,
-        min_salary,
-        max_salary,
-        currency_id,
-        min_experience,
-        max_experience,
-        speciality_id,
-        degree_id,
-        application_deadline,
-        no_of_positions,
-        industry,
-        package_id,
-        country_id,
-        district_id,
-        city_id,
-        job_location_type,
-        screening_start,
-        screening_end,
-        interview_start,
-        interview_end,
-        expected_joining_date,
-      },
-      changedBy: userId,
-    });
-    logAudit({
-      tableName: "history",
-      entityType: "employer",
-      entityId: userId,
-      action: "UPDATED",
-      data: { event: "Job updated", job_title, job_id: jobId },
-      changedBy: userId,
-    });
-
-    return res.status(200).json({
-      message: "Job updated successfully",
-      job_id: jobId,
-    });
   });
 };
+
+cron.schedule("0 0 * * *", () => {
+  deactivateExpiredJobs();
+  resetDailyBudgets();  
+});
+
+setTimeout(() => {
+  deactivateExpiredJobs();
+}, 5000);
+
+const checkExpiredJobs = (req, res) => {
+  deactivateExpiredJobs();
+  res.status(200).json({
+    success: true,
+    message: "Expired jobs check triggered"
+  });
+};
+
 
 const createCompanyPackagesTable = () => {
   const createcompany_packagesTableQuery = `
@@ -2255,7 +2458,7 @@ const viewCandidate = (req, res) => {
   );
 };
 
-// const cron = require("node-cron");
+
 
 const resetDailyBudgets = () => {
   console.log("⏰ Running daily budget reset...", new Date().toISOString());
@@ -2281,7 +2484,6 @@ const resetDailyBudgets = () => {
   );
 };
 
-const cron = require("node-cron");
 
 // at the bottom of jobModel.js
 cron.schedule("0 0 * * *", () => {
@@ -2407,4 +2609,6 @@ module.exports = {
   triggerJobAlerts,
   viewCandidate,
   subcribePackageInternal,
+   deactivateExpiredJobs,
+  checkExpiredJobs,
 };

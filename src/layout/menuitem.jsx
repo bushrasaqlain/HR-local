@@ -70,7 +70,7 @@ export const regadminmenuitem = [
 ];
 
 export const companymenuitem = [
-  { key: "profile", label: "Profile" },
+  { key: "profile", label: "Dashboard" },
   { key: "jobList", label: "Jobs" },
   { key: "allApplicants", label: "Applicants" },
   { key: "availableCandidates", label: "Available Candidates" },
@@ -78,7 +78,7 @@ export const companymenuitem = [
 ];
 
 export const candidatesmenuitem = [
-  { key: "profile", label: "Profile" },
+  { key: "profile", label: "Dashboard" },
   { key: "lists", label: "Job List" },
   { key: "appliedJobs", label: "Applied Jobs" },
   // { key: "chatbox", label: "Message"},

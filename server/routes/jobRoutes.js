@@ -21,6 +21,7 @@ router.get("/topCompanies/:limit?",jobController.getTopCompanies)
 router.get("/popularcategories/:limit?",jobController.popularCategories)
 // router
 router.get("/:userId/jobs/:jobId/candidates/:candidateId/view", jobController.viewCandidate);
+router.get('/check-expired-jobs', jobController.checkExpiredJobs);
 
 
 // router.get("/gettotaljob/:userId",jobController.getTotalJobPosts);

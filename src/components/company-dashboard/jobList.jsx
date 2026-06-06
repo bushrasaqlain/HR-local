@@ -46,15 +46,15 @@ class JobListings extends Component {
       quickStatusFilter: "",
       sortConfig: { key: null, direction: 'asc' },
     };
-    
+
     this.tableHeaders = [
       { key: "job_title", label: "Job Title", placeholder: "Filter by Title", minWidth: "200px" },
-      { key: "Model", label: "Package",  placeholder: "Filter by Package", minWidth: "150px" },
-      { key: "no_of_positions", label: "Positions",  placeholder: "No. of Positions", minWidth: "100px" },
+      { key: "Model", label: "Package", placeholder: "Filter by Package", minWidth: "150px" },
+      { key: "no_of_positions", label: "Positions", placeholder: "No. of Positions", minWidth: "100px" },
       { key: "application_deadline", label: "Deadline", placeholder: "Filter Deadline", minWidth: "130px" },
-      { key: "approval_status", label: "Approval",  placeholder: "Filter Approval", minWidth: "120px" },
-      { key: "status", label: "Status",  placeholder: "Filter Status", minWidth: "100px" },
-      { key: "action", label: "Actions",  minWidth: "100px" }
+      { key: "approval_status", label: "Approval", placeholder: "Filter Approval", minWidth: "120px" },
+      { key: "status", label: "Status", placeholder: "Filter Status", minWidth: "100px" },
+      { key: "action", label: "Actions", minWidth: "100px" }
     ];
 
     this.userId = sessionStorage.getItem("userId");
@@ -80,23 +80,44 @@ class JobListings extends Component {
       "updated_at",
     ];
   }
-billingModelLabels = {
-  cv_credits: "CV Credits",
-  job_slot: "Job Slots",
-  daily_budget: "Daily Budget",
-  basic: "Basic",
-  premium: "Premium",
-  // add more as needed
-};
+  billingModelLabels = {
+    cv_credits: "CV Credits",
+    job_slot: "Job Slots",
+    daily_budget: "Daily Budget",
+    basic: "Basic",
+    premium: "Premium",
+    // add more as needed
+  };
   componentDidMount() {
     if (this.userId) {
+      this.checkAndDeactivateExpiredJobs();
       this.fetchData(this.userId);
     }
-    
+    this.expiryCheckInterval = setInterval(() => {
+      this.checkAndDeactivateExpiredJobs();
+    }, 60 * 60 * 1000);
+
     if (this.props.filterStatus) {
       this.setState({ quickStatusFilter: this.props.filterStatus });
     }
   }
+
+  componentWillUnmount() {
+    if (this.expiryCheckInterval) {
+      clearInterval(this.expiryCheckInterval);
+    }
+  }
+
+  checkAndDeactivateExpiredJobs = async () => {
+    try {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+      await axios.get(`${apiBaseUrl}job/check-expired-jobs`);
+      // Refresh the job list after checking
+      await this.fetchData(this.userId);
+    } catch (error) {
+      console.error("Failed to check expired jobs:", error);
+    }
+  };
 
   componentDidUpdate(prevProps) {
     if (this.props.filterStatus !== prevProps.filterStatus) {
@@ -123,34 +144,34 @@ billingModelLabels = {
     }
   };
 
-handleSort = (key) => {
-  const { sortConfig, jobListings, filters } = this.state;
-  
-  // Get filtered jobs first
-  const filteredJobs = this.filterJobs(jobListings);
-  
-  let direction = 'asc';
-  
-  if (sortConfig.key === key && sortConfig.direction === 'asc') {
-    direction = 'desc';
-  }
+  handleSort = (key) => {
+    const { sortConfig, jobListings, filters } = this.state;
 
-  const sortedData = [...filteredJobs].sort((a, b) => {
-    const aVal = a[key]?.toString().toLowerCase() || '';
-    const bVal = b[key]?.toString().toLowerCase() || '';
-    
-    if (direction === 'asc') {
-      return aVal.localeCompare(bVal);
-    } else {
-      return bVal.localeCompare(aVal);
+    // Get filtered jobs first
+    const filteredJobs = this.filterJobs(jobListings);
+
+    let direction = 'asc';
+
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
     }
-  });
 
-  this.setState({
-    jobListings: sortedData, // Update jobListings with sorted data
-    sortConfig: { key, direction }
-  });
-};
+    const sortedData = [...filteredJobs].sort((a, b) => {
+      const aVal = a[key]?.toString().toLowerCase() || '';
+      const bVal = b[key]?.toString().toLowerCase() || '';
+
+      if (direction === 'asc') {
+        return aVal.localeCompare(bVal);
+      } else {
+        return bVal.localeCompare(aVal);
+      }
+    });
+
+    this.setState({
+      jobListings: sortedData, // Update jobListings with sorted data
+      sortConfig: { key, direction }
+    });
+  };
 
   getSortIcon = (key) => {
     const { sortConfig } = this.state;
@@ -248,11 +269,19 @@ handleSort = (key) => {
   };
 
   filterJobs = (jobs) => {
-    const { title, industry, no_of_positions, application_deadline, status } =
-      this.state.filters;
+    const { title, industry, no_of_positions, application_deadline, status } = this.state.filters;
     const { quickStatusFilter } = this.state;
 
     return jobs.filter((job) => {
+      // Check if job is expired
+      const isExpired = job.application_deadline &&
+        new Date(job.application_deadline) < new Date();
+
+      // Auto-update status in UI if expired but still showing as Active
+      if (isExpired && job.status === 'Active') {
+        job.status = 'Inactive';
+      }
+
       const jobTitle = job.job_title ? job.job_title.toLowerCase() : "";
       const jobIndustry = job.industry ? job.industry.toString().toLowerCase() : "";
       const jobPositions = job.no_of_positions
@@ -309,10 +338,29 @@ handleSort = (key) => {
     );
   };
 
-  getStatusBadge = (status) => {
+  getStatusBadge = (status, applicationDeadline) => {
+    const isExpired = applicationDeadline && new Date(applicationDeadline) < new Date();
+
+    if (isExpired && status === 'Active') {
+      status = 'Expired';
+    }
+
     const config = {
-      "Active": { color: "#065f46", bg: "linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)" },
-      "InActive": { color: "#991b1b", bg: "linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)" },
+      "Active": {
+        color: "#065f46",
+        bg: "linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)",
+        icon: "✅"
+      },
+      "Inactive": {
+        color: "#991b1b",
+        bg: "linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)",
+        icon: "❌"
+      },
+      "Expired": {
+        color: "#92400e",
+        bg: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
+        icon: "⏰"
+      }
     };
 
     const defaultConfig = { color: "#1e293b", bg: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)", icon: "📋" };
@@ -334,6 +382,48 @@ handleSort = (key) => {
         <span>{cfg.icon}</span> {status}
       </span>
     );
+  };
+
+  renderDeadlineWarning = (deadline) => {
+    if (!deadline) return null;
+
+    const now = new Date();
+    const deadlineDate = new Date(deadline);
+    const daysUntilExpiry = Math.ceil((deadlineDate - now) / (1000 * 60 * 60 * 24));
+
+    if (daysUntilExpiry <= 3 && daysUntilExpiry > 0) {
+      return (
+        <span style={{
+          display: 'inline-block',
+          marginLeft: '8px',
+          fontSize: '11px',
+          padding: '2px 8px',
+          borderRadius: '12px',
+          background: '#fef3c7',
+          color: '#92400e'
+        }}>
+          Expires in {daysUntilExpiry} day{daysUntilExpiry !== 1 ? 's' : ''}
+        </span>
+      );
+    }
+
+    if (daysUntilExpiry <= 0) {
+      return (
+        <span style={{
+          display: 'inline-block',
+          marginLeft: '8px',
+          fontSize: '11px',
+          padding: '2px 8px',
+          borderRadius: '12px',
+          background: '#fee2e2',
+          color: '#991b1b'
+        }}>
+          Expired
+        </span>
+      );
+    }
+
+    return null;
   };
 
   render() {
@@ -361,10 +451,10 @@ handleSort = (key) => {
           <div className="text-center my-5 py-5">
             <div style={{ position: 'relative', display: 'inline-block' }}>
               <Spinner style={{ color: '#36565F', width: '3rem', height: '3rem' }} />
-              <div style={{ 
-                position: 'absolute', 
-                top: '50%', 
-                left: '50%', 
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
                 transform: 'translate(-50%, -50%)',
                 fontSize: '1.2rem'
               }}>
@@ -382,14 +472,14 @@ handleSort = (key) => {
         <Head>
           <title>Job Listings | Dashboard</title>
         </Head>
-        
+
         <Container fluid className="px-4 py-4" style={{ background: '#f8fafc', minHeight: '100vh' }}>
           <div className="job-listings">
             {/* Header Section */}
             <Row className="mb-4 align-items-center">
               <Col>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  
+
                   <div>
                     <h4 className="fw-bold" style={{ color: '#1e293b', marginBottom: '4px' }}>Job Management</h4>
                     <p style={{ color: '#64748b', marginBottom: 0 }}>
@@ -400,16 +490,16 @@ handleSort = (key) => {
               </Col>
               <Col xs="auto">
                 <div className="d-flex gap-3">
-                  <div style={{ 
-                    background: 'white', 
-                    padding: '8px 16px', 
+                  <div style={{
+                    background: 'white',
+                    padding: '8px 16px',
                     borderRadius: '12px',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px'
                   }}>
-                 
+
                     <Dropdown isOpen={statusFilterOpen} toggle={this.toggleStatusFilter}>
                       <DropdownToggle caret color="link" style={{ color: '#1e293b', textDecoration: 'none', padding: 0 }}>
                         Status: {quickStatusFilter === "" ? "All" : quickStatusFilter}
@@ -427,7 +517,7 @@ handleSort = (key) => {
                       </DropdownMenu>
                     </Dropdown>
                   </div>
-                  
+
                 </div>
               </Col>
             </Row>
@@ -435,20 +525,20 @@ handleSort = (key) => {
             {/* Stats Cards */}
             <Row className="mb-4">
               {[
-                { 
-                  label: 'Total Jobs', 
-                  value: jobListings.length,  
-                  change: `+${jobListings.filter(j => j.status === 'Active').length} active` 
+                {
+                  label: 'Total Jobs',
+                  value: jobListings.length,
+                  change: `+${jobListings.filter(j => j.status === 'Active').length} active`
                 },
-                { 
-                  label: 'Active Jobs', 
-                  value: jobListings.filter(j => j.status === 'Active').length, 
-                  change: 'Live now' 
+                {
+                  label: 'Active Jobs',
+                  value: jobListings.filter(j => j.status === 'Active').length,
+                  change: 'Live now'
                 },
-                { 
-                  label: 'Pending Approval', 
-                  value: jobListings.filter(j => j.approval_status === 'Pending').length, 
-                  change: 'Awaiting' 
+                {
+                  label: 'Pending Approval',
+                  value: jobListings.filter(j => j.approval_status === 'Pending').length,
+                  change: 'Awaiting'
                 },
                 // { 
                 //   label: 'Pending Payment', 
@@ -466,14 +556,14 @@ handleSort = (key) => {
                     transition: 'all 0.3s',
                     cursor: 'default'
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 12px 24px rgba(54, 86, 95, 0.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.03)';
-                  }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-4px)';
+                      e.currentTarget.style.boxShadow = '0 12px 24px rgba(54, 86, 95, 0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.03)';
+                    }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                       <span style={{ fontSize: '24px' }}>{stat.icon}</span>
@@ -520,78 +610,78 @@ handleSort = (key) => {
                     {/* <span style={{ position: 'absolute', left: '12px', top: '8px', color: '#94a3b8' }}>🔍</span> */}
                   </div>
                 </div>
-               
+
               </div>
 
               {/* Table */}
-         <div className="table-responsive" style={{ maxHeight: '600px', overflowY: 'auto' }}>
-  <Table className="table align-middle mb-0" style={{ borderCollapse: 'separate', borderSpacing: '0 8px' }}>
-    <thead style={{ 
-      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-      top: 0,
-      zIndex: 10
-    }}>
-      <tr>
-        {this.tableHeaders.map((header) => (
-          <th 
-            key={header.key}
-            onClick={() => header.key !== 'action' && this.handleSort(header.key)}
-            style={{ 
-              padding: '16px 20px', 
-              color: '#1e293b', 
-              fontWeight: '600', 
-              fontSize: '0.85rem', 
-              textTransform: 'uppercase', 
-              letterSpacing: '0.5px',
-              cursor: header.key !== 'action' ? 'pointer' : 'default',
-              borderBottom: '2px solid #e2e8f0',
-              minWidth: header.minWidth,
-              textAlign: 'center' // Add this to center all headers
-            }}
-          >
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '8px', 
-              justifyContent: 'center' // Change from 'space-between' to 'center'
-            }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '1rem' }}>{header.icon}</span>
-                {header.label}
-              </span>
-              {header.key !== 'action' && (
-                <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
-                  {this.getSortIcon(header.key)}
-                </span>
-              )}
-            </div>
-            {header.placeholder && (
-              <Input
-                type="text"
-                className="mt-2"
-                placeholder={header.placeholder}
-                value={filters[header.key] || ''}
-                onChange={(e) => this.handleFilterChange(header.key, e.target.value)}
-                style={{ 
-                  borderRadius: '30px',
-                  border: '1px solid #e2e8f0',
-                  padding: '8px 12px',
-                  fontSize: '0.8rem',
-                  background: '#fff',
-                  marginTop: '8px',
-                  textAlign: 'center' // Center input text
-                }}
-                onClick={(e) => e.stopPropagation()}
-              />
-            )}
-          </th>
-        ))}
-      </tr>
-    </thead>
+              <div className="table-responsive" style={{ maxHeight: '600px', overflowY: 'auto' }}>
+                <Table className="table align-middle mb-0" style={{ borderCollapse: 'separate', borderSpacing: '0 8px' }}>
+                  <thead style={{
+                    background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+                    top: 0,
+                    zIndex: 10
+                  }}>
+                    <tr>
+                      {this.tableHeaders.map((header) => (
+                        <th
+                          key={header.key}
+                          onClick={() => header.key !== 'action' && this.handleSort(header.key)}
+                          style={{
+                            padding: '16px 20px',
+                            color: '#1e293b',
+                            fontWeight: '600',
+                            fontSize: '0.85rem',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            cursor: header.key !== 'action' ? 'pointer' : 'default',
+                            borderBottom: '2px solid #e2e8f0',
+                            minWidth: header.minWidth,
+                            textAlign: 'center' // Add this to center all headers
+                          }}
+                        >
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            justifyContent: 'center' // Change from 'space-between' to 'center'
+                          }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontSize: '1rem' }}>{header.icon}</span>
+                              {header.label}
+                            </span>
+                            {header.key !== 'action' && (
+                              <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
+                                {this.getSortIcon(header.key)}
+                              </span>
+                            )}
+                          </div>
+                          {header.placeholder && (
+                            <Input
+                              type="text"
+                              className="mt-2"
+                              placeholder={header.placeholder}
+                              value={filters[header.key] || ''}
+                              onChange={(e) => this.handleFilterChange(header.key, e.target.value)}
+                              style={{
+                                borderRadius: '30px',
+                                border: '1px solid #e2e8f0',
+                                padding: '8px 12px',
+                                fontSize: '0.8rem',
+                                background: '#fff',
+                                marginTop: '8px',
+                                textAlign: 'center' // Center input text
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          )}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
                   <tbody>
                     {currentJobs.length > 0 ? (
                       currentJobs.map((job, index) => (
-                        <tr 
+                        <tr
                           key={job.id}
                           style={{
                             background: '#ffffff',
@@ -615,13 +705,12 @@ handleSort = (key) => {
                         >
                           <td style={{ padding: '18px 20px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                              
                               <div>
                                 <span
                                   className="job-title-link"
                                   onClick={() => this.handleTitleClick(job)}
-                                  style={{ 
-                                    color: '#1e293b', 
+                                  style={{
+                                    color: '#1e293b',
                                     fontWeight: '600',
                                     cursor: 'pointer',
                                     textDecoration: 'none'
@@ -631,17 +720,17 @@ handleSort = (key) => {
                                 >
                                   {job.job_title}
                                 </span>
-                                
+                                {this.renderDeadlineWarning(job.application_deadline)}
                               </div>
                             </div>
                           </td>
                           <td className="text-center" style={{ padding: '18px 20px', color: '#475569' }}>
-  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-    {this.billingModelLabels[job.billing_model] || job.billing_model}
-  </div>
-</td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {this.billingModelLabels[job.billing_model] || job.billing_model}
+                            </div>
+                          </td>
                           <td className="text-center" style={{ padding: '18px 20px' }}>
-                            <span style={{ 
+                            <span style={{
                               background: '#f1f5f9',
                               padding: '4px 12px',
                               borderRadius: '20px',
@@ -668,8 +757,9 @@ handleSort = (key) => {
                             {this.getApprovalBadge(job.approval_status)}
                           </td>
                           <td style={{ padding: '18px 20px' }}>
-                            {this.getStatusBadge(job.status)}
+                            {this.getStatusBadge(job.status, job.application_deadline)}
                           </td>
+
                           <td className="text-center" style={{ padding: '18px 20px' }}>
                             <Dropdown
                               isOpen={this.state[`dropdownOpen_${job.id}`] || false}
@@ -679,11 +769,11 @@ handleSort = (key) => {
                                 }))
                               }
                             >
-                              <DropdownToggle 
-                                caret 
-                                color="link" 
+                              <DropdownToggle
+                                caret
+                                color="link"
                                 size="sm"
-                                style={{ 
+                                style={{
                                   background: '#f1f5f9',
                                   border: 'none',
                                   borderRadius: '30px',
@@ -697,39 +787,39 @@ handleSort = (key) => {
                                 Actions
                               </DropdownToggle>
                               <DropdownMenu>
-                                {job.approval_status !== "Approved" && job.approval_status !== "Pending" && (
-                                  <DropdownItem onClick={() => this.toggleEditModal(job.id)}>
-                                    <i className="la la-edit me-2" style={{ color: '#36565F' }} /> Edit
-                                  </DropdownItem>
-                                )}
+                                <DropdownItem onClick={() => this.toggleEditModal(job.id)}>
+                                  <i className="la la-edit me-2" style={{ color: '#36565F' }} /> Edit
+                                </DropdownItem>
 
-                                {/* {job.approval_status === "Pending Payment" && (
+                                {job.approval_status === "Pending Payment" && (
                                   <DropdownItem onClick={() => this.handlePay(job)}>
                                     <i className="la la-credit-card me-2" style={{ color: '#10b981' }} /> Pay
                                   </DropdownItem>
-                                )} */}
+                                )}
 
-                                {job.approval_status !== "Approved" && job.approval_status !== "Pending" && (
+                                {(job.approval_status === "UnApproved" || job.approval_status === "Pending") && (
                                   <DropdownItem onClick={() => this.handleDeleteJob(job.id)}>
                                     <i className="la la-trash me-2" style={{ color: '#ef4444' }} /> Delete
                                   </DropdownItem>
                                 )}
 
                                 <DropdownItem divider />
-                                
-                                <DropdownItem
-                                  disabled={job.status === "Active"}
-                                  onClick={() => this.handleStatusChange(job.id, "Active")}
-                                >
-                                  <i className="la la-check-circle me-2" style={{ color: '#10b981' }} /> Activate
-                                </DropdownItem>
 
-                                <DropdownItem
-                                  disabled={job.status === "Inactive"}
-                                  onClick={() => this.handleStatusChange(job.id, "Inactive")}
-                                >
-                                  <i className="la la-times-circle me-2" style={{ color: '#ef4444' }} /> Deactivate
-                                </DropdownItem>
+                                {(job.status === "Inactive" || (job.status === "Expired")) && (
+                                  <DropdownItem
+                                    onClick={() => this.handleStatusChange(job.id, "Active")}
+                                  >
+                                    <i className="la la-check-circle me-2" style={{ color: '#10b981' }} /> Activate
+                                  </DropdownItem>
+                                )}
+
+                                {job.status === "Active" && (
+                                  <DropdownItem
+                                    onClick={() => this.handleStatusChange(job.id, "Inactive")}
+                                  >
+                                    <i className="la la-times-circle me-2" style={{ color: '#ef4444' }} /> Deactivate
+                                  </DropdownItem>
+                                )}
                               </DropdownMenu>
                             </Dropdown>
                           </td>
@@ -739,9 +829,9 @@ handleSort = (key) => {
                       <tr>
                         <td colSpan={this.tableHeaders.length} style={{ padding: '60px 20px' }}>
                           <div style={{ textAlign: 'center' }}>
-                            
+
                             <h5 style={{ color: '#1e293b', marginBottom: '8px' }}>No jobs found</h5>
-                            
+
                           </div>
                         </td>
                       </tr>

@@ -605,21 +605,22 @@ loadIndustry = async (inputValue) => {
   }
 };
   /* ── Loaders ── */
-  loadJobDetails = async (jobId) => {
+loadJobDetails = async (jobId) => {
     try {
       if (!this.allSkills?.length) await this.loadSkills();
-      const res = await axios.get(
-        `${this.apiBaseUrl}job/getSinglejob/${jobId}`,
-      );
+      const res = await axios.get(`${this.apiBaseUrl}job/getSinglejob/${jobId}`);
       const job = res.data;
-      const selectedSkills =
-        job.skill_ids?.map(
-          (id) =>
-            this.allSkills.find((sk) => sk.value === id) || {
-              label: `Skill ${id}`,
-              value: id,
-            },
-        ) || [];
+
+      const isExpired = job.application_deadline && new Date(job.application_deadline) < new Date();
+      const isApproved = job.approval_status === 'Approved';
+
+      const selectedSkills = job.skill_ids?.map(
+        (id) => this.allSkills.find((sk) => sk.value === id) || {
+          label: `Skill ${id}`,
+          value: id,
+        }
+      ) || [];
+
       this.setState({
         values: {
           ...this.state.values,
@@ -628,41 +629,34 @@ loadIndustry = async (inputValue) => {
           skill_ids: selectedSkills,
           time_from: job.time_from || "",
           time_to: job.time_to || "",
-          job_type_id: job.job_type_id
-            ? { label: job.job_type, value: job.job_type_id }
-            : null,
+          job_type_id: job.job_type_id ? { label: job.job_type, value: job.job_type_id } : null,
           min_salary: job.min_salary || "",
           max_salary: job.max_salary || "",
-          currency_id: job.currency_id
-            ? { label: job.currency, value: job.currency_id }
-            : null,
+          currency_id: job.currency_id ? { label: job.currency, value: job.currency_id } : null,
           min_experience: job.min_experience || "",
           max_experience: job.max_experience || "",
-          speciality_id: job.speciality_id
-            ? { label: job.speciality, value: job.speciality_id }
-            : null,
-          degree_id: job.degree_id
-            ? { label: job.degree, value: job.degree_id }
-            : null,
+          speciality_id: job.speciality_id ? { label: job.speciality, value: job.speciality_id } : null,
+          degree_id: job.degree_id ? { label: job.degree, value: job.degree_id } : null,
           degreefields_id: job.degreefields_ids
-  ? job.degreefields_ids.map((id, i) => ({ label: job.degreefields_names?.[i] || `Field ${id}`, value: id }))
-  : (job.degreefields_id ? [{ label: job.degreefield, value: job.degreefields_id }] : []),
+            ? job.degreefields_ids.map((id, i) => ({ label: job.degreefields_names?.[i] || `Field ${id}`, value: id }))
+            : (job.degreefields_id ? [{ label: job.degreefield, value: job.degreefields_id }] : []),
           application_deadline: job.application_deadline?.split("T")[0] || "",
           no_of_positions: job.no_of_positions || "",
         },
-        selectedCountry: job.country_id
-          ? { label: job.country, value: job.country_id }
-          : null,
-        selectedDistrict: job.district_id
-          ? [{ label: job.district, value: job.district_id }]
-          : [],
-        selectedCity: job.city_id
-          ? [{ label: job.city, value: job.city_id }]
-          : [],
-        industry: job.industry_id
-      ? { label: job.industry_name, value: job.industry_id }
-      : null, 
+        selectedCountry: job.country_id ? { label: job.country, value: job.country_id } : null,
+        selectedDistrict: job.district_id ? [{ label: job.district, value: job.district_id }] : [],
+        selectedCity: job.city_id ? [{ label: job.city, value: job.city_id }] : [],
+        industry: job.industry_id ? { label: job.industry_name, value: job.industry_id } : null,
       });
+
+      if (isApproved && isExpired) {
+        this.setState({
+          deadlineWarning: "⚠️ This job is currently INACTIVE because the deadline has passed. Extending the deadline will automatically reactivate it."
+        });
+      } else {
+        this.setState({ deadlineWarning: null });
+      }
+
     } catch (err) {
       console.error("Failed to load job details", err);
     }

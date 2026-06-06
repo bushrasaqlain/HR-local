@@ -97,7 +97,11 @@ const CandidateDashboardArea = ({ activeTab: parentActiveTab, selectedMessageCon
       case "appliedJobs":
         return <AppliedJobs onClick={() => setActiveTab("appliedJobs")} />;
       case "candidatewallet":
-        return <CandidateWallet onBack={() => setActiveTab("profile")} />;
+  return (
+    <div style={{ margin: "0 -12px" }}>
+      <CandidateWallet onBack={() => setActiveTab("profile")} />
+    </div>
+  );
       case "chatbox":
         return (
           <ChatBox

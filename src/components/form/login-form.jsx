@@ -4,7 +4,6 @@ import Link from "next/link";
 import React, { Component } from "react";
 import { connect } from "react-redux";
 import { withRouter } from "next/router";
-// import { toast } from "react-toastify";
 
 import {
   Form,
@@ -47,11 +46,13 @@ class FormContent extends Component {
 
   handleInputChange = (e) => {
     const { name, value } = e.target;
+
     this.setState((prevState) => ({
       errors: { ...prevState.errors, [name]: "" },
       loginError: "",
     }));
 
+    // Check for spaces
     if (/\s/.test(value)) {
       this.setState((prevState) => ({
         errors: {
@@ -65,6 +66,32 @@ class FormContent extends Component {
       return;
     }
 
+    // Real-time validation for password field
+    if (name === "password" && value) {
+      if (value.length < 8) {
+        this.setState((prevState) => ({
+          errors: {
+            ...prevState.errors,
+            password: "Password must be at least 8 characters"
+          }
+        }));
+      } else if (value.length > 50) {
+        this.setState((prevState) => ({
+          errors: {
+            ...prevState.errors,
+            password: "Password must be less than 50 characters"
+          }
+        }));
+      } else {
+        this.setState((prevState) => ({
+          errors: {
+            ...prevState.errors,
+            password: ""
+          }
+        }));
+      }
+    }
+
     this.setState((prevState) => ({
       values: { ...prevState.values, [name]: value },
     }));
@@ -76,33 +103,37 @@ class FormContent extends Component {
     const { dispatch, router } = this.props;
 
     const newErrors = {};
-    if (!values.email) newErrors.email = "Email is required";
+
+    // Email validation
+    if (!values.email) {
+      newErrors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
+      newErrors.email = "Please enter a valid email address";
+    }
+
+    // Password validation for login
     if (!values.password) {
       newErrors.password = "Password is required";
     } else if (values.password.length < 8) {
       newErrors.password = "Password must be at least 8 characters";
+    } else if (values.password.length > 50) {
+      newErrors.password = "Password must be less than 50 characters";
+    } else if (/\s/.test(values.password)) {
+      newErrors.password = "Password cannot contain spaces";
     }
 
     this.setState({ errors: newErrors });
     if (Object.keys(newErrors).length > 0) return;
 
     try {
-      // Login API
       const res = await api.post("/login", values);
 
       if (!res.data.success) {
-        this.setState({ loginError: "Admin has not activated you yet. Please wait!" });
+        this.setState({ loginError: res.data.error || "Admin has not activated you yet. Please wait!" });
         return;
       }
 
-      // Save token
       sessionStorage.setItem("token", res.data.token);
-
-      // Get logged-in user info
-
-      dispatch(setUser(res.data));
-
-      // Save user info in session
       sessionStorage.setItem("token", res.data.token);
       sessionStorage.setItem("userId", res.data.userId);
       sessionStorage.setItem("accountType", res.data.accountType);
@@ -111,11 +142,10 @@ class FormContent extends Component {
       sessionStorage.setItem("profile_completed", res.data.profile_completed);
       sessionStorage.setItem("has_package", res.data.has_package ? "true" : "false");
       dispatch(setUser(res.data));
+
       this.setState({ successMessage: "Login successfully!" });
       setTimeout(() => this.setState({ successMessage: "" }), 3000);
 
-
-      // ✅ Role-based routing
       const { accountType, profile_completed } = res.data;
       console.log("LOGIN RESPONSE:", {
         accountType,
@@ -129,32 +159,22 @@ class FormContent extends Component {
         } else {
           router.push("/candidate-profile");
         }
-      }
-else if (accountType === "employer") {
-  const { profile_completed, approval_status } = res.data;
+      } else if (accountType === "employer") {
+        const { profile_completed, approval_status } = res.data;
 
-  sessionStorage.setItem("profile_completed", profile_completed);
-  sessionStorage.setItem("approval_status", approval_status);
+        sessionStorage.setItem("profile_completed", profile_completed);
+        sessionStorage.setItem("approval_status", approval_status);
 
-  // 🧩 1. Profile incomplete → go complete it
-  if (!profile_completed) {
-    router.push("/company-profile");
-  }
-
-  // ⏳ 2. Profile completed but not approved
-  else if (approval_status !== "approved") {
-    this.setState({
-      loginError: "Your profile is under review. Please wait for admin approval."
-    });
-  }
-
-  // 🚀 3. Approved → dashboard
-  else {
-    router.push("/dashboard-header");
-  }
-}
-
-      else {
+        if (!profile_completed) {
+          router.push("/company-profile");
+        } else if (approval_status !== "approved") {
+          this.setState({
+            loginError: "Your profile is under review. Please wait for admin approval."
+          });
+        } else {
+          router.push("/dashboard-header");
+        }
+      } else {
         router.push("/dashboard-header");
       }
 
@@ -196,7 +216,6 @@ else if (accountType === "employer") {
               />
             </Alert>
           )}
-          {/* {loginError && <Alert color="danger">{loginError}</Alert>} */}
 
           {/* Email */}
           <FormGroup>
