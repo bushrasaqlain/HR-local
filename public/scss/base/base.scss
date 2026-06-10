@@ -847,3 +847,25 @@ body.messages-page #__next {
     flex-direction: column;
     overflow: hidden;
 }
+#statusFilter {
+  border-color: #36565f !important;
+  color: #36565f !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+#statusFilter:focus {
+  border-color: #36565f !important;
+  box-shadow: 0 0 0 0.2rem rgba(54, 86, 95, 0.25) !important;
+}
+
+#statusFilter option {
+  background-color: #ffffff;
+  color: #36565f;
+}
+
+#statusFilter option:checked,
+#statusFilter option:hover {
+  background-color: #e2f0f0 !important;
+  color: #36565f !important;
+}

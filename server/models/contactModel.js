@@ -7,7 +7,10 @@ const createContactTable = () => {
       id INT AUTO_INCREMENT PRIMARY KEY,
       name VARCHAR(255) NOT NULL,
       email VARCHAR(255) NOT NULL,
+      replies JSON DEFAULT NULL,
       user_type VARCHAR(50),
+      ticket_number VARCHAR(20) UNIQUE,
+      category ENUM('bug', 'suggestion', 'account_issue', 'payment', 'general') DEFAULT 'general',
       subject VARCHAR(255) NOT NULL,
       message TEXT NOT NULL,
       status ENUM('unread', 'read', 'replied') DEFAULT 'unread',
@@ -38,27 +41,36 @@ const getRegAdminEmails = () => {
     });
   });
 };
+const generateTicketNumber = () => {
+  const prefix = "TKT";
+  const timestamp = Date.now().toString().slice(-6);
+  const random = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
+  return `${prefix}-${timestamp}-${random}`;
+};
 
-const saveMessageToDB = (name, email, userType, subject, message) => {
-  return new Promise((resolve, reject) => {
-    const sql = `INSERT INTO contact_messages (name, email, user_type, subject, message) VALUES (?, ?, ?, ?, ?)`;
-    connection.query(sql, [name, email, userType, subject, message], (err, result) => {
-      if (err) return reject(err);
-      resolve(result.insertId);
+const saveMessageToDB = (name, email, userType, subject, message, category = "general") => {
+    return new Promise((resolve, reject) => {
+        const ticket_number = generateTicketNumber();
+        const sql = `INSERT INTO contact_messages 
+                     (name, email, user_type, subject, message, category, ticket_number) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?)`;
+        connection.query(sql, [name, email, userType, subject, message, category, ticket_number], (err, result) => {
+            if (err) return reject(err);
+            resolve({ insertId: result.insertId, ticket_number });
+        });
     });
-  });
 };
 
 const sendContactMessage = async (req, res) => {
   try {
-    const { name, email, subject, userType, message } = req.body;
+    const { name, email, subject, userType, message, category = "general" } = req.body;
 
     if (!name || !email || !subject || !message) {
       return res.status(400).json({ success: false, error: "All fields are required." });
     }
 
     // 1. Save to DB first
-    await saveMessageToDB(name, email, userType, subject, message);
+    const { insertId, ticket_number } = await saveMessageToDB(name, email, userType, subject, message, category);
 
     // 2. Get reg_admin emails
     const adminEmails = await getRegAdminEmails();
@@ -117,7 +129,7 @@ const sendContactMessage = async (req, res) => {
       from: `"HR Job Portal" <${process.env.MAIL_USER}>`,
       to: adminEmails.join(", "),
       replyTo: email,
-      subject: `[Contact Form] ${subject} — from ${name} (${userType})`,
+      subject: `[${ticket_number}] ${subject} — from ${name} (${userType})`,
       html: htmlContent,
     });
 
@@ -125,11 +137,15 @@ const sendContactMessage = async (req, res) => {
     await transporter.sendMail({
       from: `"HR Job Portal Support" <${process.env.MAIL_USER}>`,
       to: email,
-      subject: `We received your message — ${subject}`,
+      subject: `We received your message — ${ticket_number}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 500px; margin: auto; padding: 28px; border: 1px solid #e0e0e0; border-radius: 10px;">
           <h3 style="color: #264752;">Hi ${name},</h3>
           <p style="color: #555;">Thank you for contacting us. We've received your message and will get back to you within <strong>24 hours</strong>.</p>
+<div style="background: #e8f4f8; border: 1px solid #264752; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
+    <p style="margin: 0 0 4px; color: #888; font-size: 12px;">YOUR TICKET NUMBER</p>
+    <p style="margin: 0; font-size: 22px; font-weight: 700; color: #264752; letter-spacing: 1px;">${ticket_number}</p>
+</div>
           <div style="background: #f4f8f9; border-left: 4px solid #264752; padding: 14px; border-radius: 6px; margin: 20px 0; color: #333;">
             <strong>Your message:</strong><br/><br/>
             ${message.replace(/\n/g, "<br/>")}
@@ -140,7 +156,7 @@ const sendContactMessage = async (req, res) => {
       `,
     });
 
-    return res.status(200).json({ success: true, message: "Message sent successfully." });
+    return res.status(200).json({ success: true, message: "Message sent successfully.", ticket_number });
 
   } catch (error) {
     console.error("Contact send error:", error);

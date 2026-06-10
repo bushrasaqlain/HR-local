@@ -230,7 +230,8 @@ const createBoostPackagesTable = () => {
     )
   `;
   connection.query(sql, (err) => {
-    if (err) return console.error("Error creating boost_packages table:", err.message);
+    if (err)
+      return console.error("Error creating boost_packages table:", err.message);
     console.log("boost_packages table created successfully");
 
     const insertSql = `
@@ -240,7 +241,11 @@ const createBoostPackagesTable = () => {
         (3, '30 Day Boost', 30, 799)
     `;
     connection.query(insertSql, (err2) => {
-      if (err2) return console.error("Error inserting default boost packages:", err2.message);
+      if (err2)
+        return console.error(
+          "Error inserting default boost packages:",
+          err2.message,
+        );
       console.log("Default boost packages inserted successfully");
     });
   });
@@ -261,13 +266,13 @@ const createBoostOrdersTable = () => {
     )
   `;
   connection.query(sql, (err) => {
-    if (err) return console.error("Error creating boost_orders table:", err.message);
+    if (err)
+      return console.error("Error creating boost_orders table:", err.message);
     console.log("boost_orders table created successfully");
   });
 };
 
 const addBoostColumnsToCandidateInfo = () => {
-
   connection.query(
     `ALTER TABLE candidate_info ADD COLUMN is_boosted BOOLEAN DEFAULT FALSE`,
     (err) => {
@@ -276,7 +281,7 @@ const addBoostColumnsToCandidateInfo = () => {
       } else {
         console.log("is_boosted column ready in candidate_info");
       }
-    }
+    },
   );
 
   connection.query(
@@ -287,7 +292,7 @@ const addBoostColumnsToCandidateInfo = () => {
       } else {
         console.log("boost_expires_at column ready in candidate_info");
       }
-    }
+    },
   );
 };
 
@@ -305,12 +310,18 @@ const createProfileViewsTable = () => {
     )
   `;
 
-  connection.query(createProfileViewsTableQuery, function (err, results, fields) {
-    if (err) {
-      return console.error("Error creating profile_views table:", err.message);
-    }
-    console.log("Profile Views table created successfully");
-  });
+  connection.query(
+    createProfileViewsTableQuery,
+    function (err, results, fields) {
+      if (err) {
+        return console.error(
+          "Error creating profile_views table:",
+          err.message,
+        );
+      }
+      console.log("Profile Views table created successfully");
+    },
+  );
 };
 
 const getAllCandidates = (req, res) => {
@@ -447,7 +458,7 @@ const updateStatus = (id, status, userId, res) => {
       tableName: "history",
       entityType: "candidate",
       entityId: id,
-      action: status === "Active" ? "ACTIVE" : "INACTIVE",  // ✅ fix
+      action: status === "Active" ? "ACTIVE" : "INACTIVE", // ✅ fix
       data: { status },
       changedBy: userId,
     });
@@ -494,7 +505,8 @@ const addCandidateInfo = async (req, res) => {
       otherPreferredCities,
     } = req.body;
 
-    const isFresherVal = is_fresher === true || is_fresher === "true" || is_fresher === 1 ? 1 : 0;
+    const isFresherVal =
+      is_fresher === true || is_fresher === "true" || is_fresher === 1 ? 1 : 0;
 
     // 🔹 Safe JSON parser
     const parseJSON = (value) => {
@@ -513,7 +525,9 @@ const addCandidateInfo = async (req, res) => {
     // 🔹 Passport photo
     // 🔹 Determine which file was uploaded
     const passportPhotoPath = req.passportPhotoPath
-      ? req.passportPhotoPath.replace(/\\/g, "/").replace(/^.*uploads/, "/uploads")
+      ? req.passportPhotoPath
+          .replace(/\\/g, "/")
+          .replace(/^.*uploads/, "/uploads")
       : null;
 
     const resumePath = req.resumePath
@@ -628,7 +642,10 @@ const addCandidateInfo = async (req, res) => {
         `SELECT * FROM candidate_info WHERE account_id = ? LIMIT 1`,
         [accountId],
         (errFetch, existingRows) => {
-          if (errFetch) return res.status(500).json({ success: false, error: errFetch.message });
+          if (errFetch)
+            return res
+              .status(500)
+              .json({ success: false, error: errFetch.message });
 
           const existingData = existingRows[0] || null;
           const isFirstTime = !existingData || !existingData.full_name; // no profile yet
@@ -636,7 +653,9 @@ const addCandidateInfo = async (req, res) => {
           connection.query(sql, params, (err2, result) => {
             if (err2) {
               console.error("DB Error:", err2);
-              return res.status(500).json({ success: false, error: err2.message });
+              return res
+                .status(500)
+                .json({ success: false, error: err2.message });
             }
 
             if (isFirstTime) {
@@ -699,7 +718,7 @@ const addCandidateInfo = async (req, res) => {
               profile_completed: profileCompleted,
             });
           });
-        }
+        },
       );
     });
   } catch (error) {
@@ -762,6 +781,25 @@ const getCandidateInfo = (req, res) => {
       return res.status(404).json({ error: "Candidate not found" });
 
     const candidate = candidateResult[0];
+     if (candidate.is_boosted && candidate.boost_expires_at) {
+    const now = new Date();
+    const expiry = new Date(candidate.boost_expires_at);
+    if (expiry < now) {
+      // Expire it in the background
+      connection.query(
+        `UPDATE candidate_info SET is_boosted = 0, boost_expires_at = NULL WHERE account_id = ?`,
+        [accountId]
+      );
+      connection.query(
+        `UPDATE boost_orders SET status = 'expired' 
+         WHERE candidate_id = ? AND status = 'active'`,
+        [candidate.candidate_id]
+      );
+      // Correct the in-memory object too
+      candidate.is_boosted = 0;
+      candidate.boost_expires_at = null;
+    }
+  }
 
     const parseJSON = (value) => {
       if (!value) return [];
@@ -909,12 +947,12 @@ const getCandidateInfo = (req, res) => {
           // Detailed lists
           shortlisted_companies: [],
           approved_companies: [],
-          saved_companies:               [],
-  interview_scheduled_companies: [],
-  interview_conducted_companies: [],
-  considered_companies:          [],
-  offered_companies:             [],
-  rejected_companies:            [],
+          saved_companies: [],
+          interview_scheduled_companies: [],
+          interview_conducted_companies: [],
+          considered_companies: [],
+          offered_companies: [],
+          rejected_companies: [],
           is_fresher: !!candidate.is_fresher,
         };
 
@@ -951,7 +989,7 @@ const getCandidateInfo = (req, res) => {
         JOIN job_posts jp ON a.job_id = jp.id
         JOIN company_info ci ON jp.account_id = ci.account_id
         WHERE a.candidate_id = ?
-        AND a.status IN ('Saved', 'Shortlisted', 'Interview_Scheduled', 'Interview_Conducted', 'Considered', 'Offered', 'Approved', 'Rejected')
+        AND a.status IN ('Saved', 'Shortlisted', 'Interview_Scheduled', 'Interview_Conducted', 'Considered', 'Offered', 'Selected', 'Joined', 'Rejected')
       `;
 
         Promise.all([
@@ -974,13 +1012,13 @@ const getCandidateInfo = (req, res) => {
               (err, rows) => {
                 if (err) return reject(err);
                 rows.forEach((r) => {
-                  if (r.status === "Shortlisted")
-                    response.shortlisted_count = r.count;
-                  if (r.status === "Approved")
-                    response.approved_count = r.count;
-                  if (r.status === "Interview")
-                    response.interview_count = r.count;
-                });
+  if (r.status === "Interview_Scheduled" || r.status === "Interview_Conducted")
+    response.shortlisted_count += r.count;   
+  if (r.status === "Offered")
+    response.approved_count += r.count;     
+  if (r.status === "Interview_Scheduled")
+    response.interview_count += r.count;
+});
                 resolve();
               },
             );
@@ -993,13 +1031,13 @@ const getCandidateInfo = (req, res) => {
                 if (err) return reject(err);
                 rows.forEach((row) => {
                   const companyData = {
-                     status: row.application_status,
+                    status: row.application_status,
                     accountId: row.account_id,
                     candidate_response: row.candidate_response,
                     company_status: row.company_status,
                     company_id: row.company_id,
                     company_name: row.company_name,
-                    logo: row.logo,
+                    logo: row.logo ? Buffer.from(row.logo).toString('base64') : null,
                     job_id: row.job_id,
                     job_title: row.job_title,
                     interview_day: row.interview_day || null,
@@ -1007,14 +1045,22 @@ const getCandidateInfo = (req, res) => {
                     candidate_id: row.candidate_id,
                     // account_id: row.account_id
                   };
-                  if (row.application_status === "Saved")               response.saved_companies.push(companyData);
-if (row.application_status === "Shortlisted")         response.shortlisted_companies.push(companyData);
-if (row.application_status === "Interview_Scheduled") response.interview_scheduled_companies.push(companyData);
-if (row.application_status === "Interview_Conducted") response.interview_conducted_companies.push(companyData);
-if (row.application_status === "Considered")          response.considered_companies.push(companyData);
-if (row.application_status === "Offered")             response.offered_companies.push(companyData);
-if (row.application_status === "Approved")            response.approved_companies.push(companyData);
-if (row.application_status === "Rejected")            response.rejected_companies.push(companyData);
+                  if (row.application_status === "Saved")
+                    response.saved_companies.push(companyData);
+                  if (row.application_status === "Shortlisted")
+                    response.shortlisted_companies.push(companyData);
+                  if (row.application_status === "Interview_Scheduled")
+                    response.interview_scheduled_companies.push(companyData);
+                  if (row.application_status === "Interview_Conducted")
+                    response.interview_conducted_companies.push(companyData);
+                  if (row.application_status === "Considered")
+                    response.considered_companies.push(companyData);
+                  if (row.application_status === "Offered")
+                    response.offered_companies.push(companyData);
+                  if (row.application_status === "Offered" || row.application_status === "Selected")
+  response.approved_companies.push(companyData);
+                  if (row.application_status === "Rejected")
+                    response.rejected_companies.push(companyData);
                 });
                 resolve();
               },
@@ -1051,7 +1097,9 @@ const editCandidateInfo = (req, res) => {
 
   // ✅ Correct file handling
   const passportPhotoPath = req.passportPhotoPath
-    ? req.passportPhotoPath.replace(/\\/g, "/").replace(/^.*uploads/, "/uploads")
+    ? req.passportPhotoPath
+        .replace(/\\/g, "/")
+        .replace(/^.*uploads/, "/uploads")
     : null;
 
   const resumePath = req.resumePath
@@ -1242,36 +1290,36 @@ const getCandidateFullProfilebyId = async (req, res) => {
       ...candidateInfoResults[0],
       experiences: Array.isArray(workResults)
         ? workResults.map((exp, index) => ({
-          ...exp,
-          start_date: formatDate(exp.start_date),
-          end_date: formatDate(exp.end_date),
-          first: index === 0,
-        }))
+            ...exp,
+            start_date: formatDate(exp.start_date),
+            end_date: formatDate(exp.end_date),
+            first: index === 0,
+          }))
         : [],
 
       education: Array.isArray(educationResults)
         ? educationResults.map((edu, index) => ({
-          ...edu,
-          start_date: formatDate(edu.start_date),
-          end_date: formatDate(edu.end_date),
-          first: index === 0,
-        }))
+            ...edu,
+            start_date: formatDate(edu.start_date),
+            end_date: formatDate(edu.end_date),
+            first: index === 0,
+          }))
         : [],
 
       projects: Array.isArray(projectsResults)
         ? projectsResults.map((proj, index) => ({
-          ...proj,
-          start_date: formatDate(proj.start_date),
-          end_date: formatDate(proj.end_date),
-          first: index === 0,
-        }))
+            ...proj,
+            start_date: formatDate(proj.start_date),
+            end_date: formatDate(proj.end_date),
+            first: index === 0,
+          }))
         : [],
 
       awards: Array.isArray(awardsResults)
         ? awardsResults.map((awd, index) => ({
-          ...awd,
-          first: index === 0,
-        }))
+            ...awd,
+            first: index === 0,
+          }))
         : [],
     };
 
@@ -1342,15 +1390,13 @@ const getBoostPackages = (req, res) => {
     (err, results) => {
       if (err) return res.status(500).json({ error: "Database error" });
       res.json({ success: true, data: results });
-    }
+    },
   );
 };
 
 const placeBoostOrder = (req, res) => {
   const accountId = req.user.userId;
   const { package_id } = req.body;
-
-  console.log("placeBoostOrder called:", { accountId, package_id }); // ✅ add
 
   if (!package_id) {
     return res.status(400).json({ success: false, message: "Please select a package" });
@@ -1362,52 +1408,60 @@ const placeBoostOrder = (req, res) => {
      WHERE ci.account_id = ? AND bo.status IN ('pending', 'active')`,
     [accountId],
     (err, existing) => {
-      if (err) {
-        console.error("Error checking existing boost order:", err.message); // ✅ already hai
-        return res.status(500).json({ error: "Database error", details: err.message }); // ✅ details add karo
-      }
+      if (err) return res.status(500).json({ error: "Database error", details: err.message });
       if (existing.length > 0) {
-        return res.status(400).json({
-          success: false,
-          message: "A boost order is already active or pending",
-        });
+        return res.status(400).json({ success: false, message: "A boost order is already active" });
       }
 
       connection.query(
         "SELECT id FROM candidate_info WHERE account_id = ?",
         [accountId],
         (err2, rows) => {
-          if (err2) {
-            console.error("Error fetching candidate:", err2.message);
-            return res.status(500).json({ error: "Database error", details: err2.message }); // ✅
-          }
-          if (!rows.length) {
-            return res.status(404).json({ success: false, message: "Candidate not found" });
-          }
+          if (err2) return res.status(500).json({ error: "Database error", details: err2.message });
+          if (!rows.length) return res.status(404).json({ success: false, message: "Candidate not found" });
 
           const candidateInfoId = rows[0].id;
-          console.log("Inserting boost order:", { candidateInfoId, package_id }); // ✅ add
 
           connection.query(
-            "INSERT INTO boost_orders (candidate_id, package_id) VALUES (?, ?)",
-            [candidateInfoId, package_id],
-            (err3) => {
-              if (err3) {
-                console.error("Error placing boost order:", err3.message);
-                return res.status(500).json({ error: "Database error", details: err3.message }); // ✅
-              }
-              logAudit({
-                tableName: "history",
-                entityType: "candidate",
-                entityId: accountId,
-                action: "BOOST_REQUESTED",
-                data: { event: "Boost order placed", package_id },
-                changedBy: accountId,
-              });
-              res.json({
-                success: true,
-                message: "Boost order placed successfully. Waiting for admin approval.",
-              });
+            `SELECT COALESCE(duration_days, boost_duration_days) AS duration_days 
+             FROM packages WHERE id = ?`,
+            [package_id],
+            (err3, pkgRows) => {
+              if (err3) return res.status(500).json({ error: "Database error" });
+              if (!pkgRows.length) return res.status(404).json({ success: false, message: "Package not found" });
+
+              const days = parseInt(pkgRows[0].duration_days || 0);
+              const start = new Date();
+              const end = new Date();
+              end.setDate(end.getDate() + days);
+
+              connection.query(
+                `INSERT INTO boost_orders (candidate_id, package_id, status, start_date, end_date) 
+                 VALUES (?, ?, 'active', ?, ?)`,
+                [candidateInfoId, package_id, start, end],
+                (err4) => {
+                  if (err4) return res.status(500).json({ error: "Database error", details: err4.message });
+
+                  connection.query(
+                    "UPDATE candidate_info SET is_boosted=1, boost_expires_at=? WHERE id=?",
+                    [end, candidateInfoId],
+                    (err5) => {
+                      if (err5) return res.status(500).json({ error: "Database error" });
+
+                      logAudit({
+                        tableName: "history",
+                        entityType: "candidate",
+                        entityId: accountId,
+                        action: "BOOST_ACTIVATED",
+                        data: { event: "Boost auto-activated on purchase", package_id, boost_expires_at: end },
+                        changedBy: accountId,
+                      });
+
+                      res.json({ success: true, message: "Profile boosted successfully!", boost_expires_at: end });
+                    }
+                  );
+                }
+              );
             }
           );
         }
@@ -1415,7 +1469,6 @@ const placeBoostOrder = (req, res) => {
     }
   );
 };
-
 const getMyBoostStatus = (req, res) => {
   const accountId = req.user.userId;
 
@@ -1447,45 +1500,54 @@ const getMyBoostStatus = (req, res) => {
         if (expiry < now) {
           connection.query(
             "UPDATE candidate_info SET is_boosted = 0, boost_expires_at = NULL WHERE id = ?",
-            [data.candidate_id]
+            [data.candidate_id],
           );
           connection.query(
             "UPDATE boost_orders SET status = 'expired' WHERE candidate_id = ? AND status = 'active'",
-            [data.candidate_id]
+            [data.candidate_id],
           );
           data.is_boosted = false;
         }
       }
 
       res.json({ success: true, data });
-    }
+    },
   );
 };
-
 const getBoostOrders = (req, res) => {
+  // First expire any overdue active orders
   connection.query(
-    `SELECT 
-      bo.id, bo.status, bo.created_at,
-      ci.id AS candidate_info_id,
-      a.email AS candidate_email,
-      ci.full_name AS candidate_name,
-      p.name AS package_name,
-      p.price,
-      p.boost_duration_days,
-      c.code AS currency
-    FROM boost_orders bo
-    JOIN candidate_info ci ON ci.id = bo.candidate_id
-    JOIN account a ON a.id = ci.account_id
-    JOIN packages p ON p.id = bo.package_id
-    LEFT JOIN currencies c ON c.id = p.currency_id
-    WHERE bo.status = 'pending'
-    ORDER BY bo.created_at DESC`,
-    (err, results) => {
-      if (err) {
-        console.error("Error fetching boost orders:", err.message);
-        return res.status(500).json({ error: "Database error" });
-      }
-      res.json({ success: true, data: results });
+    `UPDATE boost_orders bo
+     JOIN candidate_info ci ON ci.id = bo.candidate_id
+     SET bo.status = 'expired',
+         ci.is_boosted = 0,
+         ci.boost_expires_at = NULL
+     WHERE bo.status = 'active' AND bo.end_date < NOW()`,
+    (errClean) => {
+      if (errClean) console.error("Cleanup error:", errClean.message);
+
+      connection.query(
+  `SELECT 
+    bo.id, bo.status, bo.start_date, bo.end_date, bo.created_at,
+    a.id AS account_id,          -- ← ADD THIS
+    ci.id AS candidate_info_id,
+    a.email AS candidate_email,
+    ci.full_name AS candidate_name,
+    p.name AS package_name,
+    p.price,
+    p.boost_duration_days,
+    c.code AS currency
+  FROM boost_orders bo
+  JOIN candidate_info ci ON ci.id = bo.candidate_id
+  JOIN account a ON a.id = ci.account_id
+  JOIN packages p ON p.id = bo.package_id
+  LEFT JOIN currencies c ON c.id = p.currency_id
+  ORDER BY bo.created_at DESC`,
+        (err, results) => {
+          if (err) return res.status(500).json({ error: "Database error" });
+          res.json({ success: true, data: results });
+        }
+      );
     }
   );
 };
@@ -1503,11 +1565,16 @@ const activateBoost = (req, res) => {
     [orderId],
     (err, rows) => {
       if (err) {
-        console.error("Error fetching boost order for activation:", err.message);
+        console.error(
+          "Error fetching boost order for activation:",
+          err.message,
+        );
         return res.status(500).json({ error: "Database error" });
       }
       if (!rows.length) {
-        return res.status(404).json({ success: false, message: "Order not found" });
+        return res
+          .status(404)
+          .json({ success: false, message: "Order not found" });
       }
 
       const order = rows[0];
@@ -1532,7 +1599,8 @@ const activateBoost = (req, res) => {
             "UPDATE candidate_info SET is_boosted=1, boost_expires_at=? WHERE id=?",
             [end, order.candidate_id],
             (err3) => {
-              if (err3) return res.status(500).json({ error: "Database error" });
+              if (err3)
+                return res.status(500).json({ error: "Database error" });
               connection.query(
                 "SELECT account_id FROM candidate_info WHERE id = ? LIMIT 1",
                 [order.candidate_id],
@@ -1543,18 +1611,24 @@ const activateBoost = (req, res) => {
                       entityType: "candidate",
                       entityId: rows[0].account_id,
                       action: "BOOST_ACTIVATED",
-                      data: { event: "Boost activated by admin", boost_expires_at: end },
+                      data: {
+                        event: "Boost activated by admin",
+                        boost_expires_at: end,
+                      },
                       changedBy: req.user.userId,
                     });
                   }
-                }
+                },
               );
-              res.json({ success: true, message: "Boost activated successfully" });
-            }
+              res.json({
+                success: true,
+                message: "Boost activated successfully",
+              });
+            },
           );
-        }
+        },
       );
-    }
+    },
   );
 };
 
@@ -1588,9 +1662,9 @@ const rejectBoost = (req, res) => {
           }
 
           res.json({ success: true, message: "Boost order rejected" });
-        }
+        },
       );
-    }
+    },
   );
 };
 
@@ -1665,28 +1739,37 @@ const getMatchingJobsForCandidate = async (req, res) => {
          WHERE ci.account_id = ?
          LIMIT 1`,
         [accountId],
-        (err, rows) => (err ? reject(err) : resolve(rows[0]))
-      )
+        (err, rows) => (err ? reject(err) : resolve(rows[0])),
+      ),
     );
 
-    if (!candidate) return res.status(404).json({ error: "Candidate not found" });
+    if (!candidate)
+      return res.status(404).json({ error: "Candidate not found" });
 
     // ── STEP 2: Parse candidate skills ──
     let candSkillIds = [];
     try {
-      candSkillIds = typeof candidate.skills === "string"
-        ? JSON.parse(candidate.skills)
-        : candidate.skills || [];
-    } catch { candSkillIds = []; }
+      candSkillIds =
+        typeof candidate.skills === "string"
+          ? JSON.parse(candidate.skills)
+          : candidate.skills || [];
+    } catch {
+      candSkillIds = [];
+    }
 
     // ── STEP 3: Parse candidate cities ──
     let candOtherCityIds = [];
     try {
-      const parsed = typeof candidate.otherPreferredCities === "string"
-        ? JSON.parse(candidate.otherPreferredCities)
-        : candidate.otherPreferredCities || [];
-      candOtherCityIds = parsed.map((c) => typeof c === "object" ? Number(c.id) : Number(c));
-    } catch { candOtherCityIds = []; }
+      const parsed =
+        typeof candidate.otherPreferredCities === "string"
+          ? JSON.parse(candidate.otherPreferredCities)
+          : candidate.otherPreferredCities || [];
+      candOtherCityIds = parsed.map((c) =>
+        typeof c === "object" ? Number(c.id) : Number(c),
+      );
+    } catch {
+      candOtherCityIds = [];
+    }
 
     const candCityId = Number(candidate.city);
 
@@ -1695,10 +1778,12 @@ const getMatchingJobsForCandidate = async (req, res) => {
       connection.query(
         `SELECT e.speciality_id FROM candidate_experience e WHERE e.candidate_id = ?`,
         [candidate.id],
-        (err, rows) => (err ? reject(err) : resolve(rows))
-      )
+        (err, rows) => (err ? reject(err) : resolve(rows)),
+      ),
     );
-    const candSpecialityIds = experienceRows.map((e) => Number(e.speciality_id)).filter(Boolean);
+    const candSpecialityIds = experienceRows
+      .map((e) => Number(e.speciality_id))
+      .filter(Boolean);
 
     // ── STEP 5: Fetch candidate education ──
     const educationRows = await new Promise((resolve, reject) =>
@@ -1708,20 +1793,24 @@ const getMatchingJobsForCandidate = async (req, res) => {
          LEFT JOIN degreefields df ON ed.degree_id = df.id
          WHERE ed.candidate_id = ?`,
         [candidate.id],
-        (err, rows) => (err ? reject(err) : resolve(rows))
-      )
+        (err, rows) => (err ? reject(err) : resolve(rows)),
+      ),
     );
     const hasDegree = educationRows.length > 0;
-    const candDegreeTypeIds = educationRows.map((e) => Number(e.degree_type_id)).filter(Boolean);
-    const candDegreeFieldIds = educationRows.map((e) => Number(e.degree_id)).filter(Boolean);
+    const candDegreeTypeIds = educationRows
+      .map((e) => Number(e.degree_type_id))
+      .filter(Boolean);
+    const candDegreeFieldIds = educationRows
+      .map((e) => Number(e.degree_id))
+      .filter(Boolean);
 
     // ── STEP 6: Fetch candidate availability ──
     const availabilityRows = await new Promise((resolve, reject) =>
       connection.query(
         `SELECT * FROM candidate_availability WHERE candidate_id = ?`,
         [candidate.id],
-        (err, rows) => (err ? reject(err) : resolve(rows))
-      )
+        (err, rows) => (err ? reject(err) : resolve(rows)),
+      ),
     );
 
     // ── STEP 7: Fetch ALL active approved jobs (no skill gate) ──
@@ -1740,14 +1829,18 @@ const getMatchingJobsForCandidate = async (req, res) => {
            ccy.code AS currency,
            ci.company_name, ci.logo,
            CASE WHEN EXISTS (
-             SELECT 1 FROM applications a
-             WHERE a.job_id = jp.id AND a.candidate_id = ?
-             AND a.status != 'Cancelled'
-            ) THEN 1 ELSE 0 END AS already_applied,
-            (SELECT a.status FROM applications a 
-             WHERE a.job_id = jp.id AND a.candidate_id = ? 
-             AND a.status != 'Cancelled'
-             ORDER BY a.id DESC LIMIT 1) AS application_status
+  SELECT 1 FROM applications a
+  WHERE a.job_id = jp.id AND a.candidate_id = ?
+  AND a.status != 'Cancelled' AND a.source = 'candidate'
+) THEN 1 ELSE 0 END AS already_applied,
+(SELECT a.status FROM applications a 
+ WHERE a.job_id = jp.id AND a.candidate_id = ?
+ AND a.status != 'Cancelled' AND a.source = 'candidate'
+ ORDER BY a.id DESC LIMIT 1) AS application_status,
+(SELECT a.status FROM applications a 
+ WHERE a.job_id = jp.id AND a.candidate_id = ?
+ AND a.status != 'Cancelled' AND a.source = 'employer'
+ ORDER BY a.id DESC LIMIT 1) AS pipeline_status
          FROM job_posts jp
          LEFT JOIN company_info ci  ON ci.account_id  = jp.account_id
          LEFT JOIN jobtypes jt      ON jt.id          = jp.job_type_id
@@ -1757,9 +1850,9 @@ const getMatchingJobsForCandidate = async (req, res) => {
            AND jp.application_deadline >= CURDATE()
          ORDER BY jp.is_sponsored DESC, jp.created_at DESC
          LIMIT 100`,
-        [candidate.id, candidate.id],
-        (err, rows) => (err ? reject(err) : resolve(rows))
-      )
+        [candidate.id, candidate.id, candidate.id],
+        (err, rows) => (err ? reject(err) : resolve(rows)),
+      ),
     );
 
     if (!jobsRaw.length) {
@@ -1775,217 +1868,294 @@ const getMatchingJobsForCandidate = async (req, res) => {
     const candSalary = parseFloat(candidate.expected_salary || 0);
     const tierOrder = { strong: 0, good: 1, weak: 2 };
 
-    const tieredJobs = jobsRaw.map((job) => {
-      const matched = [];
-      const missing = [];
-      let score = 0;
+    const tieredJobs = jobsRaw
+      .map((job) => {
+        const matched = [];
+        const missing = [];
+        let score = 0;
 
-      // ── Parse job skill IDs ──
-      let jobSkillIds = [];
-      try {
-        jobSkillIds = typeof job.skill_ids === "string"
-          ? JSON.parse(job.skill_ids).map(Number)
-          : (job.skill_ids || []).map(Number);
-      } catch { jobSkillIds = []; }
-
-      // ── Parse job city IDs ──
-      let jobCityIds = [];
-      try {
-        const parsed = typeof job.city_id === "string"
-          ? JSON.parse(job.city_id)
-          : job.city_id;
-        jobCityIds = Array.isArray(parsed) ? parsed.map(Number) : [];
-      } catch { jobCityIds = []; }
-
-      const isRemote = job.job_location_type === "remote" || jobCityIds.length === 0;
-
-      // ── Location (10pts) ──
-      let locationScore = 0;
-      let location_type = "pipeline";
-
-      if (isRemote) {
-        locationScore = 10;
-        location_type = "remote";
-      } else {
-        const mainCityMatch = jobCityIds.includes(candCityId);
-        const preferredCityMatch = jobCityIds.some((id) => candOtherCityIds.includes(id));
-        locationScore = mainCityMatch ? 10 : preferredCityMatch ? 6 : 0;
-        location_type = mainCityMatch
-          ? "main_city"
-          : preferredCityMatch
-            ? "preferred_city"
-            : "pipeline";
-      }
-      score += locationScore;
-
-      // ── Skills (30pts) ──
-      let skillScore = 0;
-      if (jobSkillIds.length === 0) {
-        skillScore = 30;
-        matched.push("Skills");
-      } else if (candSkillIds.length === 0) {
-        skillScore = 0;
-        missing.push("Skills (none matched)");
-      } else {
-        const matchedCount = jobSkillIds.filter((id) => candSkillIds.includes(id)).length;
-        skillScore = Math.round((matchedCount / jobSkillIds.length) * 30);
-        if (skillScore >= 20) matched.push(`Skills (${matchedCount}/${jobSkillIds.length})`);
-        else if (skillScore > 0) missing.push(`Skills (${matchedCount}/${jobSkillIds.length} matched)`);
-        else missing.push("Skills (none matched)");
-      }
-      score += skillScore;
-
-      // ── Experience (25pts) ──
-      const jobMinExp = parseInt(job.min_experience) || 0;
-      const jobMaxExp = parseInt(job.max_experience) || 50;
-      let expScore = 0;
-      if (jobMinExp === 0 && jobMaxExp === 0) {
-        expScore = 25;
-      } else if (candExp >= jobMinExp && candExp <= jobMaxExp) {
-        expScore = 25;
-      } else if (candExp < jobMinExp) {
-        expScore = Math.max(0, 25 - (jobMinExp - candExp) * 4);
-      } else {
-        expScore = 20;
-      }
-      score += expScore;
-      if (expScore >= 20) matched.push("Experience");
-      else missing.push(`Experience (you have ${candExp} yrs, job needs ${jobMinExp}-${jobMaxExp})`);
-
-      // ── Speciality (20pts) ──
-      let specScore = 0;
-      if (!job.speciality_id) {
-        specScore = 20;
-        matched.push("Speciality");
-      } else if (candSpecialityIds.includes(Number(job.speciality_id))) {
-        specScore = 20;
-        matched.push("Speciality");
-      } else {
-        missing.push("Speciality");
-      }
-      score += specScore;
-
-      // ── Degree (10pts) ──
-      const jobDegreeTypeId = job.degree_id ? Number(job.degree_id) : null;
-      const jobDegreeFieldId = job.degreefields_id ? Number(job.degreefields_id) : null;
-      let degreeScore = 0;
-
-      if (!jobDegreeTypeId && !jobDegreeFieldId) {
-        degreeScore = hasDegree ? 10 : 0;
-        if (hasDegree) matched.push("Education");
-        else missing.push("Education");
-      } else {
-        const degreeTypeMatch = candDegreeTypeIds.includes(jobDegreeTypeId);
-        const degreeFieldMatch = candDegreeFieldIds.includes(jobDegreeFieldId);
-        if (jobDegreeFieldId && jobDegreeTypeId) {
-          if (degreeFieldMatch && degreeTypeMatch) { degreeScore = 10; matched.push("Education (degree & field match)"); }
-          else if (degreeTypeMatch || degreeFieldMatch) { degreeScore = 5; matched.push(`Education (partial: ${degreeTypeMatch ? "type" : "field"} matched)`); }
-          else if (hasDegree) { degreeScore = 2; missing.push("Education (wrong degree type & field)"); }
-          else { degreeScore = 0; missing.push("Education (none)"); }
-        } else if (jobDegreeFieldId) {
-          if (degreeFieldMatch) { degreeScore = 10; matched.push("Education (field match)"); }
-          else if (hasDegree) { degreeScore = 3; missing.push("Education (wrong field)"); }
-          else { degreeScore = 0; missing.push("Education (none)"); }
-        } else if (jobDegreeTypeId) {
-          if (degreeTypeMatch) { degreeScore = 10; matched.push("Education (degree type match)"); }
-          else if (hasDegree) { degreeScore = 3; missing.push("Education (wrong degree type)"); }
-          else { degreeScore = 0; missing.push("Education (none)"); }
+        // ── Parse job skill IDs ──
+        let jobSkillIds = [];
+        try {
+          jobSkillIds =
+            typeof job.skill_ids === "string"
+              ? JSON.parse(job.skill_ids).map(Number)
+              : (job.skill_ids || []).map(Number);
+        } catch {
+          jobSkillIds = [];
         }
-      }
-      score += degreeScore;
-      const degreeMatched = degreeScore >= 5;
 
-      // ── Salary (15pts) ──
-      const jobMinSalary = parseFloat(job.min_salary || 0);
-      const jobMaxSalary = parseFloat(job.max_salary || 0);
-      let salaryScore = 15;
-      let salaryOver = false;
-      if (jobMinSalary || jobMaxSalary) {
-        if (candSalary >= jobMinSalary && candSalary <= jobMaxSalary) {
-          salaryScore = 15; matched.push("Salary");
-        } else if (candSalary < jobMinSalary) {
-          salaryScore = 10; matched.push("Salary (you expect less)");
+        // ── Parse job city IDs ──
+        let jobCityIds = [];
+        try {
+          const parsed =
+            typeof job.city_id === "string"
+              ? JSON.parse(job.city_id)
+              : job.city_id;
+          jobCityIds = Array.isArray(parsed) ? parsed.map(Number) : [];
+        } catch {
+          jobCityIds = [];
+        }
+
+        const isRemote =
+          job.job_location_type === "remote" || jobCityIds.length === 0;
+
+        // ── Location (10pts) ──
+        let locationScore = 0;
+        let location_type = "pipeline";
+
+        if (isRemote) {
+          locationScore = 10;
+          location_type = "remote";
         } else {
-          const overage = ((candSalary - jobMaxSalary) / jobMaxSalary) * 100;
-          salaryScore = overage > 50 ? 0 : overage > 25 ? 5 : 8;
-          salaryOver = true;
-          missing.push("Salary (your expectation exceeds job budget)");
+          const mainCityMatch = jobCityIds.includes(candCityId);
+          const preferredCityMatch = jobCityIds.some((id) =>
+            candOtherCityIds.includes(id),
+          );
+          locationScore = mainCityMatch ? 10 : preferredCityMatch ? 6 : 0;
+          location_type = mainCityMatch
+            ? "main_city"
+            : preferredCityMatch
+              ? "preferred_city"
+              : "pipeline";
         }
-      } else {
-        matched.push("Salary");
-      }
-      score += salaryScore;
+        score += locationScore;
 
-      // ── Availability (10pts) ──
-      let availScore = 0;
-      if (!job.time_from || !job.time_to) {
-        availScore = 10;
-        matched.push("Availability");
-      } else if (availabilityRows.length === 0) {
-        availScore = 5;
-        missing.push("Availability (you haven't set availability)");
-      } else {
-        const hasOverlap = availabilityRows.some(
-          (slot) => slot.time_from <= job.time_to && slot.time_to >= job.time_from
-        );
-        if (hasOverlap) {
+        // ── Skills (30pts) ──
+        let skillScore = 0;
+        if (jobSkillIds.length === 0) {
+          skillScore = 30;
+          matched.push("Skills");
+        } else if (candSkillIds.length === 0) {
+          skillScore = 0;
+          missing.push("Skills (none matched)");
+        } else {
+          const matchedCount = jobSkillIds.filter((id) =>
+            candSkillIds.includes(id),
+          ).length;
+          skillScore = Math.round((matchedCount / jobSkillIds.length) * 30);
+          if (skillScore >= 20)
+            matched.push(`Skills (${matchedCount}/${jobSkillIds.length})`);
+          else if (skillScore > 0)
+            missing.push(
+              `Skills (${matchedCount}/${jobSkillIds.length} matched)`,
+            );
+          else missing.push("Skills (none matched)");
+        }
+        score += skillScore;
+
+        // ── Experience (25pts) ──
+        const jobMinExp = parseInt(job.min_experience) || 0;
+        const jobMaxExp = parseInt(job.max_experience) || 50;
+        let expScore = 0;
+        if (jobMinExp === 0 && jobMaxExp === 0) {
+          expScore = 25;
+        } else if (candExp >= jobMinExp && candExp <= jobMaxExp) {
+          expScore = 25;
+        } else if (candExp < jobMinExp) {
+          expScore = Math.max(0, 25 - (jobMinExp - candExp) * 4);
+        } else {
+          expScore = 20;
+        }
+        score += expScore;
+        if (expScore >= 20) matched.push("Experience");
+        else
+          missing.push(
+            `Experience (you have ${candExp} yrs, job needs ${jobMinExp}-${jobMaxExp})`,
+          );
+
+        // ── Speciality (20pts) ──
+        let specScore = 0;
+        if (!job.speciality_id) {
+          specScore = 20;
+          matched.push("Speciality");
+        } else if (candSpecialityIds.includes(Number(job.speciality_id))) {
+          specScore = 20;
+          matched.push("Speciality");
+        } else {
+          missing.push("Speciality");
+        }
+        score += specScore;
+
+        // ── Degree (10pts) ──
+        const jobDegreeTypeId = job.degree_id ? Number(job.degree_id) : null;
+        const jobDegreeFieldId = job.degreefields_id
+          ? Number(job.degreefields_id)
+          : null;
+        let degreeScore = 0;
+
+        if (!jobDegreeTypeId && !jobDegreeFieldId) {
+          degreeScore = hasDegree ? 10 : 0;
+          if (hasDegree) matched.push("Education");
+          else missing.push("Education");
+        } else {
+          const degreeTypeMatch = candDegreeTypeIds.includes(jobDegreeTypeId);
+          const degreeFieldMatch =
+            candDegreeFieldIds.includes(jobDegreeFieldId);
+          if (jobDegreeFieldId && jobDegreeTypeId) {
+            if (degreeFieldMatch && degreeTypeMatch) {
+              degreeScore = 10;
+              matched.push("Education (degree & field match)");
+            } else if (degreeTypeMatch || degreeFieldMatch) {
+              degreeScore = 5;
+              matched.push(
+                `Education (partial: ${degreeTypeMatch ? "type" : "field"} matched)`,
+              );
+            } else if (hasDegree) {
+              degreeScore = 2;
+              missing.push("Education (wrong degree type & field)");
+            } else {
+              degreeScore = 0;
+              missing.push("Education (none)");
+            }
+          } else if (jobDegreeFieldId) {
+            if (degreeFieldMatch) {
+              degreeScore = 10;
+              matched.push("Education (field match)");
+            } else if (hasDegree) {
+              degreeScore = 3;
+              missing.push("Education (wrong field)");
+            } else {
+              degreeScore = 0;
+              missing.push("Education (none)");
+            }
+          } else if (jobDegreeTypeId) {
+            if (degreeTypeMatch) {
+              degreeScore = 10;
+              matched.push("Education (degree type match)");
+            } else if (hasDegree) {
+              degreeScore = 3;
+              missing.push("Education (wrong degree type)");
+            } else {
+              degreeScore = 0;
+              missing.push("Education (none)");
+            }
+          }
+        }
+        score += degreeScore;
+        const degreeMatched = degreeScore >= 5;
+
+        // ── Salary (15pts) ──
+        const jobMinSalary = parseFloat(job.min_salary || 0);
+        const jobMaxSalary = parseFloat(job.max_salary || 0);
+        let salaryScore = 15;
+        let salaryOver = false;
+        if (jobMinSalary || jobMaxSalary) {
+          if (candSalary >= jobMinSalary && candSalary <= jobMaxSalary) {
+            salaryScore = 15;
+            matched.push("Salary");
+          } else if (candSalary < jobMinSalary) {
+            salaryScore = 10;
+            matched.push("Salary (you expect less)");
+          } else {
+            const overage = ((candSalary - jobMaxSalary) / jobMaxSalary) * 100;
+            salaryScore = overage > 50 ? 0 : overage > 25 ? 5 : 8;
+            salaryOver = true;
+            missing.push("Salary (your expectation exceeds job budget)");
+          }
+        } else {
+          matched.push("Salary");
+        }
+        score += salaryScore;
+
+        // ── Availability (10pts) ──
+        let availScore = 0;
+        if (!job.time_from || !job.time_to) {
           availScore = 10;
           matched.push("Availability");
+        } else if (availabilityRows.length === 0) {
+          availScore = 5;
+          missing.push("Availability (you haven't set availability)");
         } else {
-          availScore = 0;
-          missing.push(`Availability (your hours don't overlap with ${job.time_from}–${job.time_to})`);
+          const hasOverlap = availabilityRows.some(
+            (slot) =>
+              slot.time_from <= job.time_to && slot.time_to >= job.time_from,
+          );
+          if (hasOverlap) {
+            availScore = 10;
+            matched.push("Availability");
+          } else {
+            availScore = 0;
+            missing.push(
+              `Availability (your hours don't overlap with ${job.time_from}–${job.time_to})`,
+            );
+          }
         }
-      }
-      score += availScore;
+        score += availScore;
 
-      // ── Tier (same logic as getAllApplicants) ──
-      const skillsMatched = skillScore >= 20;
-      const expMatched = expScore >= 20;
-      const specMatched = specScore === 20;
-      const coreCriteriaCount = [skillsMatched, expMatched, specMatched, degreeMatched].filter(Boolean).length;
+        // ── Tier (same logic as getAllApplicants) ──
+        const skillsMatched = skillScore >= 20;
+        const expMatched = expScore >= 20;
+        const specMatched = specScore === 20;
+        const coreCriteriaCount = [
+          skillsMatched,
+          expMatched,
+          specMatched,
+          degreeMatched,
+        ].filter(Boolean).length;
 
-      // filter out jobs where nothing at all matched
-      if (coreCriteriaCount === 0) return null;
+        // filter out jobs where nothing at all matched
+        if (coreCriteriaCount === 0) return null;
 
-      let tier, tier_label, tier_color;
-      if (coreCriteriaCount === 4) { tier = "strong"; tier_label = "Strong Match"; tier_color = "green"; }
-      else if (coreCriteriaCount >= 2) { tier = "good"; tier_label = "Good Match"; tier_color = "blue"; }
-      else { tier = "weak"; tier_label = "Partial Match"; tier_color = "amber"; }
+        let tier, tier_label, tier_color;
+        if (coreCriteriaCount === 4) {
+          tier = "strong";
+          tier_label = "Strong Match";
+          tier_color = "green";
+        } else if (coreCriteriaCount >= 2) {
+          tier = "good";
+          tier_label = "Good Match";
+          tier_color = "blue";
+        } else {
+          tier = "weak";
+          tier_label = "Partial Match";
+          tier_color = "amber";
+        }
 
-      if (salaryOver && tier === "strong") {
-        tier = "good"; tier_label = "Good Match"; tier_color = "blue";
-      }
+        if (salaryOver && tier === "strong") {
+          tier = "good";
+          tier_label = "Good Match";
+          tier_color = "blue";
+        }
 
-      return {
-        id: job.id,
-        job_title: job.job_title,
-        job_description: job.job_description,
-        job_type: job.job_type,
-        currency: job.currency,
-        min_salary: job.min_salary,
-        max_salary: job.max_salary,
-        min_experience: job.min_experience,
-        max_experience: job.max_experience,
-        company_name: job.company_name,
-        logo: job.logo ? job.logo.toString("base64") : null,
-        created_at: job.created_at,
-        already_applied: !!job.already_applied,
-        application_status: job.application_status || null,
-        is_sponsored: !!job.is_sponsored,
-        location_type,
-        ai_score: Math.min(100, score),
-        tier,
-        tier_label,
-        tier_color,
-        matched,
-        missing,
-      };
-    })
+        return {
+          id: job.id,
+          job_title: job.job_title,
+          job_description: job.job_description,
+          job_type: job.job_type,
+          currency: job.currency,
+          min_salary: job.min_salary,
+          max_salary: job.max_salary,
+          min_experience: job.min_experience,
+          max_experience: job.max_experience,
+          company_name: job.company_name,
+          logo: job.logo ? job.logo.toString("base64") : null,
+          created_at: job.created_at,
+          already_applied: !!job.already_applied,
+          application_status: job.application_status || null,
+          pipeline_status: job.pipeline_status || null,
+          is_sponsored: !!job.is_sponsored,
+          location_type,
+          ai_score: Math.min(100, score),
+          tier,
+          tier_label,
+          tier_color,
+          matched,
+          missing,
+        };
+      })
       .filter(Boolean)
       .sort((a, b) => {
-        if (tierOrder[a.tier] !== tierOrder[b.tier]) return tierOrder[a.tier] - tierOrder[b.tier];
-        const locOrder = { remote: 0, main_city: 0, preferred_city: 1, pipeline: 2 };
-        if (locOrder[a.location_type] !== locOrder[b.location_type]) return locOrder[a.location_type] - locOrder[b.location_type];
+        if (tierOrder[a.tier] !== tierOrder[b.tier])
+          return tierOrder[a.tier] - tierOrder[b.tier];
+        const locOrder = {
+          remote: 0,
+          main_city: 0,
+          preferred_city: 1,
+          pipeline: 2,
+        };
+        if (locOrder[a.location_type] !== locOrder[b.location_type])
+          return locOrder[a.location_type] - locOrder[b.location_type];
         if (b.is_sponsored !== a.is_sponsored) return b.is_sponsored ? 1 : -1;
         return b.ai_score - a.ai_score;
       });
@@ -1999,7 +2169,6 @@ const getMatchingJobsForCandidate = async (req, res) => {
     };
 
     return res.json({ success: true, summary, data: tieredJobs });
-
   } catch (err) {
     console.error("getMatchingJobsForCandidate error:", err);
     return res.status(500).json({ error: "Server error" });
@@ -2039,13 +2208,21 @@ const getAllCandidatesForEmployer = (req, res) => {
   }
 
   if (experience === "fresh") {
-    whereConditions.push(`(ci.total_experience = '0' OR ci.total_experience IS NULL OR ci.total_experience = '' OR ci.is_fresher = 1)`);
+    whereConditions.push(
+      `(ci.total_experience = '0' OR ci.total_experience IS NULL OR ci.total_experience = '' OR ci.is_fresher = 1)`,
+    );
   } else if (experience === "1-3") {
-    whereConditions.push(`CAST(IFNULL(ci.total_experience, 0) AS UNSIGNED) BETWEEN 1 AND 3`);
+    whereConditions.push(
+      `CAST(IFNULL(ci.total_experience, 0) AS UNSIGNED) BETWEEN 1 AND 3`,
+    );
   } else if (experience === "3-5") {
-    whereConditions.push(`CAST(IFNULL(ci.total_experience, 0) AS UNSIGNED) BETWEEN 3 AND 5`);
+    whereConditions.push(
+      `CAST(IFNULL(ci.total_experience, 0) AS UNSIGNED) BETWEEN 3 AND 5`,
+    );
   } else if (experience === "5+") {
-    whereConditions.push(`CAST(IFNULL(ci.total_experience, 0) AS UNSIGNED) >= 5`);
+    whereConditions.push(
+      `CAST(IFNULL(ci.total_experience, 0) AS UNSIGNED) >= 5`,
+    );
   }
 
   const whereClause = `WHERE ${whereConditions.join(" AND ")}`;
@@ -2108,7 +2285,10 @@ const getAllCandidatesForEmployer = (req, res) => {
       const candidates = results.map((c) => {
         let skillIds = [];
         try {
-          const parsed = typeof c.skills === "string" ? JSON.parse(c.skills) : (c.skills || []);
+          const parsed =
+            typeof c.skills === "string"
+              ? JSON.parse(c.skills)
+              : c.skills || [];
           skillIds = Array.isArray(parsed) ? parsed : [];
         } catch {
           skillIds = [];
@@ -2131,7 +2311,7 @@ const getAllCandidatesForEmployer = (req, res) => {
           gender: c.gender || null,
           skills_count: skillIds.length,
           availability_status: c.availability_status || "Not specified",
-          passport_photo: photoUrl,  // ✅ Added this
+          passport_photo: photoUrl, // ✅ Added this
         };
       });
 
@@ -2194,7 +2374,10 @@ const parseCVAndSave = async (req, res) => {
       console.log("File mimetype:", file.mimetype);
       console.log("File size:", fileBuffer.length, "bytes");
 
-      if (file.mimetype === "application/pdf" || file.originalname?.toLowerCase().endsWith(".pdf")) {
+      if (
+        file.mimetype === "application/pdf" ||
+        file.originalname?.toLowerCase().endsWith(".pdf")
+      ) {
         const dataBuffer = fs.readFileSync(file.path);
         const pdfData = await pdfParse(dataBuffer);
         cvText = pdfData.text || "";
@@ -2206,7 +2389,6 @@ const parseCVAndSave = async (req, res) => {
         cvText = result.value || "";
         console.log("DOC text length:", cvText.length);
       }
-
     } catch (parseErr) {
       console.error("CV parse error:", parseErr.message);
       cvText = "";
@@ -2235,7 +2417,8 @@ const parseCVAndSave = async (req, res) => {
           messages: [
             {
               role: "system",
-              content: "You are a CV parser. Extract information and return ONLY valid JSON. No markdown, no explanation.",
+              content:
+                "You are a CV parser. Extract information and return ONLY valid JSON. No markdown, no explanation.",
             },
             {
               role: "user",
@@ -2262,7 +2445,6 @@ ${cvText.slice(0, 3000)}`,
         const cleanJson = aiText.replace(/```json|```/g, "").trim();
         extracted = JSON.parse(cleanJson);
         console.log("=== EXTRACTED ===", extracted);
-
       } catch (aiErr) {
         console.error("=== AI ERROR ===");
         console.error("Status:", aiErr.status);
@@ -2277,9 +2459,13 @@ ${cvText.slice(0, 3000)}`,
     if (extracted.skills_text?.length) {
       console.log("Skills to match:", extracted.skills_text);
 
-      const skillNames = extracted.skills_text.map(s => s.toLowerCase().trim());
-      const placeholders = skillNames.map(() => "LOWER(name) LIKE ?").join(" OR ");
-      const skillValues = skillNames.map(s => `%${s}%`);
+      const skillNames = extracted.skills_text.map((s) =>
+        s.toLowerCase().trim(),
+      );
+      const placeholders = skillNames
+        .map(() => "LOWER(name) LIKE ?")
+        .join(" OR ");
+      const skillValues = skillNames.map((s) => `%${s}%`);
 
       await new Promise((resolve) => {
         connection.query(
@@ -2288,9 +2474,9 @@ ${cvText.slice(0, 3000)}`,
           (err, rows) => {
             if (err) console.error("Skills DB error:", err);
             console.log("Skills matched from DB:", rows);
-            if (!err && rows) skillIds = rows.map(r => r.id);
+            if (!err && rows) skillIds = rows.map((r) => r.id);
             resolve();
-          }
+          },
         );
       });
     }
@@ -2312,31 +2498,34 @@ ${cvText.slice(0, 3000)}`,
         profile_completed = 1
     `;
 
-    connection.query(sql, [
-      accountId,
-      extracted.full_name || null,
-      extracted.total_experience || null,
-      skillIds.length ? JSON.stringify(skillIds) : null,
-      resumePath,
-      extracted.is_fresher ? 1 : 0,
-    ], (err) => {
-      if (err) {
-        console.error("CV DB save error:", err);
-        return res.status(500).json({ error: err.message });
-      }
+    connection.query(
+      sql,
+      [
+        accountId,
+        extracted.full_name || null,
+        extracted.total_experience || null,
+        skillIds.length ? JSON.stringify(skillIds) : null,
+        resumePath,
+        extracted.is_fresher ? 1 : 0,
+      ],
+      (err) => {
+        if (err) {
+          console.error("CV DB save error:", err);
+          return res.status(500).json({ error: err.message });
+        }
 
-      return res.json({
-        success: true,
-        message: "CV uploaded and parsed successfully",
-        extracted: {
-          full_name: extracted.full_name,
-          total_experience: extracted.total_experience,
-          skills_found: skillIds.length,
-          is_fresher: extracted.is_fresher,
-        },
-      });
-    });
-
+        return res.json({
+          success: true,
+          message: "CV uploaded and parsed successfully",
+          extracted: {
+            full_name: extracted.full_name,
+            total_experience: extracted.total_experience,
+            skills_found: skillIds.length,
+            is_fresher: extracted.is_fresher,
+          },
+        });
+      },
+    );
   } catch (error) {
     console.error("parseCVAndSave error:", error);
     return res.status(500).json({ error: error.message });
@@ -2362,7 +2551,7 @@ const toggleSaveJob = (req, res) => {
           (err2) => {
             if (err2) return res.status(500).json({ error: "Database error" });
             res.json({ success: true, saved: false });
-          }
+          },
         );
       } else {
         connection.query(
@@ -2371,10 +2560,10 @@ const toggleSaveJob = (req, res) => {
           (err2) => {
             if (err2) return res.status(500).json({ error: "Database error" });
             res.json({ success: true, saved: true });
-          }
+          },
         );
       }
-    }
+    },
   );
 };
 
@@ -2404,13 +2593,13 @@ const getSavedJobs = (req, res) => {
     (err, results) => {
       if (err) return res.status(500).json({ error: "Database error" });
 
-      const jobs = results.map(job => ({
+      const jobs = results.map((job) => ({
         ...job,
         logo: job.logo ? job.logo.toString("base64") : null,
       }));
 
       res.json({ success: true, data: jobs });
-    }
+    },
   );
 };
 
@@ -2512,7 +2701,7 @@ const saveJobPreferences = (req, res) => {
           message: "Job preferences saved successfully",
         });
       });
-    }
+    },
   );
 };
 
@@ -2633,8 +2822,8 @@ const getJobAlerts = (req, res) => {
     const alerts = results.map((alert) => ({
       ...alert,
       logo: alert.logo ? alert.logo.toString("base64") : null,
-       alert_type: alert.alert_type || 'job_match',  // ← add this
-  message: alert.message || null,  
+      alert_type: alert.alert_type || "job_match", // ← add this
+      message: alert.message || null,
     }));
 
     return res.status(200).json({
@@ -2661,7 +2850,9 @@ const markJobAlertRead = (req, res) => {
       console.error("markJobAlertRead error:", err);
       return res.status(500).json({ error: "Database error" });
     }
-    return res.status(200).json({ success: true, message: "Alert marked as read" });
+    return res
+      .status(200)
+      .json({ success: true, message: "Alert marked as read" });
   });
 };
 
@@ -2680,7 +2871,9 @@ const markAllJobAlertsRead = (req, res) => {
       console.error("markAllJobAlertsRead error:", err);
       return res.status(500).json({ error: "Database error" });
     }
-    return res.status(200).json({ success: true, message: "All alerts marked as read" });
+    return res
+      .status(200)
+      .json({ success: true, message: "All alerts marked as read" });
   });
 };
 
@@ -2688,31 +2881,37 @@ const markAllJobAlertsRead = (req, res) => {
 
 const getProfileViewStats = (req, res) => {
   const accountId = req.user.userId;
-  const { period = '28days' } = req.query;
+  const { period = "28days" } = req.query;
 
   const getCandidateIdSql = `SELECT id FROM candidate_info WHERE account_id = ? LIMIT 1`;
 
   connection.query(getCandidateIdSql, [accountId], (err, candidateRows) => {
     if (err) return res.status(500).json({ error: "Database error" });
-    if (!candidateRows.length) return res.json({ success: true, data: [], current_total: 0, previous_total: 0 });
+    if (!candidateRows.length)
+      return res.json({
+        success: true,
+        data: [],
+        current_total: 0,
+        previous_total: 0,
+      });
 
     const candidateInfoId = candidateRows[0].id;
 
     let currentInterval, previousInterval, groupFormat, labelFormat;
 
-    if (period === '28days') {
-      currentInterval = 'INTERVAL 28 DAY';
-      previousInterval = 'INTERVAL 56 DAY';
-      groupFormat = '%Y-%m-%d';   // group by day
-    } else if (period === 'weekly') {
-      currentInterval = 'INTERVAL 8 WEEK';
-      previousInterval = 'INTERVAL 16 WEEK';
-      groupFormat = '%x-%v';      // ISO year-week
+    if (period === "28days") {
+      currentInterval = "INTERVAL 28 DAY";
+      previousInterval = "INTERVAL 56 DAY";
+      groupFormat = "%Y-%m-%d"; // group by day
+    } else if (period === "weekly") {
+      currentInterval = "INTERVAL 8 WEEK";
+      previousInterval = "INTERVAL 16 WEEK";
+      groupFormat = "%x-%v"; // ISO year-week
     } else {
       // monthly
-      currentInterval = 'INTERVAL 6 MONTH';
-      previousInterval = 'INTERVAL 12 MONTH';
-      groupFormat = '%Y-%m';
+      currentInterval = "INTERVAL 6 MONTH";
+      previousInterval = "INTERVAL 12 MONTH";
+      groupFormat = "%Y-%m";
     }
 
     // Fetch current period data
@@ -2736,72 +2935,89 @@ const getProfileViewStats = (req, res) => {
         AND searched_at <  DATE_SUB(NOW(), ${currentInterval})
     `;
 
-    connection.query(currentSql, [groupFormat, candidateInfoId], (err2, currentRows) => {
-      if (err2) return res.status(500).json({ error: "Database error" });
+    connection.query(
+      currentSql,
+      [groupFormat, candidateInfoId],
+      (err2, currentRows) => {
+        if (err2) return res.status(500).json({ error: "Database error" });
 
-      connection.query(previousSql, [candidateInfoId], (err3, prevRows) => {
-        if (err3) return res.status(500).json({ error: "Database error" });
+        connection.query(previousSql, [candidateInfoId], (err3, prevRows) => {
+          if (err3) return res.status(500).json({ error: "Database error" });
 
-        const previousTotal = prevRows[0]?.total || 0;
-        const currentTotal = currentRows.reduce((sum, r) => sum + r.count, 0);
+          const previousTotal = prevRows[0]?.total || 0;
+          const currentTotal = currentRows.reduce((sum, r) => sum + r.count, 0);
 
-        let filledData = [];
+          let filledData = [];
 
-        if (period === '28days') {
-          for (let i = 27; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            const key = d.toISOString().slice(0, 10); // "2026-05-18"
+          if (period === "28days") {
+            for (let i = 27; i >= 0; i--) {
+              const d = new Date();
+              d.setDate(d.getDate() - i);
+              const key = d.toISOString().slice(0, 10); // "2026-05-18"
 
-            // Label: "5 May", "6 May" etc
-            const label = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+              // Label: "5 May", "6 May" etc
+              const label = d.toLocaleDateString("en-US", {
+                day: "numeric",
+                month: "short",
+              });
 
-            const found = currentRows.find(r => r.period_key === key);
-            filledData.push({ label, count: found ? found.count : 0 });
+              const found = currentRows.find((r) => r.period_key === key);
+              filledData.push({ label, count: found ? found.count : 0 });
+            }
+          } else if (period === "weekly") {
+            filledData = currentRows.map((r) => {
+              const [year, week] = r.period_key.split("-").map(Number);
+              const jan4 = new Date(year, 0, 4);
+              const dow = jan4.getDay() || 7;
+              const mon = new Date(jan4);
+              mon.setDate(jan4.getDate() - (dow - 1) + (week - 1) * 7);
+              const sun = new Date(mon);
+              sun.setDate(mon.getDate() + 6);
+              const fmt = (d) =>
+                d.toLocaleDateString("en-US", {
+                  day: "numeric",
+                  month: "short",
+                });
+              return { label: `${fmt(mon)} – ${fmt(sun)}`, count: r.count };
+            });
+          } else {
+            // monthly
+            filledData = currentRows.map((r) => {
+              const [year, month] = r.period_key.split("-");
+              const label = new Date(
+                year,
+                parseInt(month) - 1,
+                1,
+              ).toLocaleDateString("en-US", {
+                month: "short",
+                year: "numeric",
+              });
+              return { label, count: r.count };
+            });
           }
 
-        } else if (period === 'weekly') {
-          filledData = currentRows.map(r => {
-            const [year, week] = r.period_key.split('-').map(Number);
-            const jan4 = new Date(year, 0, 4);
-            const dow = jan4.getDay() || 7;
-            const mon = new Date(jan4);
-            mon.setDate(jan4.getDate() - (dow - 1) + (week - 1) * 7);
-            const sun = new Date(mon);
-            sun.setDate(mon.getDate() + 6);
-            const fmt = d => d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
-            return { label: `${fmt(mon)} – ${fmt(sun)}`, count: r.count };
+          return res.json({
+            success: true,
+            data: filledData,
+            current_total: currentTotal,
+            previous_total: previousTotal,
+            period,
           });
-
-        } else {
-          // monthly
-          filledData = currentRows.map(r => {
-            const [year, month] = r.period_key.split('-');
-            const label = new Date(year, parseInt(month) - 1, 1)
-              .toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-            return { label, count: r.count };
-          });
-        }
-
-        return res.json({
-          success: true,
-          data: filledData,
-          current_total: currentTotal,
-          previous_total: previousTotal,
-          period,
         });
-      });
-    });
+      },
+    );
   });
 };
 
 // Helper function to get week number
 function getWeekNumber(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const d = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+  );
   const dayNum = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
 }
 
 // Track profile view - now using candidate_search_impressions
@@ -2838,7 +3054,7 @@ const trackProfileView = (req, res) => {
       (err2) => {
         if (err2) console.error("Track view error:", err2);
         res.status(200).json({ success: true });
-      }
+      },
     );
   });
 };
@@ -2873,7 +3089,7 @@ const getCandidatePackages = (req, res) => {
   connection.query(sql, [accountId], (err, results) => {
     if (err) return res.status(500).json({ error: "Database error" });
 
-    const packages = results.map(p => ({
+    const packages = results.map((p) => ({
       subscription_id: p.subscription_id,
       package_name: p.package_name,
       pricing_model: p.pricing_model,
@@ -2886,7 +3102,7 @@ const getCandidatePackages = (req, res) => {
       currency: p.currency,
       duration_days: p.boost_duration_days || p.duration_days || 0,
       description: p.description,
-      is_active: p.status === 'active',
+      is_active: p.status === "active",
     }));
 
     res.json({ success: true, data: packages });

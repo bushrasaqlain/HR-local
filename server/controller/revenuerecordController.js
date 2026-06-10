@@ -101,7 +101,54 @@ const revenueOverview = async (req, res) => {
     res.status(500).json({ error: "Internal server error", details: err.message });
   }
 };
+const dailySpendByJob = async (req, res) => {
+  try {
+    const data = await revenuerecordModel.getDailySpendByJob(req.params.jobId);
+    res.status(200).json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
+const dailySpendByAccount = async (req, res) => {
+  try {
+    const { days } = req.query;
+    const data = await revenuerecordModel.getDailySpendByAccount(req.params.accountId, days);
+    res.status(200).json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+const issueRefund = async (req, res) => {
+  try {
+    const { account_id, payment_id, job_id, amount, description } = req.body;
+    if (!account_id || !amount) return res.status(400).json({ error: "account_id and amount required" });
+    const id = await revenuerecordModel.logRefund({ account_id, payment_id, job_id, amount, description });
+    res.status(200).json({ success: true, billing_event_id: id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const issueAdjustment = async (req, res) => {
+  try {
+    const { account_id, amount, description } = req.body;
+    if (!account_id || amount === undefined) return res.status(400).json({ error: "account_id and amount required" });
+    const id = await revenuerecordModel.logAdjustment({ account_id, amount, description });
+    res.status(200).json({ success: true, billing_event_id: id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const refundHistory = async (req, res) => {
+  try {
+    const data = await revenuerecordModel.getRefundHistory(req.query);
+    res.status(200).json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
 // ═══════════════════════════════════════════════════════════════════
 //  EXPORTS
@@ -116,4 +163,9 @@ module.exports = {
   adminAlerts,
   companyRevenueDetail,
   revenueOverview,
+  dailySpendByJob,
+  dailySpendByAccount,
+  issueRefund,
+  issueAdjustment,
+  refundHistory
 };

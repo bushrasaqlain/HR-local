@@ -148,6 +148,7 @@ Best of luck!/p>
         job_id INT,
         message VARCHAR(500),
         candidate_id INT,
+        source ENUM('candidate','employer') NOT NULL DEFAULT 'candidate',
         status ENUM('Pending','Saved','Shortlisted','Considered','Offered','Selected','Joined','Rejected','Refused to Join','Cancelled') DEFAULT 'Pending',
   offer_date DATE NULL,
   offered_salary DECIMAL(10,2) NULL,
@@ -742,254 +743,292 @@ Best of luck!/p>
   // ─────────────────────────────────────────────────────────────────
   // unlockCandidate
   // ─────────────────────────────────────────────────────────────────
-  const unlockCandidate = async (req, res) => {
-    try {
-      const { candidateId, jobId } = req.body;
-      if (!candidateId || !jobId) return res.status(400).json({ error: "candidateId and jobId are required" });
+const unlockCandidate = async (req, res) => {
+  try {
+    const { candidateId, jobId } = req.body;
+    if (!candidateId || !jobId) 
+      return res.status(400).json({ error: "candidateId and jobId are required" });
 
-      // 1. Fetch job
-      const job = await new Promise((resolve, reject) =>
-        connection.query(
-          `SELECT billing_model, daily_budget, spent_amount, cost_per_click, account_id, approval_status, job_title FROM job_posts WHERE id = ?`,
-          [jobId], (err, rows) => (err ? reject(err) : resolve(rows[0]))
-        )
-      );
+    // 1. Fetch job
+    const job = await new Promise((resolve, reject) =>
+      connection.query(
+        `SELECT billing_model, daily_budget, spent_amount, cost_per_click, account_id, approval_status, job_title 
+         FROM job_posts WHERE id = ?`,
+        [jobId], (err, rows) => (err ? reject(err) : resolve(rows[0]))
+      )
+    );
 
-      if (!job) return res.status(404).json({ error: "Job not found" });
-      if (job.approval_status !== "Approved") return res.status(403).json({ error: "Job is not approved" });
-      if (job.billing_model !== "daily_budget") return res.status(400).json({ error: "This job does not use daily budget billing" });
+    if (!job) return res.status(404).json({ error: "Job not found" });
+    if (job.approval_status !== "Approved") return res.status(403).json({ error: "Job is not approved" });
+    if (job.billing_model !== "daily_budget") return res.status(400).json({ error: "This job does not use daily budget billing" });
 
-      const companyId = job.account_id;
-      const dailyCap = parseFloat(job.daily_budget || 0);
-      const spent = parseFloat(job.spent_amount || 0);
-      const cpc = parseFloat(job.cost_per_click || 0);
-      const remaining = dailyCap - spent;
+    const companyId = job.account_id;
+    const dailyCap = parseFloat(job.daily_budget || 0);
+    const spent = parseFloat(job.spent_amount || 0);
+    const cpc = parseFloat(job.cost_per_click || 0);
+    const remaining = dailyCap - spent;
 
-      // 2. Check if already unlocked
-      const alreadyUnlocked = await new Promise((resolve, reject) =>
-        connection.query(
-          `SELECT id FROM candidate_unlocks
-          WHERE employer_account_id = ? AND candidate_id = ? AND unlock_scope = 'full'
-            AND (job_id = ? OR DATE(unlocked_at) = CURDATE())`,
-          [companyId, candidateId, jobId],
-          (err, rows) => (err ? reject(err) : resolve(rows.length > 0))
-        )
-      );
+    // 2a. Check if already unlocked via CV credits (global, permanent — never re-charge)
+    const cvCreditUnlock = await new Promise((resolve, reject) =>
+      connection.query(
+        `SELECT id FROM candidate_unlocks
+         WHERE employer_account_id = ? AND candidate_id = ?
+           AND unlock_type = 'cv_credit' AND unlock_scope = 'full'`,
+        [companyId, candidateId],
+        (err, rows) => (err ? reject(err) : resolve(rows.length > 0))
+      )
+    );
 
-      if (!alreadyUnlocked) {
-        // 3. Budget check
-        if (remaining <= 0) {
-          return res.status(402).json({ error: "Daily budget exhausted", message: "Your daily budget has been used up. Please increase it or wait until tomorrow." });
-        }
+    // 2b. Check if already unlocked via daily budget for THIS specific job
+    const jobUnlock = await new Promise((resolve, reject) =>
+      connection.query(
+        `SELECT id FROM candidate_unlocks
+         WHERE employer_account_id = ? AND candidate_id = ?
+           AND job_id = ? AND unlock_type = 'daily_budget' AND unlock_scope = 'full'`,
+        [companyId, candidateId, jobId],
+        (err, rows) => (err ? reject(err) : resolve(rows.length > 0))
+      )
+    );
 
-        // 4. Deduct cost
-        const chargeAmount = Math.min(cpc, remaining);
-        await new Promise((resolve, reject) =>
-          connection.query(
-            `UPDATE job_posts SET spent_amount = LEAST(spent_amount + ?, daily_budget) WHERE id = ?`,
-            [chargeAmount, jobId], (err) => (err ? reject(err) : resolve())
-          )
-        );
+    const alreadyUnlocked = cvCreditUnlock || jobUnlock;
 
-        // 5. Log unlock
-        await new Promise((resolve, reject) =>
-          connection.query(
-            `INSERT IGNORE INTO candidate_unlocks (employer_account_id, candidate_id, job_id, cost_charged, unlock_scope, company_package_id) VALUES (?, ?, ?, ?, 'full', NULL)`,
-            [companyId, candidateId, jobId, chargeAmount], (err) => (err ? reject(err) : resolve())
-          )
-        );
-
-        // 6. Employer history
-        logAudit({
-          tableName: "history", entityType: "employer", entityId: companyId, action: "CANDIDATE_UNLOCKED",
-          data: { event: `Employer unlocked candidate profile for job: ${job.job_title}`, candidateId, jobId, jobTitle: job.job_title, chargeAmount, already_unlocked: false },
-          changedBy: companyId,
-        });
-
-        // 7. Candidate history
-        logAudit({
-          tableName: "history", entityType: "candidate", entityId: candidateId, action: "PROFILE_VIEWED",
-          data: { event: `Your profile was viewed by an employer for job: ${job.job_title}`, jobId, jobTitle: job.job_title, employerId: companyId },
-          changedBy: companyId,
-        });
-
-        // 8. Auto-pause if budget exhausted
-        const newSpent = spent + chargeAmount;
-        if (newSpent >= dailyCap) {
-          connection.query(
-            `UPDATE job_posts SET status = 'Inactive' WHERE id = ? AND spent_amount >= daily_budget`,
-            [jobId], (err) => { if (err) console.error("Failed to auto-pause job:", err); else console.warn(`⚠️ Job ${jobId} auto-paused`); }
-          );
-        }
-      } else {
-        console.log(`ℹ️ Candidate ${candidateId} already unlocked today — no charge`);
-        logAudit({
-          tableName: "history", entityType: "employer", entityId: companyId, action: "CANDIDATE_PROFILE_REVISITED",
-          data: { event: `Employer re-viewed already unlocked candidate for job: ${job.job_title}`, candidateId, jobId, jobTitle: job.job_title, chargeAmount: 0, already_unlocked: true },
-          changedBy: companyId,
+    if (!alreadyUnlocked) {
+      // 3. Budget check
+      if (remaining <= 0) {
+        return res.status(402).json({
+          error: "Daily budget exhausted",
+          message: "Your daily budget has been used up. Please increase it or wait until tomorrow.",
         });
       }
 
-      // =============================================================
-      // 9. Fetch updated budget (AFTER potential deduction)
-      // =============================================================
-      const updatedJob = await new Promise((resolve, reject) =>
-        connection.query(`SELECT daily_budget, spent_amount, cost_per_click FROM job_posts WHERE id = ?`, [jobId], (err, rows) => (err ? reject(err) : resolve(rows[0])))
-      );
-
-      const updatedCap = parseFloat(updatedJob?.daily_budget || 0);
-      const updatedSpent = parseFloat(updatedJob?.spent_amount || 0);
-      const updatedRemaining = Math.max(0, updatedCap - updatedSpent);
-
-      // =============================================================
-      // 10. Fetch FULL candidate data with all related info
-      // =============================================================
-      const candidateRow = await new Promise((resolve, reject) =>
+      // 4. Deduct cost
+      const chargeAmount = Math.min(cpc, remaining);
+      await new Promise((resolve, reject) =>
         connection.query(
-          `SELECT c.*, a.email, a.username FROM candidate_info c 
-          INNER JOIN account a ON a.id = c.account_id 
-          WHERE c.id = ?`,
-          [candidateId],
-          (err, rows) => (err ? reject(err) : resolve(rows[0]))
+          `UPDATE job_posts SET spent_amount = LEAST(spent_amount + ?, daily_budget) WHERE id = ?`,
+          [chargeAmount, jobId], (err) => (err ? reject(err) : resolve())
         )
       );
 
-      if (!candidateRow) return res.status(404).json({ error: "Candidate not found" });
-
-      // Parse JSON fields
-      try {
-        candidateRow.skills = Array.isArray(candidateRow.skills)
-          ? candidateRow.skills
-          : JSON.parse(candidateRow.skills || "[]");
-      } catch {
-        candidateRow.skills = [];
-      }
-
-      try {
-        candidateRow.otherPreferredCities = Array.isArray(candidateRow.otherPreferredCities)
-          ? candidateRow.otherPreferredCities
-          : JSON.parse(candidateRow.otherPreferredCities || "[]");
-      } catch {
-        candidateRow.otherPreferredCities = [];
-      }
-
-      // Fetch experience with specialities
-      const experienceRows = await new Promise((resolve, reject) =>
+      // 5. Log unlock (daily_budget type, tied to this job)
+      await new Promise((resolve, reject) =>
         connection.query(
-          `SELECT e.*, s.name AS speciality_name 
-          FROM candidate_experience e 
-          LEFT JOIN speciality s ON e.speciality_id = s.id 
-          WHERE e.candidate_id = ?`,
-          [candidateId],
-          (err, rows) => (err ? reject(err) : resolve(rows))
+          `INSERT IGNORE INTO candidate_unlocks 
+           (employer_account_id, candidate_id, job_id, cost_charged, unlock_scope, unlock_type, company_package_id) 
+           VALUES (?, ?, ?, ?, 'full', 'daily_budget', NULL)`,
+          [companyId, candidateId, jobId, chargeAmount],
+          (err) => (err ? reject(err) : resolve())
         )
       );
 
-      // Fetch education
-      const educationRows = await new Promise((resolve, reject) =>
-        connection.query(
-          `SELECT ed.*, df.name AS degreefield_name, dt.name AS degreetype_name, ins.name AS institute_name
-          FROM candidate_education ed
-          LEFT JOIN degreefields df ON ed.degree_id = df.id
-          LEFT JOIN degreetypes dt ON df.degree_type_id = dt.id
-          LEFT JOIN institute ins ON ed.institute_id = ins.id
-          WHERE ed.candidate_id = ?`,
-          [candidateId],
-          (err, rows) => (err ? reject(err) : resolve(rows))
-        )
-      );
-
-      // Fetch availability
-      const availabilityRows = await new Promise((resolve, reject) =>
-        connection.query(
-          `SELECT * FROM candidate_availability WHERE candidate_id = ?`,
-          [candidateId],
-          (err, rows) => (err ? reject(err) : resolve(rows))
-        )
-      );
-
-      // Fetch certificates
-      const certificatesRows = await new Promise((resolve, reject) =>
-        connection.query(
-          `SELECT * FROM candidate_certificates WHERE candidate_id = ? ORDER BY created_at DESC`,
-          [candidateId],
-          (err, rows) => (err ? reject(err) : resolve(rows))
-        )
-      );
-
-      // Fetch research
-      const researchRows = await new Promise((resolve, reject) =>
-        connection.query(
-          `SELECT * FROM candidate_research WHERE candidate_id = ? ORDER BY created_at DESC`,
-          [candidateId],
-          (err, rows) => (err ? reject(err) : resolve(rows))
-        )
-      );
-
-      // Fetch skill names
-      const skillIds = candidateRow.skills || [];
-      let skillsWithNames = [];
-      if (skillIds.length) {
-        const skillRows = await new Promise((resolve, reject) =>
-          connection.query(
-            `SELECT id, name FROM skills WHERE id IN (?)`,
-            [skillIds],
-            (err, rows) => (err ? reject(err) : resolve(rows))
-          )
-        );
-        skillsWithNames = skillRows;
-      }
-
-      // Construct full candidate object
-      const fullCandidate = {
-        ...candidateRow,
-        skills: skillsWithNames,
-        experience: experienceRows.map(e => ({
-          id: e.id,
-          company_name: e.company_name,
-          designation: e.designation,
-          total_experience: e.total_experience,
-          start_date: e.start_date,
-          end_date: e.end_date,
-          speciality: e.speciality_id ? { id: e.speciality_id, name: e.speciality_name } : null
-        })),
-        education: educationRows.map(ed => ({
-          id: ed.id,
-          degreefield: { id: ed.degree_id, name: ed.degreefield_name },
-          degreetype: { id: ed.degree_type_id, name: ed.degreetype_name },
-          institute: { id: ed.institute_id, name: ed.institute_name },
-          is_ongoing: ed.is_ongoing,
-          start_date: ed.start_date,
-          end_date: ed.end_date
-        })),
-        availability: availabilityRows,
-        certificates: certificatesRows,
-        research: researchRows,
-      };
-
-      // =============================================================
-      // 11. FINAL RESPONSE (only ONE return statement)
-      // =============================================================
-      return res.status(200).json({
-        success: true,
-        charged: !alreadyUnlocked,
-        charge_amount: alreadyUnlocked ? 0 : Math.min(cpc, remaining),
-        candidate: { ...fullCandidate, locked: false },
-        budget_status: {
-          daily_cap: updatedCap,
-          spent_today: updatedSpent,
-          remaining_today: updatedRemaining,
-          is_exhausted: updatedSpent >= updatedCap,
-          cost_per_click: cpc
+      // 6. Employer audit log
+      logAudit({
+        tableName: "history",
+        entityType: "employer",
+        entityId: companyId,
+        action: "CANDIDATE_UNLOCKED",
+        data: {
+          event: `Employer unlocked candidate profile for job: ${job.job_title}`,
+          candidateId, jobId, jobTitle: job.job_title,
+          chargeAmount, already_unlocked: false,
+          unlock_type: "daily_budget",
         },
+        changedBy: companyId,
       });
 
-    } catch (err) {
-      console.error("unlockCandidate error:", err);
-      return res.status(500).json({ error: "Server error", details: err.message });
-    }
-  };
+      // 7. Candidate audit log
+      logAudit({
+        tableName: "history",
+        entityType: "candidate",
+        entityId: candidateId,
+        action: "PROFILE_VIEWED",
+        data: {
+          event: `Your profile was viewed by an employer for job: ${job.job_title}`,
+          jobId, jobTitle: job.job_title, employerId: companyId,
+        },
+        changedBy: companyId,
+      });
 
+      // 8. Auto-pause job if budget now exhausted
+      const newSpent = spent + chargeAmount;
+      if (newSpent >= dailyCap) {
+        connection.query(
+          `UPDATE job_posts SET status = 'Inactive' WHERE id = ? AND spent_amount >= daily_budget`,
+          [jobId],
+          (err) => {
+            if (err) console.error("Failed to auto-pause job:", err);
+            else console.warn(`⚠️ Job ${jobId} auto-paused — daily budget exhausted`);
+          }
+        );
+      }
+
+    } else {
+      // Already unlocked — log revisit, no charge
+      const revisitReason = cvCreditUnlock ? "cv_credit" : "daily_budget";
+      console.log(`ℹ️ Candidate ${candidateId} already unlocked (${revisitReason}) — no charge`);
+
+      logAudit({
+        tableName: "history",
+        entityType: "employer",
+        entityId: companyId,
+        action: "CANDIDATE_PROFILE_REVISITED",
+        data: {
+          event: `Employer re-viewed already unlocked candidate for job: ${job.job_title}`,
+          candidateId, jobId, jobTitle: job.job_title,
+          chargeAmount: 0, already_unlocked: true,
+          unlock_type: revisitReason,
+        },
+        changedBy: companyId,
+      });
+    }
+
+    // 9. Fetch updated budget (after potential deduction)
+    const updatedJob = await new Promise((resolve, reject) =>
+      connection.query(
+        `SELECT daily_budget, spent_amount, cost_per_click FROM job_posts WHERE id = ?`,
+        [jobId], (err, rows) => (err ? reject(err) : resolve(rows[0]))
+      )
+    );
+
+    const updatedCap = parseFloat(updatedJob?.daily_budget || 0);
+    const updatedSpent = parseFloat(updatedJob?.spent_amount || 0);
+    const updatedRemaining = Math.max(0, updatedCap - updatedSpent);
+
+    // 10. Fetch full candidate data
+    const candidateRow = await new Promise((resolve, reject) =>
+      connection.query(
+        `SELECT c.*, a.email, a.username FROM candidate_info c 
+         INNER JOIN account a ON a.id = c.account_id 
+         WHERE c.id = ?`,
+        [candidateId],
+        (err, rows) => (err ? reject(err) : resolve(rows[0]))
+      )
+    );
+
+    if (!candidateRow) return res.status(404).json({ error: "Candidate not found" });
+
+    // Parse JSON fields
+    try {
+      candidateRow.skills = Array.isArray(candidateRow.skills)
+        ? candidateRow.skills
+        : JSON.parse(candidateRow.skills || "[]");
+    } catch { candidateRow.skills = []; }
+
+    try {
+      candidateRow.otherPreferredCities = Array.isArray(candidateRow.otherPreferredCities)
+        ? candidateRow.otherPreferredCities
+        : JSON.parse(candidateRow.otherPreferredCities || "[]");
+    } catch { candidateRow.otherPreferredCities = []; }
+
+    // Fetch experience
+    const experienceRows = await new Promise((resolve, reject) =>
+      connection.query(
+        `SELECT e.*, s.name AS speciality_name 
+         FROM candidate_experience e 
+         LEFT JOIN speciality s ON e.speciality_id = s.id 
+         WHERE e.candidate_id = ?`,
+        [candidateId], (err, rows) => (err ? reject(err) : resolve(rows))
+      )
+    );
+
+    // Fetch education
+    const educationRows = await new Promise((resolve, reject) =>
+      connection.query(
+        `SELECT ed.*, df.name AS degreefield_name, dt.name AS degreetype_name, ins.name AS institute_name
+         FROM candidate_education ed
+         LEFT JOIN degreefields df ON ed.degree_id = df.id
+         LEFT JOIN degreetypes dt ON df.degree_type_id = dt.id
+         LEFT JOIN institute ins ON ed.institute_id = ins.id
+         WHERE ed.candidate_id = ?`,
+        [candidateId], (err, rows) => (err ? reject(err) : resolve(rows))
+      )
+    );
+
+    // Fetch availability
+    const availabilityRows = await new Promise((resolve, reject) =>
+      connection.query(
+        `SELECT * FROM candidate_availability WHERE candidate_id = ?`,
+        [candidateId], (err, rows) => (err ? reject(err) : resolve(rows))
+      )
+    );
+
+    // Fetch certificates
+    const certificatesRows = await new Promise((resolve, reject) =>
+      connection.query(
+        `SELECT * FROM candidate_certificates WHERE candidate_id = ? ORDER BY created_at DESC`,
+        [candidateId], (err, rows) => (err ? reject(err) : resolve(rows))
+      )
+    );
+
+    // Fetch research
+    const researchRows = await new Promise((resolve, reject) =>
+      connection.query(
+        `SELECT * FROM candidate_research WHERE candidate_id = ? ORDER BY created_at DESC`,
+        [candidateId], (err, rows) => (err ? reject(err) : resolve(rows))
+      )
+    );
+
+    // Fetch skill names
+    const skillIds = candidateRow.skills || [];
+    let skillsWithNames = [];
+    if (skillIds.length) {
+      const skillRows = await new Promise((resolve, reject) =>
+        connection.query(
+          `SELECT id, name FROM skills WHERE id IN (?)`,
+          [skillIds], (err, rows) => (err ? reject(err) : resolve(rows))
+        )
+      );
+      skillsWithNames = skillRows;
+    }
+
+    // Construct full candidate object
+    const fullCandidate = {
+      ...candidateRow,
+      skills: skillsWithNames,
+      experience: experienceRows.map(e => ({
+        id: e.id,
+        company_name: e.company_name,
+        designation: e.designation,
+        total_experience: e.total_experience,
+        start_date: e.start_date,
+        end_date: e.end_date,
+        speciality: e.speciality_id ? { id: e.speciality_id, name: e.speciality_name } : null,
+      })),
+      education: educationRows.map(ed => ({
+        id: ed.id,
+        degreefield: { id: ed.degree_id, name: ed.degreefield_name },
+        degreetype: { id: ed.degree_type_id, name: ed.degreetype_name },
+        institute: { id: ed.institute_id, name: ed.institute_name },
+        is_ongoing: ed.is_ongoing,
+        start_date: ed.start_date,
+        end_date: ed.end_date,
+      })),
+      availability: availabilityRows,
+      certificates: certificatesRows,
+      research: researchRows,
+    };
+
+    // 11. Final response
+    return res.status(200).json({
+      success: true,
+      charged: !alreadyUnlocked,
+      charge_amount: alreadyUnlocked ? 0 : Math.min(cpc, remaining),
+      unlock_type: cvCreditUnlock ? "cv_credit" : "daily_budget",
+      candidate: { ...fullCandidate, locked: false },
+      budget_status: {
+        daily_cap: updatedCap,
+        spent_today: updatedSpent,
+        remaining_today: updatedRemaining,
+        is_exhausted: updatedSpent >= updatedCap,
+        cost_per_click: cpc,
+      },
+    });
+
+  } catch (err) {
+    console.error("unlockCandidate error:", err);
+    return res.status(500).json({ error: "Server error", details: err.message });
+  }
+};
   // ─────────────────────────────────────────────────────────────────
   // updateApplicantStatus
   // ─────────────────────────────────────────────────────────────────
@@ -1080,7 +1119,7 @@ if (notifiableStatuses.includes(status)) {
         });
 
       } else {
-        const insertQuery = `INSERT INTO applications (candidate_id, job_id, status, message, interview_day, interview_time) VALUES (?, ?, ?, ?, ?, ?)`;
+        const insertQuery = `INSERT INTO applications (candidate_id, job_id, status, message, interview_day, interview_time, source) VALUES (?, ?, ?, ?, ?, ?,'employer')`;
         connection.query(
           insertQuery,
           [candidateId, jobId, status || "Pending", message || "", interview_day || null, interview_time || null],
@@ -1151,8 +1190,8 @@ if (notifiableStatuses.includes(status)) {
 
                 connection.query(
                   `INSERT INTO applications 
-                  (job_id, candidate_id, status, message)
-                  VALUES (?, ?, 'Pending', '')`,
+                  (job_id, candidate_id, status, message, source)
+                  VALUES (?, ?, 'Pending', '', 'candidate')`,
                   [job_id, candidateId],
                   (err3) => {
                     if (err3) {

@@ -245,12 +245,32 @@ class CompanyData extends Component {
                 Status:
               </Label>
               <Input
-                type="select"
-                id="statusFilter"
-                value={statusFilter}
-                onChange={this.handleStatusFilterChange}
-                style={{ display: "inline-block", width: "auto" }}
-              >
+  type="select"
+  id="statusFilter"
+  value={statusFilter}
+  onChange={this.handleStatusFilterChange}
+  style={{
+    display: "inline-block",
+    width: "auto",
+    borderColor: "#36565f",
+    color: "#36565f",
+    boxShadow: "none",
+    outline: "none",
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2336565f' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "right 8px center",
+    paddingRight: "28px",
+    appearance: "none",
+    WebkitAppearance: "none",
+  }}
+  onFocus={e => {
+    e.target.style.borderColor = "#36565f";
+    e.target.style.boxShadow = "0 0 0 0.2rem rgba(54,86,95,0.25)";
+  }}
+  onBlur={e => {
+    e.target.style.boxShadow = "none";
+  }}
+>
                 <option value="All">All</option>
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>

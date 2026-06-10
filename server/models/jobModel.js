@@ -4,6 +4,7 @@ const connection = require("../connection");
 const logAudit = require("../utils/auditLogger.js");
 const cron = require("node-cron"); 
 const { CompanyModule } = require("@faker-js/faker");
+const { logBillingEvent, logDailySpend } = require("../utils/billingLogger");
 
 const createJobPostTable = () => {
   const createjob_postsTableQuery = `
@@ -628,7 +629,21 @@ const approveJob = (req, res) => {
                             .json({ success: false, message: "Commit failed" }),
                         );
                       }
-
+ logBillingEvent({
+    account_id:    job.account_id,
+    job_id:        job.id,
+    payment_id:    payResult.insertId,
+    event_type:    'daily_budget_charge',
+    pricing_model: 'daily_budget',
+    amount:        job.daily_budget,
+    description:   `Daily budget charge on job approval: job_${job.id}`,
+  }).catch(err => console.error("billingLogger error:", err));
+  logDailySpend({
+  job_id:     job.id,
+  account_id: job.account_id,
+  amount:     job.daily_budget,
+  clicks:     0,
+}).catch(err => console.error("logDailySpend error:", err));
                       // ✅ ALREADY EXISTS — job timeline
                       logAudit({
                         tableName: "history",
@@ -2441,7 +2456,20 @@ const viewCandidate = (req, res) => {
                             .json({ success: false, message: "Commit failed" }),
                         );
                       }
-
+  logBillingEvent({
+    account_id:    userId,
+    job_id:        job.id,
+    event_type:    'daily_budget_charge',
+    pricing_model: 'daily_budget',
+    amount:        job.cost_per_click,
+    description:   `CPC click: job_${job.id} candidate_${candidateId}`,
+  }).catch(err => console.error("billingLogger error:", err));
+  logDailySpend({
+  job_id:     job.id,
+  account_id: userId,
+  amount:     job.cost_per_click,
+  clicks:     1,
+}).catch(err => console.error("logDailySpend error:", err));
                       // ─────────────────────────────────────────────
                       // STEP 6: RETURN CANDIDATE PROFILE
                       // ─────────────────────────────────────────────

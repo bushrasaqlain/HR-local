@@ -4,6 +4,7 @@ const connection = require("../connection");
 const authMiddleware = require("../middleware/auth");
 const logAudit = require("../utils/auditLogger");
 const { subcribePackageInternal } = require("./jobModel");
+const { logBillingEvent, logDailySpend } = require("../utils/billingLogger");
 
 
 const createPaymentTable = () => {
@@ -298,8 +299,20 @@ logAudit({
           subcribePackageInternal({ userId, packageId, paymentId })
             .then((subResult) => {
               const finalize = () => {
-                connection.commit((err4) => {
-                  if (err4) return connection.rollback(() => res.status(500).json({ success: false, message: "Commit failed" }));
+              connection.commit((err4) => {
+  if (err4) return connection.rollback(() =>
+    res.status(500).json({ success: false, message: "Commit failed" })
+  );
+
+  // ── Billing event (immutable revenue record) ──
+  logBillingEvent({
+    account_id:    userId,
+    payment_id:    paymentId,
+    event_type:    'subscription',
+    pricing_model: null, // you don't have pkg.pricing_model here, null is fine
+    amount:        amount,
+    description:   `Package subscription: packageId ${packageId}`,
+  }).catch(err => console.error("billingLogger error:", err));
                   // Audit log
 logAudit({
   tableName: "history",

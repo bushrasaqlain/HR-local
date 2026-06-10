@@ -16,7 +16,7 @@ class Profile extends Component {
     super(props);
     this.state = {
       highlightJobId: null,
-      activeGraph: null,         // Doc1: supports 'views' | 'shortlisted' | 'approved'
+      activeGraph: null, // Doc1: supports 'views' | 'shortlisted' | 'approved'
       matchingJobs: [],
       searchTerm: "",
       applyingJobId: null,
@@ -100,10 +100,12 @@ class Profile extends Component {
       const res = await api.post(
         "/candidateProfile/save-job",
         { job_id: jobId },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       if (res.data.saved) {
-        this.setState((prev) => ({ savedJobIds: [...prev.savedJobIds, jobId] }));
+        this.setState((prev) => ({
+          savedJobIds: [...prev.savedJobIds, jobId],
+        }));
       } else {
         this.setState((prev) => ({
           savedJobIds: prev.savedJobIds.filter((id) => id !== jobId),
@@ -121,7 +123,7 @@ class Profile extends Component {
       await api.post(
         "/applicant/apply",
         { job_id: jobId },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       this.setState({ applySuccess: jobId });
       this.fetchMatchingJobs();
@@ -137,7 +139,7 @@ class Profile extends Component {
     e.stopPropagation();
     const confirmed = window.confirm(
       "Are you sure you want to cancel this application?\n\n" +
-        "Once cancelled, you cannot undo this action. You can reapply later if the job is still open."
+        "Once cancelled, you cannot undo this action. You can reapply later if the job is still open.",
     );
     if (!confirmed) return;
     try {
@@ -145,7 +147,7 @@ class Profile extends Component {
       const res = await api.post(
         "/applicant/cancel-application",
         { job_id: jobId },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       if (res.data.success) {
         alert("Application cancelled successfully!");
@@ -206,11 +208,17 @@ class Profile extends Component {
       this.setState({ highlightJobId: jobId, activeGraph: null });
       setTimeout(() => {
         const section = document.getElementById("matching-jobs-section");
-        if (section) section.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (section)
+          section.scrollIntoView({ behavior: "smooth", block: "start" });
         setTimeout(() => {
-          const highlightedJob = document.querySelector(`[data-job-id="${jobId}"]`);
+          const highlightedJob = document.querySelector(
+            `[data-job-id="${jobId}"]`,
+          );
           if (highlightedJob)
-            highlightedJob.scrollIntoView({ behavior: "smooth", block: "center" });
+            highlightedJob.scrollIntoView({
+              behavior: "smooth",
+              block: "center",
+            });
         }, 300);
       }, 300);
     }
@@ -264,26 +272,43 @@ class Profile extends Component {
     });
 
     // Doc1: multi-graph config
-    const graphConfig = {
-      views: {
-        title: "Profile Views",
-        subtitle: "See how many times recruiters viewed your profile",
-      },
-      shortlisted: {
-        title: "Shortlisted History",
-        subtitle: "Companies that shortlisted your profile",
-      },
-      approved: {
-        title: "Approved History",
-        subtitle: "Companies that approved your profile",
-      },
-    };
-
+  const graphConfig = {
+  views: {
+    title: "Profile Views",
+    subtitle: "See how many times recruiters viewed your profile",
+  },
+  shortlisted: {
+    title: "Shortlisted / Interview",
+    subtitle: "Companies that shortlisted or scheduled interview",
+    companies: [
+      ...( this.state.formData.shortlisted_companies || []),
+      ...( this.state.formData.interview_scheduled_companies || []),
+      ...( this.state.formData.interview_conducted_companies || []),
+    ],
+  },
+  approved: {
+    title: "Offered Jobs",
+    subtitle: "Companies that offered you a job",
+    companies: this.state.formData.offered_companies || [],
+  },
+};
     // Doc2: tier badge styles
     const tierStyles = {
-      strong: { background: "#d1fae5", color: "#065f46", border: "1px solid #6ee7b7" },
-      good: { background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd" },
-      weak: { background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d" },
+      strong: {
+        background: "#d1fae5",
+        color: "#065f46",
+        border: "1px solid #6ee7b7",
+      },
+      good: {
+        background: "#dbeafe",
+        color: "#1e40af",
+        border: "1px solid #93c5fd",
+      },
+      weak: {
+        background: "#fef3c7",
+        color: "#92400e",
+        border: "1px solid #fcd34d",
+      },
     };
 
     return (
@@ -296,92 +321,150 @@ class Profile extends Component {
           {/* ── LEFT SIDE ── */}
           <div className="col-12 col-xl-9">
             <div className="row g-3">
-
               {/* Stat Cards — all three clickable (Doc1) */}
               <div
                 className="col-12 col-md-4"
                 style={{ transition: "transform 0.3s", cursor: "pointer" }}
-                onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
-                onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.transform = "scale(1.05)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.transform = "scale(1)")
+                }
                 onClick={() => this.setState({ activeGraph: "shortlisted" })}
               >
                 {this.renderStatCard(
                   "Shortlisted",
                   dashboardStats.shortlisted,
-                  "Companies selected your profile"
+                  "Companies selected your profile",
                 )}
               </div>
 
               <div
                 className="col-12 col-md-4"
                 style={{ transition: "transform 0.3s", cursor: "pointer" }}
-                onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
-                onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.transform = "scale(1.05)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.transform = "scale(1)")
+                }
                 onClick={() => this.setState({ activeGraph: "views" })}
               >
                 {this.renderStatCard(
                   "Appeared in Search",
                   dashboardStats.viewed,
-                  "Recruiters viewed your profile"
+                  "Recruiters viewed your profile",
                 )}
               </div>
 
               <div
                 className="col-12 col-md-4"
                 style={{ transition: "transform 0.3s", cursor: "pointer" }}
-                onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
-                onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.transform = "scale(1.05)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.transform = "scale(1)")
+                }
                 onClick={() => this.setState({ activeGraph: "approved" })}
               >
                 {this.renderStatCard(
                   "Approved",
                   dashboardStats.approved,
-                  "Profiles approved by recruiters"
+                  "Profiles approved by recruiters",
                 )}
               </div>
 
               {/* Boost banners — only when graph is not shown */}
               {!activeGraph && boostStatus && !boostStatus.isBoosted && (
                 <div className="col-12">
-                  <div style={{
-                    display: "flex", alignItems: "center", gap: "14px",
-                    padding: "14px 18px", borderRadius: "10px",
-                    background: "#fffbeb", border: "1.5px solid #f59e0b",
-                  }}>
-                    <div style={{
-                      width: "40px", height: "40px", borderRadius: "10px",
-                      background: "#fef3c7", border: "1px solid #f59e0b",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      flexShrink: 0,
-                    }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                        stroke="#92400e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "14px",
+                      padding: "14px 18px",
+                      borderRadius: "10px",
+                      background: "#fffbeb",
+                      border: "1.5px solid #f59e0b",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: "40px",
+                        height: "40px",
+                        borderRadius: "10px",
+                        background: "#fef3c7",
+                        border: "1px solid #f59e0b",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#92400e"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
                         <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
                         <polyline points="16 7 22 7 22 13" />
                       </svg>
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "3px" }}>
-                        <span style={{ fontSize: "13px", fontWeight: 600, color: "#92400e" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          marginBottom: "3px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: "#92400e",
+                          }}
+                        >
                           Boost Your Profile
                         </span>
-                        <span style={{
-                          background: "#f59e0b", color: "#78350f",
-                          fontSize: "10px", fontWeight: 600,
-                          padding: "1px 7px", borderRadius: "20px",
-                        }}>New</span>
+                        <span
+                          style={{
+                            background: "#f59e0b",
+                            color: "#78350f",
+                            fontSize: "10px",
+                            fontWeight: 600,
+                            padding: "1px 7px",
+                            borderRadius: "20px",
+                          }}
+                        >
+                          New
+                        </span>
                       </div>
                       <span style={{ fontSize: "12px", color: "#a16207" }}>
-                        Get priority visibility among relevant candidates — reach more recruiters with your profile
+                        Get priority visibility among relevant candidates —
+                        reach more recruiters with your profile
                       </span>
                     </div>
                     <button
                       onClick={() => this.setState({ showBoostModal: true })}
                       style={{
-                        background: "#f59e0b", color: "#78350f",
-                        border: "none", borderRadius: "8px",
-                        padding: "9px 18px", fontSize: "13px",
-                        fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+                        background: "#f59e0b",
+                        color: "#78350f",
+                        border: "none",
+                        borderRadius: "8px",
+                        padding: "9px 18px",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       Boost Now
@@ -392,37 +475,72 @@ class Profile extends Component {
 
               {!activeGraph && boostStatus && boostStatus.isBoosted && (
                 <div className="col-12">
-                  <div style={{
-                    display: "flex", alignItems: "center", gap: "14px",
-                    padding: "14px 18px", borderRadius: "10px",
-                    background: "#e2f0f0", border: "1.5px solid #5f8190",
-                  }}>
-                    <div style={{
-                      width: "40px", height: "40px", borderRadius: "10px",
-                      background: "#dcfce7", border: "1px solid #36565f",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      flexShrink: 0,
-                    }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                        stroke="#36565f" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "14px",
+                      padding: "14px 18px",
+                      borderRadius: "10px",
+                      background: "#e2f0f0",
+                      border: "1.5px solid #5f8190",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: "40px",
+                        height: "40px",
+                        borderRadius: "10px",
+                        background: "#dcfce7",
+                        border: "1px solid #36565f",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#36565f"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
                         <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
                         <polyline points="16 7 22 7 22 13" />
                       </svg>
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: "13px", fontWeight: 600, color: "#36565f", marginBottom: "3px" }}>
+                      <div
+                        style={{
+                          fontSize: "13px",
+                          fontWeight: 600,
+                          color: "#36565f",
+                          marginBottom: "3px",
+                        }}
+                      >
                         Profile Boosted — Active
                       </div>
                       <span style={{ fontSize: "12px", color: "#5f8190" }}>
                         Your profile is now appearing higher in search results
                       </span>
                     </div>
-                    <span style={{
-                      display: "flex", alignItems: "center", gap: "6px",
-                      background: "#5f8190", color: "#fff",
-                      borderRadius: "20px", padding: "5px 12px",
-                      fontSize: "12px", fontWeight: 600,
-                    }}>
+                    <span
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        background: "#5f8190",
+                        color: "#fff",
+                        borderRadius: "20px",
+                        padding: "5px 12px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                      }}
+                    >
                       Live
                     </span>
                   </div>
@@ -443,24 +561,31 @@ class Profile extends Component {
               {this.state.showJobModal && (
                 <JobDetailModal
                   job={this.state.selectedJob}
-                  onClose={() => this.setState({ showJobModal: false, selectedJob: null })}
+                  onClose={() =>
+                    this.setState({ showJobModal: false, selectedJob: null })
+                  }
                 />
               )}
 
               {/* ── Graph / Jobs toggle (Doc1 structure, Doc2 job card UI) ── */}
               <div className="col-12" id="matching-jobs-section">
                 {activeGraph ? (
-
                   // ── GRAPH VIEW (Doc1) ──
                   <div>
                     <div style={{ marginBottom: "12px" }}>
                       <button
                         onClick={() => this.setState({ activeGraph: null })}
                         style={{
-                          background: "none", border: "1px solid #e5e7eb",
-                          borderRadius: "8px", padding: "6px 14px",
-                          fontSize: "13px", cursor: "pointer", color: "#374151",
-                          display: "flex", alignItems: "center", gap: "6px",
+                          background: "none",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: "8px",
+                          padding: "6px 14px",
+                          fontSize: "13px",
+                          cursor: "pointer",
+                          color: "#374151",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
                         }}
                       >
                         ← Back to Matching Jobs
@@ -477,39 +602,120 @@ class Profile extends Component {
                         <button
                           onClick={() => this.setState({ activeGraph: null })}
                           style={{
-                            background: "#fee2e2", border: "none", borderRadius: "50%",
-                            width: "28px", height: "28px", cursor: "pointer",
-                            color: "#991b1b", fontWeight: 700, fontSize: "15px",
-                            display: "flex", alignItems: "center", justifyContent: "center",
+                            background: "#fee2e2",
+                            border: "none",
+                            borderRadius: "50%",
+                            width: "28px",
+                            height: "28px",
+                            cursor: "pointer",
+                            color: "#991b1b",
+                            fontWeight: 700,
+                            fontSize: "15px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
                           }}
                         >
                           ×
                         </button>
                       </CardHeader>
-                      <CardBody>
-                        <StatsGraph type={activeGraph} />
-                      </CardBody>
+<CardBody>
+  {activeGraph === "views" ? (
+    <StatsGraph type={activeGraph} />
+  ) : (
+    (() => {
+      const companies = graphConfig[activeGraph]?.companies || [];
+      if (companies.length === 0)
+        return (
+          <p className="text-muted small text-center py-3">
+            No data available yet.
+          </p>
+        );
+      return (
+        <div className="d-flex flex-column gap-3">
+          {companies.map((c, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "14px",
+                padding: "12px 16px",
+                border: "1px solid #e5e7eb",
+                borderRadius: "12px",
+                background: "#fff",
+              }}
+            >
+              {c.logo ? (
+                <img
+                  src={`data:image/png;base64,${c.logo}`}
+                  alt={c.company_name}
+                  style={{ width: 42, height: 42, borderRadius: 8, objectFit: "cover", flexShrink: 0 }}
+                />
+              ) : (
+                <div style={{
+                  width: 42, height: 42, borderRadius: 8,
+                  background: "#f3f4f6", display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                  fontSize: 20, flexShrink: 0,
+                }}>🏢</div>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, color: "#111827" }}>
+                  {c.company_name}
+                </div>
+                <div style={{ fontSize: 12, color: "#6b7280" }}>{c.job_title}</div>
+              </div>
+              <span style={{
+                background: c.status === "Offered"
+                  ? "#d1fae5" : c.status === "Interview_Scheduled"
+                  ? "#dbeafe" : c.status === "Interview_Conducted"
+                  ? "#ede9fe" : "#f3f4f6",
+                color: c.status === "Offered"
+                  ? "#065f46" : c.status === "Interview_Scheduled"
+                  ? "#1e40af" : c.status === "Interview_Conducted"
+                  ? "#5b21b6" : "#374151",
+                borderRadius: "20px",
+                padding: "4px 12px",
+                fontSize: 11,
+                fontWeight: 600,
+                whiteSpace: "nowrap",
+              }}>
+                {c.status.replace(/_/g, " ")}
+              </span>
+            </div>
+          ))}
+        </div>
+      );
+    })()
+  )}
+</CardBody>
                     </Card>
                   </div>
-
                 ) : (
-
                   // ── JOBS VIEW (Doc2 card UI + Doc1 highlight & cancel) ──
                   <Card>
                     <CardHeader className="d-flex justify-content-between align-items-center">
                       <div>
                         <strong>Jobs Matching Your Profile</strong>
-                        <small className="text-muted ms-2">Based on your skills</small>
+                        <small className="text-muted ms-2">
+                          Based on your skills
+                        </small>
                       </div>
                       <button
                         onClick={() => {
-                          this.props.onTabChange && this.props.onTabChange("savedJobs");
+                          this.props.onTabChange &&
+                            this.props.onTabChange("savedJobs");
                         }}
                         style={{
-                          background: "#fff", color: "#36565F",
+                          background: "#fff",
+                          color: "#36565F",
                           border: "1.5px solid #36565F",
-                          borderRadius: "8px", padding: "5px 14px",
-                          fontSize: "12px", fontWeight: 600, cursor: "pointer",
+                          borderRadius: "8px",
+                          padding: "5px 14px",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          cursor: "pointer",
                         }}
                       >
                         ❤️ Saved Jobs ({this.state.savedJobIds.length})
@@ -517,26 +723,45 @@ class Profile extends Component {
                     </CardHeader>
 
                     {/* Search bar */}
-                    <div style={{
-                      display: "flex", alignItems: "center",
-                      background: "#f9fafb", border: "1px solid #e5e7eb",
-                      borderRadius: "10px", padding: "8px 12px", marginBottom: "16px",
-                    }}>
-                      <span style={{ color: "#9ca3af", marginRight: "8px" }}>🔍</span>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        background: "#f9fafb",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: "10px",
+                        padding: "8px 12px",
+                        marginBottom: "16px",
+                      }}
+                    >
+                      <span style={{ color: "#9ca3af", marginRight: "8px" }}>
+                        🔍
+                      </span>
                       <input
                         type="text"
                         placeholder="Search jobs by title, company, city..."
                         value={this.state.searchTerm}
-                        onChange={(e) => this.setState({ searchTerm: e.target.value })}
+                        onChange={(e) =>
+                          this.setState({ searchTerm: e.target.value })
+                        }
                         style={{
-                          border: "none", outline: "none", background: "transparent",
-                          width: "100%", fontSize: "13px", color: "#374151",
+                          border: "none",
+                          outline: "none",
+                          background: "transparent",
+                          width: "100%",
+                          fontSize: "13px",
+                          color: "#374151",
                         }}
                       />
                       {this.state.searchTerm && (
                         <span
                           onClick={() => this.setState({ searchTerm: "" })}
-                          style={{ cursor: "pointer", color: "#9ca3af", fontWeight: "bold", marginLeft: "8px" }}
+                          style={{
+                            cursor: "pointer",
+                            color: "#9ca3af",
+                            fontWeight: "bold",
+                            marginLeft: "8px",
+                          }}
                         >
                           ✕
                         </span>
@@ -546,12 +771,15 @@ class Profile extends Component {
                     <CardBody>
                       {filteredJobs.length === 0 ? (
                         <p className="text-muted small">
-                          No matching jobs found. Make sure your skills are updated in your profile.
+                          No matching jobs found. Make sure your skills are
+                          updated in your profile.
                         </p>
                       ) : (
                         <div className="d-flex flex-column gap-3">
                           {filteredJobs.map((job) => {
-                            const isSaved = this.state.savedJobIds.includes(job.id);
+                            const isSaved = this.state.savedJobIds.includes(
+                              job.id,
+                            );
                             const isHighlighted = highlightJobId === job.id;
                             const tierStyle = tierStyles[job.tier] || {};
 
@@ -567,43 +795,73 @@ class Profile extends Component {
                                   borderRadius: "14px",
                                   padding: "16px 20px",
                                   cursor: "pointer",
-                                  background: isHighlighted ? "#e8f0f2" : "#fff",
-                                  transition: "box-shadow 0.2s, border-color 0.2s, background 0.3s",
-                                  animation: isHighlighted ? "highlightPulse 0.5s ease-in-out" : "none",
+                                  background: isHighlighted
+                                    ? "#e8f0f2"
+                                    : "#fff",
+                                  transition:
+                                    "box-shadow 0.2s, border-color 0.2s, background 0.3s",
+                                  animation: isHighlighted
+                                    ? "highlightPulse 0.5s ease-in-out"
+                                    : "none",
                                 }}
                                 onMouseEnter={(e) =>
-                                  (e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)")
+                                  (e.currentTarget.style.boxShadow =
+                                    "0 4px 16px rgba(0,0,0,0.08)")
                                 }
                                 onMouseLeave={(e) =>
                                   (e.currentTarget.style.boxShadow = "none")
                                 }
                                 ref={(el) => {
                                   if (isHighlighted && el) {
-                                    el.scrollIntoView({ behavior: "smooth", block: "center" });
-                                    setTimeout(() => this.setState({ highlightJobId: null }), 3000);
+                                    el.scrollIntoView({
+                                      behavior: "smooth",
+                                      block: "center",
+                                    });
+                                    setTimeout(
+                                      () =>
+                                        this.setState({ highlightJobId: null }),
+                                      3000,
+                                    );
                                   }
                                 }}
                               >
                                 {/* ── TOP ROW: Logo + Info + Action ── */}
-                                <div style={{ display: "flex", alignItems: "flex-start", gap: "14px" }}>
-
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "flex-start",
+                                    gap: "14px",
+                                  }}
+                                >
                                   {/* Logo */}
                                   {job.logo ? (
                                     <img
                                       src={`data:image/png;base64,${job.logo}`}
                                       alt={job.company_name}
                                       style={{
-                                        width: 44, height: 44, borderRadius: 10,
-                                        objectFit: "cover", flexShrink: 0, marginTop: 2,
+                                        width: 44,
+                                        height: 44,
+                                        borderRadius: 10,
+                                        objectFit: "cover",
+                                        flexShrink: 0,
+                                        marginTop: 2,
                                       }}
                                     />
                                   ) : (
-                                    <div style={{
-                                      width: 44, height: 44, borderRadius: 10,
-                                      background: "#f3f4f6", display: "flex",
-                                      alignItems: "center", justifyContent: "center",
-                                      fontSize: 20, flexShrink: 0, marginTop: 2,
-                                    }}>
+                                    <div
+                                      style={{
+                                        width: 44,
+                                        height: 44,
+                                        borderRadius: 10,
+                                        background: "#f3f4f6",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontSize: 20,
+                                        flexShrink: 0,
+                                        marginTop: 2,
+                                      }}
+                                    >
                                       🏢
                                     </div>
                                   )}
@@ -611,70 +869,131 @@ class Profile extends Component {
                                   {/* Center info */}
                                   <div style={{ flex: 1, minWidth: 0 }}>
                                     {/* Line 1: Title + save + tier + score */}
-                                    <div style={{
-                                      display: "flex", alignItems: "center",
-                                      gap: "8px", flexWrap: "wrap", marginBottom: "4px",
-                                    }}>
-                                      <span style={{ fontWeight: 700, fontSize: 15, color: "#111827" }}>
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "8px",
+                                        flexWrap: "wrap",
+                                        marginBottom: "4px",
+                                      }}
+                                    >
+                                      <span
+                                        style={{
+                                          fontWeight: 700,
+                                          fontSize: 15,
+                                          color: "#111827",
+                                        }}
+                                      >
                                         {job.job_title}
                                       </span>
                                       <button
-                                        onClick={(e) => this.handleToggleSave(e, job.id)}
+                                        onClick={(e) =>
+                                          this.handleToggleSave(e, job.id)
+                                        }
                                         style={{
-                                          background: "none", border: "none",
-                                          cursor: "pointer", fontSize: 15, padding: 0, lineHeight: 1,
+                                          background: "none",
+                                          border: "none",
+                                          cursor: "pointer",
+                                          fontSize: 15,
+                                          padding: 0,
+                                          lineHeight: 1,
                                         }}
-                                        title={isSaved ? "Remove from saved" : "Save job"}
+                                        title={
+                                          isSaved
+                                            ? "Remove from saved"
+                                            : "Save job"
+                                        }
                                       >
                                         {isSaved ? "❤️" : "🤍"}
                                       </button>
                                       {job.tier_label && (
-                                        <span style={{
-                                          ...tierStyle, borderRadius: "20px",
-                                          padding: "2px 10px", fontSize: "11px", fontWeight: 600,
-                                        }}>
+                                        <span
+                                          style={{
+                                            ...tierStyle,
+                                            borderRadius: "20px",
+                                            padding: "2px 10px",
+                                            fontSize: "11px",
+                                            fontWeight: 600,
+                                          }}
+                                        >
                                           {job.tier_label}
                                         </span>
                                       )}
                                       {job.ai_score != null && (
-                                        <span style={{
-                                          background: "#f3f4f6", color: "#6b7280",
-                                          borderRadius: "20px", padding: "2px 9px",
-                                          fontSize: "11px", fontWeight: 500,
-                                        }}>
+                                        <span
+                                          style={{
+                                            background: "#f3f4f6",
+                                            color: "#6b7280",
+                                            borderRadius: "20px",
+                                            padding: "2px 9px",
+                                            fontSize: "11px",
+                                            fontWeight: 500,
+                                          }}
+                                        >
                                           {job.ai_score}% match
                                         </span>
                                       )}
                                     </div>
 
                                     {/* Line 2: Company · Salary · Exp */}
-                                    <div style={{
-                                      display: "flex", alignItems: "center",
-                                      gap: "6px", flexWrap: "wrap",
-                                      fontSize: 12, color: "#6b7280",
-                                    }}>
-                                      <span style={{ fontWeight: 500, color: "#374151" }}>
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "6px",
+                                        flexWrap: "wrap",
+                                        fontSize: 12,
+                                        color: "#6b7280",
+                                      }}
+                                    >
+                                      <span
+                                        style={{
+                                          fontWeight: 500,
+                                          color: "#374151",
+                                        }}
+                                      >
                                         {job.company_name}
                                       </span>
                                       {job.city_name && (
                                         <>
-                                          <span style={{ color: "#d1d5db" }}>•</span>
+                                          <span style={{ color: "#d1d5db" }}>
+                                            •
+                                          </span>
                                           <span>{job.city_name}</span>
                                         </>
                                       )}
                                       {job.min_salary && (
                                         <>
-                                          <span style={{ color: "#d1d5db" }}>•</span>
-                                          <span style={{ color: "#36565f", fontWeight: 500 }}>
-                                            {job.currency} {Number(job.min_salary).toLocaleString()} –{" "}
-                                            {Number(job.max_salary).toLocaleString()}
+                                          <span style={{ color: "#d1d5db" }}>
+                                            •
+                                          </span>
+                                          <span
+                                            style={{
+                                              color: "#36565f",
+                                              fontWeight: 500,
+                                            }}
+                                          >
+                                            {job.currency}{" "}
+                                            {Number(
+                                              job.min_salary,
+                                            ).toLocaleString()}{" "}
+                                            –{" "}
+                                            {Number(
+                                              job.max_salary,
+                                            ).toLocaleString()}
                                           </span>
                                         </>
                                       )}
                                       {job.min_experience && (
                                         <>
-                                          <span style={{ color: "#d1d5db" }}>•</span>
-                                          <span>🕒 {job.min_experience} – {job.max_experience} yrs</span>
+                                          <span style={{ color: "#d1d5db" }}>
+                                            •
+                                          </span>
+                                          <span>
+                                            🕒 {job.min_experience} –{" "}
+                                            {job.max_experience} yrs
+                                          </span>
                                         </>
                                       )}
                                     </div>
@@ -687,85 +1006,158 @@ class Profile extends Component {
                                   >
                                     {job.already_applied ? (
                                       <div className="d-flex gap-2 align-items-center">
-                                        <span style={{
-                                          background: "#36565f", color: "#fff",
-                                          border: "1px solid #36565f", borderRadius: "20px",
-                                          padding: "6px 14px", fontSize: "12px",
-                                          fontWeight: 600, whiteSpace: "nowrap",
-                                        }}>
+                                        <span
+                                          style={{
+                                            background: "#36565f",
+                                            color: "#fff",
+                                            border: "1px solid #36565f",
+                                            borderRadius: "20px",
+                                            padding: "6px 14px",
+                                            fontSize: "12px",
+                                            fontWeight: 600,
+                                            whiteSpace: "nowrap",
+                                          }}
+                                        >
                                           ✓ Applied
                                         </span>
-                                        {/* Doc1: cancel button for pending applications */}
-                                        {job.application_status === "Pending" && (
+                                        {job.application_status ===
+                                          "Pending" && (
                                           <button
-                                            onClick={(e) => this.handleCancelApplication(e, job.id)}
+                                            onClick={(e) =>
+                                              this.handleCancelApplication(
+                                                e,
+                                                job.id,
+                                              )
+                                            }
                                             style={{
-                                              background: "#fee2e2", color: "#991b1b",
-                                              border: "1px solid #fca5a5", borderRadius: "8px",
-                                              padding: "6px 12px", fontSize: "11px",
-                                              fontWeight: 500, cursor: "pointer", transition: "all 0.2s",
+                                              background: "#fee2e2",
+                                              color: "#991b1b",
+                                              border: "1px solid #fca5a5",
+                                              borderRadius: "8px",
+                                              padding: "6px 12px",
+                                              fontSize: "11px",
+                                              fontWeight: 500,
+                                              cursor: "pointer",
+                                              transition: "all 0.2s",
                                             }}
                                             onMouseEnter={(e) =>
-                                              (e.currentTarget.style.background = "#fecaca")
+                                              (e.currentTarget.style.background =
+                                                "#fecaca")
                                             }
                                             onMouseLeave={(e) =>
-                                              (e.currentTarget.style.background = "#fee2e2")
+                                              (e.currentTarget.style.background =
+                                                "#fee2e2")
                                             }
                                           >
                                             Cancel Request
                                           </button>
                                         )}
                                       </div>
+                                    ) : job.pipeline_status ? (
+                                      <span
+                                        style={{
+                                          background: "#f0fdf4",
+                                          color: "#166534",
+                                          border: "1px solid #bbf7d0",
+                                          borderRadius: "20px",
+                                          padding: "6px 14px",
+                                          fontSize: "12px",
+                                          fontWeight: 600,
+                                          whiteSpace: "nowrap",
+                                        }}
+                                      >
+                                        {job.pipeline_status.replace(/_/g, " ")}
+                                      </span>
                                     ) : !this.state.boostStatus?.isBoosted ? (
-                                      <span style={{
-                                        fontSize: 11, color: "#a16207", background: "#fffbeb",
-                                        border: "1px solid #f59e0b", borderRadius: 8,
-                                        padding: "6px 10px", display: "inline-block",
-                                        textAlign: "center", lineHeight: "1.4", maxWidth: 110,
-                                      }}>
+                                      <span
+                                        style={{
+                                          fontSize: 11,
+                                          color: "#a16207",
+                                          background: "#fffbeb",
+                                          border: "1px solid #f59e0b",
+                                          borderRadius: 8,
+                                          padding: "6px 10px",
+                                          display: "inline-block",
+                                          textAlign: "center",
+                                          lineHeight: "1.4",
+                                          maxWidth: 110,
+                                        }}
+                                      >
                                         Boost to apply
                                       </span>
                                     ) : (
                                       <button
                                         onClick={() => this.handleApply(job.id)}
-                                        disabled={this.state.applyingJobId === job.id}
+                                        disabled={
+                                          this.state.applyingJobId === job.id
+                                        }
                                         style={{
-                                          background: "#36565F", color: "#fff",
-                                          border: "none", borderRadius: 8,
-                                          padding: "8px 20px", fontSize: 13,
-                                          fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+                                          background: "#36565F",
+                                          color: "#fff",
+                                          border: "none",
+                                          borderRadius: 8,
+                                          padding: "8px 20px",
+                                          fontSize: 13,
+                                          fontWeight: 600,
+                                          cursor: "pointer",
+                                          whiteSpace: "nowrap",
                                         }}
                                       >
-                                        {this.state.applyingJobId === job.id ? "Applying..." : "Apply"}
+                                        {this.state.applyingJobId === job.id
+                                          ? "Applying..."
+                                          : "Apply"}
                                       </button>
                                     )}
                                   </div>
                                 </div>
 
                                 {/* ── SKILLS ROW (Doc2) ── */}
-                                {(job.matched?.length > 0 || job.missing?.length > 0) && (
-                                  <div style={{
-                                    borderTop: "1px solid #f3f4f6",
-                                    marginTop: "12px", paddingTop: "10px",
-                                  }}>
-                                    <div style={{ display: "flex", gap: "24px" }}>
+                                {(job.matched?.length > 0 ||
+                                  job.missing?.length > 0) && (
+                                  <div
+                                    style={{
+                                      borderTop: "1px solid #f3f4f6",
+                                      marginTop: "12px",
+                                      paddingTop: "10px",
+                                    }}
+                                  >
+                                    <div
+                                      style={{ display: "flex", gap: "24px" }}
+                                    >
                                       {job.matched?.length > 0 && (
                                         <div style={{ flex: 1 }}>
-                                          <div style={{
-                                            fontSize: 10, fontWeight: 600, color: "#9ca3af",
-                                            textTransform: "uppercase", letterSpacing: "0.05em",
-                                            marginBottom: "6px",
-                                          }}>
+                                          <div
+                                            style={{
+                                              fontSize: 10,
+                                              fontWeight: 600,
+                                              color: "#9ca3af",
+                                              textTransform: "uppercase",
+                                              letterSpacing: "0.05em",
+                                              marginBottom: "6px",
+                                            }}
+                                          >
                                             Matching
                                           </div>
-                                          <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
+                                          <div
+                                            style={{
+                                              display: "flex",
+                                              flexWrap: "wrap",
+                                              gap: "5px",
+                                            }}
+                                          >
                                             {job.matched.map((m, i) => (
-                                              <span key={i} style={{
-                                                background: "#e2f0f0", color: "#353333",
-                                                border: "1px solid #708791",
-                                                borderRadius: "6px", padding: "3px 9px",
-                                                fontSize: "11px", fontWeight: 500,
-                                              }}>
+                                              <span
+                                                key={i}
+                                                style={{
+                                                  background: "#e2f0f0",
+                                                  color: "#353333",
+                                                  border: "1px solid #708791",
+                                                  borderRadius: "6px",
+                                                  padding: "3px 9px",
+                                                  fontSize: "11px",
+                                                  fontWeight: 500,
+                                                }}
+                                              >
                                                 ✓ {m}
                                               </span>
                                             ))}
@@ -784,7 +1176,6 @@ class Profile extends Component {
                   </Card>
                 )}
               </div>
-
             </div>
           </div>
 
@@ -824,7 +1215,8 @@ class Profile extends Component {
                   <div className="d-flex justify-content-center">
                     <img
                       src={
-                        formData.passport_photo && formData.passport_photo.trim() !== ""
+                        formData.passport_photo &&
+                        formData.passport_photo.trim() !== ""
                           ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}/${formData.passport_photo.replace(/^\//, "")}`
                           : "/default-avatar.png"
                       }
@@ -834,11 +1226,18 @@ class Profile extends Component {
                         e.target.src = "/default-avatar.png";
                       }}
                       className="rounded-circle mb-3"
-                      style={{ width: "120px", height: "120px", objectFit: "cover" }}
+                      style={{
+                        width: "120px",
+                        height: "120px",
+                        objectFit: "cover",
+                      }}
                     />
                   </div>
                   <h5 className="mb-3">{formData.full_name || "Your Name"}</h5>
-                  <span className="badge mb-3" style={{ background: "#5F8190" }}>
+                  <span
+                    className="badge mb-3"
+                    style={{ background: "#5F8190" }}
+                  >
                     Available for Interview
                   </span>
                   <div>
@@ -861,7 +1260,6 @@ class Profile extends Component {
 
 // ── JobDetailModal (identical in both files) ──
 class JobDetailModal extends React.Component {
-
   handleModalContentClick = (e) => {
     e.stopPropagation();
   };
@@ -873,71 +1271,134 @@ class JobDetailModal extends React.Component {
       <div
         onClick={onClose}
         style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          zIndex: 9999, padding: "16px",
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
+          padding: "16px",
         }}
       >
         <div
           onClick={(e) => e.stopPropagation()}
           style={{
-            background: "#fff", borderRadius: "14px",
-            padding: "24px", width: "100%", maxWidth: "560px",
-            maxHeight: "85vh", overflowY: "auto", position: "relative",
+            background: "#fff",
+            borderRadius: "14px",
+            padding: "24px",
+            width: "100%",
+            maxWidth: "560px",
+            maxHeight: "85vh",
+            overflowY: "auto",
+            position: "relative",
           }}
         >
           <button
             onClick={onClose}
             style={{
-              position: "absolute", top: "16px", right: "16px",
-              background: "#fee2e2", border: "none", borderRadius: "50%",
-              width: "32px", height: "32px", cursor: "pointer",
-              color: "#991b1b", fontWeight: 700, fontSize: "16px",
+              position: "absolute",
+              top: "16px",
+              right: "16px",
+              background: "#fee2e2",
+              border: "none",
+              borderRadius: "50%",
+              width: "32px",
+              height: "32px",
+              cursor: "pointer",
+              color: "#991b1b",
+              fontWeight: 700,
+              fontSize: "16px",
             }}
           >
             ×
           </button>
-          <h5 style={{ marginBottom: "4px", paddingRight: "40px" }}>{job.job_title}</h5>
-          <p style={{ fontSize: "13px", color: "#6b7280", marginBottom: "16px" }}>
+          <h5 style={{ marginBottom: "4px", paddingRight: "40px" }}>
+            {job.job_title}
+          </h5>
+          <p
+            style={{ fontSize: "13px", color: "#6b7280", marginBottom: "16px" }}
+          >
             {job.speciality} • {job.city} • {job.country}
           </p>
-          <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: "12px",
+              marginBottom: "16px",
+              flexWrap: "wrap",
+            }}
+          >
             {job.min_salary && (
-              <span style={{
-                background: "#d1fae5", color: "#065f46",
-                borderRadius: "20px", padding: "4px 12px", fontSize: "12px", fontWeight: 600,
-              }}>
+              <span
+                style={{
+                  background: "#d1fae5",
+                  color: "#065f46",
+                  borderRadius: "20px",
+                  padding: "4px 12px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                }}
+              >
                 💰 {job.currency} {job.min_salary} - {job.max_salary}
               </span>
             )}
             {job.min_experience && (
-              <span style={{
-                background: "#dbeafe", color: "#1e40af",
-                borderRadius: "20px", padding: "4px 12px", fontSize: "12px", fontWeight: 600,
-              }}>
+              <span
+                style={{
+                  background: "#dbeafe",
+                  color: "#1e40af",
+                  borderRadius: "20px",
+                  padding: "4px 12px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                }}
+              >
                 🕒 {job.min_experience} - {job.max_experience} yrs exp
               </span>
             )}
             {job.job_type && (
-              <span style={{
-                background: "#f3f4f6", color: "#374151",
-                borderRadius: "20px", padding: "4px 12px", fontSize: "12px", fontWeight: 600,
-              }}>
+              <span
+                style={{
+                  background: "#f3f4f6",
+                  color: "#374151",
+                  borderRadius: "20px",
+                  padding: "4px 12px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                }}
+              >
                 {job.job_type}
               </span>
             )}
           </div>
           {job.skills && job.skills.length > 0 && (
             <div style={{ marginBottom: "16px" }}>
-              <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "8px", color: "#374151" }}>
+              <div
+                style={{
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  marginBottom: "8px",
+                  color: "#374151",
+                }}
+              >
                 Required Skills
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                {(Array.isArray(job.skills) ? job.skills : job.skills.split(",")).map((skill, i) => (
-                  <span key={i} style={{
-                    background: "#eff6ff", color: "#1d4ed8",
-                    borderRadius: "6px", padding: "3px 10px", fontSize: "12px",
-                  }}>
+                {(Array.isArray(job.skills)
+                  ? job.skills
+                  : job.skills.split(",")
+                ).map((skill, i) => (
+                  <span
+                    key={i}
+                    style={{
+                      background: "#eff6ff",
+                      color: "#1d4ed8",
+                      borderRadius: "6px",
+                      padding: "3px 10px",
+                      fontSize: "12px",
+                    }}
+                  >
                     {skill.trim()}
                   </span>
                 ))}
@@ -946,10 +1407,24 @@ class JobDetailModal extends React.Component {
           )}
           {job.job_description && (
             <div style={{ marginBottom: "16px" }}>
-              <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "6px", color: "#374151" }}>
+              <div
+                style={{
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  marginBottom: "6px",
+                  color: "#374151",
+                }}
+              >
                 Job Description
               </div>
-              <p style={{ fontSize: "13px", color: "#6b7280", lineHeight: "1.6", margin: 0 }}>
+              <p
+                style={{
+                  fontSize: "13px",
+                  color: "#6b7280",
+                  lineHeight: "1.6",
+                  margin: 0,
+                }}
+              >
                 {job.job_description}
               </p>
             </div>
@@ -957,13 +1432,19 @@ class JobDetailModal extends React.Component {
           <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
             {job.degree && (
               <div>
-                <span style={{ fontSize: "12px", color: "#9ca3af" }}>Degree: </span>
-                <span style={{ fontSize: "12px", fontWeight: 600 }}>{job.degree}</span>
+                <span style={{ fontSize: "12px", color: "#9ca3af" }}>
+                  Degree:{" "}
+                </span>
+                <span style={{ fontSize: "12px", fontWeight: 600 }}>
+                  {job.degree}
+                </span>
               </div>
             )}
             {job.application_deadline && (
               <div>
-                <span style={{ fontSize: "12px", color: "#9ca3af" }}>Deadline: </span>
+                <span style={{ fontSize: "12px", color: "#9ca3af" }}>
+                  Deadline:{" "}
+                </span>
                 <span style={{ fontSize: "12px", fontWeight: 600 }}>
                   {new Date(job.application_deadline).toLocaleDateString()}
                 </span>
@@ -975,7 +1456,6 @@ class JobDetailModal extends React.Component {
     );
   }
 }
-
 
 // ── BoostModal (identical in both files — using Doc1 version which is slightly cleaner) ──
 class BoostModal extends React.Component {
@@ -1006,7 +1486,7 @@ class BoostModal extends React.Component {
       const res = await api.post(
         "/candidateProfile/boost/order",
         { package_id: selected },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       if (res.data.success) {
         alert("Boost order placed! Waiting for admin approval.");
@@ -1029,7 +1509,9 @@ class BoostModal extends React.Component {
         <PaymentModal
           pkg={selectedPkg}
           userId={userId}
-          onClose={() => this.setState({ showPayment: false, selectedPkg: null })}
+          onClose={() =>
+            this.setState({ showPayment: false, selectedPkg: null })
+          }
           onSubmit={async () => {
             this.setState({ showPayment: false, selectedPkg: null });
             await this.handlePaymentSuccess();
@@ -1039,38 +1521,73 @@ class BoostModal extends React.Component {
     }
 
     return (
-      <div style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        zIndex: 9999, padding: "16px",
-      }}>
-        <div style={{
-          background: "#36454F", borderRadius: "16px", padding: "32px 24px",
-          width: "100%", maxWidth: "700px", maxHeight: "90vh", overflowY: "auto",
-        }}>
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,0.6)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
+          padding: "16px",
+        }}
+      >
+        <div
+          style={{
+            background: "#36454F",
+            borderRadius: "16px",
+            padding: "32px 24px",
+            width: "100%",
+            maxWidth: "700px",
+            maxHeight: "90vh",
+            overflowY: "auto",
+          }}
+        >
           <div style={{ textAlign: "center", marginBottom: "24px" }}>
-            <h5 style={{ color: "#fff", margin: "0 0 6px", fontSize: "20px", fontWeight: 600 }}>
+            <h5
+              style={{
+                color: "#fff",
+                margin: "0 0 6px",
+                fontSize: "20px",
+                fontWeight: 600,
+              }}
+            >
               Choose a Boost Plan
             </h5>
-            <p style={{ color: "rgba(255,255,255,0.65)", fontSize: "13px", margin: 0 }}>
+            <p
+              style={{
+                color: "rgba(255,255,255,0.65)",
+                fontSize: "13px",
+                margin: 0,
+              }}
+            >
               Select a plan — pay — admin will activate your boost
             </p>
           </div>
 
           {packages.length === 0 ? (
-            <div style={{
-              textAlign: "center", padding: "32px",
-              background: "rgba(255,255,255,0.1)", borderRadius: "12px",
-              color: "rgba(255,255,255,0.6)", fontSize: "13px",
-            }}>
+            <div
+              style={{
+                textAlign: "center",
+                padding: "32px",
+                background: "rgba(255,255,255,0.1)",
+                borderRadius: "12px",
+                color: "rgba(255,255,255,0.6)",
+                fontSize: "13px",
+              }}
+            >
               No boost packages available at the moment.
             </div>
           ) : (
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: `repeat(${Math.min(packages.length, 3)}, 1fr)`,
-              gap: "14px", marginBottom: "20px",
-            }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: `repeat(${Math.min(packages.length, 3)}, 1fr)`,
+                gap: "14px",
+                marginBottom: "20px",
+              }}
+            >
               {packages.map((pkg) => {
                 const isSelected = selected === pkg.id;
                 const isPopular = pkg.is_featured === 1;
@@ -1085,85 +1602,175 @@ class BoostModal extends React.Component {
                 return (
                   <div
                     key={pkg.id}
-                    onClick={() => this.setState({ selected: pkg.id, selectedPkg: pkg })}
+                    onClick={() =>
+                      this.setState({ selected: pkg.id, selectedPkg: pkg })
+                    }
                     style={{
-                      background: "#fff", borderRadius: "14px", overflow: "hidden",
+                      background: "#fff",
+                      borderRadius: "14px",
+                      overflow: "hidden",
                       border: isSelected
                         ? "2.5px solid #F59E0B"
                         : isPopular
-                        ? "2px solid #5B9BD5"
-                        : "2px solid transparent",
-                      cursor: "pointer", transition: "transform 0.2s",
+                          ? "2px solid #5B9BD5"
+                          : "2px solid transparent",
+                      cursor: "pointer",
+                      transition: "transform 0.2s",
                       transform: isSelected ? "translateY(-6px)" : "none",
                       position: "relative",
                     }}
                   >
                     {isPopular && (
-                      <div style={{
-                        position: "absolute", top: 0, right: "12px",
-                        background: "#5B9BD5", color: "#fff",
-                        fontSize: "10px", fontWeight: 600,
-                        padding: "2px 10px", borderRadius: "0 0 8px 8px",
-                      }}>
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          right: "12px",
+                          background: "#5B9BD5",
+                          color: "#fff",
+                          fontSize: "10px",
+                          fontWeight: 600,
+                          padding: "2px 10px",
+                          borderRadius: "0 0 8px 8px",
+                        }}
+                      >
                         Most popular
                       </div>
                     )}
                     <div style={{ textAlign: "center", paddingTop: "14px" }}>
-                      <span style={{
-                        display: "inline-block", background: "#F59E0B", color: "#fff",
-                        fontSize: "11px", fontWeight: 500,
-                        padding: "3px 14px", borderRadius: "0 0 8px 8px",
-                      }}>
+                      <span
+                        style={{
+                          display: "inline-block",
+                          background: "#F59E0B",
+                          color: "#fff",
+                          fontSize: "11px",
+                          fontWeight: 500,
+                          padding: "3px 14px",
+                          borderRadius: "0 0 8px 8px",
+                        }}
+                      >
                         Profile Spotlight
                       </span>
                     </div>
                     <div style={{ padding: "12px 18px 20px" }}>
-                      <p style={{ fontSize: "15px", fontWeight: 600, color: "#1f2937", margin: "0 0 3px" }}>
+                      <p
+                        style={{
+                          fontSize: "15px",
+                          fontWeight: 600,
+                          color: "#1f2937",
+                          margin: "0 0 3px",
+                        }}
+                      >
                         {pkg.name}
                       </p>
                       {pkg.boost_type && (
                         <div style={{ marginBottom: "8px" }}>
-                          <span style={{
-                            display: "inline-flex", alignItems: "center", gap: "5px",
-                            background: "#eff6ff", color: "#1e40af",
-                            fontSize: "11px", fontWeight: 600,
-                            padding: "3px 10px", borderRadius: "20px",
-                            border: "1px solid #bfdbfe",
-                          }}>
-                            {pkg.boost_type === "profile_top" && "⬆ Top of Search Results"}
-                            {pkg.boost_type === "highlighted_profile" && "✦ Highlighted Profile"}
-                            {pkg.boost_type === "recruiter_spotlight" && "🎯 Recruiter Spotlight"}
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "5px",
+                              background: "#eff6ff",
+                              color: "#1e40af",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              padding: "3px 10px",
+                              borderRadius: "20px",
+                              border: "1px solid #bfdbfe",
+                            }}
+                          >
+                            {pkg.boost_type === "profile_top" &&
+                              "⬆ Top of Search Results"}
+                            {pkg.boost_type === "highlighted_profile" &&
+                              "✦ Highlighted Profile"}
+                            {pkg.boost_type === "recruiter_spotlight" &&
+                              "🎯 Recruiter Spotlight"}
                           </span>
                         </div>
                       )}
-                      <p style={{ fontSize: "11px", color: "#9ca3af", margin: "0 0 14px" }}>
+                      <p
+                        style={{
+                          fontSize: "11px",
+                          color: "#9ca3af",
+                          margin: "0 0 14px",
+                        }}
+                      >
                         {duration} · one-time payment
                       </p>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: "3px", marginBottom: "16px" }}>
-                        <span style={{ fontSize: "14px", fontWeight: 500, color: "#1f2937" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "baseline",
+                          gap: "3px",
+                          marginBottom: "16px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: "14px",
+                            fontWeight: 500,
+                            color: "#1f2937",
+                          }}
+                        >
                           {pkg.currency}
                         </span>
-                        <span style={{ fontSize: "32px", fontWeight: 700, color: "#1f2937", lineHeight: 1 }}>
+                        <span
+                          style={{
+                            fontSize: "32px",
+                            fontWeight: 700,
+                            color: "#1f2937",
+                            lineHeight: 1,
+                          }}
+                        >
                           {Number(pkg.price).toFixed(0)}
                         </span>
                       </div>
                       {features.length > 0 && (
-                        <ul style={{
-                          listStyle: "none", padding: 0, margin: "0 0 16px",
-                          display: "flex", flexDirection: "column", gap: "7px",
-                        }}>
+                        <ul
+                          style={{
+                            listStyle: "none",
+                            padding: 0,
+                            margin: "0 0 16px",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "7px",
+                          }}
+                        >
                           {features.map((f, i) => (
-                            <li key={i} style={{
-                              fontSize: "12px", color: "#374151",
-                              display: "flex", alignItems: "center", gap: "7px",
-                            }}>
-                              <span style={{
-                                width: "16px", height: "16px", borderRadius: "50%",
-                                background: "#d1fae5", display: "flex",
-                                alignItems: "center", justifyContent: "center", flexShrink: 0,
-                              }}>
-                                <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
-                                  <path d="M2 5l2 2 4-4" stroke="#065f46" strokeWidth="1.5" strokeLinecap="round" />
+                            <li
+                              key={i}
+                              style={{
+                                fontSize: "12px",
+                                color: "#374151",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "7px",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  width: "16px",
+                                  height: "16px",
+                                  borderRadius: "50%",
+                                  background: "#d1fae5",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                <svg
+                                  width="9"
+                                  height="9"
+                                  viewBox="0 0 10 10"
+                                  fill="none"
+                                >
+                                  <path
+                                    d="M2 5l2 2 4-4"
+                                    stroke="#065f46"
+                                    strokeWidth="1.5"
+                                    strokeLinecap="round"
+                                  />
                                 </svg>
                               </span>
                               {f}
@@ -1172,22 +1779,37 @@ class BoostModal extends React.Component {
                         </ul>
                       )}
                       {isSelected && (
-                        <div style={{
-                          textAlign: "center", fontSize: "11px", fontWeight: 600,
-                          color: "#92400e", background: "#fef3c7",
-                          borderRadius: "6px", padding: "4px", marginBottom: "8px",
-                        }}>
+                        <div
+                          style={{
+                            textAlign: "center",
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            color: "#92400e",
+                            background: "#fef3c7",
+                            borderRadius: "6px",
+                            padding: "4px",
+                            marginBottom: "8px",
+                          }}
+                        >
                           ✓ Selected
                         </div>
                       )}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          this.setState({ selected: pkg.id, selectedPkg: pkg, showPayment: true });
+                          this.setState({
+                            selected: pkg.id,
+                            selectedPkg: pkg,
+                            showPayment: true,
+                          });
                         }}
                         style={{
-                          width: "100%", padding: "9px", border: "none",
-                          borderRadius: "8px", fontSize: "13px", fontWeight: 600,
+                          width: "100%",
+                          padding: "9px",
+                          border: "none",
+                          borderRadius: "8px",
+                          fontSize: "13px",
+                          fontWeight: 600,
                           cursor: "pointer",
                           background: isPopular ? "#F59E0B" : "#36454F",
                           color: isPopular ? "#78350f" : "#fff",
@@ -1206,9 +1828,13 @@ class BoostModal extends React.Component {
             <button
               onClick={this.props.onClose}
               style={{
-                background: "transparent", color: "#fff",
-                border: "1px solid #fff", borderRadius: "8px",
-                padding: "8px 24px", fontSize: "13px", cursor: "pointer",
+                background: "transparent",
+                color: "#fff",
+                border: "1px solid #fff",
+                borderRadius: "8px",
+                padding: "8px 24px",
+                fontSize: "13px",
+                cursor: "pointer",
               }}
             >
               Cancel

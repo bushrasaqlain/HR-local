@@ -61,14 +61,11 @@ export const dbadminmenuitem = [
 ];
 
 export const regadminmenuitem = [
-  { key: "company", label: "Company List" },
-  { key: "candidate", label: "Candidates List" },
-  { key: "job", label: "Job List" },
-  { key: "boosts", label: "Boost Requests" },
-  { key: "contactMessages", label: "Contact Messages" },
-  { key: "adminrevenue", label: "Revenue" },
+  { key: "lists",    label: "Lists"   },
+  { key: "other",    label: "Other"   },
+  { key: "revenue",  label: "Revenue" },
+  // { key: "changepassword", label: "Change Password" },
 ];
-
 export const companymenuitem = [
   { key: "profile", label: "Dashboard" },
   { key: "jobList", label: "Jobs" },

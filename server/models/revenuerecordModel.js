@@ -11,7 +11,69 @@ const parseSnapshot = (raw) => {
     return {};
   }
 };
+const createBillingEvents = () => {
+  const billing_events = `
+CREATE TABLE billing_events (
+  id             INT AUTO_INCREMENT PRIMARY KEY,
+  account_id     INT          NOT NULL,
+  job_id         INT          NULL,          -- only for daily_budget events
+  payment_id     INT          NULL,          -- only for subscription payments
+  event_type     ENUM(
+                   'subscription',           -- company buys a package
+                   'cv_unlock',              -- employer unlocks a CV
+                   'daily_budget_charge',    -- per-click/per-apply charge
+                   'featured_boost',         -- one-time boost fee
+                   'refund',                 -- negative amount
+                   'adjustment'             -- admin manual credit/debit
+                 ) NOT NULL,
+  pricing_model  VARCHAR(50)  NULL,          -- mirrors packages.pricing_model
+  amount         DECIMAL(10,2) NOT NULL,     -- positive = revenue, negative = refund
+  currency       VARCHAR(5)   NOT NULL DEFAULT 'PKR',
+  description    VARCHAR(255) NULL,
+  created_at     DATETIME     NOT NULL DEFAULT NOW(),
 
+  INDEX idx_account   (account_id),
+  INDEX idx_job       (job_id),
+  INDEX idx_payment   (payment_id),
+  INDEX idx_created   (created_at),
+  INDEX idx_type      (event_type)
+);
+  `;
+
+  connection.query(billing_events, (err, results) => {
+    if (err) {
+      console.error("Error creating billing_events table:", err.message);
+    } else {
+      console.log("billing_events table created successfully");
+    }
+  });
+};
+const createDailySpendLog = () => {
+  const daily_spend_log = `
+CREATE TABLE IF NOT EXISTS daily_spend_log (
+  id           INT AUTO_INCREMENT PRIMARY KEY,
+  job_id       INT          NOT NULL,
+  account_id   INT          NOT NULL,
+  spend_date   DATE         NOT NULL,
+  amount       DECIMAL(10,2) NOT NULL DEFAULT 0,
+  clicks       INT          NOT NULL DEFAULT 0,
+  created_at   DATETIME     NOT NULL DEFAULT NOW(),
+  updated_at   DATETIME     NOT NULL DEFAULT NOW() ON UPDATE NOW(),
+
+  UNIQUE KEY uq_job_date (job_id, spend_date),  -- one row per job per day
+  INDEX idx_account_date (account_id, spend_date),
+  INDEX idx_spend_date   (spend_date)
+);
+  `;
+
+  connection.query(daily_spend_log, (err, results) => {
+    if (err) {
+      console.error("Error creating daily_spend_log table:", err.message);
+    } else {
+      console.log("daily_spend_log table created successfully");
+    }
+  });
+};
 const computeConsumption = (pricingModel, row, snapshot) => {
   switch (pricingModel) {
     case "job_slot": {
@@ -720,8 +782,105 @@ const sql = `
     });
   });
 };
+const getDailySpendByJob = (jobId) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+        spend_date,
+        amount,
+        clicks,
+        SUM(amount) OVER (ORDER BY spend_date) AS cumulative_spend
+      FROM daily_spend_log
+      WHERE job_id = ?
+      ORDER BY spend_date ASC
+    `;
+    connection.query(sql, [jobId], (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows.map(r => ({
+        ...r,
+        amount:           parseFloat(r.amount),
+        cumulative_spend: parseFloat(r.cumulative_spend),
+      })));
+    });
+  });
+};
 
+const getDailySpendByAccount = (accountId, days = 30) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT
+        spend_date,
+        SUM(amount)            AS total_spend,
+        SUM(clicks)            AS total_clicks,
+        COUNT(DISTINCT job_id) AS active_jobs
+      FROM daily_spend_log
+      WHERE account_id = ?
+        AND spend_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+      GROUP BY spend_date
+      ORDER BY spend_date ASC
+    `;
+    connection.query(sql, [accountId, days], (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows.map(r => ({ ...r, total_spend: parseFloat(r.total_spend) })));
+    });
+  });
+};
+const logRefund = ({ account_id, payment_id = null, job_id = null, amount, description = null }) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      INSERT INTO billing_events
+        (account_id, job_id, payment_id, event_type, pricing_model, amount, currency, description)
+      VALUES (?, ?, ?, 'refund', NULL, ?, 'PKR', ?)
+    `;
+    connection.query(sql, [account_id, job_id, payment_id, -Math.abs(amount), description], (err, result) => {
+      if (err) return reject(err);
+      resolve(result.insertId);
+    });
+  });
+};
+
+const logAdjustment = ({ account_id, amount, description = null }) => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      INSERT INTO billing_events
+        (account_id, job_id, payment_id, event_type, pricing_model, amount, currency, description)
+      VALUES (?, NULL, NULL, 'adjustment', NULL, ?, 'PKR', ?)
+    `;
+    connection.query(sql, [account_id, amount, description], (err, result) => {
+      if (err) return reject(err);
+      resolve(result.insertId);
+    });
+  });
+};
+
+const getRefundHistory = ({ page = 1, limit = 15 } = {}) => {
+  return new Promise((resolve, reject) => {
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const sql = `
+      SELECT
+        be.id,
+        be.account_id,
+        COALESCE(ci.company_name, a.username) AS company_name,
+        be.event_type,
+        be.amount,
+        be.description,
+        be.created_at
+      FROM billing_events be
+      JOIN account a           ON a.id = be.account_id
+      LEFT JOIN company_info ci ON ci.account_id = a.id
+      WHERE be.event_type IN ('refund', 'adjustment')
+      ORDER BY be.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+    connection.query(sql, [parseInt(limit), offset], (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows.map(r => ({ ...r, amount: parseFloat(r.amount) })));
+    });
+  });
+};
 module.exports = {
+  createBillingEvents,
+  createDailySpendLog,
   getRevenueSummary,
   getRevenueByModel,
   getMonthlyRevenueTrend,
@@ -730,4 +889,9 @@ module.exports = {
   getAdminAlerts,
   getCompanyRevenueDetail,
   getRevenueByPaymentMethod,
+  getDailySpendByJob,       
+  getDailySpendByAccount,
+  logRefund,
+  logAdjustment,
+  getRefundHistory
 };

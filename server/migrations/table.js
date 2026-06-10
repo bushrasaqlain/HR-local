@@ -75,6 +75,7 @@ const candidateAvailabilityModel = require("../models/candidateAvailabilityModel
 const alertSettingsModel = require("../models/alertSettingsModel");
 const creditModel = require("../models/creditModel");
 const contactModel = require("../models/contactModel");
+const revenuerecordModel = require("../models/revenuerecordModel");
 // const { default: candidate } = require('../../src/components/regadmin-dashboard/candidate');
 
 function Database() {
@@ -127,6 +128,10 @@ function Database() {
   candidateModel.createJobPreferencesTable();
   candidateModel.createJobAlertsTable();
   candidateModel.createProfileViewsTable();
+  revenuerecordModel.createBillingEvents();
+  revenuerecordModel.createDailySpendLog();
+  
+
 
 
   // adding extra column in job_posts table

@@ -370,4 +370,21 @@ const startAlertCron = () => {
   console.log("✅ Alert cron jobs started (hourly + 9AM digest)");
 };
 
+// ─── Boost expiry — every hour ─────────────────────────────────────────
+  cron.schedule("0 * * * *", () => {
+    connection.query(
+      `UPDATE boost_orders bo
+       JOIN candidate_info ci ON ci.id = bo.candidate_id
+       SET bo.status = 'expired',
+           ci.is_boosted = 0,
+           ci.boost_expires_at = NULL
+       WHERE bo.status = 'active' AND bo.end_date < NOW()`,
+      (err, result) => {
+        if (err) return console.error("Boost expiry cron error:", err.message);
+        if (result.affectedRows > 0)
+          console.log(`⏰ Expired ${result.affectedRows} boost order(s)`);
+      }
+    );
+  });
+
 module.exports = { startAlertCron, checkAndCreateAlerts };

@@ -19,7 +19,7 @@ class JobList extends Component {
     selected: this.props.selectedType || "shortlisted",
   shortlistedList: [],
   approvedList: [],
-  savedList: [],
+  // savedList: [],
   interviewScheduledList: [],
   interviewConductedList: [],
   consideredList: [],
@@ -61,7 +61,7 @@ class JobList extends Component {
     this.setState({
       shortlistedList:         data.shortlisted_companies       || [],
       approvedList:            data.approved_companies          || [],
-      savedList:               data.saved_companies             || [],
+      // savedList:               data.saved_companies             || [],
       interviewScheduledList:  data.interview_scheduled_companies || [],
       interviewConductedList:  data.interview_conducted_companies || [],
       consideredList:          data.considered_companies        || [],
@@ -210,7 +210,7 @@ refreshList = async () => {
     );
     const data = res.data || {};
     this.setState({
-      savedList:               data.saved_companies               || [],
+      // savedList:               data.saved_companies               || [],
       interviewScheduledList:  data.interview_scheduled_companies || [],
       interviewConductedList:  data.interview_conducted_companies || [],
       consideredList:          data.considered_companies          || [],
@@ -948,7 +948,7 @@ const showActions = !isAccepted && !isCompanyConfirmed && !isDateExpired;
     const { selected, shortlistedList, approvedList, loading } = this.state;
 
 const lists = {
-  saved:       this.state.savedList,
+  // saved:       this.state.savedList,
   shortlisted: [
     ...this.state.interviewScheduledList,
     ...this.state.interviewConductedList,
@@ -1020,7 +1020,7 @@ const lists = {
           <CardBody>
             <div style={{ borderBottom: "2px solid #e0e0e0", marginBottom: "1rem", display: "flex", gap: "0" }}>
  {[
-  { key: "saved",       label: "Saved" },
+  // { key: "saved",       label: "Saved" },
   { key: "shortlisted", label: "Shortlisted" }, 
   { key: "offered",     label: "Offered" },
   { key: "rejected",    label: "Rejected" },

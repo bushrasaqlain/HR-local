@@ -8,15 +8,17 @@ const createCandidateUnlocksTable = () => {
       id                  INT AUTO_INCREMENT PRIMARY KEY,
       employer_account_id INT NOT NULL,
       candidate_id        INT NOT NULL,
-      job_id              INT NOT NULL,
+      job_id              INT NULL,
       unlock_scope        ENUM('basic','contact','full') NOT NULL DEFAULT 'full',
+      unlock_type         ENUM('cv_credit','daily_budget') NOT NULL DEFAULT 'daily_budget',
       cost_charged        DECIMAL(10,2) NOT NULL DEFAULT 0.00,
       company_package_id  INT NULL,
       unlocked_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE KEY uq_unlock (employer_account_id, candidate_id, job_id, unlock_scope),
+      UNIQUE KEY uq_job_unlock (employer_account_id, candidate_id, job_id, unlock_type),
+      UNIQUE KEY uq_cv_credit_unlock (employer_account_id, candidate_id, unlock_type),
       FOREIGN KEY (employer_account_id) REFERENCES account(id) ON DELETE CASCADE,
       FOREIGN KEY (candidate_id) REFERENCES candidate_info(id) ON DELETE CASCADE,
-      FOREIGN KEY (job_id) REFERENCES job_posts(id) ON DELETE CASCADE
+      FOREIGN KEY (job_id) REFERENCES job_posts(id) ON DELETE SET NULL
     )
   `;
   connection.query(sql, (err) => {
@@ -279,13 +281,16 @@ const getUnlockedCandidateData = (req, res) => {
 
 // ─── Get list of all unlocked candidates for an employer ─────────────────────
 const getUnlockedCandidatesList = (req, res) => {
-    const accountId = req.user.userId;
+  const accountId = req.user.userId;
 
-    connection.query(
-        `SELECT 
+  connection.query(
+    `SELECT 
       cu.candidate_id,
       cu.unlock_scope,
-      cu.unlocked_at,
+      cu.unlock_type,
+      cu.job_id,
+      MIN(cu.unlocked_at) AS first_unlocked_at,
+      MAX(cu.unlocked_at) AS last_unlocked_at,
       ci.full_name,
       ci.total_experience,
       ci.gender,
@@ -294,13 +299,14 @@ const getUnlockedCandidatesList = (req, res) => {
     JOIN candidate_info ci ON ci.id = cu.candidate_id
     LEFT JOIN cities city ON city.id = ci.city
     WHERE cu.employer_account_id = ?
-    ORDER BY cu.unlocked_at DESC`,
-        [accountId],
-        (err, rows) => {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true, data: rows });
-        }
-    );
+    GROUP BY cu.candidate_id, cu.unlock_scope, cu.unlock_type, cu.job_id
+    ORDER BY last_unlocked_at DESC`,
+    [accountId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true, data: rows });
+    }
+  );
 };
 
 module.exports = {

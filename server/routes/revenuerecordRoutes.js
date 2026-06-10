@@ -21,6 +21,11 @@ router.get("/daily-budget",       revenuerecordController.dailyBudgetRevenue);
 router.get("/alerts",             revenuerecordController.adminAlerts);
 router.get("/overview",           revenuerecordController.revenueOverview);
 router.get("/company/:accountId", revenuerecordController.companyRevenueDetail);
+router.get("/daily-spend/job/:jobId",          revenuerecordController.dailySpendByJob);
+router.get("/daily-spend/account/:accountId",  revenuerecordController.dailySpendByAccount);
+router.post("/refund",         revenuerecordController.issueRefund);
+router.post("/adjustment",     revenuerecordController.issueAdjustment);
+router.get("/refunds",         revenuerecordController.refundHistory);
 
 
 module.exports = router;

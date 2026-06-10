@@ -97,7 +97,7 @@ class DetailModal extends Component {
     return (
       <Modal isOpen={isOpen} toggle={toggle} size="lg" centered>
         <ModalHeader toggle={toggle} className="custom-progress-bar text-white">
-          <h4>Job Details</h4>
+          <h4>{title}</h4>
         </ModalHeader>
 
         <ModalBody className="p-4">

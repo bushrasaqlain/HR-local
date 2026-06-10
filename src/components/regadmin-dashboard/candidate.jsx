@@ -55,9 +55,8 @@ class CandidateData extends Component {
       // { key: "candidate_id", label: "Id" },
       { key: "full_name", label: "User Name" },
       { key: "email", label: "Email" },
-      { key: "password", label: "Password" },
-      { key: "gender", label: "Gender" },
-      { key: "marital_status", label: "Marital Status" },
+      // { key: "password", label: "Password" },
+       { key: "gender", label: "Gender" },
       { key: "isActive", label: "Status" },
       { key: "action", label: "Action" },
     ];
@@ -184,13 +183,12 @@ class CandidateData extends Component {
     }));
   };
 
-  toggleModal = (modalData) => {
-    this.setState((prevState) => ({
-      modalOpen: !prevState.modalOpen,
-      modalData: modalData || null,
-    }));
-  };
-
+toggleModal = (modalData = null) => {
+  this.setState({
+    modalOpen: modalData ? true : false,  // explicit open/close
+    modalData: modalData,
+  });
+};
   confirmStatus = (id, status) => {
     this.setState({ showConfirmModal: true, confirmId: id, confirmStatus: status });
   };
@@ -317,8 +315,7 @@ class CandidateData extends Component {
                                     onClick={() => this.toggleModal({
                                       title: "Candidate Details",
                                       details: item,
-                                      fields: [
-                                        "total_experience", "license_type", "license_number",
+                                      fields: ["password","license_type", "license_number",
                                         "phone", "country_name", "city_name", "district_name",
                                         "address", "created_at", "updated_at",
                                       ],

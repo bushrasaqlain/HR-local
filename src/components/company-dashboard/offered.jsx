@@ -29,16 +29,14 @@ const StatusBadge = ({ status }) => {
 };
 
 const ResponseBadge = ({ response }) => {
-  if (!response) return <span className="text-muted">—</span>;
+  if (!response) return <span className="text-muted small">Waiting for response</span>;
   const map = {
-    Confirmed: ["bg-success-subtle text-success", <FaCheckCircle size={10} className="me-1" />, "Confirmed"],
-    Accepted: ["bg-primary-subtle text-primary", null, "Accepted"],
-    "Reschedule Requested": ["bg-warning-subtle text-warning", null, "Reschedule"],
+    Accepted: ["bg-success-subtle text-success", "Accepted"],
+    Rejected: ["bg-danger-subtle text-danger", "Rejected"],
   };
-  const [cls, icon, label] = map[response] || ["bg-secondary-subtle text-secondary", null, response];
-  return <span className={`badge rounded-pill ${cls}`}>{icon}{label}</span>;
+  const [cls, label] = map[response] || ["bg-secondary-subtle text-secondary", response];
+  return <span className={`badge rounded-pill ${cls}`}>{label}</span>;
 };
-
 class Offered extends Component {
   state = {
     selectedJobId: "", postedJobs: [], showFilters: false,
@@ -386,20 +384,19 @@ class Offered extends Component {
                                         )}
                                       </div>
                                     </td>
-                                    <td className="text-center">
-                                      <div className="d-flex gap-1 justify-content-center">
-                                        {c.candidate_response === "Reschedule Requested" && (
-                                          <button className="btn btn-sm btn-success" onClick={e => { e.stopPropagation(); this.setState({ showConfirmRescheduleModal: true, selectedConfirmRescheduleCandidate: c }); }}>
-                                            {mobile ? "✓" : "Confirm"}
-                                          </button>
-                                        )}
-                                        {(c.candidate_response === "Accepted" || c.candidate_response === "Confirmed" || c.candidate_response === "Reschedule Requested" || c.company_status === "confirmed") && (
-                                          <button className="btn btn-sm rounded-circle text-white" style={{ background: BRAND, width: 34, height: 34 }} onClick={e => { e.stopPropagation(); this.openCandidateMessage(c); }}>
-                                            <FaEnvelope size={14} />
-                                          </button>
-                                        )}
-                                      </div>
-                                    </td>
+                                   <td className="text-center">
+  <div className="d-flex gap-1 justify-content-center">
+    {c.candidate_response === "Accepted" && (
+      <button
+        className="btn btn-sm rounded-circle text-white"
+        style={{ background: BRAND, width: 34, height: 34 }}
+        onClick={e => { e.stopPropagation(); this.openCandidateMessage(c); }}
+      >
+        <FaEnvelope size={14} />
+      </button>
+    )}
+  </div>
+</td>
                                   </>}
                                 </tr>
                               ))}

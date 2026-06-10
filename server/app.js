@@ -50,6 +50,7 @@ const resumeRoute = require("./routes/resumeRoutes");
 const candidate_availabilityRoutes= require("./routes/candidateAvailabilityRoutes")
 const cadidateresearchRoutes=require("./routes/candidatereasearchRoutes")
 const candidatecertificateRoutes=require("./routes/candidatecertificateRoutes")
+// const revenuerecordRoutes=require("./routes/revenuerecordRoutes")
 
 
 const projects = require("./routes/projectsRoutes");
@@ -110,6 +111,7 @@ app.use("/", dashboardRoutes);
 app.use("/", jobtitlesRoutes);
 app.use("/alert-settings", alertSettingsRoutes);
 app.use("/revenue", revenuerecordRoutes);
+
 
 
 module.exports = app;

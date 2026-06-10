@@ -4,7 +4,6 @@ import api from "../../../lib/api";
 import KpiStrip from "./KpiStrip";
 import RevenueChart from "./RevenueChart";
 import CompanyTable from "./CompanyTable";
-import AlertsPanel from "./AlertsPanel";
 import PaymentMethods from "./PaymentMethods";
 import ModelBreakdown from "./ModelBreakdown";
 import CompanyDetailModal from "./CompanyDetailModal";
@@ -157,15 +156,7 @@ class AdminRevenuePage extends Component {
           </div>
         </div>
 
-        {/* Alerts */}
-        {alerts.length > 0 && (
-          <div className="mt-3">
-            <AlertsPanel
-              alerts={alerts}
-              onViewCompany={(id) => this.fetchCompanyDetail(id)}
-            />
-          </div>
-        )}
+      
 
         {/* Company Table */}
         <div className="mt-3 mb-5">
