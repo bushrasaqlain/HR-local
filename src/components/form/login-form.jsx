@@ -144,7 +144,7 @@ class FormContent extends Component {
       dispatch(setUser(res.data));
 
       this.setState({ successMessage: "Login successfully!" });
-      setTimeout(() => this.setState({ successMessage: "" }), 3000);
+      setTimeout(() => this.setState({ successMessage: "" }), 30000);
 
       const { accountType, profile_completed } = res.data;
       console.log("LOGIN RESPONSE:", {
@@ -157,7 +157,7 @@ class FormContent extends Component {
         if (profile_completed) {
           router.push("/dashboard-header");
         } else {
-          router.push("/candidate-profile");
+          router.push("/dashboard-header");
         }
       } else if (accountType === "employer") {
         const { profile_completed, approval_status } = res.data;

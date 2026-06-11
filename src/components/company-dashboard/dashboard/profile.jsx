@@ -1,28 +1,26 @@
-// "use client";
-import React from "react";
-import ProfileChart from "./ProfileChart";
+"use client";
+import React, { Component } from "react";
 import Head from "next/head";
+import DashboardHome from "./DashboardHome";
 
-const Profile = () => {
-  return (
-    <>
-      <Head>
-        <title>Company Profile</title>
-      </Head>
-
-      <section className="user-dashboard">
-        <div className="dashboard-outer">
-          <div className="row">
-            <div className="col-xl-12 col-lg-12">
-              <div className="graph-widget ls-widget">
-                <ProfileChart />
-              </div>
-            </div>
+class Profile extends Component {
+  render() {
+    return (
+      <>
+        <Head>
+          <title>Company Dashboard</title>
+        </Head>
+        <section className="user-dashboard">
+          <div className="dashboard-outer">
+            <DashboardHome
+              onTabChange={this.props.onTabChange}
+              activeTab={this.props.activeTab}
+            />
           </div>
-        </div>
-      </section>
-    </>
-  );
-};
+        </section>
+      </>
+    );
+  }
+}
 
 export default Profile;

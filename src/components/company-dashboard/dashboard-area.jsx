@@ -140,49 +140,12 @@ const JobsLayout = ({ activeTab, onTabChange }) => {
 // 1. Define ApplicantsLayout here, inside the same file
 const ApplicantsLayout = ({ activeTab, onTabChange }) => {
   const tabs = [
-  { key: "allApplicants", label: "All Applicants", short: "All" },
-  { key: "saved",         label: "Saved",          short: "Saved" },
-  { key: "interview",     label: "Shortlisted",    short: "Short" },
-  { key: "considered",    label: "Considered",     short: "Consid" },
-  { key: "offered",       label: "Approved",       short: "Apprvd" },
-];
-
-// In JSX:
-<div style={{
-  display: "flex",
-  borderBottom: "2px solid #e0e0e0",
-  marginBottom: 24,
-  background: "#fff",
-  borderRadius: "8px 8px 0 0",
-  padding: "0 8px",
-}}>
-  {tabs.map((tab) => (
-    <button
-      key={tab.key}
-      onClick={() => onTabChange(tab.key)}
-      style={{
-        flex: 1,                  // equal width, fills row
-        padding: "12px 4px",
-        fontWeight: 600,
-        fontSize: "clamp(11px, 2vw, 14px)",   // shrinks on small screens
-        background: "none",
-        border: "none",
-        borderBottom: activeTab === tab.key ? "2px solid #36565f" : "2px solid transparent",
-        color: activeTab === tab.key ? "#36565f" : "#595959",
-        cursor: "pointer",
-        marginBottom: -2,
-        transition: "all 0.15s",
-        whiteSpace: "nowrap",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-      }}
-    >
-      {/* Show short label on mobile, full on desktop */}
-      <span className="d-none d-md-inline">{tab.label}</span>
-      <span className="d-inline d-md-none">{tab.short}</span>
-    </button>
-  ))}
-</div>
+    { key: "allApplicants", label: "All Applicants" },
+    { key: "saved",         label: "Saved" },
+    { key: "interview",     label: "Shortlisted" },
+    { key: "considered",    label: "Considered" },
+    { key: "offered",       label: "Approved" },
+  ];
 
   const renderTab = () => {
     switch (activeTab) {
@@ -191,53 +154,57 @@ const ApplicantsLayout = ({ activeTab, onTabChange }) => {
       case "interview":     return <Interview />;
       case "considered":    return <Considered />;
       case "offered":       return <Offered />;
-      case "approved":      return <ApprovedCandidates />;
       default:              return <AllApplicants />;
     }
   };
 
-  return (
-    <div>
+return (
+  <div className="bg-white rounded-3 shadow" style={{ marginBottom: 24 }}>
+    {/* Tab bar */}
+    <div style={{
+      borderBottom: "2px solid #e0e0e0",
+      borderRadius: "8px 8px 0 0",
+      overflowX: "auto",
+      WebkitOverflowScrolling: "touch",
+      scrollbarWidth: "none",
+    }}>
       <div style={{
-        background: "#fff",
-        borderBottom: "2px solid #e0e0e0",
-        borderRadius: "8px 8px 0 0",
-        marginBottom: 24,
-        overflowX: "auto",          // scroll on small screens instead of clipping
-        WebkitOverflowScrolling: "touch",
-        scrollbarWidth: "none",     // hide scrollbar but keep scroll
+        display: "flex",
+        minWidth: "max-content",
+        padding: "0 16px",
       }}>
-        <div style={{
-          display: "flex",
-          minWidth: "max-content",  // prevent tabs from shrinking/wrapping
-          padding: "0 16px",
-        }}>
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => onTabChange(tab.key)}
-              style={{
-                padding: "12px 16px",
-                fontWeight: 600,
-                fontSize: 14,
-                background: "none",
-                border: "none",
-                borderBottom: activeTab === tab.key ? "2px solid #36565f" : "2px solid transparent",
-                color: activeTab === tab.key ? "#36565f" : "#595959",
-                cursor: "pointer",
-                marginBottom: -2,
-                transition: "all 0.15s",
-                whiteSpace: "nowrap",   // prevent label text wrapping
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => onTabChange(tab.key)}
+            style={{
+              padding: "12px 16px",
+              fontWeight: 600,
+              fontSize: 14,
+              background: "none",
+              border: "none",
+              borderBottom: activeTab === tab.key
+                ? "5px solid #36565f"   // slightly thicker so it's obvious
+                : "3px solid transparent",
+              color: activeTab === tab.key ? "#36565f" : "#595959",
+              cursor: "pointer",
+              marginBottom: -2,
+              transition: "all 0.15s",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
+    </div>
+
+    {/* Tab content — no separate bg-white wrapper needed */}
+    <div className="p-3">
       {renderTab()}
     </div>
-  );
+  </div>
+);
 };
 
 const CompanyDashboardArea = ({

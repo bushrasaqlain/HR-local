@@ -409,6 +409,15 @@
       maxWidth: 480,
       margin: "0 auto",
     },
+    ongoingBadge: {
+  display: "inline-block",
+  padding: "2px 8px",
+  borderRadius: 20,
+  background: T.primary3,
+  color: T.primary2,
+  fontSize: 11,
+  fontWeight: 500,
+},
   };
 
   /* ─────────────────────────────────────────────
@@ -469,7 +478,10 @@
       <polyline points="2,8 6,12 14,4" />
     </svg>
   );
-
+const isDateOngoing = (dateStr) => {
+  if (!dateStr) return true;
+  return new Date(dateStr) > new Date();
+};
   /* ─────────────────────────────────────────────
     MAIN CLASS
   ───────────────────────────────────────────── */
@@ -636,6 +648,18 @@
         this.setState({ formMessage: { type: "error", text: "Could not load license types" } });
       }
     };
+
+      loadJobTypes = async () => {
+        try {
+          const res = await api.get("/getalljobtypes");
+          const jobTypes = res.data?.jobtypes || [];
+          this.setState({ jobTypes });
+        } catch (err) {
+          console.error("Failed to load job types:", err);
+          this.setState({ formMessage: { type: "error", text: "Could not load job types" } });
+        }
+      };
+    
 
     loadSkills = async () => {
       try {
@@ -810,6 +834,7 @@ loadFaceModels = async () => {
       this.loadDegreeTitles();
       this.fetchCandidateInfo();
       this.fetchAvailability();
+      this.loadJobTypes();
     }
 
     cvManagerHandler = (e) => {
@@ -856,7 +881,7 @@ loadFaceModels = async () => {
         if (step === 5) {
           localStorage.clear();
           sessionStorage.clear();
-          setTimeout(() => { window.location.replace("/login"); }, 1500);
+          setTimeout(() => { window.location.replace("/login"); }, 20000);
           return;
         }
       } catch (error) {
@@ -975,13 +1000,20 @@ handleCVUpload = async (e) => {
             return;
           }
           const existingExperiences = values.experience.slice(1).filter((e) => e.id);
-          const newExperiences = values.experience.slice(1)
-            .filter((e) => !e.id && e.companyName && e.designation && e.startDate)
-            .map((e) => ({ ...e, speciality_id: e.speciality_id || null }));
-          if (newExperiences.length === 0 && existingExperiences.length === 0) {
-            this.setState({ formMessage: { type: "error", text: "Please add at least one experience or check 'I am a Fresher'" } });
-            return;
-          }
+const draftExp = values.experience[0];
+const draftRow = (!draftExp?.id && draftExp?.companyName && draftExp?.designation && draftExp?.startDate)
+  ? [{ ...draftExp, speciality_id: draftExp.speciality_id || null }]
+  : [];
+const newExperiences = [
+  ...values.experience.slice(1)
+    .filter((e) => !e.id && e.companyName && e.designation && e.startDate)
+    .map((e) => ({ ...e, speciality_id: e.speciality_id || null })),
+  ...draftRow,
+];
+if (newExperiences.length === 0 && existingExperiences.length === 0) {
+  this.setState({ formMessage: { type: "error", text: "Please fill Company, Designation and Start Date" } });
+  return;
+}
           if (this.state.editexpID) {
             const editedRow = values.experience.find((e) => e.id === this.state.editexpID);
             if (editedRow) {
@@ -1021,7 +1053,7 @@ handleCVUpload = async (e) => {
           });
           this.setState({ formMessage: { type: "success", text: "Availability saved successfully" } });
           localStorage.removeItem("token");
-          setTimeout(() => { window.location.href = "/login"; }, 1500);
+          setTimeout(() => { window.location.href = "/login"; }, 20000);
           return;
         }
 
@@ -1594,10 +1626,10 @@ handleCVUpload = async (e) => {
           <>
             {/* Fresher toggle */}
             <div style={S.fresherBox(values.isFresher)}
-              onClick={() => {
-                setFieldValue("isFresher", !values.isFresher);
-                if (!values.isFresher) setFieldValue("experience", [{}]);
-              }}>
+  onClick={() => {
+    setFieldValue("isFresher", !values.isFresher);
+    if (!values.isFresher) setFieldValue("experience", [{}]);
+  }}>
               <div style={{ width: 36, height: 20, borderRadius: 10, background: values.isFresher ? T.primary : T.border, position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
                 <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: values.isFresher ? 18 : 2, transition: "left 0.2s" }} />
               </div>
@@ -1610,6 +1642,7 @@ handleCVUpload = async (e) => {
             </div>
 
             {/* Experience form */}
+            {!values.isFresher && (
             <div style={{ background: T.bgSection, borderRadius: T.radius, border: `1px solid ${T.border}`, padding: "1.1rem", marginBottom: "1.2rem" }}>
               <div style={{ fontSize: 13, fontWeight: 500, color: T.text, marginBottom: "0.9rem" }}>Add experience</div>
 
@@ -1670,7 +1703,7 @@ handleCVUpload = async (e) => {
                 }}>
                 + Add experience
               </button>
-            </div>
+            </div>  )}
 
             {/* Skills */}
             <div style={{ background: T.bgSection, borderRadius: T.radius, border: `1px solid ${T.border}`, padding: "1.1rem", marginBottom: "1.2rem" }}>
@@ -1803,7 +1836,7 @@ handleCVUpload = async (e) => {
   );
 
   /* ─── STEP 5 ─── */
-  renderStep5 = () => {
+ renderStep5 = () => {
     // Helper to format shift for display
     const formatShiftForDisplay = (shift) => {
       if (shift === "morning") return "Morning";
@@ -1831,7 +1864,6 @@ handleCVUpload = async (e) => {
 
       switch (shift) {
         case "morning":
-          // Morning shift should start before 12:00 PM (noon)
           if (startTime >= "12:00") {
             return { isValid: false, error: "❌ Morning shift must start before 12:00 PM (e.g., 09:00 AM)" };
           }
@@ -1841,7 +1873,6 @@ handleCVUpload = async (e) => {
           return { isValid: true, error: null };
 
         case "evening":
-          // Evening shift should start after 12:00 PM (noon)
           if (startTime <= "12:00") {
             return { isValid: false, error: "❌ Evening shift must start after 12:00 PM (e.g., 15:00 PM)" };
           }
@@ -1851,7 +1882,6 @@ handleCVUpload = async (e) => {
           return { isValid: true, error: null };
 
         case "night":
-          // Night shift must cross midnight (start time > end time)
           if (startTime <= endTime) {
             return { isValid: false, error: "❌ Night shift must cross midnight (e.g., 21:00 to 06:00 next day)" };
           }
@@ -1941,8 +1971,19 @@ handleCVUpload = async (e) => {
             </FieldWrap>
           </div>
 
+          {/* ✅ 24/7 Availability Message (same as AvailabilityStep) */}
+          {is247 && currentEntry?.day && (
+            <div style={{ ...S.alertSuccess, marginTop: "1rem", fontSize: 13, padding: "8px 12px", background: "#e2f0f0", border: "1px solid #36565f", color: "#36565f" }}>
+              <strong>🕒 24/7 Availability Selected!</strong>
+              <br />
+              <small>
+                You will be marked as available for {currentEntry.day === "All Days" ? "all days" : currentEntry.day} across all shifts without specific time restrictions.
+              </small>
+            </div>
+          )}
+
           {/* Time inputs based on selection */}
-          {currentEntry?.shift === "All Shifts" ? (
+          {currentEntry?.shift === "All Shifts" && !is247 ? (
             <div className="mt-3">
               <label className="fw-semibold mb-2">Set timings for each shift:</label>
               {[
@@ -1991,7 +2032,7 @@ handleCVUpload = async (e) => {
                 );
               })}
             </div>
-          ) : currentEntry?.shift && (
+          ) : currentEntry?.shift && !is247 && (
             <>
               <div style={{ ...S.grid2, marginTop: 14 }}>
                 <FieldWrap label="Start Time">
@@ -2031,12 +2072,17 @@ handleCVUpload = async (e) => {
 
           {/* Summary and Add button */}
           {currentEntry?.day && currentEntry?.shift && (
-            <div style={{ ...S.alertInfo, marginTop: "1rem", fontSize: 13, padding: "8px 12px" }}>
+            <div style={{ ...S.alertInfo, marginTop: "1rem", fontSize: 13, padding: "8px 12px", ...(is247 ? { background: "#e2f0f0", borderColor: "#36565f", color: "#36565f" } : {}) }}>
               <strong>📋 Summary:</strong> You are about to add{' '}
               <strong>
                 {currentEntry.day === "All Days" ? 7 : 1} × {currentEntry.shift === "All Shifts" ? 3 : 1} ={' '}
                 {(currentEntry.day === "All Days" ? 7 : 1) * (currentEntry.shift === "All Shifts" ? 3 : 1)} entries
               </strong>
+              {is247 && (
+                <div className="mt-1">
+                  <small>✅ No time restrictions - you will be marked as available 24/7</small>
+                </div>
+              )}
             </div>
           )}
 
@@ -2065,36 +2111,54 @@ handleCVUpload = async (e) => {
               const isAllShifts = currentEntry.shift === "All Shifts";
 
               if (isAllShifts) {
-                // Validate all shifts timings
-                shiftsToAdd = ["morning", "evening", "night"];
-                let hasError = false;
+                // For 24/7 availability - add entries for all days and shifts with NULL time
+                const shifts = ["morning", "evening", "night"];
 
-                for (const shift of shiftsToAdd) {
-                  const timing = allShiftsTimings[shift];
-                  if (!timing.startTime || !timing.endTime) {
-                    this.setState({ formMessage: { type: "error", text: `Please set timings for ${shift} shift` } });
-                    hasError = true;
-                    break;
-                  }
-                  const validation = validateShiftTiming(shift, timing.startTime, timing.endTime);
-                  if (!validation.isValid) {
-                    this.setState({ formMessage: { type: "error", text: validation.error } });
-                    hasError = true;
-                    break;
-                  }
-                }
+                // Validate if we're NOT in 24/7 mode but All Shifts selected (should have timings)
+                // But if it's 24/7, we add with null times
+                if (!is247) {
+                  // Validate all shifts timings
+                  let hasError = false;
 
-                if (hasError) return;
-
-                for (const day of daysToAdd) {
-                  for (const shift of shiftsToAdd) {
+                  for (const shift of shifts) {
                     const timing = allShiftsTimings[shift];
-                    availabilityArray.push({
-                      day: day,
-                      shift: shift,
-                      startTime: timing.startTime,
-                      endTime: timing.endTime,
-                    });
+                    if (!timing.startTime || !timing.endTime) {
+                      this.setState({ formMessage: { type: "error", text: `Please set timings for ${shift} shift` } });
+                      hasError = true;
+                      break;
+                    }
+                    const validation = validateShiftTiming(shift, timing.startTime, timing.endTime);
+                    if (!validation.isValid) {
+                      this.setState({ formMessage: { type: "error", text: validation.error } });
+                      hasError = true;
+                      break;
+                    }
+                  }
+
+                  if (hasError) return;
+
+                  for (const day of daysToAdd) {
+                    for (const shift of shifts) {
+                      const timing = allShiftsTimings[shift];
+                      availabilityArray.push({
+                        day: day,
+                        shift: shift,
+                        startTime: timing.startTime,
+                        endTime: timing.endTime,
+                      });
+                    }
+                  }
+                } else {
+                  // 24/7 mode - add with null times
+                  for (const day of daysToAdd) {
+                    for (const shift of shifts) {
+                      availabilityArray.push({
+                        day: day,
+                        shift: shift,
+                        startTime: null,
+                        endTime: null,
+                      });
+                    }
                   }
                 }
               } else {
@@ -2178,7 +2242,7 @@ handleCVUpload = async (e) => {
                       <td style={S.td}>
                         {isFullDay ? "Available" : (e.endTime || "-")}
                         {!isFullDay && e.shift === "night" && crossesMidnight && " (next day)"}
-                        {!validation.isValid && <span style={{ color: "#dc3545", marginLeft: 6 }}>⚠️</span>}
+                        {!validation.isValid && <span style={{ color: "#dc3545", marginLeft: 6 }}></span>}
                       </td>
                       <td style={S.td}>
                         <button type="button" style={S.btnDanger}

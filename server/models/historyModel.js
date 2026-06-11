@@ -25,14 +25,24 @@ const createHistoryTable = () => {
     )
 `;
 
-    connection.query(createTableQuery, function (err, results, fields) {
-        if (err) {
-            return console.error(err.message);
-        }
+    connection.query(createTableQuery, function (err) {
+        if (err) return console.error(err.message);
         console.log("history table created successfully.");
-    });
-}
 
+        // Add index if it doesn't exist yet
+        const indexQuery = `
+            ALTER TABLE history 
+            ADD INDEX idx_history_lookup (entity_type, entity_id, changed_at DESC)
+        `;
+        connection.query(indexQuery, function (idxErr) {
+            if (idxErr && idxErr.code !== 'ER_DUP_KEYNAME') {
+                console.error("Failed to add history index:", idxErr.message);
+            } else {
+                console.log("history index ready.");
+            }
+        });
+    });
+};
 const getHistory = (req, res) => {
     const { entity_type } = req.params;
     const entity_id = req.params.id;

@@ -23,6 +23,11 @@ const cancelApplication=(req,res)=>{
   applicantModel.cancelApplication(req,res);
 }
 
+const getDashboardData=(req,res)=>{
+  applicantModel.getDashboardData(req,res);
+}
+
+
 module.exports={
   unlockCandidate,
     getAllApplicants,
@@ -31,4 +36,5 @@ module.exports={
     getAppliedJobs,
     getApplicationStats,
     cancelApplication,
+    getDashboardData,
 }

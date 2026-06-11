@@ -1460,17 +1460,227 @@ if (notifiableStatuses.includes(status)) {
     );
   };
 
-  // ─────────────────────────────────────────────────────────────────
-  // EXPORTS
-  // ─────────────────────────────────────────────────────────────────
-  module.exports = {
-    createApplicantsTable,
-    createCandidateSearchImpressionsTable,
-    getAllApplicants,
-    updateApplcantStatus,
-    applyJob,
-    getAppliedJobs,
-    unlockCandidate,
-    getApplicationStats,
-    cancelApplication,
-  };
+const getDashboardData = async (req, res) => {
+  const userId = req.params.userId;
+  const month = parseInt(req.query.month) || new Date().getMonth() + 1;
+  const year = parseInt(req.query.year) || new Date().getFullYear();
+  console.log("Dashboard userId:", userId);
+
+  try {
+    // 1. Pipeline counts with correct status mapping
+    const pipelineQuery = `
+      SELECT 
+        COUNT(*) AS applied,
+        SUM(CASE 
+          WHEN a.status IN ('Shortlisted', 'Interview_Scheduled') THEN 1 
+          ELSE 0 
+        END) AS shortlisted,
+        SUM(CASE 
+          WHEN a.status IN ('Interview_Conducted') THEN 1 
+          ELSE 0 
+        END) AS interview,
+        SUM(CASE 
+          WHEN a.status IN ('Offered') THEN 1 
+          ELSE 0 
+        END) AS offered,
+        SUM(CASE 
+          WHEN a.status IN ('Selected', 'Joined') OR a.candidate_response = 'Confirmed' OR a.candidate_response = 'Accepted' THEN 1 
+          ELSE 0 
+        END) AS hired
+      FROM applications a
+      JOIN job_posts jp ON jp.id = a.job_id
+      WHERE jp.account_id = ?
+        AND a.status != 'Cancelled'
+        AND a.status != 'Rejected'
+        AND MONTH(a.created_at) = ?
+        AND YEAR(a.created_at) = ?
+    `;
+
+    // 2. Recent activity (from history table)
+    const activityQuery = `
+      SELECT action, data, changed_at
+      FROM history
+      WHERE entity_type = 'employer' AND entity_id = ?
+      ORDER BY changed_at DESC
+      LIMIT 10
+    `;
+
+    // 3. Upcoming interviews
+    const interviewQuery = `
+      SELECT 
+        ci.full_name AS name,
+        jp.job_title AS role,
+        a.interview_day,
+        a.interview_time,
+        a.status,
+        a.candidate_id,
+        a.job_id
+      FROM applications a
+      JOIN candidate_info ci ON ci.id = a.candidate_id
+      JOIN job_posts jp ON jp.id = a.job_id
+      WHERE jp.account_id = ?
+        AND a.status = 'Interview_Scheduled'
+        AND a.interview_day >= CURDATE()
+      ORDER BY a.interview_day ASC, a.interview_time ASC
+      LIMIT 5
+    `;
+
+    // 4. Current openings
+    const openingsQuery = `
+      SELECT 
+        jp.id,
+        jp.job_title AS title,
+        jp.status,
+        jp.job_location_type AS type,
+        (SELECT COUNT(*) FROM applications ap WHERE ap.job_id = jp.id AND ap.status != 'Cancelled' AND ap.status != 'Rejected') AS applicants,
+        jp.application_deadline
+      FROM job_posts jp
+      WHERE jp.account_id = ?
+        AND jp.approval_status = 'Approved'
+        AND jp.status = 'Active'
+      ORDER BY jp.created_at DESC
+      LIMIT 6
+    `;
+
+    const [pipeline, activity, interviews, openings] = await Promise.all([
+      new Promise((resolve, reject) =>
+        connection.query(pipelineQuery, [userId, month, year], (err, rows) => {
+          console.log("Pipeline result:", rows, "err:", err);
+          err ? reject(err) : resolve(rows[0])
+        })
+      ),
+      new Promise((resolve, reject) =>
+        connection.query(activityQuery, [userId], (err, rows) =>
+          err ? reject(err) : resolve(rows)
+        )
+      ),
+      new Promise((resolve, reject) =>
+        connection.query(interviewQuery, [userId], (err, rows) =>
+          err ? reject(err) : resolve(rows)
+        )
+      ),
+      new Promise((resolve, reject) =>
+        connection.query(openingsQuery, [userId], (err, rows) =>
+          err ? reject(err) : resolve(rows)
+        )
+      ),
+    ]);
+
+    // Format recent activity
+    const recentActivity = activity.map((item) => {
+      let data = {};
+      try {
+        data = typeof item.data === "string" ? JSON.parse(item.data) : item.data || {};
+      } catch { }
+
+      const timeAgo = (date) => {
+        const diff = Math.floor((Date.now() - new Date(date)) / 1000);
+        if (diff < 60) return `${diff}s ago`;
+        if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+        return `${Math.floor(diff / 86400)}d ago`;
+      };
+
+      return {
+        text: data.event || item.action,
+        sub: timeAgo(item.changed_at),
+      };
+    });
+
+    // Format upcoming interviews
+    const upcomingInterviews = interviews.map((i) => {
+      const interviewDate = new Date(i.interview_day);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+
+      let dayLabel;
+      if (interviewDate.toDateString() === today.toDateString()) {
+        dayLabel = "Today";
+      } else if (interviewDate.toDateString() === tomorrow.toDateString()) {
+        dayLabel = "Tomorrow";
+      } else {
+        dayLabel = interviewDate.toLocaleDateString("en-US", { day: "numeric", month: "short" });
+      }
+
+      let time12 = "";
+      if (i.interview_time) {
+        const [h, m] = i.interview_time.slice(0, 5).split(":");
+        const hr = parseInt(h);
+        const ampm = hr >= 12 ? "PM" : "AM";
+        const hr12 = hr % 12 || 12;
+        time12 = `${hr12}:${m} ${ampm}`;
+      }
+
+      return {
+        name: i.name,
+        role: i.role,
+        type: "Technical",
+        time: time12 ? `${dayLabel}, ${time12}` : dayLabel,
+        status: "Scheduled",
+      };
+    });
+
+    // Format current openings - add city
+    const openingIds = openings.map((o) => o.id);
+    let cityMap = {};
+    if (openingIds.length) {
+      const cityRows = await new Promise((resolve, reject) =>
+        connection.query(
+          `SELECT jp.id, c.name AS city_name
+           FROM job_posts jp
+           LEFT JOIN cities c ON c.id = JSON_UNQUOTE(JSON_EXTRACT(jp.city_id, '$[0]'))
+           WHERE jp.id IN (?)`,
+          [openingIds],
+          (err, rows) => (err ? reject(err) : resolve(rows))
+        )
+      );
+      cityRows.forEach((r) => (cityMap[r.id] = r.city_name));
+    }
+
+    const currentOpenings = openings.map((o) => ({
+      id: o.id,
+      title: o.title,
+      status: o.application_deadline && new Date(o.application_deadline) < new Date(Date.now() + 7 * 86400000)
+        ? "Closing soon"
+        : "Active",
+      type: o.type || "On-site",
+      city: cityMap[o.id] || "-",
+      applicants: o.applicants,
+    }));
+
+    return res.json({
+      pipeline: {
+        applied: pipeline.applied || 0,
+        shortlisted: pipeline.shortlisted || 0,
+        interview: pipeline.interview || 0,
+        offered: pipeline.offered || 0,
+        hired: pipeline.hired || 0,
+      },
+      recentActivity,
+      upcomingInterviews,
+      currentOpenings,
+    });
+
+  } catch (err) {
+    console.error("getDashboardData error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────
+// EXPORTS
+// ─────────────────────────────────────────────────────────────────
+module.exports = {
+  createApplicantsTable,
+  createCandidateSearchImpressionsTable, // add this
+  getAllApplicants,
+  updateApplcantStatus,
+  applyJob,
+  getAppliedJobs,
+  unlockCandidate,
+  getApplicationStats,
+  cancelApplication,
+  getDashboardData,
+};

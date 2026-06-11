@@ -54,6 +54,7 @@ class Interview extends Component {
     showConfirmRescheduleModal: false, selectedConfirmRescheduleCandidate: null,
     counts: { all: 0, pending: 0, shortlisted: 0, rejected: 0, approved: 0, conducted: 0 },
     windowWidth: typeof window !== "undefined" ? window.innerWidth : 1200,
+    isTyping: false,
   };
 
   apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -216,7 +217,21 @@ class Interview extends Component {
       placeholder="Search or select a job..."
       value={this.state.jobSearch}
       onChange={e => this.setState({ jobSearch: e.target.value, showJobDropdown: true })}
-      onFocus={() => this.setState({ showJobDropdown: true })}
+      onFocus={() => this.setState({ showJobDropdown: true, isTyping: false })}
+
+                  onChange={e => this.setState({
+                    jobSearch: e.target.value,
+                    showJobDropdown: true,
+                    isTyping: true
+                  })}
+                  onBlur={() => setTimeout(() => {
+                    const selectedJob = this.state.postedJobs.find(j => j.id === this.state.selectedJobId);
+                    this.setState({
+                      showJobDropdown: false,
+                      isTyping: false,
+                      jobSearch: selectedJob ? selectedJob.job_title : ""
+                    });
+                  }, 150)}
       onBlur={() => setTimeout(() => this.setState({ showJobDropdown: false }), 150)}
       style={{
         borderColor: "#36565f",
@@ -257,11 +272,12 @@ class Interview extends Component {
           -- Choose a job to view candidates --
         </div>
 
-        {this.state.postedJobs
-          .filter(j =>
-            j.job_title.toLowerCase().includes((this.state.jobSearch || "").toLowerCase())
-          )
-          .map(j => (
+         {this.state.postedJobs
+                      .filter(j =>
+                        !this.state.isTyping ||
+                        j.job_title.toLowerCase().includes((this.state.jobSearch || "").toLowerCase())
+                      )
+                      .map(j => (
             <div
               key={j.id}
               className="px-3 py-2 small"

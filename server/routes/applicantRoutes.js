@@ -23,5 +23,6 @@ router.get("/applied-jobs", authMiddleware, applicantController.getAppliedJobs);
 router.post("/unlock-candidate", applicantController.unlockCandidate);
 router.get("/application-stats", authMiddleware, applicantController.getApplicationStats);
 router.post("/cancel-application", authMiddleware, applicantController.cancelApplication);
+router.get("/dashboard/:userId", applicantController.getDashboardData);
 
 module.exports = router;

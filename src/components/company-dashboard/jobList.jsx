@@ -30,11 +30,13 @@ class JobListings extends Component {
       jobsPerPage: 10,
       currentPage: 1,
       filters: {
-        title: "",
+        job_title: "",
         industry: "",
         no_of_positions: "",
         application_deadline: "",
         status: "",
+        billing_model: "",
+        approval_status: "",
       },
       // Modal state
       dropdownOpen: false,
@@ -49,7 +51,7 @@ class JobListings extends Component {
 
     this.tableHeaders = [
       { key: "job_title", label: "Job Title", placeholder: "Filter by Title", minWidth: "200px" },
-      { key: "Model", label: "Package", placeholder: "Filter by Package", minWidth: "150px" },
+      { key: "billing_model", label: "Package", placeholder: "Filter by Package", minWidth: "150px" },
       { key: "no_of_positions", label: "Positions", placeholder: "No. of Positions", minWidth: "100px" },
       { key: "application_deadline", label: "Deadline", placeholder: "Filter Deadline", minWidth: "130px" },
       { key: "approval_status", label: "Approval", placeholder: "Filter Approval", minWidth: "120px" },
@@ -269,41 +271,32 @@ class JobListings extends Component {
   };
 
   filterJobs = (jobs) => {
-    const { title, industry, no_of_positions, application_deadline, status } = this.state.filters;
+    const { job_title, no_of_positions, application_deadline, status, billing_model, approval_status } = this.state.filters;
     const { quickStatusFilter } = this.state;
 
     return jobs.filter((job) => {
-      // Check if job is expired
       const isExpired = job.application_deadline &&
         new Date(job.application_deadline) < new Date();
+      if (isExpired && job.status === 'Active') job.status = 'Inactive';
 
-      // Auto-update status in UI if expired but still showing as Active
-      if (isExpired && job.status === 'Active') {
-        job.status = 'Inactive';
-      }
-
-      const jobTitle = job.job_title ? job.job_title.toLowerCase() : "";
-      const jobIndustry = job.industry ? job.industry.toString().toLowerCase() : "";
-      const jobPositions = job.no_of_positions
-        ? job.no_of_positions.toString().toLowerCase()
-        : "";
+      const jobTitle = (job.job_title || "").toLowerCase();
+      const jobPositions = (job.no_of_positions || "").toString().toLowerCase();
       const jobDeadline = job.application_deadline
-        ? new Date(job.application_deadline)
-          .toLocaleDateString("en-GB", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          })
-          .toLowerCase()
+        ? new Date(job.application_deadline).toLocaleDateString("en-GB", {
+          day: "2-digit", month: "short", year: "numeric",
+        }).toLowerCase()
         : "";
-      const jobStatus = job.status ? job.status.trim().toLowerCase() : "";
+      const jobStatus = (job.status || "").trim().toLowerCase();
+      const jobBilling = (this.billingModelLabels[job.billing_model] || job.billing_model || "").toLowerCase();
+      const jobApproval = (job.approval_status || "").toLowerCase();
 
       return (
-        jobTitle.includes(title.toLowerCase()) &&
-        jobIndustry.includes(industry.toLowerCase()) &&
+        jobTitle.includes(job_title.toLowerCase()) &&
         jobPositions.includes(no_of_positions.toLowerCase()) &&
         jobDeadline.includes(application_deadline.toLowerCase()) &&
-        (status === "" || jobStatus.includes(status.toLowerCase())) &&
+        (status === "" || jobStatus === status.toLowerCase()) &&
+        (billing_model === "" || jobBilling.includes(billing_model.toLowerCase())) &&
+        (approval_status === "" || jobApproval.includes(approval_status.toLowerCase())) &&
         (quickStatusFilter === "" || jobStatus === quickStatusFilter.toLowerCase())
       );
     });
@@ -605,7 +598,7 @@ class JobListings extends Component {
                         width: '280px',
                         background: '#f8fafc'
                       }}
-                      onChange={(e) => this.handleFilterChange('title', e.target.value)}
+                      onChange={(e) => this.handleFilterChange('job_title', e.target.value)}
                     />
                     {/* <span style={{ position: 'absolute', left: '12px', top: '8px', color: '#94a3b8' }}>🔍</span> */}
                   </div>
