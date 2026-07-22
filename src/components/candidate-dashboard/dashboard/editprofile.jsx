@@ -40,6 +40,82 @@ const CustomOption = (props) => (
   </components.Option>
 );
 
+const CustomSelect = ({ options, value, onChange, placeholder = "Select...", error = false, disabled = false }) => {
+  const [open, setOpen] = React.useState(false);
+  const wrapRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find((o) => String(o.value) === String(value));
+
+  const handleSelect = (val) => {
+    onChange(val);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative", width: "100%" }}>
+      <div
+        onClick={() => !disabled && setOpen(!open)}
+        style={{
+          height: "38px",
+          padding: "0 12px",
+          fontSize: "14px",
+          border: `1px solid ${open ? "#36565f" : error ? "#dc3545" : "#ced4da"}`,
+          borderRadius: "6px",
+          background: disabled ? "#e9ecef" : "#fff",
+          color: selectedOption ? "#212529" : "#6c757d",
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          cursor: disabled ? "not-allowed" : "pointer",
+          boxShadow: open ? "0 0 0 3px rgba(54,86,95,0.15)" : "none",
+          transition: "border-color 0.15s, box-shadow 0.15s",
+        }}
+      >
+        <span>{selectedOption ? selectedOption.label : placeholder}</span>
+        <span style={{ fontSize: "10px", color: "#9ca3af", marginLeft: "8px" }}>▾</span>
+      </div>
+
+      {open && !disabled && (
+        <div
+          style={{
+            position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 30,
+            background: "#fff", borderRadius: "6px", border: "1px solid #ced4da",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.08)", maxHeight: "220px", overflowY: "auto",
+          }}
+        >
+          {options.map((opt) => {
+            const isSelected = String(opt.value) === String(value);
+            return (
+              <div
+                key={opt.value}
+                onClick={() => handleSelect(opt.value)}
+                style={{
+                  padding: "8px 12px", fontSize: "14px", cursor: "pointer",
+                  background: isSelected ? "#36565f" : "#fff",
+                  color: isSelected ? "#fff" : "#212529",
+                }}
+                onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "#e6eeef"; }}
+                onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = "#fff"; }}
+              >
+                {opt.label}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 class EditProfile extends Component {
   constructor(props) {
     super(props);
@@ -804,7 +880,7 @@ class EditProfile extends Component {
       "license_number",
       "current_salary",
       "expected_salary",
-      "total_experience",
+      // "total_experience",
       "country",
       "district",
       "city",
@@ -1006,7 +1082,6 @@ class EditProfile extends Component {
                   )}
 
                   <div className="mb-3">
-                    <label>Type</label>
                     <Select
                       options={this.linkOptions}
                       components={{ Option: CustomOption }}
@@ -1020,6 +1095,33 @@ class EditProfile extends Component {
                           newLink: { ...newLink, type: selected.value },
                         })
                       }
+                      styles={{
+                        control: (base, state) => ({
+                          ...base,
+                          borderColor: state.isFocused ? "#36565F" : base.borderColor,
+                          boxShadow: state.isFocused ? "0 0 0 1px #36565F" : base.boxShadow,
+                          "&:hover": {
+                            borderColor: "#36565F",
+                          },
+                        }),
+                        option: (base, state) => ({
+                          ...base,
+                          backgroundColor: state.isSelected
+                            ? "#36565F"
+                            : state.isFocused
+                              ? "#e6eeef"
+                              : "#fff",
+                          color: state.isSelected ? "#fff" : "#212529",
+                          cursor: "pointer",
+                          "&:active": {
+                            backgroundColor: "#36565F",
+                          },
+                        }),
+                        menu: (base) => ({
+                          ...base,
+                          zIndex: 30,
+                        }),
+                      }}
                     />
                   </div>
 
@@ -1519,62 +1621,39 @@ class EditProfile extends Component {
                     <div className="mb-2">
                       <Label>Gender</Label>
                       {this.state.personalInfoErrors?.gender && (
-                        <div className="text-danger mb-1">
-                          {this.state.personalInfoErrors.gender}
-                        </div>
+                        <div className="text-danger mb-1">{this.state.personalInfoErrors.gender}</div>
                       )}
-                      <select
-                        className="form-select"
+                      <CustomSelect
+                        options={this.genderOptions}
                         value={formData.gender || ""}
-                        onChange={(e) =>
+                        onChange={(val) =>
                           this.setState({
-                            formData: { ...formData, gender: e.target.value },
-                            personalInfoErrors: {
-                              ...this.state.personalInfoErrors,
-                              gender: "",
-                            }, // clear error
+                            formData: { ...formData, gender: val },
+                            personalInfoErrors: { ...this.state.personalInfoErrors, gender: "" },
                           })
                         }
-                      >
-                        <option value="">Select Gender</option>
-                        {this.genderOptions.map((g) => (
-                          <option key={g.value} value={g.value}>
-                            {g.label}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Select Gender"
+                        error={!!this.state.personalInfoErrors?.gender}
+                      />
                     </div>
 
                     <div className="mb-2">
                       <Label>Marital Status</Label>
                       {this.state.personalInfoErrors?.marital_status && (
-                        <div className="text-danger mb-1">
-                          {this.state.personalInfoErrors.marital_status}
-                        </div>
+                        <div className="text-danger mb-1">{this.state.personalInfoErrors.marital_status}</div>
                       )}
-                      <select
-                        className="form-select"
+                      <CustomSelect
+                        options={this.maritalStatusOptions}
                         value={formData.marital_status || ""}
-                        onChange={(e) =>
+                        onChange={(val) =>
                           this.setState({
-                            formData: {
-                              ...formData,
-                              marital_status: e.target.value,
-                            },
-                            personalInfoErrors: {
-                              ...this.state.personalInfoErrors,
-                              marital_status: "",
-                            }, // clear error
+                            formData: { ...formData, marital_status: val },
+                            personalInfoErrors: { ...this.state.personalInfoErrors, marital_status: "" },
                           })
                         }
-                      >
-                        <option value="">Select Marital Status</option>
-                        {this.maritalStatusOptions.map((m) => (
-                          <option key={m.value} value={m.value}>
-                            {m.label}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Select Marital Status"
+                        error={!!this.state.personalInfoErrors?.marital_status}
+                      />
                     </div>
 
                     <div className="mb-2">
@@ -1591,155 +1670,88 @@ class EditProfile extends Component {
                     <div className="mb-2">
                       <Label>Country</Label>
                       {personalInfoErrors?.country && (
-                        <div className="text-danger mb-1">
-                          {personalInfoErrors.country}
-                        </div>
+                        <div className="text-danger mb-1">{personalInfoErrors.country}</div>
                       )}
-                      <select
-                        className="form-select"
+                      <CustomSelect
+                        options={this.state.countries.map((c) => ({ value: c.id, label: c.name }))}
                         value={formData.country?.id || ""}
-                        onChange={async (e) => {
-                          const selected = this.state.countries.find(
-                            (c) => c.id.toString() === e.target.value,
-                          );
+                        onChange={async (val) => {
+                          const selected = this.state.countries.find((c) => String(c.id) === String(val));
                           this.setState((prev) => ({
-                            formData: {
-                              ...prev.formData,
-                              country: selected || null,
-                              district: null,
-                              city: null,
-                            },
+                            formData: { ...prev.formData, country: selected || null, district: null, city: null },
                             districts: [],
                             cities: [],
-                            personalInfoErrors: {
-                              ...prev.personalInfoErrors,
-                              country: "",
-                            },
+                            personalInfoErrors: { ...prev.personalInfoErrors, country: "" },
                           }));
-
-                          if (selected?.id) {
-                            await this.loadDistricts(selected.id);
-                          }
+                          if (selected?.id) await this.loadDistricts(selected.id);
                         }}
-                      >
-                        <option value="">Select Country</option>
-                        {this.state.countries.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Select Country"
+                        error={!!personalInfoErrors?.country}
+                      />
                     </div>
 
                     <div className="mb-2">
                       <Label>District</Label>
                       {personalInfoErrors?.district && (
-                        <div className="text-danger mb-1">
-                          {personalInfoErrors.district}
-                        </div>
+                        <div className="text-danger mb-1">{personalInfoErrors.district}</div>
                       )}
-                      <select
-                        className="form-select"
+                      <CustomSelect
+                        options={this.state.districts.map((d) => ({ value: d.id, label: d.name }))}
                         value={formData.district?.id || ""}
-                        onChange={async (e) => {
-                          const selected = this.state.districts.find(
-                            (d) => d.id.toString() === e.target.value,
-                          );
+                        onChange={async (val) => {
+                          const selected = this.state.districts.find((d) => String(d.id) === String(val));
                           this.setState((prev) => ({
-                            formData: {
-                              ...prev.formData,
-                              district: selected || null,
-                              city: null,
-                            },
+                            formData: { ...prev.formData, district: selected || null, city: null },
                             cities: [],
-                            personalInfoErrors: {
-                              ...prev.personalInfoErrors,
-                              district: "",
-                            },
+                            personalInfoErrors: { ...prev.personalInfoErrors, district: "" },
                           }));
-
-                          if (selected?.id) {
-                            await this.loadCities(selected.id);
-                          }
+                          if (selected?.id) await this.loadCities(selected.id);
                         }}
-                      >
-                        <option value="">Select District</option>
-                        {this.state.districts.map((d) => (
-                          <option key={d.id} value={d.id}>
-                            {d.name}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Select District"
+                        error={!!personalInfoErrors?.district}
+                        disabled={!formData.country}
+                      />
                     </div>
 
                     <div className="mb-2">
                       <Label>City</Label>
                       {personalInfoErrors?.city && (
-                        <div className="text-danger mb-1">
-                          {personalInfoErrors.city}
-                        </div>
+                        <div className="text-danger mb-1">{personalInfoErrors.city}</div>
                       )}
-                      <select
-                        className="form-select"
+                      <CustomSelect
+                        options={this.state.cities.map((c) => ({ value: c.id, label: c.name }))}
                         value={formData.city?.id || ""}
-                        onChange={(e) => {
-                          const selected = this.state.cities.find(
-                            (c) => c.id.toString() === e.target.value,
-                          );
+                        onChange={(val) => {
+                          const selected = this.state.cities.find((c) => String(c.id) === String(val));
                           this.setState((prev) => ({
-                            formData: {
-                              ...prev.formData,
-                              city: selected || null,
-                            },
-                            personalInfoErrors: {
-                              ...prev.personalInfoErrors,
-                              city: "",
-                            },
+                            formData: { ...prev.formData, city: selected || null },
+                            personalInfoErrors: { ...prev.personalInfoErrors, city: "" },
                           }));
                         }}
-                      >
-                        <option value="">Select City</option>
-                        {this.state.cities.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Select City"
+                        error={!!personalInfoErrors?.city}
+                        disabled={!formData.district}
+                      />
                     </div>
 
                     <div className="mb-2">
                       <Label>License Type</Label>
                       {this.state.personalInfoErrors?.license_type && (
-                        <div className="text-danger mb-1">
-                          {this.state.personalInfoErrors.license_type}
-                        </div>
+                        <div className="text-danger mb-1">{this.state.personalInfoErrors.license_type}</div>
                       )}
-                      <select
-                        className="form-select"
+                      <CustomSelect
+                        options={this.state.licenseTypes.map((l) => ({ value: l.id, label: l.name }))}
                         value={formData.license_type?.id || ""}
-                        onChange={(e) => {
-                          const selected = this.state.licenseTypes.find(
-                            (l) => l.id.toString() === e.target.value,
-                          );
+                        onChange={(val) => {
+                          const selected = this.state.licenseTypes.find((l) => String(l.id) === String(val));
                           this.setState((prev) => ({
-                            formData: {
-                              ...prev.formData,
-                              license_type: selected || null,
-                            },
-                            personalInfoErrors: {
-                              ...prev.personalInfoErrors,
-                              license_type: "",
-                            },
+                            formData: { ...prev.formData, license_type: selected || null },
+                            personalInfoErrors: { ...prev.personalInfoErrors, license_type: "" },
                           }));
                         }}
-                      >
-                        <option value="">Select License Type</option>
-                        {this.state.licenseTypes.map((l) => (
-                          <option key={l.id} value={l.id}>
-                            {l.name}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Select License Type"
+                        error={!!this.state.personalInfoErrors?.license_type}
+                      />
                     </div>
 
                     <div className="mb-2">

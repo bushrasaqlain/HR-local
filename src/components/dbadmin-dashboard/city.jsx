@@ -17,6 +17,25 @@ import {
 } from "react-bootstrap";
 import "bootstrap-icons/font/bootstrap-icons.css";
 
+const tealSelectStyles = {
+  control: (base, state) => ({
+    ...base,
+    borderColor: state.isFocused ? "#36565F" : "#ccc",
+    boxShadow: state.isFocused ? "0 0 0 1px #36565F" : "none",
+    "&:hover": { borderColor: "#36565F" },
+  }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected
+      ? "#36565F"
+      : state.isFocused
+        ? "#e8eef0"
+        : "#fff",
+    color: state.isSelected ? "#fff" : "#000",
+    cursor: "pointer",
+  }),
+};
+
 class City extends Component {
   constructor(props) {
     super(props);
@@ -37,6 +56,7 @@ class City extends Component {
       importFile: null,
       successMessage: "",
       errorMessage: "",
+      statusDropdownOpen: false,
 
     };
 
@@ -392,11 +412,18 @@ class City extends Component {
     const totalPages = Math.ceil(totalCities / this.itemsPerPage);
 
     const highlightStyle = `
-        .highlight-row td {
-            background-color: #fff3cd !important;
-            transition: background-color 0.5s ease;
-        }
-    `;
+    .highlight-row td {
+        background-color: #fff3cd !important;
+        transition: background-color 0.5s ease;
+    }
+
+    /* Teal theme - override Bootstrap default blue focus */
+    .form-select:focus,
+    .form-control:focus {
+        border-color: #36565F !important;
+        box-shadow: 0 0 0 0.2rem rgba(54, 86, 95, 0.25) !important;
+    }
+`;
 
     return (
       <React.Fragment>
@@ -412,16 +439,68 @@ class City extends Component {
               {/* Left side: Status filter */}
               <div className="d-flex align-items-center gap-2">
                 <span className="filter-label text-dark">Filter by Status:</span>
-                <select
-                  className="rounded-square form-select p-2"
-                  style={{ maxWidth: "200px" }}
-                  value={isActive}
-                  onChange={(e) => this.setState({ isActive: e.target.value })}
-                >
-                  <option value="all">All</option>
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
+
+                <div style={{ position: "relative", maxWidth: "200px", width: "100%" }}>
+                  <button
+                    type="button"
+                    className="form-select rounded-square p-2 text-start"
+                    style={{ cursor: "pointer" }}
+                    onClick={() =>
+                      this.setState((prev) => ({
+                        statusDropdownOpen: !prev.statusDropdownOpen,
+                      }))
+                    }
+                  >
+                    {isActive === "all" ? "All" : isActive}
+                  </button>
+
+                  {this.state.statusDropdownOpen && (
+                    <div
+                      className="shadow-sm"
+                      style={{
+                        position: "absolute",
+                        top: "100%",
+                        left: 0,
+                        right: 0,
+                        zIndex: 1000,
+                        background: "#fff",
+                        border: "1px solid #ccc",
+                        borderRadius: "6px",
+                        marginTop: "2px",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {[
+                        { label: "All", value: "all" },
+                        { label: "Active", value: "Active" },
+                        { label: "Inactive", value: "Inactive" },
+                      ].map((opt) => (
+                        <div
+                          key={opt.value}
+                          onClick={() =>
+                            this.setState({ isActive: opt.value, statusDropdownOpen: false })
+                          }
+                          style={{
+                            padding: "8px 12px",
+                            cursor: "pointer",
+                            backgroundColor: isActive === opt.value ? "#36565F" : "#fff",
+                            color: isActive === opt.value ? "#fff" : "#000",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (isActive !== opt.value)
+                              e.currentTarget.style.backgroundColor = "#e8eef0";
+                          }}
+                          onMouseLeave={(e) => {
+                            if (isActive !== opt.value)
+                              e.currentTarget.style.backgroundColor = "#fff";
+                          }}
+                        >
+                          {opt.label}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
 
@@ -663,7 +742,7 @@ class City extends Component {
                                 className="icon-btn"
                                 title="Update"
                               >
-                                <i className="bi bi-pencil-square text-primary"></i>
+                                <i className="bi bi-pencil-square" style={{ color: "#36565F" }}></i>
                               </button>
 
                               {/* Activate / Inactivate */}
@@ -728,6 +807,7 @@ class City extends Component {
               }
               placeholder="Select District"
               className="mb-2"
+              styles={tealSelectStyles}
             />
 
             {this.state.isImportMode ? (
@@ -762,6 +842,10 @@ class City extends Component {
             <Button
               variant="primary"
               onClick={this.handleSave}
+              style={{
+                backgroundColor: "#36565F",
+                borderColor: "#36565F",
+              }}
               disabled={
                 !selectedDistrict || // district must be selected in both modes
                 (this.state.isImportMode ? !this.state.importFile : !this.state.inputValue)

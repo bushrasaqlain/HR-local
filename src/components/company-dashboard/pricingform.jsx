@@ -7,8 +7,8 @@ import { Helmet } from "react-helmet";
 
 const CHECK_COLORS = {
   Hours: { bg: "#E6F1FB", stroke: "#185FA5", badge: "#E6F1FB", badgeText: "#0C447C" },
-  Days:  { bg: "#EEEDFE", stroke: "#534AB7", badge: "#EEEDFE", badgeText: "#3C3489" },
-  Months:{ bg: "#E1F5EE", stroke: "#0F6E56", badge: "#E1F5EE", badgeText: "#085041" },
+  Days: { bg: "#EEEDFE", stroke: "#534AB7", badge: "#EEEDFE", badgeText: "#3C3489" },
+  Months: { bg: "#E1F5EE", stroke: "#0F6E56", badge: "#E1F5EE", badgeText: "#085041" },
   Years: { bg: "#FAEEDA", stroke: "#854F0B", badge: "#FAEEDA", badgeText: "#633806" },
 };
 
@@ -44,17 +44,17 @@ class PricingForm extends Component {
 
   componentDidMount() { this.loadPackages(); }
 
-loadPackages = async () => {
-  try {
-    const response = await axios.get(`${this.APIBASEURL}packages/getallpackages`, {
-      params: { status: "Active", package_type: "company" }  // ← add this
-    });
-    this.setState({ packages: response.data.packages, loading: false });
-  } catch {
-    this.setState({ loading: false });
-    console.error("Failed to load packages");
-  }
-};
+  loadPackages = async () => {
+    try {
+      const response = await axios.get(`${this.APIBASEURL}packages/getallpackages`, {
+        params: { status: "Active", package_type: "company" }  // ← add this
+      });
+      this.setState({ packages: response.data.packages, loading: false });
+    } catch {
+      this.setState({ loading: false });
+      console.error("Failed to load packages");
+    }
+  };
   addPackage = async (packageId) => {
     const { jobId } = this.props;
     const { userId, packages } = this.state;
@@ -127,7 +127,7 @@ loadPackages = async () => {
                   <div key={pkg.id}
                     style={{
                       background: "#fff",
-                      border: featured ? "2px solid #378ADD" : "1px solid rgba(0,0,0,0.1)",
+                      border: featured ? "2px solid #36565f" : "1px solid rgba(0,0,0,0.1)",
                       borderRadius: 12,
                       padding: "1.5rem",
                       display: "flex",
@@ -140,8 +140,8 @@ loadPackages = async () => {
                     <span style={{
                       display: "inline-block", fontSize: 11, fontWeight: 500,
                       padding: "3px 10px", borderRadius: 20, marginBottom: 12,
-                      background: featured ? "#378ADD" : color.badge,
-                      color: featured ? "#E6F1FB" : color.badgeText,
+                      background: featured ? "#36565f" : color.badge,
+                      color: featured ? "#fff" : color.badgeText,
                       width: "fit-content",
                     }}>
                       {featured ? "Most popular" : `${pkg.duration_unit} plan`}

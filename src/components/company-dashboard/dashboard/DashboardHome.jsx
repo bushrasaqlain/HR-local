@@ -1,6 +1,7 @@
 import React, { Component } from "react";
 import { Row, Col } from "reactstrap";
 import axios from "axios";
+import MonthYearPicker from "./Picker";
 
 class DashboardHome extends Component {
     constructor(props) {
@@ -120,16 +121,10 @@ class DashboardHome extends Component {
                             <div style={sectionHead}>
                                 <span style={{ fontSize: 14, fontWeight: 600 }}>Hiring Pipeline</span>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                    <input
-                                        type="month"
-                                        value={monthValue}
-                                        onChange={this.handleMonthChange}
-                                        style={{
-                                            fontSize: 11, border: "0.5px solid rgba(0,0,0,0.15)",
-                                            borderRadius: 20, padding: "3px 10px", color: "#fff",
-                                            background: "#36565f", cursor: "pointer", outline: "none",
-                                            fontWeight: 500,
-                                        }}
+                                    <MonthYearPicker
+                                        month={this.state.selectedMonth}
+                                        year={this.state.selectedYear}
+                                        onChange={(m, y) => this.setState({ selectedMonth: m, selectedYear: y }, () => this.fetchDashboardData())}
                                     />
                                 </div>
                             </div>
@@ -158,15 +153,10 @@ class DashboardHome extends Component {
                         <div style={{ ...cardStyle, height: "100%" }}>
                             <div style={sectionHead}>
                                 <span style={{ fontSize: 14, fontWeight: 500 }}>Hiring Progress</span>
-                                <input
-                                    type="month"
-                                    value={monthValue}
-                                    onChange={this.handleMonthChange}
-                                    style={{
-                                        fontSize: 11, border: "0.5px solid rgba(0,0,0,0.15)",
-                                        borderRadius: 6, padding: "2px 8px", color: "#555",
-                                        background: "#f8f9fa", cursor: "pointer", outline: "none"
-                                    }}
+                                <MonthYearPicker
+                                    month={this.state.selectedMonth}
+                                    year={this.state.selectedYear}
+                                    onChange={(m, y) => this.setState({ selectedMonth: m, selectedYear: y }, () => this.fetchDashboardData())}
                                 />
                             </div>
                             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4 }}>

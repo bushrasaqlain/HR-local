@@ -214,6 +214,10 @@ toggleScreeningModal = (jobId) => {
     }));
   };
 
+  isEditRestricted = (job) => {
+    return job.approval_status === 'Approved' && job.status === 'Active';
+  };
+
   handleDeleteJob = async (jobId) => {
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -884,11 +888,30 @@ toggleScreeningModal = (jobId) => {
           >
             <ModalHeader toggle={() => this.toggleEditModal()}>
               <span style={{ color: '#36565F' }}>✏️ Edit Job</span>
+              {this.state.editingJobId && (() => {
+                const job = this.state.jobListings.find(j => j.id === this.state.editingJobId);
+                if (this.isEditRestricted(job)) {
+                  return (
+                    <div style={{
+                      fontSize: '12px',
+                      color: '#f59e0b',
+                      marginTop: '8px',
+                      fontWeight: 'normal'
+                    }}>
+                      ⚠️ Live jobs can edit: Description, Industry, Salary, Positions & Deadline only
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </ModalHeader>
             <ModalBody>
               {this.state.editingJobId && (
                 <PostJob
                   jobId={this.state.editingJobId}
+                  isEditRestricted={this.isEditRestricted(
+                    this.state.jobListings.find(j => j.id === this.state.editingJobId)
+                  )}
                   onSuccess={() => {
                     this.toggleEditModal();
                     this.fetchData(this.userId);

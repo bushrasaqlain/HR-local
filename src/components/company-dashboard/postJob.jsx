@@ -10,12 +10,13 @@ import { withRouter } from "next/router";
 import Head from "next/head";
 import PricingPage from "./viewpackage";
 import { AddCardForm } from "./wallet";
+import MonthYearPicker, { CustomSelect } from "./dashboard/Picker";
 
 /* ─────────────────────────────────────────────
    Indeed-style design tokens
 ───────────────────────────────────────────── */
 const BLUE = "#36565f";
-const BLUE_LIGHT = "#e8f0fe";
+const BLUE_LIGHT = "#e6eeef";
 const BLUE_TEXT = "#000";
 const BORDER = "#d1d5db";
 const BORDER_FOCUS = "#36565f";
@@ -34,7 +35,7 @@ const indeedSelectStyles = {
     border: state.isFocused
       ? `1.5px solid ${BORDER_FOCUS}`
       : `1.5px solid ${BORDER}`,
-    boxShadow: state.isFocused ? "0 0 0 3px rgba(33,100,243,0.12)" : "none",
+    boxShadow: state.isFocused ? "0 0 0 3px rgba(54,86,95,0.15)" : "none",
     backgroundColor: WHITE,
     fontSize: "14px",
     cursor: "pointer",
@@ -69,7 +70,7 @@ const indeedSelectStyles = {
     ...base,
     color: BLUE_TEXT,
     borderRadius: "50%",
-    "&:hover": { backgroundColor: "#c7d9fd", color: "#5f8190" },
+    "&:hover": { backgroundColor: "#c3d3d6", color: "#254048" },
   }),
   singleValue: (base) => ({ ...base, color: TEXT_PRIMARY, fontSize: "14px" }),
   menu: (base) => ({
@@ -420,7 +421,7 @@ class PostBoxForm extends Component {
       jobLanguage: "English",
       langModalLoading: false,
       showAddCardModal: false,
-      
+
       values: {
         job_title: "",
         job_description: "",
@@ -461,6 +462,7 @@ class PostBoxForm extends Component {
       dailyBudget: "",
       budgetMode: false,
     };
+    this.isEditRestricted = props.isEditRestricted || false;
 
     this.allSkills = [];
 
@@ -556,8 +558,8 @@ class PostBoxForm extends Component {
 
       const matched = companyCountryId
         ? modalCountries.find(
-            (c) => String(c.value) === String(companyCountryId),
-          )
+          (c) => String(c.value) === String(companyCountryId),
+        )
         : null;
 
       // ADD THIS FALLBACK — if id match fails, try matching by country name
@@ -565,10 +567,10 @@ class PostBoxForm extends Component {
         matched ??
         (company?.country
           ? modalCountries.find(
-              (c) =>
-                c.label.trim().toLowerCase() ===
-                company.country.trim().toLowerCase(),
-            )
+            (c) =>
+              c.label.trim().toLowerCase() ===
+              company.country.trim().toLowerCase(),
+          )
           : null);
 
       this.setState({
@@ -594,18 +596,18 @@ class PostBoxForm extends Component {
       this.loadSkills().then(() => this.loadJobDetails(this.props.jobId));
     }
   }
-loadIndustry = async (inputValue) => {
-  try {
-    const res = await axios.get(`${this.apiBaseUrl}industry/getallindustry`, {
-      params: { search: inputValue || "", page: 1, limit: 50, status: "Active" },
-    });
-    return res.data.industry.map((c) => ({ label: c.name, value: c.id }));
-  } catch {
-    return [];
-  }
-};
+  loadIndustry = async (inputValue) => {
+    try {
+      const res = await axios.get(`${this.apiBaseUrl}industry/getallindustry`, {
+        params: { search: inputValue || "", page: 1, limit: 50, status: "Active" },
+      });
+      return res.data.industry.map((c) => ({ label: c.name, value: c.id }));
+    } catch {
+      return [];
+    }
+  };
   /* ── Loaders ── */
-loadJobDetails = async (jobId) => {
+  loadJobDetails = async (jobId) => {
     try {
       if (!this.allSkills?.length) await this.loadSkills();
       const res = await axios.get(`${this.apiBaseUrl}job/getSinglejob/${jobId}`);
@@ -707,11 +709,11 @@ loadJobDetails = async (jobId) => {
     }
   };
   formatSalary = (value) => {
-  const num = value.replace(/[^0-9]/g, "");
-  return num ? Number(num).toLocaleString() : "";
-};
+    const num = value.replace(/[^0-9]/g, "");
+    return num ? Number(num).toLocaleString() : "";
+  };
 
-parseSalary = (value) => value.replace(/[^0-9]/g, "");
+  parseSalary = (value) => value.replace(/[^0-9]/g, "");
   fetchCities = async () => {
     const { selectedDistrict } = this.state;
     if (!selectedDistrict?.length) return [];
@@ -790,31 +792,31 @@ parseSalary = (value) => value.replace(/[^0-9]/g, "");
       return [];
     }
   };
-loadDegreeFields = async (degreeId, inputValue) => {
-  console.log("🔥 API CALL TRIGGERED", degreeId, inputValue);
+  loadDegreeFields = async (degreeId, inputValue) => {
+    console.log("🔥 API CALL TRIGGERED", degreeId, inputValue);
 
-  try {
-    const res = await axios.get(
-      `${this.apiBaseUrl}getallDegreeFields`,
-      {
-        params: {
-          degree_type_id: Number(degreeId), // ✅ FIX HERE
-          search: inputValue || "",
-          page: 1,
-          limit: 550,
-        },
-      }
-    );
+    try {
+      const res = await axios.get(
+        `${this.apiBaseUrl}getallDegreeFields`,
+        {
+          params: {
+            degree_type_id: Number(degreeId), // ✅ FIX HERE
+            search: inputValue || "",
+            page: 1,
+            limit: 550,
+          },
+        }
+      );
 
-    return (res.data.degreefields || []).map((d) => ({
-      label: d.name,
-      value: d.id,
-    }));
-  } catch (err) {
-    console.log("API ERROR", err);
-    return [];
-  }
-};
+      return (res.data.degreefields || []).map((d) => ({
+        label: d.name,
+        value: d.id,
+      }));
+    } catch (err) {
+      console.log("API ERROR", err);
+      return [];
+    }
+  };
   loadCurrency = async (inputValue) => {
     try {
       const res = await axios.get(`${this.apiBaseUrl}getallcurrencies`, {
@@ -857,14 +859,14 @@ loadDegreeFields = async (degreeId, inputValue) => {
       }));
       return;
     }
-if (name === "min_salary" || name === "max_salary") {
-  const raw = value.replace(/[^0-9]/g, "");
-  this.setState((prev) => ({
-    values: { ...prev.values, [name]: raw },
-    errors: { ...prev.errors, [name]: undefined },
-  }));
-  return;
-}
+    if (name === "min_salary" || name === "max_salary") {
+      const raw = value.replace(/[^0-9]/g, "");
+      this.setState((prev) => ({
+        values: { ...prev.values, [name]: raw },
+        errors: { ...prev.errors, [name]: undefined },
+      }));
+      return;
+    }
     this.setState((prevState) => ({
       values: { ...prevState.values, [name]: capitalized },
       errors: { ...prevState.errors, [name]: undefined },
@@ -889,23 +891,37 @@ if (name === "min_salary" || name === "max_salary") {
     } = this.state;
     const errors = {};
 
-    if (!values.job_title) errors.job_title = "Job title is required.";
-    if (!values.job_description)
-      errors.job_description = "Job description is required.";
-    if (!values.job_type_id) errors.job_type_id = "Job type is required.";
-    if (!values.job_location_type)
-      errors.job_location_type = "Job location type is required.";
-    if (!values.industry) errors.industry = "Industry is required.";
-    if (!values.time_from) errors.time_from = "Start time is required.";
-    if (!values.time_to) errors.time_to = "End time is required.";
+    // Check if we're in restricted edit mode (live job)
+    const isRestrictedMode = this.isEditRestricted && this.props.jobId;
 
-    // ✅ Only validate district & city when NOT remote
-    const isRemote = values.job_location_type === "remote";
-    if (!isRemote && !selectedDistrict?.length)
-      errors.district_id = "District is required.";
-    if (!isRemote && !selectedCity?.length)
-      errors.city_id = "City is required.";
+    // For restricted mode, ONLY validate fields that are NOT disabled
+    if (!isRestrictedMode) {
+      // Full validation for normal mode
+      if (!values.job_title) errors.job_title = "Job title is required.";
+      if (!values.job_description)
+        errors.job_description = "Job description is required.";
+      if (!values.job_type_id) errors.job_type_id = "Job type is required.";
+      if (!values.job_location_type)
+        errors.job_location_type = "Job location type is required.";
+      if (!values.industry) errors.industry = "Industry is required.";
+      if (!values.time_from) errors.time_from = "Start time is required.";
+      if (!values.time_to) errors.time_to = "End time is required.";
 
+      const isRemote = values.job_location_type === "remote";
+      if (!isRemote && !selectedDistrict?.length)
+        errors.district_id = "District is required.";
+      if (!isRemote && !selectedCity?.length)
+        errors.city_id = "City is required.";
+    } else {
+      // RESTRICTED MODE - Only validate fields that are NOT disabled
+      // These are the fields that remain editable in live jobs
+      if (!values.job_description)
+        errors.job_description = "Job description is required.";
+      if (!values.industry) errors.industry = "Industry is required.";
+      // No validation for job_title, job_type, location, time, district, city
+    }
+
+    // Salary validation - always check if both values exist
     if (
       values.min_salary &&
       values.max_salary &&
@@ -920,22 +936,33 @@ if (name === "min_salary" || name === "max_salary") {
   validatePage2 = () => {
     const { values } = this.state;
     const errors = {};
-    if (!values.skill_ids?.length) errors.skill_ids = "Add at least one skill.";
-    if (!values.min_experience)
-      errors.min_experience = "Minimum experience is required.";
-    if (!values.max_experience)
-      errors.max_experience = "Maximum experience is required.";
-    if (!values.speciality_id) errors.speciality_id = "Speciality is required.";
-    if (!values.degree_id) errors.degree_id = "Qualification is required.";
-    if (!values.degreefields_id?.length)
-  errors.degreefields_id = "At least one field of study is required.";
+
+    // Check if we're in restricted edit mode (live job)
+    const isRestrictedMode = this.isEditRestricted && this.props.jobId;
+
+    if (!isRestrictedMode) {
+      // Full validation for normal mode
+      if (!values.skill_ids?.length) errors.skill_ids = "Add at least one skill.";
+      if (!values.min_experience)
+        errors.min_experience = "Minimum experience is required.";
+      if (!values.max_experience)
+        errors.max_experience = "Maximum experience is required.";
+      if (!values.speciality_id) errors.speciality_id = "Speciality is required.";
+      if (!values.degree_id) errors.degree_id = "Qualification is required.";
+      if (!values.degreefields_id?.length)
+        errors.degreefields_id = "At least one field of study is required.";
+    }
+
+    // These fields are ALWAYS validated (even in restricted mode)
     if (!values.no_of_positions)
       errors.no_of_positions = "Number of positions is required.";
+
     if (!values.application_deadline) {
       errors.application_deadline = "Application deadline is required.";
     } else if (new Date(values.application_deadline) <= new Date()) {
       errors.application_deadline = "Deadline must be a future date.";
     }
+
     return errors;
   };
 
@@ -1024,14 +1051,76 @@ if (name === "min_salary" || name === "max_salary") {
       }
     }
   };
+
   handleSubmit = async () => {
     const editjobid = this.props.jobId;
 
+    // EDIT MODE - for existing jobs
     if (editjobid) {
+      // If in restricted edit mode (Approved + Active)
+      if (this.isEditRestricted) {
+        const { values } = this.state;
+
+        // Get the original deadline from when the job was loaded
+        const originalDeadline = this.state.originalDeadline;
+
+        // Prepare payload - include ALL fields (both restricted and allowed)
+        const payload = {
+          // These fields are ALLOWED to be edited even in live jobs
+          job_description: values.job_description,
+          industry: values.industry?.value ?? values.industry ?? null,
+          min_salary: values.min_salary || null,
+          max_salary: values.max_salary || null,
+          currency_id: values.currency_id?.value,
+          salary_period: values.salary_period,
+          no_of_positions: values.no_of_positions,
+
+          // Also allow deadline
+          application_deadline: values.application_deadline
+            ? new Date(values.application_deadline).toISOString().slice(0, 19).replace("T", " ")
+            : null,
+        };
+
+        // Validate deadline if changed
+        if (values.application_deadline && values.application_deadline !== originalDeadline) {
+          const newDeadline = new Date(values.application_deadline);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          if (newDeadline < today) {
+            this.setState({
+              errors: {
+                ...this.state.errors,
+                application_deadline: "Deadline cannot be in the past"
+              }
+            });
+            return;
+          }
+        }
+
+        try {
+          await api.put(
+            `${this.apiBaseUrl}job/updatejob/${this.userId}/${editjobid}`,
+            payload
+          );
+          if (this.props.onSuccess) this.props.onSuccess();
+        } catch (err) {
+          console.error("Failed to update job:", err);
+          if (err.response?.data?.error) {
+            alert(err.response.data.error);
+          } else {
+            alert("Failed to update job. Please try again.");
+          }
+        }
+        return;
+      }
+
+      // Full edit mode (not restricted)
       await this.submitJobPayload(null);
       return;
     }
 
+    // NEW JOB MODE - rest of your existing code remains same
     try {
       const res = await axios.get(
         `${this.apiBaseUrl}job/getUserPackages/${this.userId}`,
@@ -1057,7 +1146,6 @@ if (name === "min_salary" || name === "max_salary") {
           if (pkg.pricing_model === "cv_credits") {
             return true;
           }
-          // ── daily_budget packages are handled separately below ──
           return false;
         })
         .map((pkg) => {
@@ -1086,17 +1174,14 @@ if (name === "min_salary" || name === "max_salary") {
         });
 
       if (usablePackages.length > 1) {
-        // Multiple active packages — let user pick one
         this.setState({
           availablePackages: usablePackages,
           showPackageModal: true,
           budgetMode: false,
         });
       } else if (usablePackages.length === 1) {
-        // Only one — use it automatically
         await this.submitJobPayload(usablePackages[0].id);
       } else {
-        // ── No active package — fetch daily_budget packages from DB ──
         try {
           const pkgRes = await axios.get(
             `${this.apiBaseUrl}packages/getAvailablePackages`,
@@ -1125,51 +1210,79 @@ if (name === "min_salary" || name === "max_salary") {
       console.error("Failed to fetch user packages", err);
     }
   };
-generateTimeOptions = () => {
-  const slots = [
-    {v:'06:00',l:'06:00 AM'},{v:'06:30',l:'06:30 AM'},
-    {v:'07:00',l:'07:00 AM'},{v:'07:30',l:'07:30 AM'},
-    {v:'08:00',l:'08:00 AM'},{v:'08:30',l:'08:30 AM'},
-    {v:'09:00',l:'09:00 AM'},{v:'09:30',l:'09:30 AM'},
-    {v:'10:00',l:'10:00 AM'},{v:'10:30',l:'10:30 AM'},
-    {v:'11:00',l:'11:00 AM'},{v:'11:30',l:'11:30 AM'},
-    {v:'12:00',l:'12:00 PM'},{v:'12:30',l:'12:30 PM'},
-    {v:'13:00',l:'01:00 PM'},{v:'13:30',l:'01:30 PM'},
-    {v:'14:00',l:'02:00 PM'},{v:'14:30',l:'02:30 PM'},
-    {v:'15:00',l:'03:00 PM'},{v:'15:30',l:'03:30 PM'},
-    {v:'16:00',l:'04:00 PM'},{v:'16:30',l:'04:30 PM'},
-    {v:'17:00',l:'05:00 PM'},{v:'17:30',l:'05:30 PM'},
-    {v:'18:00',l:'06:00 PM'},{v:'18:30',l:'06:30 PM'},
-    {v:'19:00',l:'07:00 PM'},{v:'19:30',l:'07:30 PM'},
-    {v:'20:00',l:'08:00 PM'},{v:'20:30',l:'08:30 PM'},
-    {v:'21:00',l:'09:00 PM'},{v:'21:30',l:'09:30 PM'},
-    {v:'22:00',l:'10:00 PM'},{v:'22:30',l:'10:30 PM'},
-    {v:'23:00',l:'11:00 PM'},{v:'23:30',l:'11:30 PM'},
-    {v:'00:00',l:'12:00 AM'},{v:'00:30',l:'12:30 AM'},
-    {v:'01:00',l:'01:00 AM'},{v:'01:30',l:'01:30 AM'},
-    {v:'02:00',l:'02:00 AM'},{v:'02:30',l:'02:30 AM'},
-  ];
-  return slots.map(s => <option key={s.v} value={s.v}>{s.l}</option>);
-};
 
-fmt12 = (v) => {
-  if (!v) return '';
-  const [h, m] = v.split(':').map(Number);
-  const ampm = h < 12 ? 'AM' : 'PM';
-  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${String(h12).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ampm}`;
-};
+  generateTimeOptions = () => {
+    const slots = [
+      { v: '06:00', l: '06:00 AM' }, { v: '06:30', l: '06:30 AM' },
+      { v: '07:00', l: '07:00 AM' }, { v: '07:30', l: '07:30 AM' },
+      { v: '08:00', l: '08:00 AM' }, { v: '08:30', l: '08:30 AM' },
+      { v: '09:00', l: '09:00 AM' }, { v: '09:30', l: '09:30 AM' },
+      { v: '10:00', l: '10:00 AM' }, { v: '10:30', l: '10:30 AM' },
+      { v: '11:00', l: '11:00 AM' }, { v: '11:30', l: '11:30 AM' },
+      { v: '12:00', l: '12:00 PM' }, { v: '12:30', l: '12:30 PM' },
+      { v: '13:00', l: '01:00 PM' }, { v: '13:30', l: '01:30 PM' },
+      { v: '14:00', l: '02:00 PM' }, { v: '14:30', l: '02:30 PM' },
+      { v: '15:00', l: '03:00 PM' }, { v: '15:30', l: '03:30 PM' },
+      { v: '16:00', l: '04:00 PM' }, { v: '16:30', l: '04:30 PM' },
+      { v: '17:00', l: '05:00 PM' }, { v: '17:30', l: '05:30 PM' },
+      { v: '18:00', l: '06:00 PM' }, { v: '18:30', l: '06:30 PM' },
+      { v: '19:00', l: '07:00 PM' }, { v: '19:30', l: '07:30 PM' },
+      { v: '20:00', l: '08:00 PM' }, { v: '20:30', l: '08:30 PM' },
+      { v: '21:00', l: '09:00 PM' }, { v: '21:30', l: '09:30 PM' },
+      { v: '22:00', l: '10:00 PM' }, { v: '22:30', l: '10:30 PM' },
+      { v: '23:00', l: '11:00 PM' }, { v: '23:30', l: '11:30 PM' },
+      { v: '00:00', l: '12:00 AM' }, { v: '00:30', l: '12:30 AM' },
+      { v: '01:00', l: '01:00 AM' }, { v: '01:30', l: '01:30 AM' },
+      { v: '02:00', l: '02:00 AM' }, { v: '02:30', l: '02:30 AM' },
+    ];
+    return slots.map(s => <option key={s.v} value={s.v}>{s.l}</option>);
+  };
 
-calcHours = (from, to) => {
-  if (!from || !to) return '';
-  const [fh, fm] = from.split(':').map(Number);
-  const [th, tm] = to.split(':').map(Number);
-  let mins = (th * 60 + tm) - (fh * 60 + fm);
-  if (mins <= 0) mins += 24 * 60;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m > 0 ? `${h}h ${m}m shift` : `${h}h shift`;
-};
+  timeOptionsList = () => {
+    const slots = [
+      { v: '06:00', l: '06:00 AM' }, { v: '06:30', l: '06:30 AM' },
+      { v: '07:00', l: '07:00 AM' }, { v: '07:30', l: '07:30 AM' },
+      { v: '08:00', l: '08:00 AM' }, { v: '08:30', l: '08:30 AM' },
+      { v: '09:00', l: '09:00 AM' }, { v: '09:30', l: '09:30 AM' },
+      { v: '10:00', l: '10:00 AM' }, { v: '10:30', l: '10:30 AM' },
+      { v: '11:00', l: '11:00 AM' }, { v: '11:30', l: '11:30 AM' },
+      { v: '12:00', l: '12:00 PM' }, { v: '12:30', l: '12:30 PM' },
+      { v: '13:00', l: '01:00 PM' }, { v: '13:30', l: '01:30 PM' },
+      { v: '14:00', l: '02:00 PM' }, { v: '14:30', l: '02:30 PM' },
+      { v: '15:00', l: '03:00 PM' }, { v: '15:30', l: '03:30 PM' },
+      { v: '16:00', l: '04:00 PM' }, { v: '16:30', l: '04:30 PM' },
+      { v: '17:00', l: '05:00 PM' }, { v: '17:30', l: '05:30 PM' },
+      { v: '18:00', l: '06:00 PM' }, { v: '18:30', l: '06:30 PM' },
+      { v: '19:00', l: '07:00 PM' }, { v: '19:30', l: '07:30 PM' },
+      { v: '20:00', l: '08:00 PM' }, { v: '20:30', l: '08:30 PM' },
+      { v: '21:00', l: '09:00 PM' }, { v: '21:30', l: '09:30 PM' },
+      { v: '22:00', l: '10:00 PM' }, { v: '22:30', l: '10:30 PM' },
+      { v: '23:00', l: '11:00 PM' }, { v: '23:30', l: '11:30 PM' },
+      { v: '00:00', l: '12:00 AM' }, { v: '00:30', l: '12:30 AM' },
+      { v: '01:00', l: '01:00 AM' }, { v: '01:30', l: '01:30 AM' },
+      { v: '02:00', l: '02:00 AM' }, { v: '02:30', l: '02:30 AM' },
+    ];
+    return slots.map(s => ({ value: s.v, label: s.l }));
+  };
+
+  fmt12 = (v) => {
+    if (!v) return '';
+    const [h, m] = v.split(':').map(Number);
+    const ampm = h < 12 ? 'AM' : 'PM';
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
+  };
+
+  calcHours = (from, to) => {
+    if (!from || !to) return '';
+    const [fh, fm] = from.split(':').map(Number);
+    const [th, tm] = to.split(':').map(Number);
+    let mins = (th * 60 + tm) - (fh * 60 + fm);
+    if (mins <= 0) mins += 24 * 60;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h}h ${m}m shift` : `${h}h shift`;
+  };
   resetForm = () => {
     this.setState({
       currentPage: 1,
@@ -1196,7 +1309,7 @@ calcHours = (from, to) => {
         interview_start: "",
         interview_end: "",
         expected_joining_date: "",
-         salary_period: "monthly",
+        salary_period: "monthly",
       },
       selectedCountry: null,
       selectedDistrict: [],
@@ -1225,7 +1338,7 @@ calcHours = (from, to) => {
     );
   };
 
-renderPage1 = () => {
+  renderPage1 = () => {
     const { values, errors, selectedCountry, selectedDistrict, selectedCity } =
       this.state;
     const isRemote = values.job_location_type === "remote";
@@ -1252,6 +1365,7 @@ renderPage1 = () => {
                 cacheOptions
                 defaultOptions
                 loadOptions={this.loadJobTitles}
+                isDisabled={this.isEditRestricted && this.props.jobId}
                 value={
                   values.job_title
                     ? { label: values.job_title, value: values.job_title }
@@ -1305,52 +1419,52 @@ renderPage1 = () => {
                 onChange={(option) =>
                   this.handleSelectChange("job_type_id", option)
                 }
+                isDisabled={this.isEditRestricted && this.props.jobId}
                 placeholder="Select type..."
                 styles={indeedSelectStyles}
               />
             </Field>
 
-            <Field
-              label="Job location type"
-              required
-              error={errors.job_location_type}
-            >
-              <select
-                name="job_location_type"
+            <Field label="Job location type" required error={errors.job_location_type}>
+              <CustomSelect
+                options={[
+                  { value: "on-site", label: "On-site" },
+                  { value: "remote", label: "Remote" },
+                  { value: "hybrid", label: "Hybrid" },
+                ]}
                 value={values.job_location_type}
-                onChange={this.handleInputChange}
-                style={{
-                  ...s.select,
-                  borderColor: errors.job_location_type ? RED : BORDER,
-                }}
-              >
-                <option value="">Select location type</option>
-                <option value="on-site">On-site</option>
-                <option value="remote">Remote</option>
-                <option value="hybrid">Hybrid</option>
-              </select>
+                onChange={(val) =>
+                  this.setState((prev) => ({
+                    values: { ...prev.values, job_location_type: val },
+                    errors: { ...prev.errors, job_location_type: undefined },
+                  }))
+                }
+                placeholder="Select location type"
+                error={!!errors.job_location_type}
+                disabled={this.isEditRestricted && this.props.jobId}
+              />
             </Field>
 
             <Field
-  label="Industry / Facility type"
-  required
-  error={errors.industry}
->
-  <AsyncSelect
-    cacheOptions
-    defaultOptions
-    loadOptions={this.loadIndustry}
-    value={values.industry || null}
-    onChange={(option) =>
-  this.setState((prev) => ({
-    values: { ...prev.values, industry: option || null },
-    errors: { ...prev.errors, industry: undefined },
-  }))
-}
-    placeholder="Select industry..."
-    styles={indeedSelectStyles}
-  />
-</Field>
+              label="Industry / Facility type"
+              required
+              error={errors.industry}
+            >
+              <AsyncSelect
+                cacheOptions
+                defaultOptions
+                loadOptions={this.loadIndustry}
+                value={values.industry || null}
+                onChange={(option) =>
+                  this.setState((prev) => ({
+                    values: { ...prev.values, industry: option || null },
+                    errors: { ...prev.errors, industry: undefined },
+                  }))
+                }
+                placeholder="Select industry..."
+                styles={indeedSelectStyles}
+              />
+            </Field>
           </div>
         </div>
 
@@ -1382,7 +1496,7 @@ renderPage1 = () => {
                     errors: { ...this.state.errors, district_id: undefined },
                   })
                 }
-                isDisabled={!selectedCountry && !this.state.jobCountryId}
+                isDisabled={(!selectedCountry && !this.state.jobCountryId) || (this.isEditRestricted && this.props.jobId)}
                 placeholder="Select district..."
                 styles={indeedSelectStyles}
               />
@@ -1402,7 +1516,7 @@ renderPage1 = () => {
                     errors: { ...this.state.errors, city_id: undefined },
                   })
                 }
-                isDisabled={!selectedDistrict?.length}
+                isDisabled={!selectedDistrict?.length || (this.isEditRestricted && this.props.jobId)}
                 placeholder="Select city..."
                 styles={indeedSelectStyles}
               />
@@ -1418,15 +1532,19 @@ renderPage1 = () => {
             <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: "1", minWidth: "140px" }}>
                 <span style={{ fontSize: "11px", color: TEXT_SECONDARY }}>Start time</span>
-                <select
-                  name="time_from"
+                <CustomSelect
+                  options={this.timeOptionsList()}
                   value={values.time_from}
-                  onChange={this.handleInputChange}
-                  style={{ ...s.select, borderColor: errors.time_from ? RED : BORDER }}
-                >
-                  <option value="">Select start</option>
-                  {this.generateTimeOptions()}
-                </select>
+                  onChange={(val) =>
+                    this.setState((prev) => ({
+                      values: { ...prev.values, time_from: val },
+                      errors: { ...prev.errors, time_from: undefined },
+                    }))
+                  }
+                  placeholder="Select start"
+                  error={!!errors.time_from}
+                  disabled={this.isEditRestricted && this.props.jobId}
+                />
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", paddingTop: "18px" }}>
@@ -1437,15 +1555,19 @@ renderPage1 = () => {
 
               <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: "1", minWidth: "140px" }}>
                 <span style={{ fontSize: "11px", color: TEXT_SECONDARY }}>End time</span>
-                <select
-                  name="time_to"
+                <CustomSelect
+                  options={this.timeOptionsList()}
                   value={values.time_to}
-                  onChange={this.handleInputChange}
-                  style={{ ...s.select, borderColor: errors.time_to ? RED : BORDER }}
-                >
-                  <option value="">Select end</option>
-                  {this.generateTimeOptions()}
-                </select>
+                  onChange={(val) =>
+                    this.setState((prev) => ({
+                      values: { ...prev.values, time_to: val },
+                      errors: { ...prev.errors, time_to: undefined },
+                    }))
+                  }
+                  placeholder="Select end"
+                  error={!!errors.time_to}
+                  disabled={this.isEditRestricted && this.props.jobId}
+                />
               </div>
             </div>
 
@@ -1460,7 +1582,7 @@ renderPage1 = () => {
                 </span>
                 <span style={{
                   fontSize: "12px", fontWeight: 500, padding: "5px 12px",
-                  borderRadius: "20px", background: BLUE_LIGHT, color: "#0C447C"
+                  borderRadius: "20px", background: BLUE_LIGHT, color: "#254048"
                 }}>
                   {this.calcHours(values.time_from, values.time_to)}
                 </span>
@@ -1525,18 +1647,21 @@ renderPage1 = () => {
                 placeholder="Currency"
                 styles={indeedSelectStyles}
               />
-              <select
-                name="salary_period"
+              <CustomSelect
+                options={[
+                  { value: "hourly", label: "Hourly" },
+                  { value: "daily", label: "Daily" },
+                  { value: "weekly", label: "Weekly" },
+                  { value: "monthly", label: "Monthly" },
+                  { value: "yearly", label: "Yearly" },
+                ]}
                 value={values.salary_period}
-                onChange={this.handleInputChange}
-                style={s.select}
-              >
-                <option value="hourly">Hourly</option>
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-                <option value="yearly">Yearly</option>
-              </select>
+                onChange={(val) =>
+                  this.setState((prev) => ({
+                    values: { ...prev.values, salary_period: val },
+                  }))
+                }
+              />
             </div>
           </Field>
         </div>
@@ -1589,6 +1714,7 @@ renderPage1 = () => {
                   errors: { ...prev.errors, skill_ids: undefined },
                 }))
               }
+              isDisabled={this.isEditRestricted && this.props.jobId}
               onCreateOption={(inputValue) => {
                 const newSkill = {
                   label: this.capitalizeWords(inputValue),
@@ -1612,27 +1738,20 @@ renderPage1 = () => {
           <div style={s.cardTitle}>Experience & qualifications</div>
 
           <div style={{ ...s.row2, marginBottom: "16px" }}>
-            <Field
-              label="Minimum experience"
-              required
-              error={errors.min_experience}
-            >
-              <select
-                name="min_experience"
+            <Field label="Minimum experience" required error={errors.min_experience}>
+              <CustomSelect
+                options={this.experienceOptions.map((o) => ({ value: o.label, label: o.label }))}
                 value={values.min_experience}
-                onChange={this.handleInputChange}
-                style={{
-                  ...s.select,
-                  borderColor: errors.min_experience ? RED : BORDER,
-                }}
-              >
-                <option value="">Select</option>
-                {this.experienceOptions.map((opt) => (
-                  <option key={opt.value} value={opt.label}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) =>
+                  this.setState((prev) => ({
+                    values: { ...prev.values, min_experience: val },
+                    errors: { ...prev.errors, min_experience: undefined },
+                  }))
+                }
+                placeholder="Select"
+                error={!!errors.min_experience}
+                disabled={this.isEditRestricted && this.props.jobId}
+              />
             </Field>
 
             <Field
@@ -1640,22 +1759,19 @@ renderPage1 = () => {
               required
               error={errors.max_experience}
             >
-              <select
-                name="max_experience"
+              <CustomSelect
+                options={this.experienceOptions.map((o) => ({ value: o.label, label: o.label }))}
                 value={values.max_experience}
-                onChange={this.handleInputChange}
-                style={{
-                  ...s.select,
-                  borderColor: errors.max_experience ? RED : BORDER,
-                }}
-              >
-                <option value="">Select</option>
-                {this.experienceOptions.map((opt) => (
-                  <option key={opt.value} value={opt.label}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) =>
+                  this.setState((prev) => ({
+                    values: { ...prev.values, max_experience: val },
+                    errors: { ...prev.errors, max_experience: undefined },
+                  }))
+                }
+                placeholder="Select"
+                error={!!errors.max_experience}
+                disabled={this.isEditRestricted && this.props.jobId}
+              />
             </Field>
           </div>
 
@@ -1669,6 +1785,7 @@ renderPage1 = () => {
                 onChange={(option) =>
                   this.handleSelectChange("speciality_id", option)
                 }
+                isDisabled={this.isEditRestricted && this.props.jobId}
                 placeholder="Select speciality..."
                 styles={indeedSelectStyles}
               />
@@ -1680,54 +1797,55 @@ renderPage1 = () => {
               error={errors.degree_id}
             >
               <AsyncSelect
-      cacheOptions
-      defaultOptions
-      loadOptions={this.loadDegree}
-      value={values.degree_id}
-      onChange={(option) =>
-        this.setState((prev) => ({
-          values: {
-            ...prev.values,
-            degree_id: option,
-            degreefields_id: null, // reset dependent field
-          },
-          errors: {
-            ...prev.errors,
-            degree_id: undefined,
-          },
-        }))
-      }
-      placeholder="Select degree..."
-      styles={indeedSelectStyles}
-    />
+                cacheOptions
+                defaultOptions
+                loadOptions={this.loadDegree}
+                value={values.degree_id}
+                onChange={(option) =>
+                  this.setState((prev) => ({
+                    values: {
+                      ...prev.values,
+                      degree_id: option,
+                      degreefields_id: null, // reset dependent field
+                    },
+                    errors: {
+                      ...prev.errors,
+                      degree_id: undefined,
+                    },
+                  }))
+                }
+                isDisabled={this.isEditRestricted && this.props.jobId}
+                placeholder="Select degree..."
+                styles={indeedSelectStyles}
+              />
             </Field>
             <Field
-    label="Field of Study"
-    required
-    error={errors.degreefields_id}
-  >
-<AsyncSelect
-  key={values.degree_id?.value || "degree-field"}
-  isMulti                              // ← ADD THIS
-  cacheOptions
-  defaultOptions
-  loadOptions={(inputValue) => {
-    const degreeId = this.state.values.degree_id?.value;
-    if (!degreeId) return [];
-    return this.loadDegreeFields(degreeId, inputValue);
-  }}
-  value={values.degreefields_id}       // already array now
-  onChange={(options) =>
-    this.setState((prev) => ({
-      values: { ...prev.values, degreefields_id: options || [] },
-      errors: { ...prev.errors, degreefields_id: undefined },
-    }))
-  }
-  isDisabled={!values.degree_id}
-  placeholder="Select field(s) of study..."
-  styles={indeedSelectStyles}
-/>
-  </Field>
+              label="Field of Study"
+              required
+              error={errors.degreefields_id}
+            >
+              <AsyncSelect
+                key={values.degree_id?.value || "degree-field"}
+                isMulti                              // ← ADD THIS
+                cacheOptions
+                defaultOptions
+                loadOptions={(inputValue) => {
+                  const degreeId = this.state.values.degree_id?.value;
+                  if (!degreeId) return [];
+                  return this.loadDegreeFields(degreeId, inputValue);
+                }}
+                value={values.degreefields_id}       // already array now
+                onChange={(options) =>
+                  this.setState((prev) => ({
+                    values: { ...prev.values, degreefields_id: options || [] },
+                    errors: { ...prev.errors, degreefields_id: undefined },
+                  }))
+                }
+                isDisabled={!values.degree_id || (this.isEditRestricted && this.props.jobId)}
+                placeholder="Select field(s) of study..."
+                styles={indeedSelectStyles}
+              />
+            </Field>
           </div>
         </div>
 
@@ -1755,9 +1873,9 @@ renderPage1 = () => {
                 }}
                 onFocus={(e) => (e.target.style.borderColor = BLUE)}
                 onBlur={(e) =>
-                  (e.target.style.borderColor = errors.no_of_positions
-                    ? RED
-                    : BORDER)
+                (e.target.style.borderColor = errors.no_of_positions
+                  ? RED
+                  : BORDER)
                 }
               />
             </Field>
@@ -1779,9 +1897,9 @@ renderPage1 = () => {
                 }}
                 onFocus={(e) => (e.target.style.borderColor = BLUE)}
                 onBlur={(e) =>
-                  (e.target.style.borderColor = errors.application_deadline
-                    ? RED
-                    : BORDER)
+                (e.target.style.borderColor = errors.application_deadline
+                  ? RED
+                  : BORDER)
                 }
               />
             </Field>
@@ -1921,12 +2039,12 @@ renderPage1 = () => {
     const location = isRemote
       ? "Remote"
       : [
-          selectedCity?.map((c) => c.label).join(", "),
-          selectedDistrict?.map((d) => d.label).join(", "),
-          selectedCountry?.label,
-        ]
-          .filter(Boolean)
-          .join(" — ");
+        selectedCity?.map((c) => c.label).join(", "),
+        selectedDistrict?.map((d) => d.label).join(", "),
+        selectedCountry?.label,
+      ]
+        .filter(Boolean)
+        .join(" — ");
 
     const rows = [
       ["Job Title", values.job_title],
@@ -2297,6 +2415,22 @@ renderPage1 = () => {
           {/* Progress */}
           {this.renderProgressBar()}
           <StepIndicator current={currentPage} />
+
+          {this.isEditRestricted && this.props.jobId && (
+            <div style={{
+              ...s.notice,
+              background: '#fef3c7',
+              borderLeftColor: '#f59e0b',
+              marginBottom: '20px'
+            }}>
+              <span>⚠️</span>
+              <div>
+                <strong>Limited editing mode</strong> — This job is live (Approved + Active).<br />
+                You can edit: <strong>Job Description, Industry, Salary Range, Number of Positions & Application Deadline</strong><br />
+                Other fields like Job Title, Location, Skills, etc. cannot be changed while job is live.
+              </div>
+            </div>
+          )}
 
           {/* Pages */}
           {currentPage === 1 && this.renderPage1()}
@@ -2708,9 +2842,9 @@ renderPage1 = () => {
                       // description lines → bullet points (same as your admin)
                       const features = pkg.description
                         ? pkg.description
-                            .split("\n")
-                            .map((l) => l.trim())
-                            .filter(Boolean)
+                          .split("\n")
+                          .map((l) => l.trim())
+                          .filter(Boolean)
                         : [];
 
                       return (

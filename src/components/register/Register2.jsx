@@ -14,17 +14,27 @@ const Register2 = ({ setShowNext, setUserId, setAccountType }) => {
       style={{
         background: "linear-gradient(135deg, #537785, rgb(169, 209, 214))",
         minHeight: "100vh",
+        paddingTop: "100px",
+        paddingBottom: "40px",
       }}
     >
       <Col lg="4" md="6" sm="10">
+        <div className="form-inner" style={{ position: "relative", paddingTop: "135px" }}>
 
-        {/* Avatar */}
-        <div className="avatar-circle">
-          <i className="las la-user"></i>
-        </div>
+          {/* Avatar - outside form-inner top pe */}
+          <div
+            className="avatar-circle"
+            style={{
+              position: "absolute",
+              top: "40px",
+              left: "50%",
+              transform: "translateX(-50%)",
+            }}
+          >
+            <i className="las la-user"></i>
+          </div>
 
-        <div className="form-inner">
-          <h3>Create Account</h3>
+          <h3 className="text-center">Create Account</h3>
 
           <FormContent
             setShowNext={setShowNext}
@@ -32,14 +42,13 @@ const Register2 = ({ setShowNext, setUserId, setAccountType }) => {
             setAccountType={setAccountType}
           />
 
-          <div className="bottom-text mt-4">
+          <div className="bottom-text mt-4 text-center">
             Already have an account?{" "}
             <Link href="/login" className="login">
               Log In
             </Link>
           </div>
         </div>
-
       </Col>
     </Row>
   );

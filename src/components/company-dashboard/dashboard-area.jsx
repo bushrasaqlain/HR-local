@@ -141,70 +141,70 @@ const JobsLayout = ({ activeTab, onTabChange }) => {
 const ApplicantsLayout = ({ activeTab, onTabChange }) => {
   const tabs = [
     { key: "allApplicants", label: "All Applicants" },
-    { key: "saved",         label: "Saved" },
-    { key: "interview",     label: "Shortlisted" },
-    { key: "considered",    label: "Considered" },
-    { key: "offered",       label: "Approved" },
+    { key: "saved", label: "Saved" },
+    { key: "interview", label: "Shortlisted" },
+    { key: "considered", label: "Considered" },
+    { key: "offered", label: "Approved" },
   ];
 
   const renderTab = () => {
     switch (activeTab) {
       case "allApplicants": return <AllApplicants />;
-      case "saved":         return <Saved />;
-      case "interview":     return <Interview />;
-      case "considered":    return <Considered />;
-      case "offered":       return <Offered />;
-      default:              return <AllApplicants />;
+      case "saved": return <Saved />;
+      case "interview": return <Interview />;
+      case "considered": return <Considered />;
+      case "offered": return <Offered />;
+      default: return <AllApplicants />;
     }
   };
 
-return (
-  <div className="bg-white rounded-3 shadow" style={{ marginBottom: 24 }}>
-    {/* Tab bar */}
-    <div style={{
-      borderBottom: "2px solid #e0e0e0",
-      borderRadius: "8px 8px 0 0",
-      overflowX: "auto",
-      WebkitOverflowScrolling: "touch",
-      scrollbarWidth: "none",
-    }}>
+  return (
+    <div className="bg-white rounded-3 shadow" style={{ marginBottom: 24 }}>
+      {/* Tab bar */}
       <div style={{
-        display: "flex",
-        minWidth: "max-content",
-        padding: "0 16px",
+        borderBottom: "2px solid #e0e0e0",
+        borderRadius: "8px 8px 0 0",
+        overflowX: "auto",
+        WebkitOverflowScrolling: "touch",
+        scrollbarWidth: "none",
       }}>
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => onTabChange(tab.key)}
-            style={{
-              padding: "12px 16px",
-              fontWeight: 600,
-              fontSize: 14,
-              background: "none",
-              border: "none",
-              borderBottom: activeTab === tab.key
-                ? "5px solid #36565f"   // slightly thicker so it's obvious
-                : "3px solid transparent",
-              color: activeTab === tab.key ? "#36565f" : "#595959",
-              cursor: "pointer",
-              marginBottom: -2,
-              transition: "all 0.15s",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
+        <div style={{
+          display: "flex",
+          minWidth: "max-content",
+          padding: "0 16px",
+        }}>
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => onTabChange(tab.key)}
+              style={{
+                padding: "12px 16px",
+                fontWeight: 600,
+                fontSize: 14,
+                background: "none",
+                border: "none",
+                borderBottom: activeTab === tab.key
+                  ? "5px solid #36565f"   // slightly thicker so it's obvious
+                  : "3px solid transparent",
+                color: activeTab === tab.key ? "#36565f" : "#595959",
+                cursor: "pointer",
+                marginBottom: -2,
+                transition: "all 0.15s",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tab content — no separate bg-white wrapper needed */}
+      <div className="p-3">
+        {renderTab()}
       </div>
     </div>
-
-    {/* Tab content — no separate bg-white wrapper needed */}
-    <div className="p-3">
-      {renderTab()}
-    </div>
-  </div>
-);
+  );
 };
 
 const CompanyDashboardArea = ({
@@ -281,7 +281,7 @@ const CompanyDashboardArea = ({
   const renderContent = () => {
     switch (activeTab) {
       case "profile":
-        return <Profile />;
+        return <Profile onTabChange={onTabChange} activeTab={activeTab} />;
 
       case "companyProfile":
         return <CompanyProfile />;
@@ -290,8 +290,8 @@ const CompanyDashboardArea = ({
       case "saved":
       case "interview":
       case "considered":
-        // case "shortlistedcandidates":
-        case "offered":
+      // case "shortlistedcandidates":
+      case "offered":
       case "approved":
         return (
           <ApplicantsLayout activeTab={activeTab} onTabChange={onTabChange} />
@@ -307,7 +307,7 @@ const CompanyDashboardArea = ({
         return <ChatBox />;
       case "availableCandidates":
         return <AvailableCandidates onTabChange={onTabChange} />;
-      
+
       case "messages":
         return <Messages selectedContactProp={selectedMessageContact} />;
       case "wallet":
@@ -321,19 +321,19 @@ const CompanyDashboardArea = ({
     }
   };
 
-// To this:
-if (activeTab === "messages") {
+  // To this:
+  if (activeTab === "messages") {
     return <Messages selectedContactProp={selectedMessageContact} />;
-}
+  }
 
-return (
+  return (
     <section className="user-dashboard py-2 my-4">
-        <div className="container">
-            <TopCardBlock onTabChange={onTabChange} activeTab={activeTab} />
-            {renderContent()}
-        </div>
+      <div className="container">
+        <TopCardBlock onTabChange={onTabChange} activeTab={activeTab} />
+        {renderContent()}
+      </div>
     </section>
-);
+  );
 };
 
 export default CompanyDashboardArea;

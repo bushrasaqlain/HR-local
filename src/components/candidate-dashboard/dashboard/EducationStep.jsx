@@ -3,6 +3,110 @@ import AsyncSelect from "react-select/async";
 import api from "../../lib/api";
 // import { toast } from "react-toastify";
 
+const CustomSelect = ({ options, value, onChange, placeholder = "Select...", error = false, disabled = false }) => {
+  const [open, setOpen] = React.useState(false);
+  const wrapRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find((o) => String(o.value) === String(value));
+
+  const handleSelect = (val) => {
+    onChange(val);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative", width: "100%" }}>
+      <div
+        onClick={() => !disabled && setOpen(!open)}
+        style={{
+          height: "38px",
+          padding: "0 12px",
+          fontSize: "14px",
+          border: `1px solid ${open ? "#36565f" : error ? "#dc3545" : "#ced4da"}`,
+          borderRadius: "6px",
+          background: disabled ? "#e9ecef" : "#fff",
+          color: selectedOption ? "#212529" : "#6c757d",
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          cursor: disabled ? "not-allowed" : "pointer",
+          boxShadow: open ? "0 0 0 3px rgba(54,86,95,0.15)" : "none",
+          transition: "border-color 0.15s, box-shadow 0.15s",
+        }}
+      >
+        <span>{selectedOption ? selectedOption.label : placeholder}</span>
+        <span style={{ fontSize: "10px", color: "#9ca3af", marginLeft: "8px" }}>▾</span>
+      </div>
+
+      {open && !disabled && (
+        <div
+          style={{
+            position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 30,
+            background: "#fff", borderRadius: "6px", border: "1px solid #ced4da",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.08)", maxHeight: "220px", overflowY: "auto",
+          }}
+        >
+          {options.map((opt) => {
+            const isSelected = String(opt.value) === String(value);
+            return (
+              <div
+                key={opt.value}
+                onClick={() => handleSelect(opt.value)}
+                style={{
+                  padding: "8px 12px", fontSize: "14px", cursor: "pointer",
+                  background: isSelected ? "#36565f" : "#fff",
+                  color: isSelected ? "#fff" : "#212529",
+                }}
+                onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "#e6eeef"; }}
+                onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = "#fff"; }}
+              >
+                {opt.label}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const selectTealStyles = {
+  control: (base, state) => ({
+    ...base,
+    borderColor: state.isFocused ? "#36565F" : base.borderColor,
+    boxShadow: state.isFocused ? "0 0 0 1px #36565F" : base.boxShadow,
+    "&:hover": {
+      borderColor: "#36565F",
+    },
+  }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected
+      ? "#36565F"
+      : state.isFocused
+        ? "#e6eeef"
+        : "#fff",
+    color: state.isSelected ? "#fff" : "#212529",
+    cursor: "pointer",
+    "&:active": {
+      backgroundColor: "#36565F",
+    },
+  }),
+  menu: (base) => ({
+    ...base,
+    zIndex: 30,
+  }),
+};
+
 const emptyDraft = {
   degree: "",
   degreeTitle: "",
@@ -394,33 +498,26 @@ class EducationStep extends Component {
                   {/* Degree select */}
                   <div className="mb-3">
                     <label>Degree</label>
-                    <select
-                      className="form-control"
+                    <CustomSelect
+                      options={degreeFieldData.map((d) => ({ value: d.id, label: d.name }))}
                       value={educationDraft.degree || ""}
-                      onChange={(e) => {
-                        const degreeId = e.target.value;
+                      onChange={(val) => {
                         const selectedDegree = this.state.degreeFieldData.find(
-                          (d) => String(d.id) === String(degreeId)
-                        ); 
+                          (d) => String(d.id) === String(val)
+                        );
 
                         this.setState((prev) => ({
                           educationDraft: {
                             ...prev.educationDraft,
-                            degree: degreeId,
+                            degree: val,
                             degree_label: selectedDegree?.name || "",
                             degreeTitle: "",
                             degreeTitleObj: null,
                           },
                         }));
                       }}
-                    >
-                      <option value="">Select Degree</option>
-                      {degreeFieldData.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.name}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Select Degree"
+                    />
                   </div>
 
                   {/* <<< Add this below inside modal-body >>> */}
@@ -433,11 +530,7 @@ class EducationStep extends Component {
                       defaultOptions
                       loadOptions={(inputValue) => {
                         const degreeId = Number(educationDraft.degree);
-
-                        console.log("👉 Passing DegreeId:", degreeId);
-
                         if (!degreeId || isNaN(degreeId)) return [];
-
                         return this.loadDegreeTitles(degreeId)(inputValue);
                       }}
                       value={educationDraft.degreeTitleObj || null}
@@ -445,6 +538,7 @@ class EducationStep extends Component {
                         this.handleDraftChange("degreeTitle", opt, "select")
                       }
                       placeholder="Select Degree Title"
+                      styles={selectTealStyles}
                     />
                   </div>
 
@@ -460,6 +554,7 @@ class EducationStep extends Component {
                         this.handleDraftChange("institute", opt, "select")
                       }
                       placeholder="Select Institute"
+                      styles={selectTealStyles}
                     />
                   </div>
 

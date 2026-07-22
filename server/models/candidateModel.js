@@ -539,8 +539,8 @@ const addCandidateInfo = async (req, res) => {
     // 🔹 Determine which file was uploaded
     const passportPhotoPath = req.passportPhotoPath
       ? req.passportPhotoPath
-          .replace(/\\/g, "/")
-          .replace(/^.*uploads/, "/uploads")
+        .replace(/\\/g, "/")
+        .replace(/^.*uploads/, "/uploads")
       : null;
 
     const resumePath = req.resumePath
@@ -789,25 +789,25 @@ const getCandidateInfo = (req, res) => {
       return res.status(404).json({ error: "Candidate not found" });
 
     const candidate = candidateResult[0];
-     if (candidate.is_boosted && candidate.boost_expires_at) {
-    const now = new Date();
-    const expiry = new Date(candidate.boost_expires_at);
-    if (expiry < now) {
-      // Expire it in the background
-      connection.query(
-        `UPDATE candidate_info SET is_boosted = 0, boost_expires_at = NULL WHERE account_id = ?`,
-        [accountId]
-      );
-      connection.query(
-        `UPDATE boost_orders SET status = 'expired' 
+    if (candidate.is_boosted && candidate.boost_expires_at) {
+      const now = new Date();
+      const expiry = new Date(candidate.boost_expires_at);
+      if (expiry < now) {
+        // Expire it in the background
+        connection.query(
+          `UPDATE candidate_info SET is_boosted = 0, boost_expires_at = NULL WHERE account_id = ?`,
+          [accountId]
+        );
+        connection.query(
+          `UPDATE boost_orders SET status = 'expired' 
          WHERE candidate_id = ? AND status = 'active'`,
-        [candidate.candidate_id]
-      );
-      // Correct the in-memory object too
-      candidate.is_boosted = 0;
-      candidate.boost_expires_at = null;
+          [candidate.candidate_id]
+        );
+        // Correct the in-memory object too
+        candidate.is_boosted = 0;
+        candidate.boost_expires_at = null;
+      }
     }
-  }
 
     const parseJSON = (value) => {
       if (!value) return [];
@@ -864,41 +864,24 @@ const getCandidateInfo = (req, res) => {
 
     Promise.all([
       new Promise((resolve, reject) => {
-        connection.query(
-          availabilitySql,
-          [candidate.candidate_id],
-          (err, rows) => {
-            if (err) return reject(err);
-            resolve(rows.length > 0);
-          },
-        );
+        connection.query(availabilitySql, [candidate.candidate_id], (err, rows) => {
+          if (err) return reject(err);
+          resolve(rows.length > 0);
+        });
       }),
       new Promise((resolve, reject) => {
-        connection.query(
-          certificatesSql,
-          [candidate.candidate_id],
-          (err, rows) => {
-            if (err) return reject(err);
-            resolve(rows.length > 0);
-          },
-        );
-      }),
-      new Promise((resolve, reject) => {
-        connection.query(researchSql, [candidate.candidate_id], (err, rows) => {
+        connection.query(certificatesSql, [candidate.candidate_id], (err, rows) => {
           if (err) return reject(err);
           resolve(rows.length > 0);
         });
       }),
     ])
-      .then(([hasAvailability, hasCertificates, hasResearch]) => {
+      .then(([hasAvailability, hasCertificates]) => {
         if (hasAvailability) completedCount++;
         if (hasCertificates) completedCount++;
-        if (hasResearch) completedCount++;
 
-        const totalFields = fieldsToCheck.length + 3; // +3 for availability, certificates, research
-        const profile_completion_percent = Math.round(
-          (completedCount / totalFields) * 100,
-        ); // ✅ declare & assign here
+        const totalFields = fieldsToCheck.length + 2; // ✅ +2 only (availability + certificates)
+        const profile_completion_percent = Math.round((completedCount / totalFields) * 100); 
 
         // -------- Response object --------
         const response = {
@@ -1020,13 +1003,13 @@ const getCandidateInfo = (req, res) => {
               (err, rows) => {
                 if (err) return reject(err);
                 rows.forEach((r) => {
-  if (r.status === "Interview_Scheduled" || r.status === "Interview_Conducted")
-    response.shortlisted_count += r.count;   
-  if (r.status === "Offered")
-    response.approved_count += r.count;     
-  if (r.status === "Interview_Scheduled")
-    response.interview_count += r.count;
-});
+                  if (r.status === "Interview_Scheduled" || r.status === "Interview_Conducted")
+                    response.shortlisted_count += r.count;
+                  if (r.status === "Offered")
+                    response.approved_count += r.count;
+                  if (r.status === "Interview_Scheduled")
+                    response.interview_count += r.count;
+                });
                 resolve();
               },
             );
@@ -1066,7 +1049,7 @@ const getCandidateInfo = (req, res) => {
                   if (row.application_status === "Offered")
                     response.offered_companies.push(companyData);
                   if (row.application_status === "Offered" || row.application_status === "Selected")
-  response.approved_companies.push(companyData);
+                    response.approved_companies.push(companyData);
                   if (row.application_status === "Rejected")
                     response.rejected_companies.push(companyData);
                 });
@@ -1106,8 +1089,8 @@ const editCandidateInfo = (req, res) => {
   // ✅ Correct file handling
   const passportPhotoPath = req.passportPhotoPath
     ? req.passportPhotoPath
-        .replace(/\\/g, "/")
-        .replace(/^.*uploads/, "/uploads")
+      .replace(/\\/g, "/")
+      .replace(/^.*uploads/, "/uploads")
     : null;
 
   const resumePath = req.resumePath
@@ -1297,36 +1280,36 @@ const getCandidateFullProfilebyId = async (req, res) => {
       ...candidateInfoResults[0],
       experiences: Array.isArray(workResults)
         ? workResults.map((exp, index) => ({
-            ...exp,
-            start_date: formatDate(exp.start_date),
-            end_date: formatDate(exp.end_date),
-            first: index === 0,
-          }))
+          ...exp,
+          start_date: formatDate(exp.start_date),
+          end_date: formatDate(exp.end_date),
+          first: index === 0,
+        }))
         : [],
 
       education: Array.isArray(educationResults)
         ? educationResults.map((edu, index) => ({
-            ...edu,
-            start_date: formatDate(edu.start_date),
-            end_date: formatDate(edu.end_date),
-            first: index === 0,
-          }))
+          ...edu,
+          start_date: formatDate(edu.start_date),
+          end_date: formatDate(edu.end_date),
+          first: index === 0,
+        }))
         : [],
 
       projects: Array.isArray(projectsResults)
         ? projectsResults.map((proj, index) => ({
-            ...proj,
-            start_date: formatDate(proj.start_date),
-            end_date: formatDate(proj.end_date),
-            first: index === 0,
-          }))
+          ...proj,
+          start_date: formatDate(proj.start_date),
+          end_date: formatDate(proj.end_date),
+          first: index === 0,
+        }))
         : [],
 
       awards: Array.isArray(awardsResults)
         ? awardsResults.map((awd, index) => ({
-            ...awd,
-            first: index === 0,
-          }))
+          ...awd,
+          first: index === 0,
+        }))
         : [],
     };
 
@@ -1534,7 +1517,7 @@ const getBoostOrders = (req, res) => {
       if (errClean) console.error("Cleanup error:", errClean.message);
 
       connection.query(
-  `SELECT 
+        `SELECT 
     bo.id, bo.status, bo.start_date, bo.end_date, bo.created_at,
     a.id AS account_id,          -- ← ADD THIS
     ci.id AS candidate_info_id,

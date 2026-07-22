@@ -3,6 +3,50 @@ import AsyncSelect from "react-select/async";
 import api from "../../lib/api";
 import { Container } from "reactstrap";
 
+const selectTealStyles = {
+  control: (base, state) => ({
+    ...base,
+    borderColor: state.isFocused ? "#36565F" : base.borderColor,
+    boxShadow: state.isFocused ? "0 0 0 1px #36565F" : base.boxShadow,
+    "&:hover": {
+      borderColor: "#36565F",
+    },
+  }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected
+      ? "#36565F"
+      : state.isFocused
+        ? "#e6eeef"
+        : "#fff",
+    color: state.isSelected ? "#fff" : "#212529",
+    cursor: "pointer",
+    "&:active": {
+      backgroundColor: "#36565F",
+    },
+  }),
+  multiValue: (base) => ({
+    ...base,
+    backgroundColor: "#e6eeef",
+  }),
+  multiValueLabel: (base) => ({
+    ...base,
+    color: "#36565F",
+  }),
+  multiValueRemove: (base) => ({
+    ...base,
+    color: "#36565F",
+    "&:hover": {
+      backgroundColor: "#36565F",
+      color: "#fff",
+    },
+  }),
+  menu: (base) => ({
+    ...base,
+    zIndex: 30,
+  }),
+};
+
 // ✅ Helper function to format date from UTC to local YYYY-MM-DD
 const formatDateToLocal = (dateString) => {
   if (!dateString) return "";
@@ -435,6 +479,7 @@ class ExperienceStep extends Component {
                           value={experienceDraft.specialityObj}
                           onChange={(opt) => this.handleDraftChange("speciality", opt, "select")}
                           placeholder="Select Speciality"
+                          styles={selectTealStyles}
                         />
                       </div>
 
@@ -449,9 +494,9 @@ class ExperienceStep extends Component {
                           placeholder="Select Job Type"
                           isClearable
                           styles={{
-                            control: (base) => ({
-                              ...base,
-                              borderColor: "#e5e7eb",
+                            ...selectTealStyles,
+                            control: (base, state) => ({
+                              ...selectTealStyles.control(base, state),
                               borderRadius: "7px",
                               fontSize: 14,
                               minHeight: 38,
@@ -527,6 +572,7 @@ class ExperienceStep extends Component {
                 }))
               }
               placeholder="Select Skills"
+              styles={selectTealStyles}
             />
           ) : (
             <div
@@ -540,7 +586,7 @@ class ExperienceStep extends Component {
         </div>
         {editingSkills && (
           <div className="mt-1">
-            <button className="btn btn-sm btn-primary me-2" onClick={this.saveSkills}>
+            <button className="btn btn-sm text-white me-2" style={{ background: "#36565F", border: "#36565F" }} onClick={this.saveSkills}>
               Save
             </button>
             <button

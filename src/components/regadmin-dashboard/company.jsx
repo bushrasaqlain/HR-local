@@ -48,6 +48,7 @@ class CompanyData extends Component {
       historyData: [],
       successMessage: "",
       errorMessage: "",
+      statusDropdownOpen: false,
     };
     this.tableHeaders = [
       // { key: "id", label: "Id" },
@@ -244,37 +245,89 @@ class CompanyData extends Component {
               <Label for="statusFilter" className="me-2">
                 Status:
               </Label>
-              <Input
-  type="select"
-  id="statusFilter"
-  value={statusFilter}
-  onChange={this.handleStatusFilterChange}
-  style={{
-    display: "inline-block",
-    width: "auto",
-    borderColor: "#36565f",
-    color: "#36565f",
-    boxShadow: "none",
-    outline: "none",
-    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2336565f' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
-    backgroundRepeat: "no-repeat",
-    backgroundPosition: "right 8px center",
-    paddingRight: "28px",
-    appearance: "none",
-    WebkitAppearance: "none",
-  }}
-  onFocus={e => {
-    e.target.style.borderColor = "#36565f";
-    e.target.style.boxShadow = "0 0 0 0.2rem rgba(54,86,95,0.25)";
-  }}
-  onBlur={e => {
-    e.target.style.boxShadow = "none";
-  }}
->
-                <option value="All">All</option>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </Input>
+              <div style={{ position: "relative", display: "inline-block", minWidth: "150px" }}>
+                <button
+                  type="button"
+                  className="custom-dropdown-btn"
+                  style={{
+                    display: "inline-block",
+                    width: "100%",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    borderColor: "#36565f",
+                    color: "#36565f",
+                    boxShadow: "none",
+                    outline: "none",
+                    background: "#fff",
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2336565f' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
+                    backgroundRepeat: "no-repeat",
+                    backgroundPosition: "right 8px center",
+                    paddingRight: "28px",
+                    paddingLeft: "12px",
+                    paddingTop: "6px",
+                    paddingBottom: "6px",
+                    border: "1px solid #36565f",
+                    borderRadius: "6px",
+                    appearance: "none",
+                    WebkitAppearance: "none",
+                  }}
+                  onClick={() =>
+                    this.setState((prev) => ({
+                      statusDropdownOpen: !prev.statusDropdownOpen,
+                    }))
+                  }
+                >
+                  {statusFilter}
+                </button>
+
+                {this.state.statusDropdownOpen && (
+                  <div
+                    className="shadow-sm"
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      right: 0,
+                      zIndex: 1000,
+                      background: "#fff",
+                      border: "1px solid #ccc",
+                      borderRadius: "6px",
+                      marginTop: "2px",
+                      overflow: "hidden",
+                      textAlign: "left",
+                    }}
+                  >
+                    {["All", "Active", "Inactive"].map((opt) => (
+                      <div
+                        key={opt}
+                        onClick={() => {
+                          this.setState(
+                            { statusFilter: opt, currentPage: 1, statusDropdownOpen: false },
+                            this.fetchCompanyData
+                          );
+                        }}
+                        style={{
+                          padding: "8px 12px",
+                          cursor: "pointer",
+                          textAlign: "left",
+                          backgroundColor: statusFilter === opt ? "#36565F" : "#fff",
+                          color: statusFilter === opt ? "#fff" : "#000",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (statusFilter !== opt)
+                            e.currentTarget.style.backgroundColor = "#e8eef0";
+                        }}
+                        onMouseLeave={(e) => {
+                          if (statusFilter !== opt)
+                            e.currentTarget.style.backgroundColor = "#fff";
+                        }}
+                      >
+                        {opt}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </FormGroup>
           </Col>
         </Row>
@@ -353,7 +406,7 @@ class CompanyData extends Component {
                                     className="icon-btn"
                                     title="View Details"
                                   >
-                                    <i className="bi bi-eye text-primary"></i>
+                                    <i className="bi bi-eye" style={{ color: "#36565F" }}></i>
                                   </button>
 
                                   {/* Activate / Inactivate */}
@@ -371,7 +424,7 @@ class CompanyData extends Component {
 
                                   {/* History */}
                                   <button
-                                     onClick={() => this.props.onViewHistory(item.account_id)}
+                                    onClick={() => this.props.onViewHistory(item.account_id)}
                                     className="icon-btn"
                                     title="View History"
                                   >
