@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Navbar, NavbarBrand, Collapse, NavbarToggler } from "reactstrap";
 import HeaderNavContent from "./HeaderNavContent";
 import Image from "next/image";
-import { Button } from "react-bootstrap";
 
 class DefaulHeader2 extends Component {
   constructor(props) {
@@ -52,58 +51,54 @@ class DefaulHeader2 extends Component {
       <Navbar
         expand="lg"
         fixed="top"
-        className={`navbar-light shadow-sm py-2 ${navbarScrolled ? "navbar-glass" : "navbar-solid"
+        className={`hunar-navbar py-2 ${navbarScrolled ? "hunar-navbar--scrolled" : ""
           }`}
       >
-        {/* Container is relative to allow absolute dropdown */}
         <div
           className="container d-flex align-items-center justify-content-between"
           style={{ position: "relative" }}
         >
           {/* Brand */}
-          <NavbarBrand>
-            <Link href="/">
+          <NavbarBrand className="p-0">
+            <Link href="/" className="d-flex align-items-center text-decoration-none">
               <Image
-                src="/images/logo.svg"
-                width={154}
-                height={50}
-                alt="brand"
+                src="/images/12.png"
+                width={120}
+                height={60}
+                alt="Hunar"
+                priority
               />
             </Link>
           </NavbarBrand>
 
-          {/* Mobile toggler (only render on small screens) */}
+          {/* Mobile toggler */}
           {isMobileView && (
             <NavbarToggler
               onClick={this.toggle}
-              className="d-lg-none border-0 shadow-none"
+              className="hunar-toggler d-lg-none"
               aria-label="Toggle navigation"
             >
-              <span aria-hidden="true">☰</span>
+              <span aria-hidden="true">&#9776;</span>
             </NavbarToggler>
           )}
 
           {/* Desktop nav */}
-          <div className="d-none d-lg-flex flex-grow-1 justify-content-end align-items-center gap-3">
-            <HeaderNavContent />
+          <div className="d-none d-lg-flex flex-grow-1 justify-content-end align-items-center gap-4">
+            <div className="hunar-links d-flex align-items-center">
+              <HeaderNavContent />
+            </div>
 
-            <Button
-              href="/login"
-              className="btn  text-center p-2 text-decoration-none"
-              style={{background: "#264049", border: "#1e2a2e"}}
-            >
-              Login / Register 
-            </Button>
-            <Button
-              href="/login"
-              className="btn-gradient text-center p-2 text-decoration-none"
-              style={{background: "#264049", border: "#1e2a2e"}}
-            >
-              Post Job
-            </Button>
+            <div className="d-flex align-items-center gap-3">
+              <Link href="/login" className="hunar-signin text-decoration-none">
+                Sign in
+              </Link>
+              <Link href="/register" className="hunar-cta text-decoration-none">
+                Get started
+              </Link>
+            </div>
           </div>
 
-          {/* Mobile collapse menu (only render on small screens) */}
+          {/* Mobile collapse menu */}
           {isMobileView && (
             <Collapse
               isOpen={isOpen}
@@ -117,36 +112,23 @@ class DefaulHeader2 extends Component {
                 zIndex: 1050,
               }}
             >
-              <div
-                className="mobile-nav-panel d-flex flex-column gap-2 px-3 py-3"
-                style={{
-                  backgroundColor: "white",
-                  borderRadius: "0 0 8px 8px",
-                  boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
-                  maxHeight: "70vh",
-                  overflowY: "auto",
-                }}
-              >
-                <div className="w-100">
+              <div className="hunar-mobile-panel d-flex flex-column gap-2 px-3 py-3">
+                <div className="w-100 hunar-links hunar-links--mobile">
                   <HeaderNavContent isMobile />
                 </div>
 
-                <Link
-                  href="/login"
-                  className="btn-outline-modern text-left p-2 text-decoration-none text-black"
-                >
-                  Login / Register
+                <Link href="/login" className="hunar-signin-mobile text-decoration-none">
+                  Sign in
                 </Link>
-                <Link
-                  href="/login"
-                  className="btn-gradient text-left p-2 text-decoration-none text-black"
-                >
-                  Post Job
+                <Link href="/register" className="hunar-cta hunar-cta--mobile text-decoration-none text-center">
+                  Get started
                 </Link>
               </div>
             </Collapse>
           )}
         </div>
+
+        
       </Navbar>
     );
   }

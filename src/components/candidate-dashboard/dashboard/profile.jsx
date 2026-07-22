@@ -10,6 +10,7 @@ import Payment from "../../company-dashboard/payment";
 import PricingForm from "../../company-dashboard/pricingform";
 import PricingPage, { PaymentModal } from "../../company-dashboard/viewpackage";
 import { withRouter } from "next/router";
+import AppliedJobs from "../appliedJobs";
 
 class Profile extends Component {
   constructor(props) {
@@ -36,6 +37,8 @@ class Profile extends Component {
       },
       boostStatus: null,
       showBoostModal: false,
+       showAppliedJobsForm: false,
+    applyingForJobId: null,
     };
   }
 
@@ -116,23 +119,31 @@ class Profile extends Component {
     }
   };
 
-  handleApply = async (jobId) => {
-    this.setState({ applyingJobId: jobId });
-    try {
-      const token = sessionStorage.getItem("token");
-      await api.post(
-        "/applicant/apply",
-        { job_id: jobId },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      this.setState({ applySuccess: jobId });
-      this.fetchMatchingJobs();
-      setTimeout(() => this.setState({ applySuccess: null }), 3000);
-    } catch (err) {
-      console.error("Apply failed", err);
-    }
-    this.setState({ applyingJobId: null });
-  };
+handleApply = (jobId) => {
+  this.setState({ showAppliedJobsForm: true, applyingForJobId: jobId });
+};
+
+handleCloseAppliedJobsForm = () => {
+  this.setState({ showAppliedJobsForm: false, applyingForJobId: null });
+};
+
+submitApplication = async (jobId, answers) => {
+  this.setState({ applyingJobId: jobId });
+  try {
+    const token = sessionStorage.getItem("token");
+    await api.post(
+      "/applicant/apply",
+      { job_id: jobId, answers },
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    this.setState({ applySuccess: jobId, applyModalJobId: null, applyModalQuestions: null });
+    this.fetchMatchingJobs();
+    setTimeout(() => this.setState({ applySuccess: null }), 3000);
+  } catch (err) {
+    console.error("Apply failed", err);
+  }
+  this.setState({ applyingJobId: null });
+};
 
   // Doc1: Cancel application with confirmation
   handleCancelApplication = async (e, jobId) => {
@@ -270,7 +281,20 @@ class Profile extends Component {
         job.city_name?.toLowerCase().includes(keyword)
       );
     });
+ const { showAppliedJobsForm, applyingForJobId } = this.state;
 
+  if (showAppliedJobsForm) {
+    return (
+      <AppliedJobs
+        jobId={applyingForJobId}
+        onClose={this.handleCloseAppliedJobsForm}
+        onSubmitted={() => {
+          this.handleCloseAppliedJobsForm();
+          this.fetchMatchingJobs();
+        }}
+      />
+    );
+  }
     // Doc1: multi-graph config
   const graphConfig = {
   views: {

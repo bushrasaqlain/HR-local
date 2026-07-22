@@ -30,6 +30,7 @@
     "@xmldom/xmldom": "^0.9.8",
     "aos": "^2.3.4",
     "axios": "^1.6.2",
+    "bcrypt": "^6.0.0",
     "body-parser": "^1.20.2",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
@@ -43,7 +44,6 @@
     "eslint": "8.28.0",
     "eslint-config-next": "13.0.5",
     "express": "^4.18.2",
-    "face-api.js": "^0.22.2",
     "formik": "^2.4.9",
     "framer-motion": "^12.38.0",
     "google-map-react": "^2.2.0",
@@ -65,7 +65,7 @@
     "pdf-poppler": "^0.2.3",
     "pdf2json": "^4.0.3",
     "pdf2pic": "^3.2.0",
-    "pdfjs-dist": "^3.11.174",
+    "pdfjs-dist": "^5.4.296",
     "pdfmake": "^0.2.20",
     "photoswipe": "^5.3.4",
     "pizzip": "^3.2.0",
@@ -95,7 +95,6 @@
     "react-toastify": "^11.0.5",
     "reactstrap": "^9.2.3",
     "recharts": "^3.8.1",
-    "sass": "^1.56.1",
     "sharp": "^0.34.5",
     "slick-carousel": "^1.8.1",
     "swiper": "^11.2.10",
@@ -105,5 +104,8 @@
     "wkhtmltopdf-installer": "^0.3.2",
     "xlsx": "^0.18.5",
     "yup": "^1.7.1"
+  },
+  "devDependencies": {
+    "sass": "^1.89.2"
   }
 }

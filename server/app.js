@@ -66,6 +66,7 @@ const alertSettingsRoutes = require("./routes/alertSettingsRoutes");
 const creditRoutes = require("./routes/creditRoutes");
 const contactRoutes = require("./routes/contactRoutes");
 const revenuerecordRoutes = require("./routes/revenuerecordRoutes");
+const screeningRoutes = require("./routes/screeningRoutes")
 app.use("/credit", creditRoutes);
 app.use("/contact", contactRoutes);
 
@@ -111,7 +112,7 @@ app.use("/", dashboardRoutes);
 app.use("/", jobtitlesRoutes);
 app.use("/alert-settings", alertSettingsRoutes);
 app.use("/revenue", revenuerecordRoutes);
-
+app.use("/", screeningRoutes)
 
 
 module.exports = app;

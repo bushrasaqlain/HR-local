@@ -25,7 +25,7 @@ const Footer = () => {
                 <Image
                   width={140}
                   height={45}
-                  src="/images/logo-2.svg"
+                  src="/images/12.png"
                   alt="brand"
                 />
               </div>
@@ -34,9 +34,9 @@ const Footer = () => {
                 Connecting employers with top talent and helping candidates find the right jobs.
               </p>
 
-              <p><FaPhone /> 0314-8744587</p>
-              <p><FaMapMarkerAlt /> Westridge 1, Rawalpindi</p>
-              <p><FaEnvelope /> support@superio.com</p>
+              <p><FaPhone /> 0314-xxxxxxx</p>
+              <p><FaMapMarkerAlt /> xxxx 1, Rawalpindi</p>
+              <p><FaEnvelope /> support@Hunar.com</p>
             </Col>
 
             
@@ -66,7 +66,7 @@ const Footer = () => {
 
       {/* 🔷 BOTTOM */}
       <div className="footer-bottom2 text-center fw-bold">
-        © {new Date().getFullYear()} Superio. All Rights Reserved.
+        © {new Date().getFullYear()} Hunar. All Rights Reserved.
       </div>
 
     </footer>

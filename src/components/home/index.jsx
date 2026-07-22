@@ -34,7 +34,8 @@ const index = () => {
       {/* <!-- End Job Section --> */}
 
       {/* <section className="process-section pt-0"> */}
-      <section className="process-section bg-light">
+      <section className="process-section"
+      style={{background: "#e2f0f0"}}>
         <div className="auto-container">
           <div className="fw-bold sec-title text-center">
             <h2>How Does It Works?</h2>
@@ -50,11 +51,12 @@ const index = () => {
         </div>
       </section>
       {/* <!-- End Process Section --> */}
-      <section className="stats-section">
-        <div className="auto-container">
-          <div className="fw-bold sec-title text-center">
+      <section className="stats-section text-white"
+      style={{background: "#f4f7f8", color: "#fff"}}>
+        <div className="auto-container text-white">
+          <div className="fw-bold sec-title text-center text-white">
             <h2>Who are Our Candidates?</h2>
-            <div className="fw-semibold">Exceptional Candidates</div>
+            <div className="fw-semibold text-black">Exceptional Candidates</div>
           </div>
           {/* End sec-title */}
 
@@ -69,16 +71,16 @@ const index = () => {
       <section className="top-employers">
         <div className="auto-container">
           <div className="sec-title text-center">
-            <h2 className="fw-bold text-white">
-              Your Gateway to Top Employers
+            <h2 className="fw-bold">
+              Company We've Helped
             </h2>
-            <div className="text text-white">
+            <div className="text">
               Some of the employers we have helped recruit excellent applicants
               over the years.
             </div>
           </div>
 
-          <div className="carousel-outer" data-aos="fade-up">
+          <div className="carousel-outer" >
             <div className="row justify-content-center align-items-center">
               <TopCompany />
             </div>
@@ -94,87 +96,104 @@ const index = () => {
       </section>
       {/* <!-- End Top Companies --> */}
 
-      <section className="love-section">
-        <div className="container">
-          <div className="row"
-          style={{background: "white"}}>
+<section className="how-it-works-section py-5" style={{ background: "#f4f7f8" }}>
+  <div className="auto-container">
+    <div className="sec-title text-center mb-5" data-aos="fade-up">
+      <h2 className="fw-bold" style={{ color: "#121a1d" }}>
+        Getting Started Is Simple
+      </h2>
+      <div className="text fw-semibold">
+        Whether you're looking for work or looking to hire, here's how it works.
+      </div>
+    </div>
 
-            {/* 🔷 LEFT SIDE - CANDIDATES */}
-            <div className="col-md-6 love-box left-box" box-shadow data-aos="fade-right" style={{background: "#c1c9cc", color: "white"}}>
-              <span className="small-text text-black">Looking for a Job?</span>
-              <h2 className="text-black">Why Candidates Choose Us</h2>
+    <div className="row g-4">
+      {/* Candidates path */}
+      <div className="col-md-6" data-aos="fade-right">
+        <div
+          className="h-100 p-4 p-lg-5 rounded-4"
+          style={{ background: "#fff", border: "1px solid #e2e8ea", boxShadow: "0 4px 20px rgba(18,26,29,0.06)" }}
+        >
+          <span className="small-text fw-semibold" style={{ color: "#36565f" }}>
+            For Candidates
+          </span>
+          <h3 className="fw-bold mt-2 mb-4" style={{ color: "#121a1d" }}>
+            Find Your Next Role
+          </h3>
 
-              <div className="love-item" data-aos="fade-up" data-aos-delay="100">
-                <FaUserCheck className="icon" />
-                <p className="text-black">Easy registration with admin approval for secure access.</p>
+          {[
+            { step: "01", text: "Create your profile and get approved by our team." },
+            { step: "02", text: "Browse jobs matched to your skills and experience." },
+            { step: "03", text: "Apply and track your status in real time." },
+            { step: "04", text: "Message employers directly and schedule interviews." },
+          ].map(({ step, text }, i) => (
+            <div
+              className="d-flex align-items-start gap-3 mb-3"
+              key={i}
+              data-aos="fade-up"
+              data-aos-delay={100 * (i + 1)}
+            >
+              <div
+                className="d-flex align-items-center justify-content-center flex-shrink-0 rounded-circle fw-bold"
+                style={{ width: 42, height: 42, background: "#e2f0f0", color: "#36565f" }}
+              >
+                {step}
               </div>
-
-              <div className="love-item" data-aos="fade-up" data-aos-delay="100">
-                <FaSearch className="icon" />
-                <p className="text-black">Get matched with jobs based on your profile and skills.</p>
-              </div>
-
-              <div className="love-item" data-aos="fade-up" data-aos-delay="100">
-                <FaCheckCircle className="icon" />
-                <p className="text-black">Track shortlisted status and interview schedules easily.</p>
-              </div>
-
-              <div className="love-item" data-aos="fade-up" data-aos-delay="100">
-                <FaComments className="icon" />
-                <p className="text-black">Communicate directly with employers through messaging.</p>
-              </div>
-
-              <div className="btn">
-                <Link href="/about" className="btn-light">
-                  Learn More
-                </Link>
-
-                <Link href="/register" className="btn border-3 text-white " style={{background: "#121a1d"}}>
-                  Sign Up
-                </Link>
-              </div>
+              <p className="mb-0 pt-2" style={{ color: "#3a4448" }}>{text}</p>
             </div>
+          ))}
 
-            {/* 🔷 RIGHT SIDE - EMPLOYERS */}
-            <div className="col-md-6 love-box text-white right-box" data-aos="fade-left"
-            style={{background: "#4f6168"}}>
-              <span className="small-text text-white">Hiring Talent?</span>
-              <h2>Why Employers Trust Us</h2>
-
-              <div className="love-item" text-white data-aos="fade-up" data-aos-delay="100">
-                <FaBriefcase className="icon" />
-                <p className="text-white">Post jobs easily with flexible package options.</p>
-              </div>
-
-              <div className="love-item"  text-white data-aos="fade-up" data-aos-delay="100">
-                <FaUsers className="icon" />
-                <p className="text-white">Access a pool of verified and approved candidates.</p>
-              </div>
-
-              <div className="love-item"  text-white data-aos="fade-up" data-aos-delay="100">
-                <FaFilter className="icon" />
-                <p className="text-white">Filter and shortlist candidates based on job criteria.</p>
-              </div>
-
-              <div className="love-item" data-aos="fade-up" data-aos-delay="100">
-                <FaCalendarCheck className="icon" />
-                <p className="text-white">Schedule interviews and manage communication in one place.</p>
-              </div>
-
-              <div className="btns">
-                <Link href="/about" className="btn-light">
-                  Learn More
-                </Link>
-
-                <Link href="/register" className="btn border-3 text-white " style={{background: "#121a1d"}}>
-                  Sign Up
-                </Link>
-              </div>
-            </div>
-
+          <div className="mt-4">
+            <Link href="/register" className="btn text-white rounded-pill px-4" style={{ background: "#36565f" }}>
+              Get Started
+            </Link>
           </div>
         </div>
-      </section>
+      </div>
+
+      {/* Employers path */}
+      <div className="col-md-6" data-aos="fade-left">
+        <div
+          className="h-100 p-4 p-lg-5 rounded-4 text-white"
+          style={{ background: "#36565f", boxShadow: "0 4px 20px rgba(18,26,29,0.15)" }}
+        >
+          <span className="small-text fw-semibold" style={{ color: "#c5dbe0" }}>
+            For Employers
+          </span>
+          <h3 className="fw-bold mt-2 mb-4">Hire With Confidence</h3>
+
+          {[
+            { step: "01", text: "Sign up and choose a job posting package." },
+            { step: "02", text: "Post your job with the exact requirements you need." },
+            { step: "03", text: "Filter and shortlist from verified candidates." },
+            { step: "04", text: "Schedule interviews and manage hiring in one place." },
+          ].map(({ step, text }, i) => (
+            <div
+              className="d-flex align-items-start gap-3 mb-3"
+              key={i}
+              data-aos="fade-up"
+              data-aos-delay={100 * (i + 1)}
+            >
+              <div
+                className="d-flex align-items-center justify-content-center flex-shrink-0 rounded-circle fw-bold"
+                style={{ width: 42, height: 42, background: "rgba(255,255,255,0.15)", color: "#fff" }}
+              >
+                {step}
+              </div>
+              <p className="mb-0 pt-2 text-white">{text}</p>
+            </div>
+          ))}
+
+          <div className="mt-4">
+            <Link href="/register" className="btn text-white rounded-pill px-4" style={{ background: "#121a1d" }}>
+              Post a Job
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
       {/* End Job Categorie Section */}
 
       {/* <section className="news-section style-two">

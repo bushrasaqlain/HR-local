@@ -4,6 +4,7 @@ import axios from "axios";
 import { withRouter } from "next/router";
 import { connect } from "react-redux";
 import Head from "next/head.js";
+import ScreeningQuestionsForm from "./ScreeningQuestionsForm.jsx";
 import {
   Table,
   Input,
@@ -174,7 +175,12 @@ class JobListings extends Component {
       sortConfig: { key, direction }
     });
   };
-
+toggleScreeningModal = (jobId) => {
+  this.setState((prev) => ({
+    screeningModalOpen: !prev.screeningModalOpen,
+    screeningJobId: jobId,
+  }));
+};
   getSortIcon = (key) => {
     const { sortConfig } = this.state;
     if (sortConfig.key !== key) return '';
@@ -783,7 +789,10 @@ class JobListings extends Component {
                                 <DropdownItem onClick={() => this.toggleEditModal(job.id)}>
                                   <i className="la la-edit me-2" style={{ color: '#36565F' }} /> Edit
                                 </DropdownItem>
-
+<DropdownItem onClick={() => this.toggleScreeningModal(job.id)}>
+  <i className="la la-question-circle me-2" style={{ color: '#36565F' }} />
+  {job.has_screening ? "Edit Screening Questions" : "Add Screening Questions"}
+</DropdownItem>
                                 {job.approval_status === "Pending Payment" && (
                                   <DropdownItem onClick={() => this.handlePay(job)}>
                                     <i className="la la-credit-card me-2" style={{ color: '#10b981' }} /> Pay
@@ -919,6 +928,27 @@ class JobListings extends Component {
               />
             </ModalBody>
           </Modal>
+          <Modal
+  isOpen={this.state.screeningModalOpen}
+  toggle={() => this.toggleScreeningModal()}
+  size="lg"
+  centered
+>
+  <ModalHeader toggle={() => this.toggleScreeningModal()}>
+    <span style={{ color: '#36565F' }}>❓ Screening Questions</span>
+  </ModalHeader>
+  <ModalBody>
+    {this.state.screeningJobId && (
+      <ScreeningQuestionsForm
+        jobId={this.state.screeningJobId}
+        onSuccess={() => {
+          this.toggleScreeningModal();
+          this.fetchData(this.userId);
+        }}
+      />
+    )}
+  </ModalBody>
+</Modal>
         </Container>
 
         <style jsx>{`

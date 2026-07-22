@@ -8,6 +8,22 @@ const pdfParse = require("pdf-parse");
 const mammoth = require("mammoth");
 const axios = require("axios");
 const OpenAI = require("openai");
+function calculateTotalExperience(experienceRows) {
+  if (!experienceRows || !experienceRows.length) return 0;
+
+  let totalMonths = 0;
+  experienceRows.forEach((e) => {
+    const start = e.start_date ? new Date(e.start_date) : null;
+    const end = e.is_ongoing || !e.end_date ? new Date() : new Date(e.end_date);
+    if (!start || isNaN(start)) return;
+    const months =
+      (end.getFullYear() - start.getFullYear()) * 12 +
+      (end.getMonth() - start.getMonth());
+    if (months > 0) totalMonths += months;
+  });
+
+  return Math.round((totalMonths / 12) * 10) / 10; // years, 1 decimal
+}
 const createCandidateTable = () => {
   const createCandidateInfoTable = `
   CREATE TABLE IF NOT EXISTS candidate_info (
@@ -23,7 +39,6 @@ const createCandidateTable = () => {
   marital_status ENUM('single','married','divorced','widowed'),
   registration_type ENUM('manual', 'cv_only') DEFAULT 'manual',
 
-  total_experience VARCHAR(20) NULL,
   is_fresher BOOLEAN DEFAULT FALSE,
 
   license_type INT,
@@ -386,7 +401,6 @@ const getAllCandidates = (req, res) => {
            c.date_of_birth,
            c.gender,
            c.marital_status,
-           c.total_experience,
            c.license_type,
            c.license_number,
            c.profile_completed,
@@ -487,7 +501,6 @@ const addCandidateInfo = async (req, res) => {
       date_of_birth,
       gender,
       marital_status,
-      total_experience,
       is_fresher,
       license_type,
       license_number,
@@ -568,7 +581,6 @@ const addCandidateInfo = async (req, res) => {
           date_of_birth,
           gender,
           marital_status,
-          total_experience,
           license_type,
           license_number,
           address,
@@ -586,7 +598,7 @@ const addCandidateInfo = async (req, res) => {
           is_fresher
         )
         VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
         ON DUPLICATE KEY UPDATE
   full_name = COALESCE(VALUES(full_name), full_name),
@@ -594,7 +606,6 @@ const addCandidateInfo = async (req, res) => {
   date_of_birth = COALESCE(VALUES(date_of_birth), date_of_birth),
   gender = COALESCE(VALUES(gender), gender),
   marital_status = COALESCE(VALUES(marital_status), marital_status),
-  total_experience = COALESCE(VALUES(total_experience), total_experience),
   license_type = COALESCE(VALUES(license_type), license_type),
   license_number = COALESCE(VALUES(license_number), license_number),
   address = COALESCE(VALUES(address), address),
@@ -619,7 +630,6 @@ const addCandidateInfo = async (req, res) => {
         date_of_birth,
         gender,
         marital_status,
-        total_experience || null,
         license_type,
         license_number,
         address,
@@ -679,7 +689,6 @@ const addCandidateInfo = async (req, res) => {
                 date_of_birth,
                 gender,
                 marital_status,
-                total_experience,
                 license_number,
                 address,
                 country,
@@ -744,7 +753,6 @@ const getCandidateInfo = (req, res) => {
       ci.date_of_birth,
       ci.gender,
       ci.marital_status,
-      ci.total_experience,
       ci.license_type AS license_type_id,
       lt.name AS license_type_name,
       ci.license_number,
@@ -1112,7 +1120,6 @@ const editCandidateInfo = (req, res) => {
     date_of_birth: "date_of_birth",
     gender: "gender",
     marital_status: "marital_status",
-    total_experience: "total_experience",
     is_fresher: "is_fresher",
     license_type: "license_type",
     license_number: "license_number",
@@ -1675,20 +1682,12 @@ const getCandidatesForJob = (req, res) => {
     SELECT 
       ci.id,
       ci.full_name,
-      ci.total_experience,
       ci.skills,
       ci.is_boosted,
       ci.boost_expires_at
     FROM candidate_info ci
-    JOIN job_posts jp ON 1=1
-    WHERE jp.id = ?
-    
-    -- Skills match (important)
-    AND JSON_OVERLAPS(ci.skills, jp.skill_ids)
-
-    -- Experience match (optional improve later)
-    AND ci.total_experience >= jp.min_experience
-
+    JOIN job_posts jp ON jp.id = ?
+    WHERE JSON_OVERLAPS(ci.skills, jp.skill_ids)
     ORDER BY 
       ci.is_boosted DESC,  
       ci.created_at DESC
@@ -1700,7 +1699,40 @@ const getCandidatesForJob = (req, res) => {
       return res.status(500).json({ error: "Database error" });
     }
 
-    res.json(results);
+    const candidateIds = results.map((c) => c.id);
+    if (!candidateIds.length) return res.json(results);
+
+    connection.query(
+      `SELECT candidate_id, start_date, end_date, is_ongoing
+       FROM candidate_experience WHERE candidate_id IN (?)`,
+      [candidateIds],
+      (err2, expRows) => {
+        if (err2) {
+          console.error(err2);
+          return res.status(500).json({ error: "Database error" });
+        }
+
+        connection.query(
+          `SELECT min_experience FROM job_posts WHERE id = ?`,
+          [jobId],
+          (err3, jobRows) => {
+            if (err3) return res.status(500).json({ error: "Database error" });
+            const minExp = parseInt(jobRows[0]?.min_experience) || 0;
+
+            const filtered = results
+              .map((c) => {
+                const exp = calculateTotalExperience(
+                  expRows.filter((e) => e.candidate_id === c.id),
+                );
+                return { ...c, total_experience: exp };
+              })
+              .filter((c) => c.total_experience >= minExp);
+
+            res.json(filtered);
+          },
+        );
+      },
+    );
   });
 };
 
@@ -1733,7 +1765,7 @@ const getMatchingJobsForCandidate = async (req, res) => {
     // ── STEP 1: Fetch candidate profile ──
     const candidate = await new Promise((resolve, reject) =>
       connection.query(
-        `SELECT ci.id, ci.skills, ci.city, ci.total_experience,
+        `SELECT ci.id, ci.skills, ci.city,
                 ci.expected_salary, ci.otherPreferredCities, ci.is_boosted
          FROM candidate_info ci
          WHERE ci.account_id = ?
@@ -1796,7 +1828,12 @@ const getMatchingJobsForCandidate = async (req, res) => {
         (err, rows) => (err ? reject(err) : resolve(rows)),
       ),
     );
-    const hasDegree = educationRows.length > 0;
+    // ✅ FIX: hasDegree must check actual field values, not just row count.
+    // A LEFT JOIN or stray row can produce a row with null degree_id/degree_type_id,
+    // which previously made `educationRows.length > 0` true with no real data.
+    const hasDegree = educationRows.some(
+      (e) => e.degree_id != null || e.degree_type_id != null,
+    );
     const candDegreeTypeIds = educationRows
       .map((e) => Number(e.degree_type_id))
       .filter(Boolean);
@@ -1864,7 +1901,7 @@ const getMatchingJobsForCandidate = async (req, res) => {
     }
 
     // ── STEP 8: Score each job against the candidate ──
-    const candExp = parseFloat(candidate.total_experience || 0);
+    const candExp = calculateTotalExperience(experienceRows);
     const candSalary = parseFloat(candidate.expected_salary || 0);
     const tierOrder = { strong: 0, good: 1, weak: 2 };
 
@@ -1945,6 +1982,11 @@ const getMatchingJobsForCandidate = async (req, res) => {
         score += skillScore;
 
         // ── Experience (25pts) ──
+        // ✅ FIX: "matched" is now based on whether the candidate's experience
+        // actually meets the job's minimum — not on whether the fuzzy score
+        // happened to clear an arbitrary >=20 cutoff. Previously a 0-vs-1-year
+        // gap only cost 4 points (25 - 4 = 21), which cleared 20 and falsely
+        // counted as matched.
         const jobMinExp = parseInt(job.min_experience) || 0;
         const jobMaxExp = parseInt(job.max_experience) || 50;
         let expScore = 0;
@@ -1958,19 +2000,32 @@ const getMatchingJobsForCandidate = async (req, res) => {
           expScore = 20;
         }
         score += expScore;
-        if (expScore >= 20) matched.push("Experience");
-        else
+
+        const expMatched = candExp >= jobMinExp;
+        if (expMatched) {
+          matched.push("Experience");
+        } else {
           missing.push(
             `Experience (you have ${candExp} yrs, job needs ${jobMinExp}-${jobMaxExp})`,
           );
+        }
 
         // ── Speciality (20pts) ──
+        // ✅ FIX: "no requirement on the job" is no longer treated as a match.
+        // It only gets neutral points now. A match is only claimed when the
+        // candidate actually has speciality data AND it satisfies the job's
+        // requirement. If the job requires one and the candidate has none,
+        // that's now explicitly flagged as missing (not set).
         let specScore = 0;
+        let specMatched = false;
         if (!job.speciality_id) {
-          specScore = 20;
-          matched.push("Speciality");
+          specScore = 20; // no requirement — neutral score, no claimed match
+        } else if (candSpecialityIds.length === 0) {
+          specScore = 0;
+          missing.push("Speciality (not set)");
         } else if (candSpecialityIds.includes(Number(job.speciality_id))) {
           specScore = 20;
+          specMatched = true;
           matched.push("Speciality");
         } else {
           missing.push("Speciality");
@@ -1978,6 +2033,8 @@ const getMatchingJobsForCandidate = async (req, res) => {
         score += specScore;
 
         // ── Degree (10pts) ──
+        // hasDegree now correctly reflects real data (see STEP 5 fix above),
+        // so this block's existing logic is now accurate without further changes.
         const jobDegreeTypeId = job.degree_id ? Number(job.degree_id) : null;
         const jobDegreeFieldId = job.degreefields_id
           ? Number(job.degreefields_id)
@@ -2059,10 +2116,13 @@ const getMatchingJobsForCandidate = async (req, res) => {
         score += salaryScore;
 
         // ── Availability (10pts) ──
+        // ✅ FIX: "job has no time window" is no longer treated as a candidate
+        // match. It only gets neutral points now. A match is only claimed when
+        // the candidate actually has availability rows AND they overlap with
+        // the job's window.
         let availScore = 0;
         if (!job.time_from || !job.time_to) {
-          availScore = 10;
-          matched.push("Availability");
+          availScore = 10; // job has no time constraint — neutral score, no claimed match
         } else if (availabilityRows.length === 0) {
           availScore = 5;
           missing.push("Availability (you haven't set availability)");
@@ -2085,8 +2145,7 @@ const getMatchingJobsForCandidate = async (req, res) => {
 
         // ── Tier (same logic as getAllApplicants) ──
         const skillsMatched = skillScore >= 20;
-        const expMatched = expScore >= 20;
-        const specMatched = specScore === 20;
+        // expMatched and specMatched are already declared above with the fixed logic
         const coreCriteriaCount = [
           skillsMatched,
           expMatched,
@@ -2207,37 +2266,17 @@ const getAllCandidatesForEmployer = (req, res) => {
     values.push(parseInt(skillId));
   }
 
-  if (experience === "fresh") {
-    whereConditions.push(
-      `(ci.total_experience = '0' OR ci.total_experience IS NULL OR ci.total_experience = '' OR ci.is_fresher = 1)`,
-    );
-  } else if (experience === "1-3") {
-    whereConditions.push(
-      `CAST(IFNULL(ci.total_experience, 0) AS UNSIGNED) BETWEEN 1 AND 3`,
-    );
-  } else if (experience === "3-5") {
-    whereConditions.push(
-      `CAST(IFNULL(ci.total_experience, 0) AS UNSIGNED) BETWEEN 3 AND 5`,
-    );
-  } else if (experience === "5+") {
-    whereConditions.push(
-      `CAST(IFNULL(ci.total_experience, 0) AS UNSIGNED) >= 5`,
-    );
-  }
-
   const whereClause = `WHERE ${whereConditions.join(" AND ")}`;
 
-  // ✅ ADDED passport_photo in SELECT
   const query = `
     SELECT
       ci.id                   AS candidate_id,
       ci.full_name,
-      ci.total_experience,
       ci.skills,
       ci.is_boosted,
       ci.boost_expires_at,
       ci.gender,
-      ci.passport_photo,      -- ✅ Added this line
+      ci.passport_photo,
       city.name               AS city_name,
       ctry.name               AS country_name,
       UPPER(LEFT(ci.full_name, 1)) AS initial,
@@ -2276,80 +2315,118 @@ const getAllCandidatesForEmployer = (req, res) => {
       ${whereClause}
     `;
 
+    const candidateIdsForExp = results.map((c) => c.candidate_id);
+
     connection.query(countQuery, values, (err2, countResult) => {
       if (err2) {
         console.error("❌ Count error:", err2.sqlMessage);
         return res.status(500).json({ error: "Database error" });
       }
 
-      const candidates = results.map((c) => {
-        let skillIds = [];
-        try {
-          const parsed =
-            typeof c.skills === "string"
-              ? JSON.parse(c.skills)
-              : c.skills || [];
-          skillIds = Array.isArray(parsed) ? parsed : [];
-        } catch {
-          skillIds = [];
-        }
+      const expQuery = candidateIdsForExp.length
+        ? `SELECT candidate_id, start_date, end_date, is_ongoing FROM candidate_experience WHERE candidate_id IN (?)`
+        : null;
 
-        // ✅ Format passport_photo URL if exists
-        let photoUrl = null;
-        if (c.passport_photo) {
-          photoUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${c.passport_photo}`;
-        }
+      const fetchExp = expQuery
+        ? new Promise((resolve, reject) =>
+            connection.query(expQuery, [candidateIdsForExp], (e, rows) =>
+              e ? reject(e) : resolve(rows),
+            ),
+          )
+        : Promise.resolve([]);
 
-        return {
-          candidate_id: c.candidate_id,
-          full_name: c.full_name || "Anonymous",
-          initial: c.initial || "?",
-          total_experience: c.total_experience || "0",
-          city_name: c.city_name || null,
-          country_name: c.country_name || null,
-          is_boosted: !!c.is_boosted,
-          gender: c.gender || null,
-          skills_count: skillIds.length,
-          availability_status: c.availability_status || "Not specified",
-          passport_photo: photoUrl, // ✅ Added this
-        };
-      });
+      fetchExp
+        .then((expRows) => {
+          let candidates = results.map((c) => {
+            let skillIds = [];
+            try {
+              const parsed =
+                typeof c.skills === "string"
+                  ? JSON.parse(c.skills)
+                  : c.skills || [];
+              skillIds = Array.isArray(parsed) ? parsed : [];
+            } catch {
+              skillIds = [];
+            }
 
-      const statsQuery = `
-        SELECT
-          COUNT(*) AS total_candidates,
-          SUM(CASE WHEN a.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS new_this_week,
-          SUM(CASE WHEN ci.is_boosted = 1 THEN 1 ELSE 0 END) AS boosted_count
-        FROM account a
-        LEFT JOIN candidate_info ci ON a.id = ci.account_id
-        WHERE a.accountType = 'candidate'
-          AND a.isActive = 'Active'
-          AND ci.profile_completed = 1
-      `;
+            let photoUrl = null;
+            if (c.passport_photo) {
+              photoUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${c.passport_photo}`;
+            }
 
-      connection.query(statsQuery, (err3, statsResult) => {
-        if (err3) {
-          return res.status(200).json({
-            total: countResult[0].total,
-            page,
-            limit,
-            candidates,
-            stats: null,
+            const candExp = calculateTotalExperience(
+              expRows.filter((e) => e.candidate_id === c.candidate_id),
+            );
+
+            return {
+              candidate_id: c.candidate_id,
+              full_name: c.full_name || "Anonymous",
+              initial: c.initial || "?",
+              total_experience: candExp,
+              city_name: c.city_name || null,
+              country_name: c.country_name || null,
+              is_boosted: !!c.is_boosted,
+              gender: c.gender || null,
+              skills_count: skillIds.length,
+              availability_status: c.availability_status || "Not specified",
+              passport_photo: photoUrl,
+            };
           });
-        }
 
-        return res.status(200).json({
-          total: countResult[0].total,
-          page,
-          limit,
-          candidates,
-          stats: {
-            total_candidates: statsResult[0].total_candidates || 0,
-            new_this_week: statsResult[0].new_this_week || 0,
-            boosted_count: statsResult[0].boosted_count || 0,
-          },
+          if (experience === "fresh") {
+            candidates = candidates.filter((c) => c.total_experience === 0);
+          } else if (experience === "1-3") {
+            candidates = candidates.filter(
+              (c) => c.total_experience >= 1 && c.total_experience <= 3,
+            );
+          } else if (experience === "3-5") {
+            candidates = candidates.filter(
+              (c) => c.total_experience >= 3 && c.total_experience <= 5,
+            );
+          } else if (experience === "5+") {
+            candidates = candidates.filter((c) => c.total_experience >= 5);
+          }
+
+          const statsQuery = `
+            SELECT
+              COUNT(*) AS total_candidates,
+              SUM(CASE WHEN a.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS new_this_week,
+              SUM(CASE WHEN ci.is_boosted = 1 THEN 1 ELSE 0 END) AS boosted_count
+            FROM account a
+            LEFT JOIN candidate_info ci ON a.id = ci.account_id
+            WHERE a.accountType = 'candidate'
+              AND a.isActive = 'Active'
+              AND ci.profile_completed = 1
+          `;
+
+          connection.query(statsQuery, (err3, statsResult) => {
+            if (err3) {
+              return res.status(200).json({
+                total: countResult[0].total,
+                page,
+                limit,
+                candidates,
+                stats: null,
+              });
+            }
+
+            return res.status(200).json({
+              total: countResult[0].total,
+              page,
+              limit,
+              candidates,
+              stats: {
+                total_candidates: statsResult[0].total_candidates || 0,
+                new_this_week: statsResult[0].new_this_week || 0,
+                boosted_count: statsResult[0].boosted_count || 0,
+              },
+            });
+          });
+        })
+        .catch((expErr) => {
+          console.error("❌ Experience fetch error:", expErr.message);
+          return res.status(500).json({ error: "Database error" });
         });
-      });
     });
   });
 };
@@ -2371,100 +2448,59 @@ const parseCVAndSave = async (req, res) => {
       const fs = require("fs");
       const fileBuffer = fs.readFileSync(file.path);
 
-      console.log("File mimetype:", file.mimetype);
-      console.log("File size:", fileBuffer.length, "bytes");
-
       if (
         file.mimetype === "application/pdf" ||
         file.originalname?.toLowerCase().endsWith(".pdf")
       ) {
-        const dataBuffer = fs.readFileSync(file.path);
-        const pdfData = await pdfParse(dataBuffer);
+        const pdfData = await pdfParse(fileBuffer);
         cvText = pdfData.text || "";
-        console.log("PDF text length:", cvText.length);
-        console.log("PDF text preview:", cvText.slice(0, 500)); // ← check this log!
       } else {
-        // DOC/DOCX
         const result = await mammoth.extractRawText({ path: file.path });
         cvText = result.value || "";
-        console.log("DOC text length:", cvText.length);
       }
     } catch (parseErr) {
       console.error("CV parse error:", parseErr.message);
       cvText = "";
     }
 
-    console.log("API KEY exists:", !!process.env.OPENAI_API_KEY);
+    // ✅ FREE regex-based extraction (no AI, no cost)
+    function extractFieldsFree(text, skillsListFromDB) {
+      const emailMatch = text.match(/[\w.-]+@[\w.-]+\.\w+/);
+      const phoneMatch = text.match(/(03\d{2}[-\s]?\d{7})/);
+      const expMatch = text.match(/(\d+)\+?\s*years?/i);
 
-    // ✅ OpenAI se extract karo
-    let extracted = {
-      full_name: null,
-      total_experience: null,
-      skills_text: [],
-      is_fresher: false,
-    };
+      const foundSkills = skillsListFromDB.filter(skill =>
+        new RegExp(`\\b${skill.name}\\b`, "i").test(text)
+      );
 
-    if (cvText.length > 50) {
-      try {
-        console.log("Calling OpenAI API...");
+      const firstLine = text.split("\n").map(l => l.trim()).find(l => l.length > 2) || null;
 
-        const openai = new OpenAI({
-          apiKey: process.env.OPENAI_API_KEY,
-        });
-
-        const completion = await openai.chat.completions.create({
-          model: "gpt-3.5-turbo",
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are a CV parser. Extract information and return ONLY valid JSON. No markdown, no explanation.",
-            },
-            {
-              role: "user",
-              content: `Extract from this CV and return ONLY this JSON format:
-{
-  "full_name": "string or null",
-  "total_experience": "number in years as string or null",
-  "skills_text": ["array of skill names found in CV"],
-  "is_fresher": true or false
-}
-
-CV Text:
-${cvText.slice(0, 3000)}`,
-            },
-          ],
-          temperature: 0,
-          max_tokens: 500,
-        });
-
-        const aiText = completion.choices[0].message.content.trim();
-        console.log("=== AI RESPONSE ===");
-        console.log(aiText);
-
-        const cleanJson = aiText.replace(/```json|```/g, "").trim();
-        extracted = JSON.parse(cleanJson);
-        console.log("=== EXTRACTED ===", extracted);
-      } catch (aiErr) {
-        console.error("=== AI ERROR ===");
-        console.error("Status:", aiErr.status);
-        console.error("Message:", aiErr.message);
-      }
-    } else {
-      console.log("CV text too short, skipping AI. Length:", cvText.length);
+      return {
+        full_name: firstLine,
+        email: emailMatch ? emailMatch[0] : null,
+        phone: phoneMatch ? phoneMatch[0] : null,
+        total_experience: expMatch ? expMatch[1] : null,
+        skills_text: foundSkills.map(s => s.name),
+        is_fresher: !expMatch,
+      };
     }
 
-    // ✅ Skills DB se match karo
+    let extracted = { full_name: null, total_experience: null, skills_text: [], is_fresher: false };
+
+    if (cvText.length > 50) {
+      const allSkills = await new Promise((resolve) => {
+        connection.query(`SELECT id, name FROM skills WHERE status = 'Active'`, (err, rows) => {
+          resolve(err ? [] : rows);
+        });
+      });
+      extracted = extractFieldsFree(cvText, allSkills);
+    }
+
+    // ✅ Skills DB match (still fine to keep — refines the match)
     let skillIds = [];
     if (extracted.skills_text?.length) {
-      console.log("Skills to match:", extracted.skills_text);
-
-      const skillNames = extracted.skills_text.map((s) =>
-        s.toLowerCase().trim(),
-      );
-      const placeholders = skillNames
-        .map(() => "LOWER(name) LIKE ?")
-        .join(" OR ");
+      const skillNames = extracted.skills_text.map((s) => s.toLowerCase().trim());
+      const placeholders = skillNames.map(() => "LOWER(name) LIKE ?").join(" OR ");
       const skillValues = skillNames.map((s) => `%${s}%`);
 
       await new Promise((resolve) => {
@@ -2472,8 +2508,6 @@ ${cvText.slice(0, 3000)}`,
           `SELECT id, name FROM skills WHERE (${placeholders}) AND status = 'Active'`,
           skillValues,
           (err, rows) => {
-            if (err) console.error("Skills DB error:", err);
-            console.log("Skills matched from DB:", rows);
             if (!err && rows) skillIds = rows.map((r) => r.id);
             resolve();
           },
@@ -2481,16 +2515,15 @@ ${cvText.slice(0, 3000)}`,
       });
     }
 
-    // ✅ DB mein save
+    // ✅ Save to DB
     const sql = `
       INSERT INTO candidate_info (
-        account_id, full_name, total_experience, skills,
+        account_id, full_name, skills,
         resume, registration_type, is_fresher, profile_completed
       )
-      VALUES (?, ?, ?, ?, ?, 'cv_only', ?, 1)
+      VALUES (?, ?, ?, ?, 'cv_only', ?, 1)
       ON DUPLICATE KEY UPDATE
         full_name        = IF(VALUES(full_name) IS NOT NULL, VALUES(full_name), full_name),
-        total_experience = IF(VALUES(total_experience) IS NOT NULL, VALUES(total_experience), total_experience),
         skills           = IF(VALUES(skills) IS NOT NULL, VALUES(skills), skills),
         resume           = VALUES(resume),
         registration_type = 'cv_only',
@@ -2503,7 +2536,6 @@ ${cvText.slice(0, 3000)}`,
       [
         accountId,
         extracted.full_name || null,
-        extracted.total_experience || null,
         skillIds.length ? JSON.stringify(skillIds) : null,
         resumePath,
         extracted.is_fresher ? 1 : 0,

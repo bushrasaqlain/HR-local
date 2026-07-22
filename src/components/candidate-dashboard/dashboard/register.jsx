@@ -1,1190 +1,685 @@
-  "use client";
+"use client";
 
-  import React, { Component, createRef } from "react";
-  import Select from "react-select";
-  import AsyncSelect from "react-select/async";
-  import { Button, Col, Container, Form } from "reactstrap";
-  import { Helmet } from "react-helmet";
-  import { Formik, Field, ErrorMessage, FieldArray } from "formik";
-  import * as Yup from "yup";
-  import api from "../../lib/api";
-  import "bootstrap-icons/font/bootstrap-icons.css";
+import React, { Component } from "react";
+import Select from "react-select";
+import AsyncSelect from "react-select/async";
+import { Form } from "reactstrap";
+import { Helmet } from "react-helmet";
+import { Formik, Field, FieldArray } from "formik";
+import * as Yup from "yup";
+import api from "../../lib/api";
+import "bootstrap-icons/font/bootstrap-icons.css";
+import ThemedTimeInput from "./ThemeTimeInput";
 
-  let faceapi = null;
-  let faceapiLoaded = false;
+let faceapi = null;
 
-  const T = {
-    primary:   "#36565f",
-    primary2:  "#36565f",
-    primary3:  "#e2f0f0",
-    primary4:  "#5f8190",
-    slate:     "#36565F",
-    slateLight:"#EEF3F4",
-    danger:    "#36565f",
-    text:      "#1a1a1a",
-    textMuted: "#6b7280",
-    textLight: "#9ca3af",
-    border:    "#e5e7eb",
-    borderFocus:"#36565f",
-    bg:        "#f8fafb",
-    bgCard:    "#ffffff",
-    bgSection: "#f4f7f8",
-    radius:    "10px",
-    radiusSm:  "7px",
-    shadow:    "0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04)",
-    shadowMd:  "0 4px 16px rgba(0,0,0,0.08)",
-  };
+const rsSelectStyles = {
+  control: (b) => ({ ...b, borderColor: "#e5e7eb", borderRadius: 7, fontSize: 14, minHeight: 38 }),
+};
 
-  const S = {
-    wrap: {
-      minHeight: "100vh",
-      background: T.bg,
-      fontFamily: "'DM Sans', 'Segoe UI', sans-serif",
-      padding: "2rem 1rem 4rem",
-    },
-    inner: { maxWidth: 820, margin: "0 auto" },
+const StyledInput = (props) => <input {...props} className={`cr-field-input ${props.className || ""}`} />;
+const StyledSelect = (props) => <select {...props} className={`cr-field-input cr-field-select ${props.className || ""}`} />;
+const StyledTextarea = (props) => <textarea {...props} className={`cr-field-textarea ${props.className || ""}`} />;
 
-    pageTitle: {
-      fontFamily: "'Playfair Display', Georgia, serif",
-      fontSize: 26,
-      fontWeight: 500,
-      color: T.text,
-      margin: "0 0 4px",
-    },
-    pageSub: { fontSize: 14, color: T.textMuted, margin: "0 0 2rem" },
+const FieldWrap = ({ label, required, hint, error, children, span2 = false }) => (
+  <div className={`cr-field-group ${span2 ? "span-2" : ""}`}>
+    {label && (
+      <label className="cr-field-label">
+        {label}
+        {required && <span className="required"> *</span>}
+      </label>
+    )}
+    {children}
+    {hint && <span className="cr-field-hint">{hint}</span>}
+    {error && <span className="cr-field-error">{error}</span>}
+  </div>
+);
 
-    /* stepper */
-    stepper: {
-      display: "flex",
-      gap: 0,
-      marginBottom: "2rem",
-      overflowX: "auto",
-      paddingBottom: 4,
-    },
-    stepItem: (active, done) => ({
-      flex: 1,
-      minWidth: 90,
-      position: "relative",
-      cursor: done ? "pointer" : "default",
-    }),
-    stepLine: (done) => ({
-      position: "absolute",
-      top: 17,
-      left: "50%",
-      width: "100%",
-      height: 2,
-      background: done ? T.primary : T.border,
-      zIndex: 0,
-      transition: "background 0.3s",
-    }),
-    stepInner: {
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      gap: 6,
-      position: "relative",
-      zIndex: 1,
-    },
-    stepCircle: (active, done) => ({
-      width: 34,
-      height: 34,
-      borderRadius: "50%",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: 13,
-      fontWeight: 500,
-      background: active ? T.primary : done ? T.primary3 : "#fff",
-      border: `2px solid ${active ? T.primary : done ? T.primary : T.border}`,
-      color: active ? "#fff" : done ? T.primary2 : T.textMuted,
-      transition: "all 0.25s",
-    }),
-    stepLabel: (active) => ({
-      fontSize: 11,
-      color: active ? T.primary2 : T.textMuted,
-      fontWeight: active ? 500 : 400,
-      textAlign: "center",
-      lineHeight: 1.3,
-    }),
+const Divider = ({ label }) => (
+  <>
+    <div className="cr-divider" />
+    {label && <div className="cr-section-label">{label}</div>}
+  </>
+);
 
-    /* card */
-    card: {
-      background: T.bgCard,
-      borderRadius: T.radius,
-      border: `1px solid ${T.border}`,
-      boxShadow: T.shadow,
-      overflow: "hidden",
-      marginBottom: "1.5rem",
-    },
-    progressBar: { height: 3, background: T.border },
-    progressFill: (pct) => ({
-      height: "100%",
-      width: `${pct}%`,
-      background: T.primary,
-      transition: "width 0.4s",
-    }),
-    cardHeader: {
-      display: "flex",
-      alignItems: "center",
-      gap: 10,
-      padding: "1.1rem 1.4rem",
-      borderBottom: `1px solid ${T.border}`,
-    },
-    cardHeaderIcon: {
-      width: 32,
-      height: 32,
-      borderRadius: 8,
-      background: T.primary3,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      flexShrink: 0,
-    },
-    cardHeaderTitle: { fontSize: 15, fontWeight: 500, color: T.text, margin: 0, flex: 1 },
-    cardHeaderStep: { fontSize: 12, color: T.textMuted },
-    cardBody: { padding: "1.4rem" },
-    cardFooter: {
-      padding: "1rem 1.4rem",
-      borderTop: `1px solid ${T.border}`,
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      background: T.bgSection,
-    },
+const CheckIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
+    <polyline points="2,8 6,12 14,4" />
+  </svg>
+);
 
-    /* photo */
-    photoArea: {
-      display: "flex",
-      alignItems: "center",
-      gap: "1.2rem",
-      padding: "1rem 1.1rem",
-      background: T.bgSection,
-      borderRadius: T.radius,
-      border: `1.5px dashed ${T.primary4}`,
-      marginBottom: "1.4rem",
-    },
-    photoCircle: {
-      width: 68,
-      height: 68,
-      borderRadius: "50%",
-      background: T.primary3,
-      border: `2px solid ${T.primary4}`,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      flexShrink: 0,
-      overflow: "hidden",
-    },
-    photoImg: { width: "100%", height: "100%", objectFit: "cover" },
-
-    /* divider */
-    divider: { height: 1, background: T.border, margin: "1.2rem 0" },
-    sectionLabel: {
-      fontSize: 11,
-      fontWeight: 500,
-      letterSpacing: "0.06em",
-      textTransform: "uppercase",
-      color: T.textMuted,
-      marginBottom: "0.8rem",
-    },
-
-    /* grid */
-    grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 },
-    grid3: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 },
-    grid1: { display: "grid", gridTemplateColumns: "1fr", gap: 14 },
-
-    /* field */
-    fieldGroup: { display: "flex", flexDirection: "column", gap: 4 },
-    fieldLabel: {
-      fontSize: 12,
-      fontWeight: 500,
-      color: T.textMuted,
-      letterSpacing: "0.01em",
-    },
-    fieldInput: {
-      height: 38,
-      padding: "0 12px",
-      borderRadius: T.radiusSm,
-      border: `1px solid ${T.border}`,
-      background: "#fff",
-      fontSize: 14,
-      color: T.text,
-      fontFamily: "inherit",
-      outline: "none",
-      transition: "border-color 0.15s, box-shadow 0.15s",
-      width: "100%",
-      boxSizing: "border-box",
-    },
-    fieldInputFocus: {
-      borderColor: T.primary,
-      boxShadow: `0 0 0 3px ${T.primary}22`,
-    },
-    fieldInputReadonly: {
-      background: T.bgSection,
-      color: T.textMuted,
-      cursor: "not-allowed",
-    },
-    fieldTextarea: {
-      padding: "9px 12px",
-      borderRadius: T.radiusSm,
-      border: `1px solid ${T.border}`,
-      background: "#fff",
-      fontSize: 14,
-      color: T.text,
-      fontFamily: "inherit",
-      outline: "none",
-      resize: "vertical",
-      minHeight: 80,
-      width: "100%",
-      boxSizing: "border-box",
-    },
-    fieldHint: { fontSize: 11, color: T.textLight },
-    fieldError: { fontSize: 11, color: T.danger },
-
-    /* buttons */
-    btnPrev: {
-      padding: "8px 18px",
-      borderRadius: T.radiusSm,
-      background: "transparent",
-      border: `1px solid ${T.border}`,
-      color: T.textMuted,
-      fontSize: 13,
-      cursor: "pointer",
-      fontFamily: "inherit",
-    },
-    btnNext: {
-      padding: "8px 22px",
-      borderRadius: T.radiusSm,
-      background: T.primary,
-      border: "none",
-      color: "#fff",
-      fontSize: 13,
-      fontWeight: 500,
-      cursor: "pointer",
-      fontFamily: "inherit",
-      display: "flex",
-      alignItems: "center",
-      gap: 6,
-    },
-    btnAdd: {
-      padding: "7px 16px",
-      borderRadius: T.radiusSm,
-      background: T.primary3,
-      border: `1px solid ${T.primary4}`,
-      color: T.primary2,
-      fontSize: 13,
-      fontWeight: 500,
-      cursor: "pointer",
-      fontFamily: "inherit",
-    },
-    btnDanger: {
-      padding: "5px 10px",
-      borderRadius: T.radiusSm,
-      background: "#fef2f0",
-      border: `1px solid #f5c4b3`,
-      color: T.danger,
-      fontSize: 12,
-      cursor: "pointer",
-      fontFamily: "inherit",
-    },
-    btnInfo: {
-      padding: "5px 10px",
-      borderRadius: T.radiusSm,
-      background: T.primary3,
-      border: `1px solid ${T.primary4}`,
-      color: T.primary2,
-      fontSize: 12,
-      cursor: "pointer",
-      fontFamily: "inherit",
-      marginRight: 6,
-    },
-
-    /* alerts */
-    alertSuccess: {
-      padding: "10px 14px",
-      borderRadius: T.radiusSm,
-      background: "#f0fdf4",
-      border: "1px solid #86efac",
-      color: "#166534",
-      fontSize: 13,
-      marginBottom: "1rem",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-    },
-    alertError: {
-      padding: "10px 14px",
-      borderRadius: T.radiusSm,
-      background: "#fff7f5",
-      border: "1px solid #f5c4b3",
-      color: T.danger,
-      fontSize: 13,
-      marginBottom: "1rem",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-    },
-    alertInfo: {
-      padding: "10px 14px",
-      borderRadius: T.radiusSm,
-      background: "#eff6ff",
-      border: "1px solid #bfdbfe",
-      color: "#1d4ed8",
-      fontSize: 13,
-      marginBottom: "1rem",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-    },
-
-    /* fresher toggle */
-    fresherBox: (on) => ({
-      display: "flex",
-      alignItems: "center",
-      gap: 12,
-      padding: "12px 14px",
-      borderRadius: T.radius,
-      border: `1.5px solid ${on ? T.primary : T.border}`,
-      background: on ? T.primary3 : T.bgSection,
-      cursor: "pointer",
-      marginBottom: "1.2rem",
-      transition: "all 0.2s",
-    }),
-
-    /* table */
-    table: {
-      width: "100%",
-      borderCollapse: "collapse",
-      fontSize: 13,
-      marginTop: "1rem",
-    },
-    th: {
-      padding: "8px 10px",
-      textAlign: "left",
-      background: T.bgSection,
-      borderBottom: `1px solid ${T.border}`,
-      fontSize: 11,
-      fontWeight: 500,
-      color: T.textMuted,
-      textTransform: "uppercase",
-      letterSpacing: "0.04em",
-    },
-    td: {
-      padding: "9px 10px",
-      borderBottom: `1px solid ${T.border}`,
-      color: T.text,
-      verticalAlign: "middle",
-    },
-
-    /* availability tag */
-    tag: {
-      display: "inline-block",
-      padding: "3px 9px",
-      borderRadius: 20,
-      background: T.primary3,
-      color: T.primary2,
-      fontSize: 12,
-      fontWeight: 500,
-    },
-
-    /* type selection cards */
-    typeCard: (hover) => ({
-      background: "#fff",
-      border: `2px solid ${hover ? T.primary : T.border}`,
-      borderRadius: 14,
-      padding: "1.8rem 1.4rem",
-      cursor: "pointer",
-      transition: "all 0.2s",
-      height: "100%",
-      boxShadow: hover ? T.shadowMd : "none",
-    }),
-
-    /* cv upload */
-    cvDropzone: {
-      border: `2px dashed ${T.primary4}`,
-      borderRadius: T.radius,
-      padding: "3rem 2rem",
-      textAlign: "center",
-      background: T.primary3,
-      maxWidth: 480,
-      margin: "0 auto",
-    },
-    ongoingBadge: {
-  display: "inline-block",
-  padding: "2px 8px",
-  borderRadius: 20,
-  background: T.primary3,
-  color: T.primary2,
-  fontSize: 11,
-  fontWeight: 500,
-},
-  };
-
-  /* ─────────────────────────────────────────────
-    SMALL REUSABLE COMPONENTS
-  ───────────────────────────────────────────── */
-
-  const StyledInput = ({ style = {}, ...props }) => {
-    const [focused, setFocused] = React.useState(false);
-    return (
-      <input
-        {...props}
-        style={{
-          ...S.fieldInput,
-          ...(focused ? S.fieldInputFocus : {}),
-          ...(props.readOnly ? S.fieldInputReadonly : {}),
-          ...style,
-        }}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-      />
-    );
-  };
-
-  const StyledSelect = ({ style = {}, ...props }) => (
-    <select
-      {...props}
-      style={{ ...S.fieldInput, cursor: "pointer", ...style }}
-    />
-  );
-
-  const StyledTextarea = ({ style = {}, ...props }) => (
-    <textarea {...props} style={{ ...S.fieldTextarea, ...style }} />
-  );
-
-  const FieldWrap = ({ label, required, hint, error, children, span2 = false }) => (
-    <div style={{ ...S.fieldGroup, ...(span2 ? { gridColumn: "span 2" } : {}) }}>
-      {label && (
-        <label style={S.fieldLabel}>
-          {label}
-          {required && <span style={{ color: T.danger }}> *</span>}
-        </label>
-      )}
-      {children}
-      {hint && <span style={S.fieldHint}>{hint}</span>}
-      {error && <span style={S.fieldError}>{error}</span>}
-    </div>
-  );
-
-  const Divider = ({ label }) => (
-    <>
-      <div style={S.divider} />
-      {label && <div style={S.sectionLabel}>{label}</div>}
-    </>
-  );
-
-  const CheckIcon = () => (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
-      <polyline points="2,8 6,12 14,4" />
-    </svg>
-  );
 const isDateOngoing = (dateStr) => {
   if (!dateStr) return true;
   return new Date(dateStr) > new Date();
 };
-  /* ─────────────────────────────────────────────
-    MAIN CLASS
-  ───────────────────────────────────────────── */
-  class CandidateRegisterForm extends Component {
-    constructor(props) {
-      super(props);
-      this.fileInputRef = React.createRef();
-      this.formikRef = React.createRef();
 
-      this.state = {
-        // registrationType: null,
-        // cvUploadDone: false,
-        // cvExtracted: null,
-        // cvUploading: false,
-        step: 1,
-        // hoveredType: null,
-
-        formData: {
-          full_name: "",
-          phone: "",
-          email: "",
-          date_of_birth: "",
-          gender: "",
-          marital_status: "",
-          total_experience: "",
-          license_type: "",
-          license_number: "",
-          country: "",
-          otherPreferredCities: [],
-          district: "",
-          city: "",
-          speciality: "",
-          degreeFieldData: [],
-          address: "",
-          photoMessage: null,
-          formMessage: null,
-          skills: [],
-          education: [
-            { degree: "", degreeTitle: "", degreeTitle_label: "", institutes: "", startDate: "", endDate: "", ongoing: false },
-          ],
-          experience: [
-            { companyName: "", speciality_id: "", designation: "", startDate: "", endDate: "", ongoing: false, id: null },
-          ],
-          resume: null,
-          availability: [{ day: "", shift: "", startTime: "", endTime: "" }],
-        },
-        fileData: { passport_photo: null, resume: null },
-        isNewImageUploaded: false,
-        countries: [],
-        districts: [],
-        cities: [],
-        skillsOptions: [],
-        allCities: [],
-        degree: [],
-        degreeTitles: [],
-        degreeFieldData: [],
-        editID: "",
-        isEdit: false,
-        editexpID: "",
-        isExpEdit: false,
-        getManager: [],
-        getError: "",
-        previewUrl: null,
-        entries: [],
-        editingIndex: null,
-        photoMessage: null,
-        formMessage: null,
-        shiftOptions: [
-          { value: "morning", label: "Morning" },
-          { value: "evening", label: "Evening" },
-          { value: "night", label: "Night" },
-        ],
-        dayOptions: [
-          { value: "Monday", label: "Monday" },
-          { value: "Tuesday", label: "Tuesday" },
-          { value: "Wednesday", label: "Wednesday" },
-          { value: "Thursday", label: "Thursday" },
-          { value: "Friday", label: "Friday" },
-          { value: "Saturday", label: "Saturday" },
-          { value: "Sunday", label: "Sunday" },
-        ],
-      };
-
-      this.apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-      this.shiftOptions = [
-        { value: "day", label: "Day Shift" },
-        { value: "night", label: "Night Shift" },
-        { value: "both", label: "Both" },
-      ];
-    }
-
-    nextStep = () => this.setState((prev) => ({ step: prev.step + 1 }));
-    prevStep = () => this.setState((prev) => ({ step: prev.step - 1 }));
-
-    handleFileChange = (event, fieldName, setFieldValue) => {
-      const file = event.target.files[0];
-      if (!file) return;
-      setFieldValue(fieldName, file);
-      this.setState((prev) => ({ fileData: { ...prev.fileData, [fieldName]: file } }));
-    };
-
-    loadCountries = async () => {
-      try {
-        const res = await api.get("/getallCountries", { params: { page: 1, limit: 0 } });
-        const countries = Array.isArray(res.data.countries) ? res.data.countries : res.data || [];
-        this.setState({ countries });
-      } catch (err) {
-        this.setState({ formMessage: { type: "error", text: "Could not load countries" } });
-      }
-    };
-
-    loadDistricts = async (countryId) => {
-      if (!countryId) { this.setState({ districts: [], cities: [] }); return; }
-      const id = typeof countryId === "object" ? countryId?.id : countryId;
-      if (!id) return;
-      try {
-        const res = await api.get("/getalldistricts", { params: { country_id: id, limit: 1000 } });
-        const districts = Array.isArray(res.data.districts) ? res.data.districts : Array.isArray(res.data) ? res.data : [];
-        this.setState({ districts, cities: [] });
-      } catch (err) {
-        this.setState({ formMessage: { type: "error", text: "Could not load districts" } });
-      }
-    };
-
-    loadCities = async (districtId) => {
-      if (!districtId) { this.setState({ cities: [] }); return; }
-      const id = typeof districtId === "object" ? districtId?.id : districtId;
-      if (!id) return;
-      try {
-        const res = await api.get(`/getCitiesByDistrict/${id}`);
-        const cities = Array.isArray(res.data.cities) ? res.data.cities : [];
-        this.setState({ cities });
-      } catch (error) {
-        this.setState({ formMessage: { type: "error", text: "Could not load cities" } });
-      }
-    };
-
-    loadAllCities = async () => {
-      try {
-        const res = await api.get("/getallCities");
-        const allCities = Array.isArray(res.data.cities) ? res.data.cities : [];
-        this.setState({ allCities });
-      } catch (error) {
-        this.setState({ formMessage: { type: "error", text: "Could not load cities" } });
-      }
-    };
-
-    loadSpeciality = async () => {
-      try {
-        const res = await api.get("/getAllspeciality");
-        const specialityArray = Array.isArray(res.data.speciality) ? res.data.speciality : [];
-        this.setState({ speciality: specialityArray });
-      } catch (err) {
-        this.setState({ formMessage: { type: "error", text: "Could not load speciality" } });
-      }
-    };
-
-    loadLicenseTypes = async () => {
-      try {
-        const res = await api.get("/getAllLicenseTypes");
-        const licenseArray = Array.isArray(res.data.licenseTypes) ? res.data.licenseTypes : res.data.results || [];
-        this.setState({ licenseTypes: licenseArray });
-      } catch (err) {
-        this.setState({ formMessage: { type: "error", text: "Could not load license types" } });
-      }
-    };
-
-      loadJobTypes = async () => {
-        try {
-          const res = await api.get("/getalljobtypes");
-          const jobTypes = res.data?.jobtypes || [];
-          this.setState({ jobTypes });
-        } catch (err) {
-          console.error("Failed to load job types:", err);
-          this.setState({ formMessage: { type: "error", text: "Could not load job types" } });
-        }
-      };
-    
-
-    loadSkills = async () => {
-      try {
-        const res = await api.get("/getAllskills");
-        const skillsArray = Array.isArray(res.data.skills) ? res.data.skills : [];
-        this.setState({ skillsOptions: skillsArray });
-      } catch (err) {
-        this.setState({ formMessage: { type: "error", text: "Could not load skills" } });
-      }
-    };
-
-    fetchCandidateInfo = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const [profileRes, eduRes, expRes] = await Promise.all([
-          api.get("/candidateProfile/candidate", { headers: { Authorization: `Bearer ${token}` } }),
-          api.get(`${this.apiBaseUrl}candidateeducation/getallcandidateeducation`, { headers: { Authorization: `Bearer ${token}` } }),
-          api.get(`${this.apiBaseUrl}candidateexperience/getexperience`, { headers: { Authorization: `Bearer ${token}` } }),
-        ]);
-
-        const data = profileRes.data || {};
-        const entriesFromBackend = (data.availabilityData || []).flatMap((daySlot) =>
-          (daySlot.shifts || []).map((shift) => ({
-            day: daySlot.day, shift: shift.shift, startTime: shift.startTime, endTime: shift.endTime,
-          }))
-        );
-
-        const mappedData = {
-          ...this.state.formData,
-          full_name: data.full_name ?? "",
-          phone: data.phone ?? "",
-          email: data.email ?? "",
-          date_of_birth: data.date_of_birth ? new Date(data.date_of_birth).toISOString().slice(0, 10) : "",
-          gender: data.gender ?? "",
-          marital_status: data.marital_status ?? "",
-          total_experience: data.total_experience ?? "",
-          current_salary: data.current_salary ?? "",
-          expected_salary: data.expected_salary ?? "",
-          skills: Array.isArray(data.skills) ? data.skills.map((s) => s.id) : [],
-          otherPreferredCities: Array.isArray(data.otherPreferredCities) ? data.otherPreferredCities : [],
-          address: data.address ?? "",
-          passport_photoPreview: data.passport_photo
-            ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${data.passport_photo}`
-            : "",
-          education: [
-            { degreeTitle: "", degreeTitle_label: "", institutes: "", startDate: "", endDate: "", ongoing: false },
-            ...this.mapEducation(eduRes.data || []),
-          ],
-          experience: [
-            { companyName: "", speciality: "", designation: "", startDate: "", endDate: "", ongoing: false },
-            ...this.mapExperience(expRes.data?.data || []),
-          ],
-          passport_photo: data.passport_photo || null,
-          resume: data.resume ? {
-            name: data.resume.split("/").pop(),
-            url: `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${data.resume}`,
-            isExisting: true,
-          } : null,
-          availability: entriesFromBackend,
-          country: data.country?.id || "",
-          district: data.district?.id || "",
-          city: data.city?.id || "",
-          isFresher: data.is_fresher || false,
-          license_type: data.license_type?.id || "",
-          license_number: data.license_number ?? "",
-        };
-
-        this.setState({ formData: mappedData });
-        if (mappedData.country) await this.loadDistricts(mappedData.country);
-        if (mappedData.district) await this.loadCities(mappedData.district);
-      } catch (err) {
-        console.error("Fetch failed", err);
-      }
-    };
-
-    fetchAvailability = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await api.get(`/candidate_availability/getavailability`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const raw = Array.isArray(res.data?.data) ? res.data.data : [];
-        const entries = raw.map((e) => ({ day: e.day, shift: e.shift, startTime: e.startTime, endTime: e.endTime }));
-        this.setState({ entries });
-      } catch (err) {
-        console.error("Availability fetch failed:", err);
-      }
-    };
-
-    mapEducation = (list = []) =>
-      list.map((edu) => ({
-        id: edu.id,
-        degree: edu.degree_id || "",
-        degreeTitle: edu.degreefield_id || "",
-        degreeTitle_label: edu.degreefield || "",
-        institutes: edu.institute_id || "",
-        institutes_label: edu.institute || "",
-        startDate: edu.start_date ? new Date(edu.start_date).toISOString().slice(0, 10) : "",
-        endDate: edu.end_date ? new Date(edu.end_date).toISOString().slice(0, 10) : "",
-        ongoing: edu.is_ongoing === 1,
-      }));
-
-    mapExperience = (list = []) =>
-      list.map((exp) => ({
-        id: exp.id,
-        designation: exp.designation || "",
-        speciality_id: exp.speciality_id || "",
-        companyName: exp.company_name || "",
-        startDate: exp.start_date ? new Date(exp.start_date).toISOString().slice(0, 10) : "",
-        endDate: exp.end_date ? new Date(exp.end_date).toISOString().slice(0, 10) : "",
-        ongoing: exp.is_ongoing === 1,
-      }));
-
-    loadDegrees = async () => {
-      try {
-        const res = await api.get("/getalldegreetype");
-        const degreeArray = Array.isArray(res.data?.degreetypes) ? res.data.degreetypes : [];
-        this.setState({ degreeFieldData: degreeArray });
-      } catch (err) {
-        this.setState({ degreeFieldData: [] });
-      }
-    };
-
-    loadInstitutes = async (inputValue) => {
-      try {
-        const res = await api.get("/institute/getallInstitute", { params: { search: inputValue || "", status: "Active" } });
-        const institutes = Array.isArray(res.data?.institutes) ? res.data.institutes : [];
-        return institutes.map((inst) => ({ label: inst.name, value: inst.id }));
-      } catch (err) {
-        return [];
-      }
-    };
-
-    loadDegreeTitles = (degreeId) => async (inputValue) => {
-      if (!degreeId) return [];
-      const res = await api.get("/getDegreeFieldsDropdown", { params: { search: inputValue || "", degree_type_id: degreeId } });
-      return (res.data.degreefields || []).map((t) => ({ value: t.id, label: t.name }));
-    };
-
-loadFaceModels = async () => {
-  try {
-    // Load TensorFlow first
-    const tf = await import("@tensorflow/tfjs");
-
-    // Set backend
-    await tf.setBackend("webgl");
-
-    // Wait until backend is initialized
-    await tf.ready();
-
-    // Then load face-api
-    faceapi = await import("@vladmandic/face-api");
-
-    // Load models
-    await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
-
-    console.log("Face models loaded successfully");
-  } catch (err) {
-    console.error("Face model load failed:", err);
-  }
+const EMPTY_FORM_DATA = {
+  full_name: "",
+  phone: "",
+  email: "",
+  date_of_birth: "",
+  gender: "",
+  marital_status: "",
+  total_experience: "",
+  current_salary: "",
+  expected_salary: "",
+  license_type: "",
+  license_number: "",
+  country: "",
+  otherPreferredCities: [],
+  district: "",
+  city: "",
+  speciality: "",
+  address: "",
+  photoMessage: null,
+  formMessage: null,
+  skills: [],
+  isFresher: false,
+  education: [
+    { degree: "", degreeTitle: "", degreeTitle_label: "", institutes: "", startDate: "", endDate: "", ongoing: false, id: null },
+  ],
+  experience: [
+    { companyName: "", speciality_id: "", designation: "", job_type_id: "", startDate: "", endDate: "", ongoing: false, id: null },
+  ],
+  resume: null,
+  passport_photo: null,
+  passport_photoPreview: "",
 };
 
-    componentDidMount() {
-      this.loadFaceModels();
-      this.loadCountries();
-      this.loadSkills();
-      this.loadAllCities();
-      this.loadSpeciality();
-      this.loadLicenseTypes();
-      this.loadInstitutes();
-      this.loadDegrees();
-      this.loadDegreeTitles();
-      this.fetchCandidateInfo();
-      this.fetchAvailability();
-      this.loadJobTypes();
-    }
+class CandidateRegisterForm extends Component {
+  constructor(props) {
+    super(props);
+    this.fileInputRef = React.createRef();
+    this.formikRef = React.createRef();
 
-    cvManagerHandler = (e) => {
-      const file = e.target.files[0];
-      this.setState({ getManager: [file] });
-      this.formikRef.current.setFieldValue("resume", file);
-    };
+    this.state = {
+      // "resume" (default landing) -> "form" (everything, prefilled or blank)
+      phase: "form",
 
-    deleteHandler = () => {
-      this.setState((prevState) => ({ getManager: [], formData: { ...prevState.formData, resume: null } }));
-      if (this.fileInputRef.current) this.fileInputRef.current.value = "";
-    };
+      formData: { ...EMPTY_FORM_DATA },
+      fileData: { passport_photo: null, resume: null },
+      countries: [],
+      districts: [],
+      cities: [],
+      skillsOptions: [],
+      allCities: [],
+      degreeFieldData: [],
+      licenseTypes: [],
+      jobTypes: [],
+      speciality: [],
 
-    handleSubmit = async (values, { setSubmitting }) => {
-      try {
-        const { step, fileData, formData, entries } = this.state;
-        const payload = new FormData();
-        payload.append("mode", step === 5 ? "submit" : "save");
-        payload.append("current_step", step);
+      editID: "",
+      isEdit: false,
+      editexpID: "",
+      isExpEdit: false,
 
-        const fields = ["full_name","phone","email","date_of_birth","gender","marital_status","license_type","license_number","total_experience","speciality","country","district","city","address","current_salary","expected_salary"];
-        fields.forEach((field) => {
-          const value = values[field];
-          if (value !== undefined && value !== null && value !== "") payload.append(field, value);
-        });
-
-        if (values.skills?.length) payload.append("skills", JSON.stringify(values.skills));
-        if (values.Links?.length) payload.append("Links", JSON.stringify(values.Links));
-        if (values.otherPreferredCities?.length) payload.append("otherPreferredCities", JSON.stringify(values.otherPreferredCities));
-        if (Array.isArray(entries)) payload.append("availability", JSON.stringify(entries));
-
-        if (fileData.passport_photo instanceof File) payload.append("passport_photo", fileData.passport_photo);
-        else if (formData.passport_photo) payload.append("passport_photo", formData.passport_photo);
-
-        if (fileData.resume instanceof File) payload.append("resume", fileData.resume);
-        else if (formData.resume) payload.append("resume", formData.resume);
-
-        await api.post("/candidateProfile/candidate/passport-photo", payload, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-
-        this.setState({ formMessage: { type: "success", text: step === 5 ? "Profile submitted successfully" : "Profile saved successfully" } });
-
-        if (step === 5) {
-          localStorage.clear();
-          sessionStorage.clear();
-          setTimeout(() => { window.location.replace("/login"); }, 20000);
-          return;
-        }
-      } catch (error) {
-        this.setState({ formMessage: { type: "error", text: "Something went wrong while saving profile" } });
-      } finally {
-        setSubmitting(false);
-      }
-    };
-
-handleCVUpload = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const maxSize = 3 * 1024 * 1024;
-  const allowedTypes = [
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  ];
-
-  if (!allowedTypes.includes(file.type)) {
-    this.setState({ formMessage: { type: "error", text: "Only PDF, DOC, DOCX files allowed" } });
-    return;
-  }
-  if (file.size > maxSize) {
-    this.setState({ formMessage: { type: "error", text: "File too large — max 3MB" } });
-    return;
-  }
-
-  this.setState({ cvUploading: true, formMessage: { type: "info", text: "Uploading & parsing CV..." } });
-
-  try {
-    const formData = new FormData();
-    formData.append("resume", file);
-
-    // ✅ Fix: use the correct route where uploadCV is registered
-    const res = await api.post(
-      `${this.apiBaseUrl}resume/upload-cv`,
-      formData,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "multipart/form-data",
-        },
-      }
-    );
-
-    if (res.data?.success) {
-      this.setState({
-        cvUploadDone: true,
-        cvUploading: false,
-        cvExtracted: res.data.extracted,
-        formMessage: null,
-      });
-    } else {
-      throw new Error(res.data?.error || "Upload failed");
-    }
-  } catch (err) {
-    this.setState({
-      cvUploading: false,
-      formMessage: {
-        type: "error",
-        text: err.response?.data?.error || "Upload failed",
+      entries: [],
+      currentEntry: { day: "", shift: "", startTime: "", endTime: "" },
+      allShiftsTimings: {
+        morning: { startTime: "09:00", endTime: "17:00" },
+        evening: { startTime: "15:00", endTime: "23:00" },
+        night: { startTime: "21:00", endTime: "06:00" },
       },
-    });
-  }
-};
+      isAllShiftsMode: false,
 
-    handleSaveAndNext = async (values) => {
-      const { step } = this.state;
-      try {
-        await this.stepSchemas[step - 1].validate(values, { abortEarly: false });
+      photoMessage: null,
+      formMessage: null,
 
-        if (step === 1) {
-          const formData = new FormData();
-          formData.append("mode", "save");
-          formData.append("current_step", step);
-          const fields = ["full_name","phone","date_of_birth","gender","marital_status","license_type","license_number","total_experience","country","district","city","otherPreferredCities","address","current_salary","expected_salary"];
-          fields.forEach((field) => {
-            const value = values[field];
-            if (Array.isArray(value)) formData.append(field, JSON.stringify(value));
-            else if (value !== undefined && value !== null) formData.append(field, value);
-          });
-          if (Array.isArray(values.skills)) formData.append("skills", JSON.stringify(values.skills));
-          if (values.passport_photo instanceof File) formData.append("passport_photo", values.passport_photo);
-          if (values.resume instanceof File) formData.append("resume", values.resume);
-          await api.post(`${this.apiBaseUrl}candidateProfile/candidate/passport-photo`, formData, {
-            headers: { Authorization: `Bearer ${localStorage.getItem("token")}`, "Content-Type": "multipart/form-data" },
-          });
-          this.setState({ formMessage: { type: "success", text: "Step 1 saved successfully" } });
-        }
-
-        if (step === 2) {
-          const newRows = values.education.slice(1).filter((e) => !e.id && e.degreeTitle && e.startDate);
-          const editedRows = values.education.slice(1).filter((e) => e.id && e.degreeTitle && e.startDate);
-          if (this.state.isEdit && editedRows.length > 0) {
-            await api.put(`${this.apiBaseUrl}candidateeducation/editcandidateeducation`, { education: editedRows });
-          }
-          if (newRows.length > 0) {
-            await api.post(`${this.apiBaseUrl}candidateeducation/addcandidateeducation`, { education: newRows, mode: "save" });
-          }
-          this.setState({ formMessage: { type: "success", text: "Step 2 saved successfully" } });
-        }
-
-        if (step === 3) {
-          const formData = new FormData();
-          formData.append("mode", "save");
-          formData.append("current_step", step);
-          formData.append("is_fresher", values.isFresher ? "true" : "false");
-          if (Array.isArray(values.skills)) formData.append("skills", JSON.stringify(values.skills));
-          await api.post(`${this.apiBaseUrl}candidateProfile/candidate/passport-photo`, formData, {
-            headers: { Authorization: `Bearer ${localStorage.getItem("token")}`, "Content-Type": "multipart/form-data" },
-          });
-          if (values.isFresher) {
-            this.setState({ formData: values, formMessage: { type: "success", text: "Saved! Moving to next step..." } }, this.nextStep);
-            return;
-          }
-          const existingExperiences = values.experience.slice(1).filter((e) => e.id);
-const draftExp = values.experience[0];
-const draftRow = (!draftExp?.id && draftExp?.companyName && draftExp?.designation && draftExp?.startDate)
-  ? [{ ...draftExp, speciality_id: draftExp.speciality_id || null }]
-  : [];
-const newExperiences = [
-  ...values.experience.slice(1)
-    .filter((e) => !e.id && e.companyName && e.designation && e.startDate)
-    .map((e) => ({ ...e, speciality_id: e.speciality_id || null })),
-  ...draftRow,
-];
-if (newExperiences.length === 0 && existingExperiences.length === 0) {
-  this.setState({ formMessage: { type: "error", text: "Please fill Company, Designation and Start Date" } });
-  return;
-}
-          if (this.state.editexpID) {
-            const editedRow = values.experience.find((e) => e.id === this.state.editexpID);
-            if (editedRow) {
-              await api.put(`${this.apiBaseUrl}candidateexperience/updateexperience/${this.state.editexpID}`,
-                { ...editedRow, speciality_id: editedRow.speciality_id || null },
-                { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
-              );
-            }
-          }
-          if (newExperiences.length > 0) {
-            await api.post(`${this.apiBaseUrl}candidateexperience/addexperience`, { experience: newExperiences },
-              { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
-            );
-          }
-          this.setState({ formMessage: { type: "success", text: "Step 3 saved successfully" } });
-        }
-
-        if (step === 4) {
-          if (values.resume instanceof File) {
-            const formData = new FormData();
-            formData.append("resume", values.resume);
-            await api.post(`${this.apiBaseUrl}resume/addresume`, formData, {
-              headers: { Authorization: `Bearer ${localStorage.getItem("token")}`, "Content-Type": "multipart/form-data" },
-            });
-            this.setState({ formMessage: { type: "success", text: "Resume uploaded successfully" } });
-          }
-        }
-
-        if (this.state.step === 5) {
-          if (!this.state.entries || this.state.entries.length === 0) {
-            this.setState({ formMessage: { type: "error", text: "Please add at least one availability entry before proceeding" } });
-            return;
-          }
-          const payload = { availability: this.state.entries.map((e) => ({ day: e.day, shift: e.shift, startTime: e.startTime, endTime: e.endTime })) };
-          await api.post(`${this.apiBaseUrl}candidate_availability/addavailability`, payload, {
-            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-          });
-          this.setState({ formMessage: { type: "success", text: "Availability saved successfully" } });
-          localStorage.removeItem("token");
-          setTimeout(() => { window.location.href = "/login"; }, 20000);
-          return;
-        }
-
-        this.setState({ formData: values, editID: null }, this.nextStep);
-      } catch (err) {
-        if (err.name === "ValidationError") {
-          this.setState({ formMessage: { type: "error", text: err.inner?.[0]?.message || err.message } });
-          return;
-        }
-        this.setState({ formMessage: { type: "error", text: "Save failed" } });
-      }
+      cvUploading: false,
+      cvExtracted: null,
+      isFaceDetecting: false,
     };
 
-    stepSchemas = [
-      Yup.object().shape({
-        full_name: Yup.string().trim().matches(/^[A-Za-z ]+$/, "Name can only contain letters and spaces").min(3).max(50).required("Full name is required"),
-        phone: Yup.string().matches(/^(03\d{2}-\d{7}|0\d{2,3}-\d{7})$/, "Enter a valid Pakistani mobile or landline number").required("Contact number is required"),
-        email: Yup.string().email("Invalid email").required("Required"),
-        date_of_birth: Yup.date().required("Date of Birth is required").test("age", "You must be at least 15 years old", (value) => {
-          if (!value) return false;
-          const today = new Date();
-          const birthDate = new Date(value);
-          let age = today.getFullYear() - birthDate.getFullYear();
-          const m = today.getMonth() - birthDate.getMonth();
-          if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-          return age >= 15;
-        }),
-        license_number: Yup.string().trim().matches(/^[A-Za-z0-9-\/]+$/).min(3).max(20).required("License number is required"),
-        total_experience: Yup.string().nullable().notRequired(),
-      }),
-      Yup.object().shape({
-        education: Yup.array().test("education-required", "Please add at least one education entry", (eduArr) => {
-          if (!eduArr || eduArr.length <= 1) return false;
-          return eduArr.slice(1).some((e) => e.degreeTitle && e.startDate);
-        }),
-      }),
-      Yup.object().shape({
-        isFresher: Yup.boolean(),
-        experience: Yup.array().when("isFresher", {
-          is: true,
-          then: () => Yup.array().notRequired(),
-          otherwise: () => Yup.array().test("experience-required", "Please add at least one experience", (expArr) => {
-            if (!expArr || expArr.length <= 1) return false;
-            return expArr.slice(1).every((e) => e.designation && e.companyName);
-          }),
-        }),
-      }),
-      Yup.object().shape({
-        resume: Yup.mixed().required("Upload resume first").test("fileSize", "File size must be less than 3MB", function (value) {
-          if (value instanceof File) return value.size <= 3 * 1024 * 1024;
-          return true;
-        }),
-      }),
-      Yup.object().shape({
-        availability: Yup.array().of(Yup.object().shape({
-          day: Yup.string().required("Required"),
-          shift: Yup.string().required("Required"),
-          startTime: Yup.string().required("Required"),
-          endTime: Yup.string().required("Required"),
-        })),
-      }),
+    this.apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  }
+
+  /* ───────────────────────── lookups ───────────────────────── */
+
+  loadCountries = async () => {
+    try {
+      const res = await api.get("/getallCountries", { params: { page: 1, limit: 0 } });
+      const countries = Array.isArray(res.data.countries) ? res.data.countries : res.data || [];
+      this.setState({ countries });
+    } catch (err) {
+      this.setState({ formMessage: { type: "error", text: "Could not load countries" } });
+    }
+  };
+
+  loadDistricts = async (countryId) => {
+    if (!countryId) { this.setState({ districts: [], cities: [] }); return; }
+    const id = typeof countryId === "object" ? countryId?.id : countryId;
+    if (!id) return;
+    try {
+      const res = await api.get("/getalldistricts", { params: { country_id: id, limit: 1000 } });
+      const districts = Array.isArray(res.data.districts) ? res.data.districts : Array.isArray(res.data) ? res.data : [];
+      this.setState({ districts, cities: [] });
+    } catch (err) {
+      this.setState({ formMessage: { type: "error", text: "Could not load districts" } });
+    }
+  };
+
+  loadCities = async (districtId) => {
+    if (!districtId) { this.setState({ cities: [] }); return; }
+    const id = typeof districtId === "object" ? districtId?.id : districtId;
+    if (!id) return;
+    try {
+      const res = await api.get(`/getCitiesByDistrict/${id}`);
+      const cities = Array.isArray(res.data.cities) ? res.data.cities : [];
+      this.setState({ cities });
+    } catch (error) {
+      this.setState({ formMessage: { type: "error", text: "Could not load cities" } });
+    }
+  };
+
+  loadAllCities = async () => {
+    try {
+      const res = await api.get("/getallCities");
+      const allCities = Array.isArray(res.data.cities) ? res.data.cities : [];
+      this.setState({ allCities });
+    } catch (error) {
+      this.setState({ formMessage: { type: "error", text: "Could not load cities" } });
+    }
+  };
+
+  loadSpeciality = async () => {
+    try {
+      const res = await api.get("/getAllspeciality");
+      const specialityArray = Array.isArray(res.data.speciality) ? res.data.speciality : [];
+      this.setState({ speciality: specialityArray });
+    } catch (err) {
+      this.setState({ formMessage: { type: "error", text: "Could not load speciality" } });
+    }
+  };
+
+  loadLicenseTypes = async () => {
+    try {
+      const res = await api.get("/getAllLicenseTypes");
+      const licenseArray = Array.isArray(res.data.licenseTypes) ? res.data.licenseTypes : res.data.results || [];
+      this.setState({ licenseTypes: licenseArray });
+    } catch (err) {
+      this.setState({ formMessage: { type: "error", text: "Could not load license types" } });
+    }
+  };
+
+  loadJobTypes = async () => {
+    try {
+      const res = await api.get("/getalljobtypes");
+      const jobTypes = res.data?.jobtypes || [];
+      this.setState({ jobTypes });
+    } catch (err) {
+      this.setState({ formMessage: { type: "error", text: "Could not load job types" } });
+    }
+  };
+
+  loadSkills = async () => {
+    try {
+      const res = await api.get("/getAllskills");
+      const skillsArray = Array.isArray(res.data.skills) ? res.data.skills : [];
+      this.setState({ skillsOptions: skillsArray });
+    } catch (err) {
+      this.setState({ formMessage: { type: "error", text: "Could not load skills" } });
+    }
+  };
+
+  loadDegrees = async () => {
+    try {
+      const res = await api.get("/getalldegreetype");
+      const degreeArray = Array.isArray(res.data?.degreetypes) ? res.data.degreetypes : [];
+      this.setState({ degreeFieldData: degreeArray });
+    } catch (err) {
+      this.setState({ degreeFieldData: [] });
+    }
+  };
+
+  loadInstitutes = async (inputValue) => {
+    try {
+      const res = await api.get("/institute/getallInstitute", { params: { search: inputValue || "", status: "Active" } });
+      const institutes = Array.isArray(res.data?.institutes) ? res.data.institutes : [];
+      return institutes.map((inst) => ({ label: inst.name, value: inst.id }));
+    } catch (err) {
+      return [];
+    }
+  };
+
+  loadDegreeTitles = (degreeId) => async (inputValue) => {
+    if (!degreeId) return [];
+    const res = await api.get("/getDegreeFieldsDropdown", { params: { search: inputValue || "", degree_type_id: degreeId } });
+    return (res.data.degreefields || []).map((t) => ({ value: t.id, label: t.name }));
+  };
+
+  loadFaceModels = async () => {
+    try {
+      const tf = await import("@tensorflow/tfjs");
+      await tf.setBackend("webgl");
+      await tf.ready();
+      faceapi = await import("@vladmandic/face-api");
+      await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
+    } catch (err) {
+      console.error("Face model load failed:", err);
+    }
+  };
+
+  componentDidMount() {
+    console.log("🟢 componentDidMount fired");
+    this.loadFaceModels();
+    this.loadCountries();
+    this.loadSkills();
+    this.loadAllCities();
+    this.loadSpeciality();
+    this.loadLicenseTypes();
+    this.loadInstitutes();
+    this.loadDegrees();
+    this.loadDegreeTitles();
+    this.loadJobTypes();
+    // If candidate already has a partially completed profile (e.g. returning
+    // after an earlier CV upload), prefill from the backend instead of
+    // starting from the resume screen.
+    this.fetchExistingProfileIfAny();
+     console.log("🟢 fetchExistingProfileIfAny() called");
+  }
+
+  /* ───────────────────── existing profile prefill ───────────────────── */
+
+  mapEducation = (list = []) =>
+    list.map((edu) => ({
+      id: edu.id,
+      degree: edu.degree_id || "",
+      degreeTitle: edu.degreefield_id || "",
+      degreeTitle_label: edu.degreefield || "",
+      institutes: edu.institute_id || "",
+      institutes_label: edu.institute || "",
+      startDate: edu.start_date ? new Date(edu.start_date).toISOString().slice(0, 10) : "",
+      endDate: edu.end_date ? new Date(edu.end_date).toISOString().slice(0, 10) : "",
+      ongoing: edu.is_ongoing === 1,
+    }));
+
+  mapExperience = (list = []) =>
+    list.map((exp) => ({
+      id: exp.id,
+      designation: exp.designation || "",
+      speciality_id: exp.speciality_id || "",
+      job_type_id: exp.job_type_id || "",
+      companyName: exp.company_name || "",
+      startDate: exp.start_date ? new Date(exp.start_date).toISOString().slice(0, 10) : "",
+      endDate: exp.end_date ? new Date(exp.end_date).toISOString().slice(0, 10) : "",
+      ongoing: exp.is_ongoing === 1,
+    }));
+
+  // Silently checks whether this candidate already has profile data (e.g. a
+  // previously-uploaded CV). If so, skip straight to the full form,
+  // prefilled — otherwise start at the resume-upload screen.
+fetchExistingProfileIfAny = async () => {
+  console.log("🔵 STEP 1 - inside fetchExistingProfileIfAny");
+  try {
+    const token = sessionStorage.getItem("token");
+    console.log("🔵 STEP 2 - token is:", token);
+    if (!token) return;
+
+    const headers = { Authorization: `Bearer ${token}` };
+
+    const [profileRes, eduRes, expRes, availRes] = await Promise.allSettled([
+      api.get("/candidateProfile/candidate", { headers }),
+      api.get(`/candidateeducation/getallcandidateeducation`, { headers }),
+      api.get(`/candidateexperience/getexperience`, { headers }),
+      api.get(`/candidate_availability/getavailability`, { headers }),
+    ]);
+
+    console.log("🟣 STEP 3 - settled results:", { profileRes, eduRes, expRes, availRes });
+
+    if (profileRes.status !== "fulfilled") {
+      console.log("🔴 STEP 3a - profile call itself failed, bailing:", profileRes.reason);
+      return;
+    }
+
+    const data = profileRes.value.data || {};
+    const eduData = eduRes.status === "fulfilled" ? eduRes.value.data : [];
+    const expData = expRes.status === "fulfilled" ? expRes.value.data : { data: [] };
+    const availData = availRes.status === "fulfilled" ? availRes.value.data : { data: [] };
+
+    console.log("🟡 STEP 4 - extracted data:", { data, eduData, expData, availData });
+    console.log("🟡 STEP 4a - individual call statuses:", {
+      profile: profileRes.status,
+      education: eduRes.status,
+      experience: expRes.status,
+      availability: availRes.status,
+    });
+    if (eduRes.status === "rejected") console.log("🔴 education call failed:", eduRes.reason);
+    if (expRes.status === "rejected") console.log("🔴 experience call failed:", expRes.reason);
+    if (availRes.status === "rejected") console.log("🔴 availability call failed:", availRes.reason);
+
+    const hasAnyProfileData = Boolean(
+  data.full_name || data.phone || data.email || data.resume ||
+  (Array.isArray(eduData) && eduData.length) ||
+  (Array.isArray(expData?.data) && expData.data.length)
+);
+    console.log("🟢 STEP 5 - hasAnyProfileData:", hasAnyProfileData);
+    if (!hasAnyProfileData) {
+      console.log("⚪ STEP 5a - no profile data found, staying on resume screen");
+      return;
+    }
+
+    const mappedData = {
+      ...EMPTY_FORM_DATA,
+      full_name: data.full_name ?? "",
+      phone: data.phone ?? "",
+      email: data.email ?? "",
+      date_of_birth: data.date_of_birth ? new Date(data.date_of_birth).toISOString().slice(0, 10) : "",
+      gender: data.gender ?? "",
+      marital_status: data.marital_status ?? "",
+      total_experience: data.total_experience ?? "",
+      current_salary: data.current_salary ?? "",
+      expected_salary: data.expected_salary ?? "",
+      skills: Array.isArray(data.skills) ? data.skills.map((s) => s.id) : [],
+      otherPreferredCities: Array.isArray(data.otherPreferredCities) ? data.otherPreferredCities : [],
+      address: data.address ?? "",
+      passport_photoPreview: data.passport_photo
+        ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${data.passport_photo}`
+        : "",
+      education: [
+        { degree: "", degreeTitle: "", degreeTitle_label: "", institutes: "", startDate: "", endDate: "", ongoing: false, id: null },
+        ...this.mapEducation(eduData || []),
+      ],
+      experience: [
+        { companyName: "", speciality_id: "", designation: "", job_type_id: "", startDate: "", endDate: "", ongoing: false, id: null },
+        ...this.mapExperience(expData?.data || []),
+      ],
+      passport_photo: data.passport_photo || null,
+      resume: data.resume ? {
+        name: data.resume.split("/").pop(),
+        url: `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${data.resume}`,
+        isExisting: true,
+      } : null,
+      country: data.country?.id || "",
+      district: data.district?.id || "",
+      city: data.city?.id || "",
+      isFresher: data.is_fresher || false,
+      license_type: data.license_type?.id || "",
+      license_number: data.license_number ?? "",
+    };
+
+    console.log("🟢 STEP 6 - mappedData built:", mappedData);
+    console.log("🟢 STEP 6a - mappedData.email specifically:", mappedData.email);
+
+    const rawAvail = Array.isArray(availData?.data) ? availData.data : [];
+    const entries = rawAvail.map((e) => ({ day: e.day, shift: e.shift, startTime: e.startTime, endTime: e.endTime }));
+
+    console.log("🟢 STEP 7 - entries built:", entries);
+
+    this.setState({ formData: mappedData, entries, phase: "form" }, () => {
+      console.log("✅ STEP 8 - setState complete, this.state.formData is now:", this.state.formData);
+    });
+
+    if (mappedData.country) await this.loadDistricts(mappedData.country);
+    if (mappedData.district) await this.loadCities(mappedData.district);
+  } catch (err) {
+    console.error("🔴 Prefill fetch failed", err);
+  }
+};
+  /* ───────────────────────── resume / CV extraction ───────────────────────── */
+
+  handleCVUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const maxSize = 3 * 1024 * 1024;
+    const allowedTypes = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ];
 
-    /* ─── STEPPER ─── */
-    renderStepper = () => {
-      const { step, formData } = this.state;
-      const isStepFilled = (n) => {
-        switch (n) {
-          case 1: return formData.full_name || formData.phone || formData.email;
-          case 2: return formData.education?.slice(1).some((e) => e.degreeTitle || e.institutes);
-          case 3: return formData.experience?.some((e) => e.designation || e.companyName);
-          case 4: return Boolean(formData.resume);
-          case 5: return this.state.entries.length > 0;
-          default: return false;
+    if (!allowedTypes.includes(file.type)) {
+      this.setState({ formMessage: { type: "error", text: "Only PDF, DOC, DOCX files allowed" } });
+      return;
+    }
+    if (file.size > maxSize) {
+      this.setState({ formMessage: { type: "error", text: "File too large — max 3MB" } });
+      return;
+    }
+
+    this.setState({ cvUploading: true, formMessage: { type: "info", text: "Uploading & parsing CV…" } });
+
+    try {
+      const formData = new FormData();
+      formData.append("resume", file);
+
+      const res = await api.post(
+        `/resume/upload-cv`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+            "Content-Type": "multipart/form-data",
+          },
         }
-      };
-      const stepNames = ["Personal Details","Education","Work Experience","Upload Resume","Availability"];
-      return (
-        <div style={S.stepper}>
-          {stepNames.map((name, index) => {
-            const n = index + 1;
-            const active = step === n;
-            const done = n < step || isStepFilled(n);
-            return (
-              <div key={index} style={S.stepItem(active, done)} onClick={() => done && this.setState({ step: n })}>
-                {index < stepNames.length - 1 && <div style={S.stepLine(done || n < step)} />}
-                <div style={S.stepInner}>
-                  <div style={S.stepCircle(active, done && n < step)}>
-                    {done && n < step ? <CheckIcon /> : n}
-                  </div>
-                  <div style={S.stepLabel(active)}>{name}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
       );
-    };
 
-    /* ─── CARD WRAPPER ─── */
-    renderCard = (icon, title, stepNum, progress, children, footerLeft, footerRight) => (
-      <div style={S.card}>
-        <div style={S.progressBar}><div style={S.progressFill(progress)} /></div>
-        <div style={S.cardHeader}>
-          <div style={S.cardHeaderIcon}>{icon}</div>
-          <span style={S.cardHeaderTitle}>{title}</span>
-          <span style={S.cardHeaderStep}>Step {stepNum} of 5</span>
-        </div>
-        <div style={S.cardBody}>{children}</div>
-        <div style={S.cardFooter}>
-          {footerLeft}
-          {footerRight}
-        </div>
-      </div>
-    );
+      if (res.data?.success) {
+        const ext = res.data.extracted || {};
 
-    /* ─── STEP 1 ─── */
-   renderStep1 = (values, setFieldValue, errors, touched) => (
-    <>
-      {/* Photo upload */}
-      <div style={S.photoArea}>
-        <div style={S.photoCircle}>
+        // Merge extracted values into formData so the full form opens prefilled.
+        this.setState((prev) => {
+          const merged = {
+  ...prev.formData,
+  resume: { name: file.name, url: URL.createObjectURL(file), isExisting: false, file },
+  full_name: ext.full_name || prev.formData.full_name,
+  phone: ext.phone || prev.formData.phone,
+  email: ext.email || prev.formData.email,
+  date_of_birth: ext.date_of_birth || prev.formData.date_of_birth,
+  gender: ext.gender || prev.formData.gender,
+  marital_status: ext.marital_status || prev.formData.marital_status,
+  skills: Array.isArray(ext.skill_ids) && ext.skill_ids.length ? ext.skill_ids : prev.formData.skills,
+};
+
+const degreeTypeLabel = (typeId) =>
+  this.state.degreeFieldData.find((d) => String(d.id) === String(typeId))?.name || "";
+
+const education = Array.isArray(ext.education) && ext.education.length
+  ? [
+      { degree: "", degreeTitle: "", degreeTitle_label: "", institutes: "", institutes_label: "", startDate: "", endDate: "", ongoing: false, id: null },
+      ...ext.education.map((edu) => ({
+        id: edu.id || null,
+        degree: edu.degree_type_id ? String(edu.degree_type_id) : "",
+        degree_label: degreeTypeLabel(edu.degree_type_id) || edu.degree_name || "",
+        degreeTitle: edu.degreefield_id || "",
+        degreeTitle_label: edu.degreefield_name || edu.raw_line || "",
+        institutes: edu.institute_id || "",
+        institutes_label: edu.institute_name || "",
+        startDate: edu.startDate || "",
+        endDate: edu.endDate || "",
+        ongoing: edu.ongoing ?? !edu.endDate,
+      })),
+    ]
+  : prev.formData.education;
+          const experience = Array.isArray(ext.experience) && ext.experience.length
+            ? [
+                prev.formData.experience[0],
+                ...ext.experience.map((exp) => ({
+                  id: exp.id || null,
+                  companyName: exp.company_name || exp.companyName || "",
+                  designation: exp.designation || "",
+                  speciality_id: exp.speciality_id || "",
+                  job_type_id: exp.job_type_id || "",
+                  startDate: exp.start_date || "",
+                  endDate: exp.end_date || "",
+                  ongoing: !exp.end_date,
+                })),
+              ]
+            : prev.formData.experience;
+
+          return {
+            cvUploading: false,
+            cvExtracted: ext,
+            formData: { ...merged, education, experience },
+            phase: "form",
+            formMessage: { type: "success", text: "CV parsed — review and complete the highlighted fields below." },
+          };
+        });
+      } else {
+        throw new Error(res.data?.error || "Upload failed");
+      }
+    } catch (err) {
+      this.setState({
+        cvUploading: false,
+        formMessage: {
+          type: "error",
+          text: err.response?.data?.error || "Upload failed",
+        },
+      });
+    }
+  };
+
+  skipResumeUpload = () => {
+    this.setState({ phase: "form" });
+  };
+
+  /* ───────────────────────── validation ───────────────────────── */
+
+  fullSchema = Yup.object().shape({
+    passport_photo: Yup.mixed().required("Please upload a profile photo"),
+    full_name: Yup.string().trim().matches(/^[A-Za-z ]+$/, "Name can only contain letters and spaces").min(3).max(50).required("Full name is required"),
+    phone: Yup.string().matches(/^(03\d{2}-\d{7}|0\d{2,3}-\d{7})$/, "Enter a valid Pakistani mobile or landline number").required("Contact number is required"),
+    email: Yup.string().email("Invalid email").required("Required"),
+    date_of_birth: Yup.date().required("Date of Birth is required").test("age", "You must be at least 15 years old", (value) => {
+      if (!value) return false;
+      const today = new Date();
+      const birthDate = new Date(value);
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+      return age >= 15;
+    }),
+    license_number: Yup.string().trim().matches(/^[A-Za-z0-9-\/]+$/).min(3).max(20).required("License number is required"),
+    total_experience: Yup.string().nullable().notRequired(),
+    education: Yup.array().test("education-required", "Please add at least one education entry", (eduArr) => {
+      if (!eduArr || eduArr.length <= 1) return false;
+      return eduArr.slice(1).some((e) => e.degreeTitle && e.startDate);
+    }),
+    isFresher: Yup.boolean(),
+    experience: Yup.array().when("isFresher", {
+      is: true,
+      then: () => Yup.array().notRequired(),
+      otherwise: () => Yup.array().test("experience-required", "Please add at least one experience", (expArr) => {
+        if (!expArr || expArr.length <= 1) return false;
+        return expArr.slice(1).every((e) => e.designation && e.companyName);
+      }),
+    }),
+    resume: Yup.mixed().required("Please upload your resume").test("fileSize", "File size must be less than 3MB", function (value) {
+      if (value && value.file instanceof File) return value.file.size <= 3 * 1024 * 1024;
+      return true;
+    }),
+  });
+
+  /* ───────────────────────── save / submit ───────────────────────── */
+
+  handleFinalSubmit = async (values) => {
+    try {
+      await this.fullSchema.validate(values, { abortEarly: false });
+
+      if (!this.state.entries || this.state.entries.length === 0) {
+        this.setState({ formMessage: { type: "error", text: "Please add at least one availability entry before submitting" } });
+        return;
+      }
+
+      // ---- Personal details ----
+      const formData = new FormData();
+      formData.append("mode", "submit");
+      const fields = ["full_name", "phone", "date_of_birth", "gender", "marital_status", "license_type", "license_number", "total_experience", "country", "district", "city", "otherPreferredCities", "address", "current_salary", "expected_salary"];
+      fields.forEach((field) => {
+        const value = values[field];
+        if (Array.isArray(value)) formData.append(field, JSON.stringify(value));
+        else if (value !== undefined && value !== null) formData.append(field, value);
+      });
+      if (Array.isArray(values.skills)) formData.append("skills", JSON.stringify(values.skills));
+      formData.append("is_fresher", values.isFresher ? "true" : "false");
+      if (values.passport_photo instanceof File) formData.append("passport_photo", values.passport_photo);
+      await api.post(`/candidateProfile/candidate/passport-photo`, formData, {
+        headers: { Authorization: `Bearer ${sessionStorage.getItem("token")}`, "Content-Type": "multipart/form-data" },
+      });
+
+      // ---- Resume ----
+      const resumeFile = values.resume?.file || (values.resume instanceof File ? values.resume : null);
+      if (resumeFile) {
+        const resumeForm = new FormData();
+        resumeForm.append("resume", resumeFile);
+        await api.post(`/resume/addresume`, resumeForm, {
+          headers: { Authorization: `Bearer ${sessionStorage.getItem("token")}`, "Content-Type": "multipart/form-data" },
+        });
+      }
+
+      // ---- Education ----
+      const newRows = values.education.slice(1).filter((e) => !e.id && e.degreeTitle && e.startDate);
+      const editedRows = values.education.slice(1).filter((e) => e.id && e.degreeTitle && e.startDate);
+      if (editedRows.length > 0) {
+        await api.put(`/candidateeducation/editcandidateeducation`, { education: editedRows });
+      }
+      if (newRows.length > 0) {
+        await api.post(`/candidateeducation/addcandidateeducation`, { education: newRows, mode: "save" });
+      }
+
+      // ---- Experience ----
+      if (!values.isFresher) {
+        const existingExperiences = values.experience.slice(1).filter((e) => e.id);
+        const draftExp = values.experience[0];
+        const draftRow = (!draftExp?.id && draftExp?.companyName && draftExp?.designation && draftExp?.startDate)
+          ? [{ ...draftExp, speciality_id: draftExp.speciality_id || null }]
+          : [];
+        const newExperiences = [
+          ...values.experience.slice(1)
+            .filter((e) => !e.id && e.companyName && e.designation && e.startDate)
+            .map((e) => ({ ...e, speciality_id: e.speciality_id || null })),
+          ...draftRow,
+        ];
+        if (newExperiences.length === 0 && existingExperiences.length === 0) {
+          this.setState({ formMessage: { type: "error", text: "Please fill Company, Designation and Start Date" } });
+          return;
+        }
+        if (newExperiences.length > 0) {
+          await api.post(`/candidateexperience/addexperience`, { experience: newExperiences },
+            { headers: { Authorization: `Bearer ${sessionStorage.getItem("token")}` } }
+          );
+        }
+      }
+
+      // ---- Availability ----
+      await api.post(`/candidate_availability/addavailability`, {
+        availability: this.state.entries,
+      }, {
+        headers: { Authorization: `Bearer ${sessionStorage.getItem("token")}` },
+      });
+
+      this.setState({ formMessage: { type: "success", text: "Profile submitted successfully" } });
+
+      sessionStorage.clear();
+      sessionStorage.clear();
+      window.location.replace("/login");
+
+    } catch (err) {
+      if (err.name === "ValidationError") {
+        this.setState({ formMessage: { type: "error", text: err.inner?.[0]?.message || err.message } });
+        return;
+      }
+      this.setState({ formMessage: { type: "error", text: "Submit failed" } });
+    }
+  };
+
+  /* ───────────────────────── field blocks ───────────────────────── */
+
+  renderPersonalDetails = (values, setFieldValue, errors, touched) => (
+    <div className="cr-step-group">
+      <div className="cr-step-group-title">Personal Details</div>
+
+      <div className="cr-photo-area">
+        <div className="cr-photo-circle">
           {values.passport_photoPreview
-            ? <img src={values.passport_photoPreview} alt="Profile" style={S.photoImg} />
-            : <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="1.5"><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" /></svg>
+            ? <img src={values.passport_photoPreview} alt="Profile" className="cr-photo-img" />
+            : <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#36565f" strokeWidth="1.5"><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" /></svg>
           }
         </div>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: T.text, marginBottom: 2 }}>Profile Photo</div>
-          <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 8 }}>Clear face photo — JPG or PNG, max 5MB</div>
-          <label style={{ ...S.btnAdd, display: "inline-block", cursor: "pointer" }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: "#1a1a1a", marginBottom: 2 }}>Profile Photo</div>
+          <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>Clear face photo — JPG or PNG, max 5MB</div>
+          <label className="cr-btn-add" style={{ display: "inline-block", cursor: "pointer" }}>
             Choose photo
             <input type="file" name="passport_photo" accept=".jpg,.jpeg,.png" style={{ display: "none" }}
               onChange={async (e) => {
@@ -1198,7 +693,6 @@ if (newExperiences.length === 0 && existingExperiences.length === 0) {
                   return;
                 }
 
-                // Show loading state
                 this.setState({ isFaceDetecting: true, photoMessage: { type: "info", text: "🔍 Detecting face in photo... Please wait" } });
 
                 const img = document.createElement("img");
@@ -1225,7 +719,6 @@ if (newExperiences.length === 0 && existingExperiences.length === 0) {
                       return;
                     }
 
-                    // Success - face detected
                     this.setState({
                       isFaceDetecting: false,
                       photoMessage: { type: "success", text: "✅ Photo accepted! Face detected successfully." }
@@ -1258,9 +751,8 @@ if (newExperiences.length === 0 && existingExperiences.length === 0) {
             />
           </label>
 
-          {/* Show loading indicator */}
           {this.state.isFaceDetecting && (
-            <div style={{ ...S.alertInfo, marginTop: 8 }}>
+            <div className="cr-alert cr-alert-info" style={{ marginTop: 8 }}>
               <span>⏳ Processing image... Please wait</span>
             </div>
           )}
@@ -1268,15 +760,13 @@ if (newExperiences.length === 0 && existingExperiences.length === 0) {
       </div>
 
       {this.state.photoMessage && (
-        <div style={this.state.photoMessage.type === "success" ? S.alertSuccess : S.alertError}>
+        <div className={`cr-alert ${this.state.photoMessage.type === "success" ? "cr-alert-success" : "cr-alert-error"}`}>
           <span>{this.state.photoMessage.text}</span>
-          <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "inherit" }}
-            onClick={() => this.setState({ photoMessage: null })}>×</button>
+          <button className="cr-alert-close" onClick={() => this.setState({ photoMessage: null })}>×</button>
         </div>
       )}
 
-      {/* Row 1 */}
-      <div style={S.grid2}>
+      <div className="cr-grid-2">
         <FieldWrap label="Full name" required error={touched.full_name && errors.full_name}>
           <Field name="full_name">
             {({ field, form }) => (
@@ -1311,8 +801,7 @@ if (newExperiences.length === 0 && existingExperiences.length === 0) {
         </FieldWrap>
       </div>
 
-      {/* Row 2 */}
-      <div style={{ ...S.grid2, marginTop: 14 }}>
+      <div className="cr-grid-2" style={{ marginTop: 14 }}>
         <FieldWrap label="Email address" hint="Cannot be changed">
           <Field name="email" type="email">
             {({ field }) => <StyledInput {...field} readOnly placeholder="you@email.com" />}
@@ -1341,17 +830,16 @@ if (newExperiences.length === 0 && existingExperiences.length === 0) {
         </FieldWrap>
       </div>
 
-      {/* Row 3 */}
-      <div style={{ ...S.grid2, marginTop: 14 }}>
+      <div className="cr-grid-2" style={{ marginTop: 14 }}>
         <FieldWrap label="Gender">
-          <Field as="select" name="gender" style={{ ...S.fieldInput, cursor: "pointer" }}>
+          <Field as="select" name="gender" className="cr-field-input cr-field-select">
             <option value="">Select gender</option>
             <option value="male">Male</option>
             <option value="female">Female</option>
           </Field>
         </FieldWrap>
         <FieldWrap label="Marital status">
-          <Field as="select" name="marital_status" style={{ ...S.fieldInput, cursor: "pointer" }}>
+          <Field as="select" name="marital_status" className="cr-field-input cr-field-select">
             <option value="">Select status</option>
             <option value="single">Single</option>
             <option value="married">Married</option>
@@ -1364,9 +852,9 @@ if (newExperiences.length === 0 && existingExperiences.length === 0) {
 
       <Divider label="License information" />
 
-      <div style={S.grid2}>
+      <div className="cr-grid-2">
         <FieldWrap label="License type">
-          <Field as="select" name="license_type" style={{ ...S.fieldInput, cursor: "pointer" }}
+          <Field as="select" name="license_type" className="cr-field-input cr-field-select"
             onChange={(e) => setFieldValue("license_type", e.target.value)}>
             <option value="">Select license type</option>
             {(this.state.licenseTypes || []).map((l) => (
@@ -1383,51 +871,40 @@ if (newExperiences.length === 0 && existingExperiences.length === 0) {
 
       <Divider label="Salary & experience" />
 
-      <div style={S.grid3}>
+      <div className="cr-grid-3">
         <FieldWrap label="Current salary">
           <Field name="current_salary">
             {({ field, form }) => (
-              <div style={{ position: "relative" }}>
-                <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: T.textMuted, pointerEvents: "none" }}></span>
-                <StyledInput {...field} placeholder="0" style={{ paddingLeft: 40 }}
-                  value={field.value ? Number(field.value).toLocaleString() : ""}
-                  onChange={(e) => {
-                    const raw = e.target.value.replace(/,/g, "");
-                    if (/^\d*$/.test(raw)) form.setFieldValue("current_salary", raw);
-                  }}
-                />
-              </div>
+              <StyledInput {...field} placeholder="0"
+                value={field.value ? Number(field.value).toLocaleString() : ""}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/,/g, "");
+                  if (/^\d*$/.test(raw)) form.setFieldValue("current_salary", raw);
+                }}
+              />
             )}
           </Field>
         </FieldWrap>
         <FieldWrap label="Expected salary">
           <Field name="expected_salary">
             {({ field, form }) => (
-              <div style={{ position: "relative" }}>
-                <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: T.textMuted, pointerEvents: "none" }}></span>
-                <StyledInput {...field} placeholder="0" style={{ paddingLeft: 40 }}
-                  value={field.value ? Number(field.value).toLocaleString() : ""}
-                  onChange={(e) => {
-                    const raw = e.target.value.replace(/,/g, "");
-                    if (/^\d*$/.test(raw)) form.setFieldValue("expected_salary", raw);
-                  }}
-                />
-              </div>
+              <StyledInput {...field} placeholder="0"
+                value={field.value ? Number(field.value).toLocaleString() : ""}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/,/g, "");
+                  if (/^\d*$/.test(raw)) form.setFieldValue("expected_salary", raw);
+                }}
+              />
             )}
           </Field>
         </FieldWrap>
-        {/* <FieldWrap label="Total experience (optional)">
-          <Field name="total_experience">
-            {({ field }) => <StyledInput {...field} placeholder="Total Experience in years (e.g., 3)" />}
-          </Field>
-        </FieldWrap> */}
       </div>
 
       <Divider label="Location" />
 
-      <div style={S.grid3}>
+      <div className="cr-grid-3">
         <FieldWrap label="Country">
-          <Field as="select" name="country" style={{ ...S.fieldInput, cursor: "pointer" }}
+          <Field as="select" name="country" className="cr-field-input cr-field-select"
             onChange={(e) => {
               const countryId = e.target.value;
               setFieldValue("country", countryId);
@@ -1440,7 +917,7 @@ if (newExperiences.length === 0 && existingExperiences.length === 0) {
           </Field>
         </FieldWrap>
         <FieldWrap label="District">
-          <Field as="select" name="district" style={{ ...S.fieldInput, cursor: "pointer" }}
+          <Field as="select" name="district" className="cr-field-input cr-field-select"
             onChange={(e) => {
               const districtId = e.target.value;
               setFieldValue("district", districtId);
@@ -1452,7 +929,7 @@ if (newExperiences.length === 0 && existingExperiences.length === 0) {
           </Field>
         </FieldWrap>
         <FieldWrap label="City">
-          <Field as="select" name="city" style={{ ...S.fieldInput, cursor: "pointer" }}>
+          <Field as="select" name="city" className="cr-field-input cr-field-select">
             <option value="">Select city</option>
             {this.state.cities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Field>
@@ -1468,7 +945,7 @@ if (newExperiences.length === 0 && existingExperiences.length === 0) {
               return city ? { value: city.id, label: city.name } : null;
             }).filter(Boolean)}
             onChange={(selected) => setFieldValue("otherPreferredCities", selected ? selected.map((o) => o.value) : [])}
-            styles={{ control: (b) => ({ ...b, borderColor: T.border, borderRadius: T.radiusSm, fontSize: 14, minHeight: 38 }) }}
+            styles={rsSelectStyles}
           />
         </FieldWrap>
       </div>
@@ -1480,422 +957,418 @@ if (newExperiences.length === 0 && existingExperiences.length === 0) {
           </Field>
         </FieldWrap>
       </div>
-    </>
+    </div>
   );
 
-  /* ─── STEP 2 ─── */
-  renderStep2 = (values, setFieldValue) => (
-    <FieldArray name="education">
-      {({ push, remove }) => {
-        const draft = values.education?.[0] || { degree: "", degreeTitle: "", degreeTitle_label: "", institutes: "", startDate: "", endDate: "" };
-        return (
-          <>
-            <div style={{ background: T.bgSection, borderRadius: T.radius, border: `1px solid ${T.border}`, padding: "1.1rem", marginBottom: "1.2rem" }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: T.text, marginBottom: "0.9rem" }}>Add education</div>
+  renderEducation = (values, setFieldValue) => (
+    <div className="cr-step-group">
+      <div className="cr-step-group-title">Education</div>
+      <FieldArray name="education">
+        {({ push, remove }) => {
+          const draft = values.education?.[0] || { degree: "", degreeTitle: "", degreeTitle_label: "", institutes: "", startDate: "", endDate: "" };
+          return (
+            <>
+              <div className="cr-subsection">
+                <div className="cr-subsection-title">Add education</div>
 
-              {/* First row - Degree and Degree Title */}
-              <div style={S.grid2}>
-                <FieldWrap label="Degree">
-                  <Field as="select" name="education.0.degree" style={{ ...S.fieldInput, cursor: "pointer" }}
-                    onChange={(e) => {
-                      setFieldValue("education.0.degree", e.target.value);
-                      setFieldValue("education.0.degreeTitle", "");
-                      setFieldValue("education.0.degreeTitle_label", "");
-                    }}>
-                    <option value="">Select degree</option>
-                    {this.state.degreeFieldData.map((d) => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
-                  </Field>
-                </FieldWrap>
-                <FieldWrap label="Degree title">
-                  <AsyncSelect key={draft.degree || "no-degree"} cacheOptions={false} defaultOptions
-                    isDisabled={!draft.degree}
-                    loadOptions={draft.degree ? this.loadDegreeTitles(Number(draft.degree)) : () => []}
-                    value={draft.degreeTitle ? { value: draft.degreeTitle, label: draft.degreeTitle_label } : null}
-                    onChange={(opt) => {
-                      setFieldValue("education.0.degreeTitle", opt?.value || "");
-                      setFieldValue("education.0.degreeTitle_label", opt?.label || "");
-                    }}
-                    placeholder="Select degree title"
-                    styles={{ control: (b) => ({ ...b, borderColor: T.border, borderRadius: T.radiusSm, fontSize: 14, minHeight: 38 }) }}
-                  />
-                </FieldWrap>
-              </div>
+                <div className="cr-grid-2">
+                  <FieldWrap label="Degree">
+                    <Field as="select" name="education.0.degree" className="cr-field-input cr-field-select"
+                      onChange={(e) => {
+                        setFieldValue("education.0.degree", e.target.value);
+                        setFieldValue("education.0.degreeTitle", "");
+                        setFieldValue("education.0.degreeTitle_label", "");
+                      }}>
+                      <option value="">Select degree</option>
+                      {this.state.degreeFieldData.map((d) => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
+                    </Field>
+                  </FieldWrap>
+                  <FieldWrap label="Degree title">
+                    <AsyncSelect key={draft.degree || "no-degree"} cacheOptions={false} defaultOptions
+                      isDisabled={!draft.degree}
+                      loadOptions={draft.degree ? this.loadDegreeTitles(Number(draft.degree)) : () => []}
+                      value={draft.degreeTitle ? { value: draft.degreeTitle, label: draft.degreeTitle_label } : null}
+                      onChange={(opt) => {
+                        setFieldValue("education.0.degreeTitle", opt?.value || "");
+                        setFieldValue("education.0.degreeTitle_label", opt?.label || "");
+                      }}
+                      placeholder="Select degree title"
+                      styles={rsSelectStyles}
+                    />
+                  </FieldWrap>
+                </div>
 
-              {/* Second row - Institute and Start Date */}
-              <div style={{ ...S.grid2, marginTop: 14 }}>
-                <FieldWrap label="Institute">
-                  <AsyncSelect cacheOptions defaultOptions loadOptions={this.loadInstitutes}
-                    value={draft.institutes ? { value: draft.institutes, label: draft.institutes_label } : null}
-                    onChange={(opt) => setFieldValue("education.0", { ...draft, institutes: opt?.value || "", institutes_label: opt?.label || "" })}
-                    styles={{ control: (b) => ({ ...b, borderColor: T.border, borderRadius: T.radiusSm, fontSize: 14, minHeight: 38 }) }}
-                  />
-                </FieldWrap>
-                <FieldWrap label="Start date">
-                  <Field type="date" name="education.0.startDate" style={{ ...S.fieldInput }} />
-                </FieldWrap>
-              </div>
+                <div className="cr-grid-2" style={{ marginTop: 14 }}>
+                  <FieldWrap label="Institute">
+                    <AsyncSelect cacheOptions defaultOptions loadOptions={this.loadInstitutes}
+                      value={draft.institutes ? { value: draft.institutes, label: draft.institutes_label } : null}
+                      onChange={(opt) => setFieldValue("education.0", { ...draft, institutes: opt?.value || "", institutes_label: opt?.label || "" })}
+                      styles={rsSelectStyles}
+                    />
+                  </FieldWrap>
+                  <FieldWrap label="Start date">
+                    <Field type="date" name="education.0.startDate" className="cr-field-input" />
+                  </FieldWrap>
+                </div>
 
-              {/* ✅ Third row - End date only (using grid2 for equal width) */}
-              <div style={{ ...S.grid2, marginTop: 14 }}>
-                <FieldWrap
-                  label="End date"
-                  hint="Leave empty if currently studying"
-                >
-                  <Field type="date" name="education.0.endDate" style={{ ...S.fieldInput }} />
-                </FieldWrap>
-                {/* Empty div to maintain grid alignment */}
-                <div></div>
-              </div>
+                <div className="cr-grid-2" style={{ marginTop: 14 }}>
+                  <FieldWrap label="End date" hint="Leave empty if currently studying">
+                    <Field type="date" name="education.0.endDate" className="cr-field-input" />
+                  </FieldWrap>
+                  <div></div>
+                </div>
 
-              <button type="button" style={{ ...S.btnAdd, marginTop: "1rem" }}
-                onClick={() => {
-                  if (!draft.degree || !draft.degreeTitle) {
-                    this.setState({ formMessage: { type: "error", text: "Please fill required fields" } });
-                    return;
-                  }
-                  if (draft.id) {
-                    const index = values.education.findIndex((e) => e.id === draft.id);
-                    if (index > -1) setFieldValue(`education.${index}`, draft);
-                  } else {
-                    push({ ...draft });
-                  }
-                  setFieldValue("education.0", { degree: "", degreeTitle: "", degreeTitle_label: "", institutes: "", startDate: "", endDate: "", id: null });
-                  this.setState({ editID: null });
-                }}>
-                + Add education
-              </button>
-            </div>
-
-            {values.education.length > 1 && (
-              <div style={{ overflowX: "auto" }}>
-                <table style={S.table}>
-                  <thead>
-                    <tr>
-                      {["Degree", "Title", "Institute", "Start", "End / Status", ""].map((h) => (
-                        <th key={h} style={S.th}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {values.education.slice(1).map((edu, i) => (
-                      <tr key={edu.id || i}>
-                        <td style={S.td}>{edu.degreeTitle_label}</td>
-                        <td style={S.td}>{edu.degreeTitle_label}</td>
-                        <td style={S.td}>{edu.institutes_label}</td>
-                        <td style={S.td}>{edu.startDate}</td>
-                        {/* ✅ Show "Ongoing" badge if no end date or end date is in the future */}
-                        <td style={S.td}>
-                          {!edu.endDate || isDateOngoing(edu.endDate)
-                            ? <span style={S.ongoingBadge}>Ongoing</span>
-                            : edu.endDate
-                          }
-                        </td>
-                        <td style={S.td}>
-                          <button type="button" style={S.btnInfo}
-                            onClick={() => { setFieldValue("education.0", { ...edu }); this.setState({ editID: edu.id, isEdit: true }); remove(i + 1); }}>
-                            Edit
-                          </button>
-                          <button type="button" style={S.btnDanger}
-                            onClick={() => {
-                              if (edu.id) {
-                                api.delete(`${this.apiBaseUrl}candidateeducation/deletecandidateeducation/${edu.id}`)
-                                  .then(() => { this.setState({ formMessage: { type: "success", text: "Deleted" } }); remove(i + 1); });
-                              } else { remove(i + 1); }
-                            }}>
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </>
-        );
-      }}
-    </FieldArray>
-  );
-
-  /* ─── STEP 3 ─── */
-  renderStep3 = (values, setFieldValue) => (
-    <FieldArray name="experience">
-      {({ push, remove }) => {
-        const draft = values.experience?.[0] || { companyName: "", designation: "", speciality_id: "", startDate: "", endDate: "", job_type_id: "", id: null };
-        return (
-          <>
-            {/* Fresher toggle */}
-            <div style={S.fresherBox(values.isFresher)}
+                <button type="button" className="cr-btn-add" style={{ marginTop: "1rem" }}
   onClick={() => {
-    setFieldValue("isFresher", !values.isFresher);
-    if (!values.isFresher) setFieldValue("experience", [{}]);
+    if (!draft.degree || !draft.degreeTitle) {
+      this.setState({ formMessage: { type: "error", text: "Please fill required fields" } });
+      return;
+    }
+
+    const degreeLabel = this.state.degreeFieldData.find(
+      (d) => String(d.id) === String(draft.degree)
+    )?.name || "";
+
+    const entryToSave = { ...draft, degree_label: degreeLabel };
+
+    if (draft.id) {
+      const index = values.education.findIndex((e) => e.id === draft.id);
+      if (index > -1) setFieldValue(`education.${index}`, entryToSave);
+    } else {
+      push(entryToSave);
+    }
+    setFieldValue("education.0", { degree: "", degreeTitle: "", degreeTitle_label: "", institutes: "", startDate: "", endDate: "", id: null });
+    this.setState({ editID: null });
   }}>
-              <div style={{ width: 36, height: 20, borderRadius: 10, background: values.isFresher ? T.primary : T.border, position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
-                <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: values.isFresher ? 18 : 2, transition: "left 0.2s" }} />
+  + Add education
+</button>
               </div>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 500, color: values.isFresher ? T.primary2 : T.text }}>I am a Fresher</div>
-                <div style={{ fontSize: 11, color: T.textMuted, marginTop: 1 }}>
-                  {values.isFresher ? "Work experience section will be skipped" : "Check this if you have no work experience"}
+
+              {values.education.length > 1 && (
+                <div style={{ overflowX: "auto" }}>
+                  <table className="cr-table">
+                    <thead>
+                      <tr>
+                        {["Degree", "Title", "Institute", "Start", "End / Status", ""].map((h) => (
+                          <th key={h} className="cr-th">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {values.education.slice(1).map((edu, i) => (
+                        <tr key={edu.id || i}>
+                          <td className="cr-td">{edu.degree_label}</td>
+<td className="cr-td">{edu.degreeTitle_label}</td>
+                          <td className="cr-td">{edu.institutes_label}</td>
+                          <td className="cr-td">{edu.startDate}</td>
+                          <td className="cr-td">
+                            {!edu.endDate || isDateOngoing(edu.endDate)
+                              ? <span className="cr-ongoing-badge">Ongoing</span>
+                              : edu.endDate}
+                          </td>
+                          <td className="cr-td">
+                            <button type="button" className="cr-btn-info"
+                              onClick={() => { setFieldValue("education.0", { ...edu }); this.setState({ editID: edu.id, isEdit: true }); remove(i + 1); }}>
+                              Edit
+                            </button>
+                            <button type="button" className="cr-btn-danger"
+                              onClick={() => {
+                                if (edu.id) {
+                                  api.delete(`/candidateeducation/deletecandidateeducation/${edu.id}`)
+                                    .then(() => { this.setState({ formMessage: { type: "success", text: "Deleted" } }); remove(i + 1); });
+                                } else { remove(i + 1); }
+                              }}>
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          );
+        }}
+      </FieldArray>
+    </div>
+  );
+
+  renderExperience = (values, setFieldValue) => (
+    <div className="cr-step-group">
+      <div className="cr-step-group-title">Work Experience & Skills</div>
+      <FieldArray name="experience">
+        {({ push, remove }) => {
+          const draft = values.experience?.[0] || { companyName: "", designation: "", speciality_id: "", startDate: "", endDate: "", job_type_id: "", id: null };
+          return (
+            <>
+              <div className={`cr-fresher-box ${values.isFresher ? "on" : ""}`}
+                onClick={() => {
+                  setFieldValue("isFresher", !values.isFresher);
+                  if (!values.isFresher) setFieldValue("experience", [{ companyName: "", designation: "", speciality_id: "", job_type_id: "", startDate: "", endDate: "", id: null }]);
+                }}>
+                <div className={`cr-fresher-switch ${values.isFresher ? "on" : ""}`}>
+                  <div className={`cr-fresher-knob ${values.isFresher ? "on" : ""}`} />
+                </div>
+                <div>
+                  <div className={`cr-fresher-title ${values.isFresher ? "on" : ""}`}>I am a Fresher</div>
+                  <div className="cr-fresher-sub">
+                    {values.isFresher ? "Work experience section will be skipped" : "Check this if you have no work experience"}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Experience form */}
-            {!values.isFresher && (
-            <div style={{ background: T.bgSection, borderRadius: T.radius, border: `1px solid ${T.border}`, padding: "1.1rem", marginBottom: "1.2rem" }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: T.text, marginBottom: "0.9rem" }}>Add experience</div>
+              {!values.isFresher && (
+                <div className="cr-subsection">
+                  <div className="cr-subsection-title">Add experience</div>
 
-              {/* Row 1: Company Name and Designation */}
-              <div style={S.grid2}>
-                <FieldWrap label="Company name">
-                  <Field type="text" name="experience.0.companyName" style={S.fieldInput} placeholder="Company name" />
-                </FieldWrap>
-                <FieldWrap label="Designation">
-                  <Field type="text" name="experience.0.designation" style={S.fieldInput} placeholder="Your role" />
-                </FieldWrap>
+                  <div className="cr-grid-2">
+                    <FieldWrap label="Company name">
+                      <Field type="text" name="experience.0.companyName" className="cr-field-input" placeholder="Company name" />
+                    </FieldWrap>
+                    <FieldWrap label="Designation">
+                      <Field type="text" name="experience.0.designation" className="cr-field-input" placeholder="Your role" />
+                    </FieldWrap>
+                  </div>
+
+                  <div className="cr-grid-2" style={{ marginTop: 14 }}>
+                    <FieldWrap label="Speciality">
+                      <Field as="select" name="experience.0.speciality_id" className="cr-field-input cr-field-select">
+                        <option value="">Select speciality</option>
+                        {Array.isArray(this.state.speciality) && this.state.speciality.map((s) => (
+                          <option key={s.id} value={String(s.id)}>{s.name}</option>
+                        ))}
+                      </Field>
+                    </FieldWrap>
+                    <FieldWrap label="Job Type">
+                      <Field as="select" name="experience.0.job_type_id" className="cr-field-input cr-field-select">
+                        <option value="">Select job type</option>
+                        {Array.isArray(this.state.jobTypes) && this.state.jobTypes.map((jt) => (
+                          <option key={jt.id} value={String(jt.id)}>{jt.name}</option>
+                        ))}
+                      </Field>
+                    </FieldWrap>
+                  </div>
+
+                  <div className="cr-grid-2" style={{ marginTop: 14 }}>
+                    <FieldWrap label="Start date">
+                      <Field type="date" name="experience.0.startDate" className="cr-field-input" max={new Date().toISOString().split("T")[0]} />
+                    </FieldWrap>
+                    <FieldWrap label="End date" hint="Leave empty if currently working here">
+                      <Field type="date" name="experience.0.endDate" className="cr-field-input" />
+                    </FieldWrap>
+                  </div>
+
+                  <button type="button" className="cr-btn-add" style={{ marginTop: "1rem" }}
+                    onClick={() => {
+                      if (!draft.companyName || !draft.designation || !draft.startDate) {
+                        this.setState({ formMessage: { type: "error", text: "Please fill required fields" } });
+                        return;
+                      }
+                      const expToPush = { ...draft, speciality_id: draft.speciality_id ? Number(draft.speciality_id) : "", job_type_id: draft.job_type_id ? Number(draft.job_type_id) : "" };
+                      if (draft.id) {
+                        const index = values.experience.findIndex((e) => e.id === draft.id);
+                        if (index > -1) setFieldValue(`experience.${index}`, expToPush);
+                      } else {
+                        push(expToPush);
+                      }
+                      setFieldValue("experience.0", { companyName: "", designation: "", speciality_id: "", startDate: "", endDate: "", job_type_id: "", id: null });
+                      this.setState({ editexpID: null });
+                    }}>
+                    + Add experience
+                  </button>
+                </div>
+              )}
+
+              <div className="cr-subsection">
+                <div className="cr-subsection-title">Skills</div>
+                <Field name="skills">
+                  {({ field, form }) => (
+                    <Select isMulti
+                      value={field.value?.map((val) => {
+                        const s = this.state.skillsOptions.find((sk) => sk.id === val);
+                        return s ? { value: s.id, label: s.name } : null;
+                      }).filter(Boolean)}
+                      onChange={(selected) => form.setFieldValue("skills", selected ? selected.map((o) => o.value) : [])}
+                      options={this.state.skillsOptions.map((s) => ({ value: s.id, label: s.name }))}
+                      placeholder="Select skills..."
+                      styles={rsSelectStyles}
+                    />
+                  )}
+                </Field>
               </div>
 
-              {/* Row 2: Speciality and Job Type */}
-              <div style={{ ...S.grid2, marginTop: 14 }}>
-                <FieldWrap label="Speciality">
-                  <Field as="select" name="experience.0.speciality_id" style={{ ...S.fieldInput, cursor: "pointer" }}>
-                    <option value="">Select speciality</option>
-                    {Array.isArray(this.state.speciality) && this.state.speciality.map((s) => (
-                      <option key={s.id} value={String(s.id)}>{s.name}</option>
-                    ))}
-                  </Field>
-                </FieldWrap>
-                <FieldWrap label="Job Type">
-                  <Field as="select" name="experience.0.job_type_id" style={{ ...S.fieldInput, cursor: "pointer" }}>
-                    <option value="">Select job type</option>
-                    {Array.isArray(this.state.jobTypes) && this.state.jobTypes.map((jt) => (
-                      <option key={jt.id} value={String(jt.id)}>{jt.name}</option>
-                    ))}
-                  </Field>
-                </FieldWrap>
-              </div>
-
-              {/* ✅ Row 3: Start Date and End Date (both in same row) */}
-              <div style={{ ...S.grid2, marginTop: 14 }}>
-                <FieldWrap label="Start date">
-                  <Field type="date" name="experience.0.startDate" style={S.fieldInput} max={new Date().toISOString().split("T")[0]} />
-                </FieldWrap>
-                <FieldWrap
-                  label="End date"
-                  hint="Leave empty if currently working here"
-                >
-                  <Field type="date" name="experience.0.endDate" style={S.fieldInput} />
-                </FieldWrap>
-              </div>
-
-              <button type="button" style={{ ...S.btnAdd, marginTop: "1rem" }}
-                onClick={() => {
-                  if (!draft.companyName || !draft.designation || !draft.startDate) {
-                    this.setState({ formMessage: { type: "error", text: "Please fill required fields" } });
-                    return;
-                  }
-                  const expToPush = { ...draft, speciality_id: draft.speciality_id ? Number(draft.speciality_id) : "", job_type_id: draft.job_type_id ? Number(draft.job_type_id) : "" };
-                  if (this.state.editexpID) push({ ...expToPush, id: this.state.editexpID });
-                  else push(expToPush);
-                  setFieldValue("experience.0", { companyName: "", designation: "", speciality_id: "", startDate: "", endDate: "", job_type_id: "", id: null });
-                  this.setState({ editexpID: null });
-                }}>
-                + Add experience
-              </button>
-            </div>  )}
-
-            {/* Skills */}
-            <div style={{ background: T.bgSection, borderRadius: T.radius, border: `1px solid ${T.border}`, padding: "1.1rem", marginBottom: "1.2rem" }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: T.text, marginBottom: "0.9rem" }}>Skills</div>
-              <Field name="skills">
-                {({ field, form }) => (
-                  <Select isMulti
-                    value={field.value?.map((val) => {
-                      const s = this.state.skillsOptions.find((sk) => sk.id === val);
-                      return s ? { value: s.id, label: s.name } : null;
-                    }).filter(Boolean)}
-                    onChange={(selected) => form.setFieldValue("skills", selected ? selected.map((o) => o.value) : [])}
-                    options={this.state.skillsOptions.map((s) => ({ value: s.id, label: s.name }))}
-                    placeholder="Select skills..."
-                    styles={{ control: (b) => ({ ...b, borderColor: T.border, borderRadius: T.radiusSm, fontSize: 14, minHeight: 38 }) }}
-                  />
-                )}
-              </Field>
-            </div>
-
-            {/* Experience table */}
-            {values.experience.length > 1 && (
-              <div style={{ overflowX: "auto" }}>
-                <table style={S.table}>
-                  <thead>
-                    <tr>
-                      {["Company", "Designation", "Speciality", "Job Type", "Start", "End / Status", ""].map((h) => (
-                        <th key={h} style={S.th}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {values.experience.slice(1).map((exp, i) => (
-                      <tr key={exp.id || i}>
-                        <td style={S.td}>{exp.companyName}</td>
-                        <td style={S.td}>{exp.designation}</td>
-                        <td style={S.td}>{this.state.speciality?.find((s) => s.id === exp.speciality_id)?.name || "—"}</td>
-                        {/* Job Type column */}
-                        <td style={S.td}>
-                          {this.state.jobTypes?.find((jt) => jt.id === exp.job_type_id)?.name || "—"}
-                        </td>
-                        <td style={S.td}>{exp.startDate}</td>
-                        <td style={S.td}>
-                          {!exp.endDate || isDateOngoing(exp.endDate)
-                            ? <span style={S.ongoingBadge}>Ongoing</span>
-                            : exp.endDate
-                          }
-                        </td>
-                        <td style={S.td}>
-                          <button type="button" style={S.btnInfo}
-                            onClick={() => {
-                              setFieldValue("experience.0", { ...exp });
-                              remove(i + 1);
-                              this.setState({ editexpID: exp.id, isExpEdit: true });
-                            }}>
-                            Edit
-                          </button>
-                          <button type="button" style={S.btnDanger}
-                            onClick={() => {
-                              if (exp.id) {
-                                api.delete(`${this.apiBaseUrl}candidateexperience/deleteexperience/${exp.id}`)
-                                  .then(() => {
-                                    this.setState({ formMessage: { type: "success", text: "Deleted" } });
-                                    remove(i + 1);
-                                  });
-                              } else {
-                                remove(i + 1);
-                              }
-                            }}>
-                            Delete
-                          </button>
-                        </td>
+              {values.experience.length > 1 && (
+                <div style={{ overflowX: "auto" }}>
+                  <table className="cr-table">
+                    <thead>
+                      <tr>
+                        {["Company", "Designation", "Speciality", "Job Type", "Start", "End / Status", ""].map((h) => (
+                          <th key={h} className="cr-th">{h}</th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </>
-        );
-      }}
-    </FieldArray>
+                    </thead>
+                    <tbody>
+                      {values.experience.slice(1).map((exp, i) => (
+                        <tr key={exp.id || i}>
+                          <td className="cr-td">{exp.companyName}</td>
+                          <td className="cr-td">{exp.designation}</td>
+                          <td className="cr-td">{this.state.speciality?.find((s) => s.id === exp.speciality_id)?.name || "—"}</td>
+                          <td className="cr-td">{this.state.jobTypes?.find((jt) => jt.id === exp.job_type_id)?.name || "—"}</td>
+                          <td className="cr-td">{exp.startDate}</td>
+                          <td className="cr-td">
+                            {!exp.endDate || isDateOngoing(exp.endDate)
+                              ? <span className="cr-ongoing-badge">Ongoing</span>
+                              : exp.endDate}
+                          </td>
+                          <td className="cr-td">
+                            <button type="button" className="cr-btn-info"
+                              onClick={() => {
+                                setFieldValue("experience.0", { ...exp });
+                                remove(i + 1);
+                                this.setState({ editexpID: exp.id, isExpEdit: true });
+                              }}>
+                              Edit
+                            </button>
+                            <button type="button" className="cr-btn-danger"
+                              onClick={() => {
+                                if (exp.id) {
+                                  api.delete(`/candidateexperience/deleteexperience/${exp.id}`)
+                                    .then(() => {
+                                      this.setState({ formMessage: { type: "success", text: "Deleted" } });
+                                      remove(i + 1);
+                                    });
+                                } else {
+                                  remove(i + 1);
+                                }
+                              }}>
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          );
+        }}
+      </FieldArray>
+    </div>
   );
 
-  /* ─── STEP 4 ─── */
-  renderStep4 = (values, setFieldValue, errors, touched, setFieldTouched, setFieldError) => (
-    <>
-      {values.resume && (
-        <div style={{ ...S.alertInfo, marginBottom: "1.2rem" }}>
-          <span>
-            Uploaded:{" "}
-            <a href={values.resume.url || URL.createObjectURL(values.resume)} target="_blank" rel="noopener noreferrer"
-              style={{ color: "inherit", fontWeight: 500 }}>
-              {values.resume.name}
-            </a>
-          </span>
-          {!values.resume.isExisting && (
-            <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "inherit" }}
-              onClick={() => setFieldValue("resume", null)}>×</button>
-          )}
+renderResume = (values, setFieldValue, errors, touched, setFieldTouched, setFieldError) => {
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    setFieldTouched("resume", true);
+    if (!file) return;
+
+    const maxSize = 3 * 1024 * 1024; // 3MB
+    const allowedTypes = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+
+    if (!allowedTypes.includes(file.type)) {
+      setFieldError("resume", "Invalid file type");
+      setFieldValue("resume", null);
+      e.target.value = "";
+      return;
+    }
+    if (file.size > maxSize) {
+      setFieldError("resume", "File too large — max 3MB");
+      setFieldValue("resume", null);
+      e.target.value = "";
+      return;
+    }
+
+    setFieldValue("resume", { name: file.name, url: URL.createObjectURL(file), isExisting: false, file });
+    setFieldError("resume", "");
+  };
+
+  return (
+    <div className="cr-step-group">
+      <div className="cr-step-group-title">Resume</div>
+
+      {values.resume ? (
+        <div className="cr-resume-uploaded">
+          <div className="cr-resume-uploaded-info">
+            <span className="cr-resume-icon">📄</span>
+            <div>
+              <a href={values.resume.url} target="_blank" rel="noopener noreferrer" className="cr-resume-name">
+                {values.resume.name}
+              </a>
+              <div className="cr-resume-meta">PDF, DOC, DOCX — max 3MB</div>
+            </div>
+          </div>
+          <label className="cr-btn-outline" style={{ cursor: "pointer" }}>
+            Replace
+            <input
+              type="file"
+              name="resume"
+              accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf"
+              style={{ display: "none" }}
+              onChange={handleFileChange}
+            />
+          </label>
+        </div>
+      ) : (
+        <div className="cr-cv-dropzone">
+          <div style={{ fontSize: 36, marginBottom: 8 }}>📄</div>
+          <div style={{ fontSize: 15, fontWeight: 500, color: "#1a1a1a", marginBottom: 4 }}>
+            Click to upload your resume
+          </div>
+          <div style={{ fontSize: 12, color: "#6b7280", marginBottom: "1.2rem" }}>PDF, DOC, DOCX — max 3MB</div>
+          <label className="cr-btn-next" style={{ display: "inline-flex", cursor: "pointer" }}>
+            Browse file
+            <input
+              type="file"
+              name="resume"
+              accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf"
+              style={{ display: "none" }}
+              onChange={handleFileChange}
+            />
+          </label>
         </div>
       )}
 
-      <div style={{ border: `2px dashed ${T.primary4}`, borderRadius: T.radius, padding: "2.5rem 1.5rem", textAlign: "center", background: T.primary3 }}>
-        <div style={{ fontSize: 36, marginBottom: 8 }}>📄</div>
-        <div style={{ fontSize: 15, fontWeight: 500, color: T.text, marginBottom: 4 }}>Click to upload your resume</div>
-        <div style={{ fontSize: 12, color: T.textMuted, marginBottom: "1.2rem" }}>PDF, DOC, DOCX — max 3MB</div>
-        <label style={{ ...S.btnNext, display: "inline-flex", cursor: "pointer" }}>
-          Browse file
-          <input type="file" name="resume" accept=".doc,.docx,application/msword,application/pdf"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              const file = e.target.files[0];
-              setFieldTouched("resume", true);
-              if (file) {
-                const maxSize = 3 * 1024 * 1024;
-                const allowedTypes = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
-                if (!allowedTypes.includes(file.type)) { setFieldError("resume", "Invalid file type"); setFieldValue("resume", null); }
-                else if (file.size > maxSize) { setFieldError("resume", "File too large — max 3MB"); setFieldValue("resume", null); }
-                else { setFieldValue("resume", file); setFieldError("resume", ""); }
-              }
-            }}
-          />
-        </label>
-        {errors.resume && touched.resume && (
-          <div style={{ ...S.fieldError, marginTop: 8 }}>{errors.resume}</div>
-        )}
-      </div>
-    </>
+      {errors.resume && touched.resume && (
+        <div className="cr-field-error" style={{ marginTop: 8 }}>{errors.resume}</div>
+      )}
+    </div>
   );
+};
 
-  /* ─── STEP 5 ─── */
- renderStep5 = () => {
-    // Helper to format shift for display
-    const formatShiftForDisplay = (shift) => {
-      if (shift === "morning") return "Morning";
-      if (shift === "evening") return "Evening";
-      if (shift === "night") return "Night";
-      return shift;
-    };
-
-    // Helper to check if time crosses midnight
+ renderAvailability = () => {
     const isTimeCrossingMidnight = (startTime, endTime) => {
       if (!startTime || !endTime) return false;
       return startTime > endTime;
     };
 
-    // ✅ Helper to check if selection is 24/7
-    const is247Selection = (day, shift) => {
-      return shift === "All Shifts";
-    };
+    const is247Selection = (day, shift) => shift === "All Shifts";
 
-    // ✅ Shift validation - simple and clean
     const validateShiftTiming = (shift, startTime, endTime) => {
       if (!startTime || !endTime) {
         return { isValid: false, error: "Please select both start and end time" };
       }
-
       switch (shift) {
         case "morning":
-          if (startTime >= "12:00") {
-            return { isValid: false, error: "❌ Morning shift must start before 12:00 PM (e.g., 09:00 AM)" };
-          }
-          if (startTime >= endTime) {
-            return { isValid: false, error: "❌ End time must be after start time" };
-          }
+          if (startTime >= "12:00") return { isValid: false, error: "❌ Morning shift must start before 12:00 PM (e.g., 09:00 AM)" };
+          if (startTime >= endTime) return { isValid: false, error: "❌ End time must be after start time" };
           return { isValid: true, error: null };
-
         case "evening":
-          if (startTime <= "12:00") {
-            return { isValid: false, error: "❌ Evening shift must start after 12:00 PM (e.g., 15:00 PM)" };
-          }
-          if (startTime >= endTime) {
-            return { isValid: false, error: "❌ End time must be after start time" };
-          }
+          if (startTime <= "12:00") return { isValid: false, error: "❌ Evening shift must start after 12:00 PM (e.g., 15:00 PM)" };
+          if (startTime >= endTime) return { isValid: false, error: "❌ End time must be after start time" };
           return { isValid: true, error: null };
-
         case "night":
-          if (startTime <= endTime) {
-            return { isValid: false, error: "❌ Night shift must cross midnight (e.g., 21:00 to 06:00 next day)" };
-          }
+          if (startTime <= endTime) return { isValid: false, error: "❌ Night shift must cross midnight (e.g., 21:00 to 06:00 next day)" };
           return { isValid: true, error: null };
-
         default:
           return { isValid: true, error: null };
       }
     };
 
-    const { currentEntry, allShiftsTimings, isAllShiftsMode, timingError } = this.state;
+    const { currentEntry, allShiftsTimings } = this.state;
     const is247 = is247Selection(currentEntry?.day, currentEntry?.shift);
 
-    // Real-time validation for single shift
     const getTimingError = () => {
       if (!currentEntry?.shift || !currentEntry?.startTime || !currentEntry?.endTime) return null;
       const validation = validateShiftTiming(currentEntry.shift, currentEntry.startTime, currentEntry.endTime);
@@ -1903,11 +1376,12 @@ if (newExperiences.length === 0 && existingExperiences.length === 0) {
     };
 
     return (
-      <>
-        <div style={{ background: T.bgSection, borderRadius: T.radius, border: `1px solid ${T.border}`, padding: "1.1rem", marginBottom: "1.2rem" }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: T.text, marginBottom: "0.9rem" }}>Add availability</div>
+      <div className="cr-step-group">
+        <div className="cr-step-group-title">Availability</div>
 
-          {/* Day Select */}
+        <div className="availability-card cr-subsection">
+          <div className="availability-title cr-subsection-title">Add availability</div>
+
           <div style={{ marginBottom: "1rem" }}>
             <FieldWrap label="Day">
               <StyledSelect
@@ -1915,11 +1389,8 @@ if (newExperiences.length === 0 && existingExperiences.length === 0) {
                 onChange={(e) => {
                   const selectedDay = e.target.value;
                   this.setState((prev) => ({
-                    currentEntry: {
-                      ...prev.currentEntry,
-                      day: selectedDay === "All Days" ? "All Days" : selectedDay
-                    },
-                    timingError: null
+                    currentEntry: { ...prev.currentEntry, day: selectedDay === "All Days" ? "All Days" : selectedDay },
+                    timingError: null,
                   }));
                 }}
               >
@@ -1936,7 +1407,6 @@ if (newExperiences.length === 0 && existingExperiences.length === 0) {
             </FieldWrap>
           </div>
 
-          {/* Shift Select */}
           <div style={{ marginBottom: "1rem" }}>
             <FieldWrap label="Shift">
               <StyledSelect
@@ -1944,21 +1414,15 @@ if (newExperiences.length === 0 && existingExperiences.length === 0) {
                 onChange={(e) => {
                   const selectedShift = e.target.value;
                   const isAllShifts = selectedShift === "All Shifts";
-
                   this.setState((prev) => ({
-                    currentEntry: {
-                      ...prev.currentEntry,
-                      shift: selectedShift,
-                      startTime: "",
-                      endTime: ""
-                    },
+                    currentEntry: { ...prev.currentEntry, shift: selectedShift, startTime: "", endTime: "" },
                     isAllShiftsMode: isAllShifts,
                     timingError: null,
                     allShiftsTimings: isAllShifts ? {
                       morning: { startTime: "09:00", endTime: "17:00" },
                       evening: { startTime: "15:00", endTime: "23:00" },
                       night: { startTime: "21:00", endTime: "06:00" },
-                    } : prev.allShiftsTimings
+                    } : prev.allShiftsTimings,
                   }));
                 }}
               >
@@ -1971,9 +1435,8 @@ if (newExperiences.length === 0 && existingExperiences.length === 0) {
             </FieldWrap>
           </div>
 
-          {/* ✅ 24/7 Availability Message (same as AvailabilityStep) */}
           {is247 && currentEntry?.day && (
-            <div style={{ ...S.alertSuccess, marginTop: "1rem", fontSize: 13, padding: "8px 12px", background: "#e2f0f0", border: "1px solid #36565f", color: "#36565f" }}>
+            <div className="availability-info" style={{ marginTop: "1rem", fontSize: 13 }}>
               <strong>🕒 24/7 Availability Selected!</strong>
               <br />
               <small>
@@ -1982,112 +1445,94 @@ if (newExperiences.length === 0 && existingExperiences.length === 0) {
             </div>
           )}
 
-          {/* Time inputs based on selection */}
           {currentEntry?.shift === "All Shifts" && !is247 ? (
-            <div className="mt-3">
-              <label className="fw-semibold mb-2">Set timings for each shift:</label>
-              {[
-                { key: "morning", label: "Morning Shift" },
-                { key: "evening", label: "Evening Shift" },
-                { key: "night", label: "Night Shift" },
-              ].map((shift) => {
-                const timing = this.state.allShiftsTimings?.[shift.key] || { startTime: "", endTime: "" };
-                const validation = validateShiftTiming(shift.key, timing.startTime, timing.endTime);
-
-                return (
-                  <div key={shift.key} className="mb-3 p-2 border rounded" style={{ background: "#f8f9fa" }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, alignItems: "center" }}>
-                      <div>
-                        <strong>{shift.label}</strong>
-                      </div>
-                      <div>
-                        <label className="small">Start Time</label>
-                        <StyledInput
-                          type="time"
-                          value={timing.startTime}
-                          onChange={(e) => {
-                            const newTimings = { ...this.state.allShiftsTimings };
-                            newTimings[shift.key] = { ...newTimings[shift.key], startTime: e.target.value };
-                            this.setState({ allShiftsTimings: newTimings, timingError: null });
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <label className="small">End Time</label>
-                        <StyledInput
-                          type="time"
-                          value={timing.endTime}
-                          onChange={(e) => {
-                            const newTimings = { ...this.state.allShiftsTimings };
-                            newTimings[shift.key] = { ...newTimings[shift.key], endTime: e.target.value };
-                            this.setState({ allShiftsTimings: newTimings, timingError: null });
-                          }}
-                        />
-                      </div>
-                    </div>
-                    {validation.isValid === false && (
-                      <small className="text-danger d-block mt-1">{validation.error}</small>
-                    )}
-                  </div>
-                );
-              })}
+            <div style={{ marginTop: "1rem" }}>
+              <label className="cr-field-label" style={{ display: "block", marginBottom: 8 }}>Set timings for each shift:</label>
+{[
+  { key: "morning", label: "Morning Shift" },
+  { key: "evening", label: "Evening Shift" },
+  { key: "night", label: "Night Shift" },
+].map((shift) => {
+  const timing = this.state.allShiftsTimings?.[shift.key] || { startTime: "", endTime: "" };
+  const validation = validateShiftTiming(shift.key, timing.startTime, timing.endTime);
+  return (
+    <div key={shift.key} className="time-box" style={{ marginBottom: 12, flexWrap: "wrap" }}>
+      <div style={{ minWidth: 110 }}><strong>{shift.label}</strong></div>
+      <div>
+        <label className="cr-field-label" style={{ display: "block", marginBottom: 4 }}>Start Time</label>
+        <ThemedTimeInput
+          value={timing.startTime}
+          onChange={(e) => {
+            const newTimings = { ...this.state.allShiftsTimings };
+            newTimings[shift.key] = { ...newTimings[shift.key], startTime: e.target.value };
+            this.setState({ allShiftsTimings: newTimings, timingError: null });
+          }}
+        />
+      </div>
+      <div>
+        <label className="cr-field-label" style={{ display: "block", marginBottom: 4 }}>End Time</label>
+        <ThemedTimeInput
+          value={timing.endTime}
+          onChange={(e) => {
+            const newTimings = { ...this.state.allShiftsTimings };
+            newTimings[shift.key] = { ...newTimings[shift.key], endTime: e.target.value };
+            this.setState({ allShiftsTimings: newTimings, timingError: null });
+          }}
+        />
+      </div>
+      {validation.isValid === false && (
+        <small className="cr-field-error" style={{ display: "block", width: "100%", marginTop: 4 }}>{validation.error}</small>
+      )}
+    </div>
+  );
+})}
             </div>
           ) : currentEntry?.shift && !is247 && (
-            <>
-              <div style={{ ...S.grid2, marginTop: 14 }}>
-                <FieldWrap label="Start Time">
-                  <StyledInput
-                    type="time"
-                    value={currentEntry?.startTime || ""}
-                    onChange={(e) => {
-                      this.setState((prev) => ({
-                        currentEntry: { ...prev.currentEntry, startTime: e.target.value },
-                        timingError: null
-                      }));
-                    }}
-                  />
-                </FieldWrap>
-                <FieldWrap label="End Time">
-                  <StyledInput
-                    type="time"
-                    value={currentEntry?.endTime || ""}
-                    onChange={(e) => {
-                      this.setState((prev) => ({
-                        currentEntry: { ...prev.currentEntry, endTime: e.target.value },
-                        timingError: null
-                      }));
-                    }}
-                  />
-                </FieldWrap>
-              </div>
+  <>
+    <div className="time-box" style={{ marginTop: 14 }}>
+      <FieldWrap label="Start Time">
+        <ThemedTimeInput
+          value={currentEntry?.startTime || ""}
+          onChange={(e) => {
+            this.setState((prev) => ({ currentEntry: { ...prev.currentEntry, startTime: e.target.value }, timingError: null }));
+          }}
+        />
+      </FieldWrap>
+      <FieldWrap label="End Time">
+        <ThemedTimeInput
+          value={currentEntry?.endTime || ""}
+          onChange={(e) => {
+            this.setState((prev) => ({ currentEntry: { ...prev.currentEntry, endTime: e.target.value }, timingError: null }));
+          }}
+        />
+      </FieldWrap>
+    </div>
 
-              {/* Show validation error below fields */}
-              {getTimingError() && (
-                <div style={{ ...S.alertError, marginTop: 8, fontSize: 12, padding: "8px 12px" }}>
-                  <span>⚠️ {getTimingError()}</span>
-                </div>
-              )}
-            </>
-          )}
+    {getTimingError() && (
+      <div className="cr-alert cr-alert-error" style={{ marginTop: 8, fontSize: 12, padding: "8px 12px" }}>
+        <span>⚠️ {getTimingError()}</span>
+      </div>
+    )}
+  </>
+)}
 
-          {/* Summary and Add button */}
           {currentEntry?.day && currentEntry?.shift && (
-            <div style={{ ...S.alertInfo, marginTop: "1rem", fontSize: 13, padding: "8px 12px", ...(is247 ? { background: "#e2f0f0", borderColor: "#36565f", color: "#36565f" } : {}) }}>
+            <div className={`cr-alert cr-alert-info ${is247 ? "cr-alert-success" : ""}`} style={{ marginTop: "1rem", fontSize: 13, padding: "8px 12px" }}>
               <strong>📋 Summary:</strong> You are about to add{' '}
               <strong>
                 {currentEntry.day === "All Days" ? 7 : 1} × {currentEntry.shift === "All Shifts" ? 3 : 1} ={' '}
                 {(currentEntry.day === "All Days" ? 7 : 1) * (currentEntry.shift === "All Shifts" ? 3 : 1)} entries
               </strong>
               {is247 && (
-                <div className="mt-1">
+                <div style={{ marginTop: 4 }}>
                   <small>✅ No time restrictions - you will be marked as available 24/7</small>
                 </div>
               )}
             </div>
           )}
 
-          <button type="button" style={{ ...S.btnAdd, marginTop: "1rem" }}
-            onClick={async () => {
+          <button type="button" className="cr-btn-add" style={{ marginTop: "1rem" }}
+            onClick={() => {
               const { currentEntry, allShiftsTimings } = this.state;
 
               if (!currentEntry?.day || !currentEntry?.shift) {
@@ -2095,394 +1540,222 @@ if (newExperiences.length === 0 && existingExperiences.length === 0) {
                 return;
               }
 
-              // Handle "All Days" and "All Shifts" logic
               let daysToAdd = [];
-              let shiftsToAdd = [];
               let availabilityArray = [];
 
-              // Set days
               if (currentEntry.day === "All Days") {
                 daysToAdd = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
               } else {
                 daysToAdd = [currentEntry.day];
               }
 
-              // Check if it's All Shifts
-              const isAllShifts = currentEntry.shift === "All Shifts";
+            const isAllShifts = currentEntry.shift === "All Shifts";
 
-              if (isAllShifts) {
-                // For 24/7 availability - add entries for all days and shifts with NULL time
-                const shifts = ["morning", "evening", "night"];
+if (isAllShifts) {
+  if (currentEntry.day === "All Days") {
+    // True 24/7 across every day — store as ONE entry
+    availabilityArray.push({ day: "All Days", shift: "All Shifts", startTime: null, endTime: null });
+  } else {
+    // Single day, all shifts — still one entry
+    availabilityArray.push({ day: currentEntry.day, shift: "All Shifts", startTime: null, endTime: null });
+  }
+} else {
+  if (!currentEntry.startTime || !currentEntry.endTime) {
+    this.setState({ formMessage: { type: "error", text: "Please select start time and end time" } });
+    return;
+  }
 
-                // Validate if we're NOT in 24/7 mode but All Shifts selected (should have timings)
-                // But if it's 24/7, we add with null times
-                if (!is247) {
-                  // Validate all shifts timings
-                  let hasError = false;
+  const validation = validateShiftTiming(currentEntry.shift, currentEntry.startTime, currentEntry.endTime);
+  if (!validation.isValid) {
+    this.setState({ formMessage: { type: "error", text: validation.error } });
+    return;
+  }
 
-                  for (const shift of shifts) {
-                    const timing = allShiftsTimings[shift];
-                    if (!timing.startTime || !timing.endTime) {
-                      this.setState({ formMessage: { type: "error", text: `Please set timings for ${shift} shift` } });
-                      hasError = true;
-                      break;
-                    }
-                    const validation = validateShiftTiming(shift, timing.startTime, timing.endTime);
-                    if (!validation.isValid) {
-                      this.setState({ formMessage: { type: "error", text: validation.error } });
-                      hasError = true;
-                      break;
-                    }
-                  }
+  for (const day of daysToAdd) {
+    availabilityArray.push({ day, shift: currentEntry.shift, startTime: currentEntry.startTime, endTime: currentEntry.endTime });
+  }
+}
 
-                  if (hasError) return;
-
-                  for (const day of daysToAdd) {
-                    for (const shift of shifts) {
-                      const timing = allShiftsTimings[shift];
-                      availabilityArray.push({
-                        day: day,
-                        shift: shift,
-                        startTime: timing.startTime,
-                        endTime: timing.endTime,
-                      });
-                    }
-                  }
-                } else {
-                  // 24/7 mode - add with null times
-                  for (const day of daysToAdd) {
-                    for (const shift of shifts) {
-                      availabilityArray.push({
-                        day: day,
-                        shift: shift,
-                        startTime: null,
-                        endTime: null,
-                      });
-                    }
-                  }
-                }
-              } else {
-                // Single shift - validate time fields and shift timing
-                if (!currentEntry.startTime || !currentEntry.endTime) {
-                  this.setState({ formMessage: { type: "error", text: "Please select start time and end time" } });
-                  return;
-                }
-
-                // Validate based on shift type
-                const validation = validateShiftTiming(currentEntry.shift, currentEntry.startTime, currentEntry.endTime);
-                if (!validation.isValid) {
-                  this.setState({ formMessage: { type: "error", text: validation.error } });
-                  return;
-                }
-
-                shiftsToAdd = [currentEntry.shift];
-                for (const day of daysToAdd) {
-                  for (const shift of shiftsToAdd) {
-                    availabilityArray.push({
-                      day: day,
-                      shift: shift,
-                      startTime: currentEntry.startTime,
-                      endTime: currentEntry.endTime,
-                    });
-                  }
-                }
-              }
-
-              try {
-                await api.post(`${this.apiBaseUrl}candidate_availability/addavailability`, {
-                  availability: availabilityArray
-                }, {
-                  headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-                });
-
-                this.setState((prev) => ({
-                  entries: [...prev.entries, ...availabilityArray],
-                  currentEntry: { day: "", shift: "", startTime: "", endTime: "" },
-                  isAllShiftsMode: false,
-                  timingError: null,
-                  allShiftsTimings: {
-                    morning: { startTime: "09:00", endTime: "17:00" },
-                    evening: { startTime: "15:00", endTime: "23:00" },
-                    night: { startTime: "21:00", endTime: "06:00" },
-                  },
-                  formMessage: { type: "success", text: `${availabilityArray.length} availability entr${availabilityArray.length === 1 ? 'y' : 'ies'} added successfully` },
-                }));
-              } catch (err) {
-                console.error("Failed to add availability:", err);
-                this.setState({ formMessage: { type: "error", text: "Failed to add availability" } });
-              }
+              this.setState((prev) => ({
+                entries: [...prev.entries, ...availabilityArray],
+                currentEntry: { day: "", shift: "", startTime: "", endTime: "" },
+                isAllShiftsMode: false,
+                timingError: null,
+                allShiftsTimings: {
+                  morning: { startTime: "09:00", endTime: "17:00" },
+                  evening: { startTime: "15:00", endTime: "23:00" },
+                  night: { startTime: "21:00", endTime: "06:00" },
+                },
+                formMessage: { type: "success", text: `${availabilityArray.length} availability entr${availabilityArray.length === 1 ? 'y' : 'ies'} added — will be saved on submit` },
+              }));
             }}>
             + Add availability
           </button>
         </div>
 
-        {/* Display added entries */}
         {this.state.entries.length > 0 && (
           <div style={{ overflowX: "auto" }}>
-            <table style={S.table}>
+            <table className="cr-table">
               <thead>
                 <tr>
                   {["Day", "Shift", "Start", "End", ""].map((h) => (
-                    <th key={h} style={S.th}>{h}</th>
+                    <th key={h} className="cr-th">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {this.state.entries.map((e, i) => {
-                  const shiftName = e.shift === "morning" ? "Morning" : e.shift === "evening" ? "Evening" : e.shift === "night" ? "Night" : e.shift;
-                  const crossesMidnight = isTimeCrossingMidnight(e.startTime, e.endTime);
-                  const isFullDay = !e.startTime && !e.endTime;
-                  // Check if this entry has invalid timing
-                  const validation = validateShiftTiming(e.shift, e.startTime, e.endTime);
-                  return (
-                    <tr key={i}>
-                      <td style={S.td}><span style={S.tag}>{e.day}</span></td>
-                      <td style={S.td}>{shiftName}</td>
-                      <td style={S.td}>{isFullDay ? "24/7" : (e.startTime || "-")}</td>
-                      <td style={S.td}>
-                        {isFullDay ? "Available" : (e.endTime || "-")}
-                        {!isFullDay && e.shift === "night" && crossesMidnight && " (next day)"}
-                        {!validation.isValid && <span style={{ color: "#dc3545", marginLeft: 6 }}></span>}
-                      </td>
-                      <td style={S.td}>
-                        <button type="button" style={S.btnDanger}
-                          onClick={() => this.setState((prev) => ({ entries: prev.entries.filter((_, idx) => idx !== i) }))}>
-                          Remove
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
+  const isFullyOpen = e.day === "All Days" && e.shift === "All Shifts";
+  const dayLabel = e.day === "All Days" ? "All Days" : e.day;
+  const shiftLabel = e.shift === "All Shifts" ? "All Shifts" : (e.shift === "morning" ? "Morning" : e.shift === "evening" ? "Evening" : "Night");
+
+  return (
+    <tr key={i}>
+      <td className="cr-td"><span className="cr-tag">{dayLabel}</span></td>
+      <td className="cr-td">{shiftLabel}</td>
+      <td className="cr-td">{isFullyOpen ? "—" : (e.startTime || "24/7")}</td>
+      <td className="cr-td">
+        {isFullyOpen ? <span className="cr-ongoing-badge">Available Anytime</span> : (e.endTime || "Available")}
+      </td>
+      <td className="cr-td">
+        <button type="button" className="cr-btn-danger" onClick={() => this.setState((prev) => ({ entries: prev.entries.filter((_, idx) => idx !== i) }))}>
+          Remove
+        </button>
+      </td>
+    </tr>
+  );
+})}
               </tbody>
             </table>
           </div>
         )}
-      </>
+      </div>
     );
   };
 
+  /* ───────────────────────── resume-first screen ───────────────────────── */
 
-    renderStep = (values, setFieldValue, errors, touched, setFieldTouched, setFieldError) => {
-      const { step } = this.state;
-      switch (step) {
-        case 1: return this.renderStep1(values, setFieldValue, errors, touched);
-        case 2: return this.renderStep2(values, setFieldValue);
-        case 3: return this.renderStep3(values, setFieldValue);
-        case 4: return this.renderStep4(values, setFieldValue, errors, touched, setFieldTouched, setFieldError);
-        case 5: return this.renderStep5();
-        default: return null;
-      }
-    };
-
-    getStepMeta = () => {
-      const { step } = this.state;
-      const icons = [
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.primary2} strokeWidth="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>,
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.primary2} strokeWidth="1.8"><path d="M12 2l2 7h7l-5.7 4.1 2.2 6.9L12 16l-5.5 4 2.2-6.9L3 9h7z"/></svg>,
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.primary2} strokeWidth="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8a2 2 0 00-2 4h12a2 2 0 00-2-4z"/></svg>,
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.primary2} strokeWidth="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>,
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.primary2} strokeWidth="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
-      ];
-      const titles = ["Personal Details","Education","Work Experience & Skills","Upload Resume","Availability"];
-      const progress = [20, 40, 60, 80, 100];
-      return { icon: icons[step - 1], title: titles[step - 1], progress: progress[step - 1] };
-    };
-
-    /* ─── TYPE SELECTION ─── */
-    renderTypeSelection = () => {
-      const { hoveredType } = this.state;
-      return (
-        <div style={S.wrap}>
-          <Helmet><title>Candidate | Registration</title></Helmet>
-          <div style={S.inner}>
-            <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
-              <h1 style={S.pageTitle}>Complete Your Profile</h1>
-              <p style={S.pageSub}>Choose how you want to register</p>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, maxWidth: 680, margin: "0 auto" }}>
-              {/* Manual */}
-              <div style={S.typeCard(hoveredType === "manual")}
-                onMouseEnter={() => this.setState({ hoveredType: "manual" })}
-                onMouseLeave={() => this.setState({ hoveredType: null })}
-                onClick={() => this.setState({ registrationType: "manual" })}>
-                <div style={{ fontSize: 40, textAlign: "center", marginBottom: 12 }}>📝</div>
-                <h3 style={{ fontSize: 16, fontWeight: 500, color: T.text, textAlign: "center", margin: "0 0 8px" }}>Fill Form Manually</h3>
-                <p style={{ fontSize: 13, color: T.textMuted, textAlign: "center", margin: "0 0 16px" }}>
-                  Step-by-step form for personal details, education and experience
-                </p>
-                <ul style={{ listStyle: "none", padding: 0, margin: "0 0 20px", fontSize: 13, color: T.textMuted }}>
-                  <li style={{ marginBottom: 6 }}>✅ Full control over your profile</li>
-                  <li style={{ marginBottom: 6 }}>✅ Better matching with employers</li>
-                  <li style={{ marginBottom: 6 }}>⏱ Takes 5–10 minutes</li>
-                </ul>
-                <button style={{ ...S.btnNext, width: "100%", justifyContent: "center" }}>
-                  Fill manually →
-                </button>
-              </div>
-              {/* CV Upload */}
-              <div style={S.typeCard(hoveredType === "cv_only")}
-                onMouseEnter={() => this.setState({ hoveredType: "cv_only" })}
-                onMouseLeave={() => this.setState({ hoveredType: null })}
-                onClick={() => this.setState({ registrationType: "cv_only" })}>
-                <div style={{ fontSize: 40, textAlign: "center", marginBottom: 12 }}>📄</div>
-                <h3 style={{ fontSize: 16, fontWeight: 500, color: T.text, textAlign: "center", margin: "0 0 8px" }}>Upload CV Only</h3>
-                <p style={{ fontSize: 13, color: T.textMuted, textAlign: "center", margin: "0 0 16px" }}>
-                  Upload your CV and complete your profile later from your dashboard
-                </p>
-                <ul style={{ listStyle: "none", padding: 0, margin: "0 0 20px", fontSize: 13, color: T.textMuted }}>
-                  <li style={{ marginBottom: 6 }}>⚡ Quick — takes 1 minute</li>
-                  <li style={{ marginBottom: 6 }}>📂 CV saved to your profile</li>
-                  <li style={{ marginBottom: 6 }}>📋 Can complete profile later</li>
-                </ul>
-                <button style={{ ...S.btnNext, width: "100%", justifyContent: "center", background: T.slate }}>
-                  Upload CV →
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    };
-
-    /* ─── CV UPLOAD ─── */
-    renderCVUpload = () => {
-      const { formMessage, cvUploading } = this.state;
-      return (
-        <div style={S.wrap}>
-          <Helmet><title>Candidate | Upload CV</title></Helmet>
-          <div style={{ ...S.inner, maxWidth: 560 }}>
-            <button style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", fontSize: 14, marginBottom: "1.5rem", padding: 0 }}
-              onClick={() => this.setState({ registrationType: null })}>
-              ← Back
-            </button>
-            <h1 style={S.pageTitle}>Upload Your CV</h1>
-            <p style={{ ...S.pageSub, marginBottom: "1.5rem" }}>We'll save your CV and you can complete your profile from the dashboard</p>
-
-            {formMessage && (
-              <div style={formMessage.type === "success" ? S.alertSuccess : formMessage.type === "info" ? S.alertInfo : S.alertError}>
-                <span>{formMessage.text}</span>
-                <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "inherit" }}
-                  onClick={() => this.setState({ formMessage: null })}>×</button>
-              </div>
-            )}
-
-            <div style={S.cvDropzone}>
-              <div style={{ fontSize: 36, marginBottom: 8 }}>📄</div>
-              <div style={{ fontSize: 15, fontWeight: 500, color: T.primary2, marginBottom: 4 }}>Click to upload your CV</div>
-              <div style={{ fontSize: 12, color: T.textMuted, marginBottom: "1.2rem" }}>PDF, DOC, DOCX — Max 3MB</div>
-              <input type="file"
-                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                style={{ ...S.fieldInput, maxWidth: 280, margin: "0 auto", background: "#fff" }}
-                disabled={cvUploading}
-                onChange={this.handleCVUpload}
-              />
-              {cvUploading && (
-                <div style={{ marginTop: 12, fontSize: 13, color: T.textMuted }}>
-                  Uploading...
-                </div>
-              )}
-            </div>
-
-            <p style={{ textAlign: "center", fontSize: 13, color: T.textMuted, marginTop: "1.5rem" }}>
-              Want to fill manually instead?{" "}
-              <button style={{ background: "none", border: "none", color: T.primary, cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}
-                onClick={() => this.setState({ registrationType: "manual" })}>
-                Click here
-              </button>
+  renderResumeScreen = () => {
+    const { formMessage, cvUploading } = this.state;
+    return (
+      <div className="cr-wrap">
+        <Helmet><title>Candidate | Registration</title></Helmet>
+        <div className="cr-inner" style={{ maxWidth: 560 }}>
+          <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+            <h1 className="cr-page-title">Start Your Profile</h1>
+            <p className="cr-page-sub">
+              Upload your resume and we'll prefill the form for you — or skip and fill everything in manually.
             </p>
           </div>
-        </div>
-      );
-    };
 
-    /* ─── CV SUCCESS ─── */
-    renderCVSuccess = () => (
-      <div style={{ ...S.wrap, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <Helmet><title>Candidate | CV Uploaded</title></Helmet>
-        <div style={{ textAlign: "center", maxWidth: 420 }}>
-          <div style={{ width: 72, height: 72, borderRadius: "50%", background: T.primary3, border: `2px solid ${T.primary4}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1.2rem" }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="2.5"><polyline points="20,6 9,17 4,12"/></svg>
+          {formMessage && (
+            <div className={`cr-alert ${formMessage.type === "success" ? "cr-alert-success" : formMessage.type === "info" ? "cr-alert-info" : "cr-alert-error"}`}>
+              <span>{formMessage.text}</span>
+              <button className="cr-alert-close" onClick={() => this.setState({ formMessage: null })}>×</button>
+            </div>
+          )}
+
+          <div className="cr-cv-dropzone">
+            <div style={{ fontSize: 36, marginBottom: 8 }}>📄</div>
+            <div style={{ fontSize: 15, fontWeight: 500, color: "#36565f", marginBottom: 4 }}>
+              Click to upload your resume
+            </div>
+            <div style={{ fontSize: 12, color: "#6b7280", marginBottom: "1.2rem" }}>
+              PDF, DOC, DOCX — max 3MB
+            </div>
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              className="cr-field-input"
+              style={{ maxWidth: 280, margin: "0 auto", background: "#fff" }}
+              disabled={cvUploading}
+              onChange={this.handleCVUpload}
+            />
+            {cvUploading && (
+              <div style={{ marginTop: 12, fontSize: 13, color: "#6b7280" }}>
+                ⏳ Parsing your resume, please wait…
+              </div>
+            )}
           </div>
-          <h2 style={{ ...S.pageTitle, marginBottom: 8 }}>CV Uploaded Successfully!</h2>
-          <p style={{ fontSize: 14, color: T.textMuted, marginBottom: "2rem" }}>
-            Your CV has been saved. You can complete your profile anytime from your dashboard.
+
+          <p style={{ textAlign: "center", fontSize: 13, color: "#6b7280", marginTop: "1.5rem" }}>
+            Prefer to fill everything yourself?{" "}
+            <button
+              style={{ background: "none", border: "none", color: "#36565f", cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}
+              onClick={this.skipResumeUpload}
+            >
+              Skip and fill manually
+            </button>
           </p>
-          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <button style={S.btnNext}
-              onClick={() => { localStorage.clear(); sessionStorage.clear(); window.location.replace("/login"); }}>
-              Go to login →
-            </button>
-            <button style={S.btnPrev}
-              onClick={() => this.setState({ registrationType: "manual", cvUploadDone: false, cvExtracted: null })}>
-              Complete profile now
-            </button>
-          </div>
         </div>
       </div>
     );
+  };
 
-    /* ─── MAIN RENDER ─── */
-    render() {
-      const { step, formData, formMessage, photoMessage, registrationType, cvUploadDone } = this.state;
+  /* ───────────────────────── full form screen ───────────────────────── */
 
-      // if (!registrationType) return this.renderTypeSelection();
-      // if (registrationType === "cv_only" && !cvUploadDone) return this.renderCVUpload();
-      // if (registrationType === "cv_only" && cvUploadDone) return this.renderCVSuccess();
+  renderFullForm = () => {
+    const { formData, formMessage } = this.state;
 
-      const { icon, title, progress } = this.getStepMeta();
+    return (
+      <div className="cr-wrap">
+        <Helmet><title>Candidate | Registration</title></Helmet>
+        <div className="cr-inner">
+          <h1 className="cr-page-title">Complete Your Profile</h1>
+          <p className="cr-page-sub">Review the fields below — anything from your resume is already filled in — then submit.</p>
 
-      return (
-        <div style={S.wrap}>
-          <Helmet><title>Candidate | Registration</title></Helmet>
-          <div style={S.inner}>
-            <h1 style={S.pageTitle}>Candidate Registration</h1>
-            <p style={S.pageSub}>Complete your profile to get matched with the right employers</p>
+          {formMessage && (
+            <div className={`cr-alert ${formMessage.type === "success" ? "cr-alert-success" : formMessage.type === "info" ? "cr-alert-info" : "cr-alert-error"}`}>
+              <span>{formMessage.text}</span>
+              <button className="cr-alert-close" onClick={() => this.setState({ formMessage: null })}>×</button>
+            </div>
+          )}
 
-            {formMessage && (
-              <div style={formMessage.type === "success" ? S.alertSuccess : formMessage.type === "info" ? S.alertInfo : S.alertError}>
-                <span>{formMessage.text}</span>
-                <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "inherit" }}
-                  onClick={() => this.setState({ formMessage: null })}>×</button>
-              </div>
+          <Formik
+            enableReinitialize={true}
+            innerRef={this.formikRef}
+            initialValues={formData}
+            validationSchema={this.fullSchema}
+            onSubmit={(values, { setSubmitting }) => { setSubmitting(false); }}
+          >
+            {({ values, setFieldValue, handleSubmit, errors, touched, setFieldError, setFieldTouched }) => (
+              <Form onSubmit={handleSubmit}>
+                <div className="cr-card">
+                  <div className="cr-card-header">
+                    <div className="cr-card-header-icon">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#36565f" strokeWidth="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                    </div>
+                    <span className="cr-card-header-title">Candidate Profile</span>
+                  </div>
+                  <div className="cr-card-body">
+                    
+                    {this.renderPersonalDetails(values, setFieldValue, errors, touched)}
+                    {this.renderEducation(values, setFieldValue)}
+                    {this.renderExperience(values, setFieldValue)}
+                    {this.renderResume(values, setFieldValue, errors, touched, setFieldTouched, setFieldError)}
+                    {this.renderAvailability()}
+                  </div>
+                  <div className="cr-card-footer">
+                    <span />
+                    <button type="button" className="cr-btn-next" disabled={this.state.entries.length === 0}
+                      onClick={() => this.handleFinalSubmit(values)}>
+                      Submit profile ✓
+                    </button>
+                  </div>
+                </div>
+              </Form>
             )}
-
-            {this.renderStepper()}
-
-            <Formik
-              enableReinitialize={true}
-              innerRef={this.formikRef}
-              initialValues={formData}
-              validationSchema={this.stepSchemas[step - 1]}
-              onSubmit={this.handleSubmit}
-            >
-              {({ values, setFieldValue, handleSubmit, errors, touched, setFieldError, setFieldTouched }) => (
-                <Form onSubmit={handleSubmit}>
-                  {this.renderCard(
-                    icon, title, step, progress,
-                    this.renderStep(values, setFieldValue, errors, touched, setFieldTouched, setFieldError),
-                    /* footer left */
-                    step > 1
-                      ? <button type="button" style={S.btnPrev} onClick={this.prevStep}>← Previous</button>
-                      : <span />,
-                    /* footer right */
-                    step < 5
-                      ? <button type="button" style={S.btnNext} onClick={() => this.handleSaveAndNext(values)}>
-                          Save & next
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><polyline points="9,18 15,12 9,6"/></svg>
-                        </button>
-                      : <button type="button" style={{ ...S.btnNext, opacity: this.state.entries.length === 0 ? 0.5 : 1 }}
-                          onClick={() => this.handleSubmit(values, { setSubmitting: () => {} })}
-                          disabled={this.state.entries.length === 0}>
-                          Submit profile ✓
-                        </button>
-                  )}
-                </Form>
-              )}
-            </Formik>
-          </div>
+          </Formik>
         </div>
-      );
-    }
-  }
+      </div>
+    );
+  };
 
-  export default CandidateRegisterForm;
+  /* ───────────────────────── main render ───────────────────────── */
+
+render() {
+    return this.renderFullForm();
+  }
+}
+
+export default CandidateRegisterForm;

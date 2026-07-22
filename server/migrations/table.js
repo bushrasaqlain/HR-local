@@ -76,6 +76,7 @@ const alertSettingsModel = require("../models/alertSettingsModel");
 const creditModel = require("../models/creditModel");
 const contactModel = require("../models/contactModel");
 const revenuerecordModel = require("../models/revenuerecordModel");
+const screeningModel = require("../models/screeningModel");
 // const { default: candidate } = require('../../src/components/regadmin-dashboard/candidate');
 
 function Database() {
@@ -130,6 +131,8 @@ function Database() {
   candidateModel.createProfileViewsTable();
   revenuerecordModel.createBillingEvents();
   revenuerecordModel.createDailySpendLog();
+  screeningModel.createScreeningQuestionsTable();
+  screeningModel.createApplicationAnswersTable();
   
 
 

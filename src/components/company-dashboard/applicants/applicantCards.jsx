@@ -18,6 +18,7 @@ const STATUS_META = {
 // ── What buttons to show per current status ──────────────────────
 const ACTIONS = {
   Pending:             ["Saved", "Interview_Scheduled"],
+  Applied:             [ "Interview_Scheduled", "Rejected"],
   Saved:               ["Interview_Scheduled", "Rejected"],
   Interview_Scheduled: ["Interview_Conducted", "Rejected"],
   Interview_Conducted: [ "Considered", "Offered", "Rejected"],

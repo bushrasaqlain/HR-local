@@ -5,9 +5,12 @@ const app = require("./server/app");
 
 const connectDB = () =>
   new Promise((resolve, reject) => {
-    connection.connect((err) => {
+    connection.getConnection((err, conn) => {
       if (err) reject(err);
-      else resolve();
+      else {
+        conn.release();
+        resolve();
+      }
     });
   });
 

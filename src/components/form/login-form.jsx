@@ -192,7 +192,7 @@ class FormContent extends Component {
         <div className="avatar-circle">
           <i className="las la-user"></i>
         </div>
-        <h3 className="text-center mb-4">Login to Superio</h3>
+        <h3 className="text-center mb-4">Login to Hunar</h3>
 
         <Form onSubmit={this.handleSubmit}>
           {this.state.successMessage && (

@@ -15,11 +15,10 @@ class Hero extends Component {
   render() {
     return (
       <section className="position-relative w-100" style={{ height: "100vh" }}>
-
         {/* Background Image */}
         <div className="position-absolute w-100 h-100">
           <Image
-            src="/images/background/new1.jpg.jpg"
+            src="/images/background/45.jpg"
             alt="Hero Background"
             layout="fill"
             objectFit="cover"
@@ -39,13 +38,12 @@ class Hero extends Component {
             <source src="/videos/hero.mp4" type="video/mp4" />
           </video> */}
 
-
           {/* Overlay */}
           <div
             className="position-absolute top-0 start-0 w-100 h-100"
             style={{
-              backgroundColor: "rgba(0,0,0,0.6)",
-              backdropFilter: "blur(2px)",
+              backgroundColor: "rgba(0, 0, 0, 0.6)",
+              backdropFilter: "blur(3px)",
               WebkitBackdropFilter: "blur(5px)",
             }}
           ></div>
@@ -58,7 +56,6 @@ class Hero extends Component {
         >
           <div className="row">
             <div className="col-lg-6 col-md-8 col-sm-12">
-
               {/* 🔷 Animated Heading */}
               <motion.h1
                 initial={{ opacity: 0, y: 60 }}
@@ -66,7 +63,7 @@ class Hero extends Component {
                 transition={{ duration: 0.8 }}
                 className="fw-bold text-white mb-3"
               >
-                FIND TOP TALENT READY TO MAKE AN IMPACT
+                CONNECT WITH TALENT BUILT TO DELIVER
               </motion.h1>
 
               {/* 🔷 Animated Text */}
@@ -76,9 +73,7 @@ class Hero extends Component {
                 transition={{ delay: 0.3, duration: 0.8 }}
                 className="mb-4 text-white"
               >
-                Are you struggling with lengthy hiring processes and unqualified
-                candidates? Superio connects you directly with high-quality,
-                motivated, job-ready talent prepared to contribute from day one.
+                Sick of drowning in resumes just to find a few people worth talking to? Hunar skips the noise and puts vetted, ready-to-go candidates right in front of you — so you can get straight to interviewing people who actually fit.
               </motion.p>
 
               {/* 🔷 Animated Button */}
@@ -91,8 +86,12 @@ class Hero extends Component {
                   <motion.a
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
-                    className="btn-lg rounded-pill ms-2 custom-btn d-inline-block text-center"
-                    style={{backgroundColor: "#1e2a2e", border: "#1e2a2e"}}
+                    className="btn-lg rounded-pill ms-2 semi -bold custom-btn d-inline-block text-center text-black"
+                    style={{
+                      backgroundColor: "#fff",
+                      border: "2px solid #fff",
+                      textDecoration: "none",
+                    }}
                   >
                     Register
                   </motion.a>
@@ -102,15 +101,11 @@ class Hero extends Component {
               {/* Button Style */}
               <style jsx>{`
                 .custom-btn {
-                  border: 2px solid #000;
-                  background-color: #000;
-                  color: #fff;
                   padding: 10px 30px;
                   font-size: 16px;
                   transition: all 0.3s ease;
                 }
               `}</style>
-
             </div>
           </div>
         </div>

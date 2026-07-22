@@ -10,13 +10,19 @@ import {
 import { withRouter } from "next/router";
 
 const navStyles = `
-  .nav-underline-item {
-    position: relative;
-  }
+  /* Add this to your header/navbar wrapper element */
+  .navbar-glass {
+  background: rgba(30, 50, 56, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.15);
+}
+  .nav-underline-item { position: relative; }
 
   .nav-underline-link {
     position: relative;
-    color: #36565F !important;
+    color: inherit !important;
     font-weight: 500;
     padding: 8px 14px !important;
     border-radius: 0 !important;
@@ -28,11 +34,12 @@ const navStyles = `
   .nav-underline-link::after {
     content: '';
     position: absolute;
+     color: inherit !important;
     bottom: 0;
     left: 14px;
     right: 14px;
     height: 2px;
-    background-color: #36565F;
+    background-color: #fff;
     border-radius: 2px;
     transform: scaleX(0);
     transform-origin: center;
@@ -40,17 +47,11 @@ const navStyles = `
   }
 
   .nav-underline-link:hover::after,
-  .nav-underline-link.active-link::after {
-    transform: scaleX(1);
-  }
+  .nav-underline-link.active-link::after { transform: scaleX(1); }
 
-  .nav-underline-link.active-link {
-    font-weight: 600 !important;
-  }
+  .nav-underline-link.active-link { font-weight: 600 !important; }
 
-  .nav-underline-link:hover {
-    color: #1e3d44 !important;
-  }
+  .nav-underline-link:hover { color: #fff !important; }
 `;
 
 const navItems = [
@@ -91,4 +92,4 @@ class HeaderNavContent extends Component {
   }
 }
 
-export default withRouter(HeaderNavContent);
+ export default withRouter(HeaderNavContent);

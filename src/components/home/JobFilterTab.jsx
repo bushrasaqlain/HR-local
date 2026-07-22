@@ -95,10 +95,10 @@ class JobFilterTab extends Component {
     return (
       <>
         <Container fluid ref={this.sectionRef}>
-          <div className="row text-center align-items-center py-5">
+          <div className="row text-center align-items-center">
 
             <div className="col-md-4 mb-4 mb-md-0">
-              <h2 className="fw-bold text-primary">
+              <h2 className="fw-bold text-black">
                 {this.state.jobseekers.toLocaleString()}+
               </h2>
               <h5 className="fw-semibold">Registered Jobseekers</h5>
@@ -108,7 +108,7 @@ class JobFilterTab extends Component {
             </div>
 
             <div className="col-md-4 mb-4 mb-md-0">
-              <h2 className="fw-bold text-primary">
+              <h2 className="fw-bold text-black">
                 {this.state.successRate}%
               </h2>
               <h5 className="fw-semibold">Success Rate</h5>
@@ -118,7 +118,7 @@ class JobFilterTab extends Component {
             </div>
 
             <div className="col-md-4">
-              <h2 className="fw-bold text-primary">
+              <h2 className="fw-bold text-black">
                 {this.state.diversity}%
               </h2>
               <h5 className="fw-semibold">Diverse Candidates</h5>

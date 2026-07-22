@@ -68,6 +68,7 @@ class AllApplicants extends Component {
     jobMessage: "",
     jobSearch: "",
   showJobDropdown: false,
+  activeTab: "applicants",
   isTyping: false,
   };
 
@@ -176,12 +177,13 @@ fetchPostedJobs = async () => {
         };
       });
 
-      const counts = { all: candidates.length, pending: 0, shortlisted: 0, rejected: 0, approved: 0 };
+      const counts = { all: candidates.length, pending: 0, shortlisted: 0, rejected: 0, approved: 0,applied: 0 };
       candidates.forEach(a => {
         if (a.candidateStatus === "Pending") counts.pending++;
         if (a.candidateStatus === "Shortlisted") counts.shortlisted++;
         if (a.candidateStatus === "Rejected") counts.rejected++;
         if (a.candidateStatus === "Approved") counts.approved++;
+        if (a.has_applied) counts.applied++; 
       });
 
       this.setState({
@@ -241,19 +243,24 @@ fetchPostedJobs = async () => {
 
   handlePageChange = (page) => this.setState({ currentPage: page });
 
-  filterApplicants = () => {
-    const { allApplicants, searchFilters, selectedStatus, selectedCityId } = this.state;
-    const query = searchFilters?.query?.toLowerCase() || "";
-    return allApplicants.filter(c => {
-      const statusMatch = selectedStatus ? String(c.candidateStatus || "").trim().toLowerCase() === selectedStatus.toLowerCase() : true;
-      const cityMatch = selectedCityId
-        ? Number(c.city) === Number(selectedCityId) || c.otherPreferredCities?.some(city => Number(city.id) === Number(selectedCityId))
-        : true;
-      const searchMatch = !query || c.locked || c.full_name?.toLowerCase().includes(query) || c.email?.toLowerCase().includes(query);
-      return statusMatch && cityMatch && searchMatch;
-    });
-  };
+filterApplicants = () => {
+  const { allApplicants, searchFilters, selectedStatus, selectedCityId, activeTab } = this.state;
+  const query = searchFilters?.query?.toLowerCase() || "";
+  return allApplicants.filter(c => {
+    const tabMatch = activeTab === "applicants" ? c.has_applied === true : true;
 
+    // ← only apply the status filter when NOT on the "applicants" tab
+    const statusMatch = activeTab === "applicants"
+      ? true
+      : (selectedStatus ? String(c.candidateStatus || "").trim().toLowerCase() === selectedStatus.toLowerCase() : true);
+
+    const cityMatch = selectedCityId
+      ? Number(c.city) === Number(selectedCityId) || c.otherPreferredCities?.some(city => Number(city.id) === Number(selectedCityId))
+      : true;
+    const searchMatch = !query || c.locked || c.full_name?.toLowerCase().includes(query) || c.email?.toLowerCase().includes(query);
+    return tabMatch && statusMatch && cityMatch && searchMatch;
+  });
+};
   renderBudgetBanner() {
     const { budgetStatus } = this.state;
     if (!budgetStatus || budgetStatus.model !== "daily_budget") return null;
@@ -287,6 +294,7 @@ fetchPostedJobs = async () => {
     const showSplit = splitViewActive && selectedCandidate && !mobile;
     const showMobileDetail = mobileDetailView && selectedCandidate && mobile;
     const showList = !showSplit && !showMobileDetail;
+    
 
     return (
       <>
@@ -404,7 +412,21 @@ fetchPostedJobs = async () => {
     )}
   </div>
 </div>
-
+<div className="d-flex gap-2 mb-3">
+  {[
+    { key: "applicants", label: `Applicants (${counts.applied || 0})` },
+    { key: "search", label: "Search Candidates" },
+  ].map(tab => (
+    <button
+      key={tab.key}
+      className={`btn btn-sm rounded-pill ${this.state.activeTab === tab.key ? "text-white" : "btn-outline-secondary"}`}
+      style={this.state.activeTab === tab.key ? { background: BRAND } : {}}
+      onClick={() => this.setState({ activeTab: tab.key, currentPage: 1 })}
+    >
+      {tab.label}
+    </button>
+  ))}
+</div>
             {this.state.jobMessage && <div className="alert alert-warning">{this.state.jobMessage}</div>}
 
             {this.state.showFilters && (
@@ -502,11 +524,11 @@ fetchPostedJobs = async () => {
                         <div className="table-responsive">
                           <table className="table align-middle mb-0">
                             <thead>
-                              <tr style={{ background: BRAND }}>
-                                {["Candidate", "Status", "Location", "Match", "Action"].map(h => (
-                                  <th key={h} className="text-white fw-semibold small py-3 text-center">{h}</th>
-                                ))}
-                              </tr>
+                             <tr style={{ background: BRAND }}>
+  {["Candidate", "Status", "Location", "Match", ...(this.state.activeTab === "applicants" ? ["Action"] : [])].map(h => (
+    <th key={h} className="text-white fw-semibold small py-3 text-center">{h}</th>
+  ))}
+</tr>
                             </thead>
                             <tbody>
                               {current.map(c => {
@@ -538,8 +560,29 @@ fetchPostedJobs = async () => {
                                     <td className="text-center">
                                       <span className="badge bg-light text-secondary border rounded-pill">📍 {c.city_name || "Not specified"}</span>
                                     </td>
-                                    <td className="text-center"><TierBadge candidate={c} /></td>
-                                    <td className="text-center">
+                                   <td className="text-center"><TierBadge candidate={c} /></td>
+{this.state.activeTab === "applicants" && (
+  <td className="text-center">
+    {isLocked ? (
+      <button
+        className="btn btn-sm rounded-pill text-white"
+        style={{ background: budgetExhausted ? "#aaa" : "linear-gradient(135deg,#667eea,#764ba2)", fontSize: 12 }}
+        disabled={isUnlocking || budgetExhausted}
+        onClick={e => { e.stopPropagation(); if (!budgetExhausted) this.unlockCandidate(cId); }}
+        title={budgetExhausted ? "Daily budget exhausted" : `Unlock for PKR ${budgetStatus?.cost_per_click || ""}`}
+      >
+        {isUnlocking ? <><i className="fas fa-spinner fa-spin me-1" />Unlocking...</>
+          : budgetExhausted ? "🔒 Budget full"
+          : `🔓 Unlock${budgetStatus?.cost_per_click ? ` (PKR ${budgetStatus.cost_per_click})` : ""}`}
+      </button>
+    ) : c.has_applied ? (
+      <span className="badge rounded-pill bg-success-subtle text-success border border-success-subtle" style={{ fontSize: 11 }}>✓ Applied</span>
+    ) : (
+      <span className="text-muted">—</span>
+    )}
+  </td>
+)}
+                                    {/* <td className="text-center">
                                       {isLocked ? (
                                         <button
                                           className="btn btn-sm rounded-pill text-white"
@@ -557,7 +600,7 @@ fetchPostedJobs = async () => {
                                       ) : (
                                         <span className="text-muted">—</span>
                                       )}
-                                    </td>
+                                    </td> */}
                                   </tr>
                                 );
                               })}

@@ -109,7 +109,7 @@ class EditProfile extends Component {
     if (faceapiLoaded) return; // already loaded, skip
 
     // Dynamically import so it only runs in the browser
-    faceapi = await import("face-api.js");
+    faceapi = await import("@vladmandic/face-api");
     faceapiLoaded = true;
 
     const MODEL_URL = "/models";
@@ -920,6 +920,9 @@ class EditProfile extends Component {
     return (
       <>
         <h5 className="mb-3">Links</h5>
+        <p className="text-muted mb-3" style={{ fontSize: "0.9rem" }}>
+  Add your LinkedIn profile or other professional/social media links to strengthen your profile.
+</p>
 
         <table className="table table-bordered align-middle">
           <thead>
