@@ -55,8 +55,8 @@ const CANDIDATE_ROUTE_MAP = {
   lists: "/candidate/job-list",
   appliedJobs: "/candidate/applied-jobs",
   register: "/candidate/register",
-  candidatewallet: "/candidate/wallet", 
-   messages: "/candidate/messages",      
+  candidatewallet: "/candidate/wallet",
+  messages: "/candidate/messages",
   jobAlerts: "/candidate/job-alerts",
 };
 
@@ -100,6 +100,7 @@ class DashboardHeader extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      userAvatarUrl: null,
       jobAlertSelectedId: null,
       navbar: false,
       userDropdownOpen: false,
@@ -142,6 +143,13 @@ class DashboardHeader extends Component {
         userInfo: { userId, displayName, accountType, profileCompleted },
       });
       window.addEventListener("scroll", this.changeBackground);
+
+      if (accountType === "employer") {
+        this.fetchCompanyLogo(userId);
+      } else if (accountType === "candidate") {
+        this.fetchCandidatePhoto(userId);
+      }
+
       return;
     }
 
@@ -205,6 +213,12 @@ class DashboardHeader extends Component {
     }
 
     window.addEventListener("scroll", this.changeBackground);
+
+    if (accountType === "employer") {
+      this.fetchCompanyLogo(userId);
+    } else if (accountType === "candidate") {
+      this.fetchCandidatePhoto(userId);
+    }
   }
 
   componentWillUnmount() {
@@ -221,6 +235,36 @@ class DashboardHeader extends Component {
       isMobileMenuOpen: !prev.isMobileMenuOpen,
       openMobileDropdown: null,
     }));
+  };
+
+  fetchCompanyLogo = async (userId) => {
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    try {
+      const res = await axios.get(`${apiBaseUrl}company-info/getcompanyviaids/${userId}`);
+      if (res.data?.logo) {
+        this.setState({ userAvatarUrl: `data:image/png;base64,${res.data.logo}` });
+      }
+    } catch (err) {
+      console.error("Logo fetch failed:", err);
+    }
+  };
+
+  fetchCandidatePhoto = async (userId) => {
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    try {
+      const token = sessionStorage.getItem("token");
+      const res = await axios.get(`${apiBaseUrl}candidateProfile/candidate/`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data?.passport_photo) {
+        const baseUrl = apiBaseUrl.replace(/\/$/, "");
+        this.setState({
+          userAvatarUrl: `${baseUrl}${res.data.passport_photo}`
+        });
+      }
+    } catch (err) {
+      console.error("Candidate photo fetch failed:", err);
+    }
   };
 
   fetchPackagesForNotifications = async (userId) => {
@@ -472,7 +516,7 @@ class DashboardHeader extends Component {
             item.key === "profile" ||
             item.key === "lists" ||
             item.key === "appliedJobs" ||
-            item.key === "chatbox"||
+            item.key === "chatbox" ||
             item.key === "candidatewallet",
         )
         : candidatesmenuitem.filter((item) => item.key === "register");
@@ -668,7 +712,22 @@ class DashboardHeader extends Component {
                 </span>
                 <Dropdown isOpen={userDropdownOpen} toggle={this.toggleUserDropdown}>
                   <DropdownToggle tag="span">
-                    <i className="las la-user-circle fs-2 text-white cursor-pointer"></i>
+                    {this.state.userAvatarUrl ? (
+                      <img
+                        src={this.state.userAvatarUrl}
+                        alt="user"
+                        style={{
+                          width: "36px",
+                          height: "36px",
+                          borderRadius: "50%",
+                          objectFit: "cover",
+                          border: "2px solid rgba(255,255,255,0.6)",
+                          cursor: "pointer",
+                        }}
+                      />
+                    ) : (
+                      <i className="las la-user-circle fs-2 text-white cursor-pointer"></i>
+                    )}
                   </DropdownToggle>
                   <DropdownMenu end>
                     {dropdownItem(userId, accountType).map((item) => (

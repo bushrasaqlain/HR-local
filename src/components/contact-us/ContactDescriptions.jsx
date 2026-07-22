@@ -21,6 +21,7 @@ const ContactDescriptions = () => {
         subject: "",
         userType: "",
         message: "",
+        category: "general",
     });
     const [submitted, setSubmitted] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -258,6 +259,25 @@ const ContactDescriptions = () => {
                                             {userTypeLabel || "—"}
                                         </div>
                                     </div>
+
+                                    <div className="mb-3">
+                                        <label className="form-label fw-semibold">Category</label>
+                                        <select
+                                            name="category"
+                                            className="form-control"
+                                            value={formData.category}
+                                            onChange={handleChange}
+                                            required
+                                            style={{ borderRadius: "8px", padding: "10px 14px" }}
+                                        >
+                                            <option value="general">General</option>
+                                            <option value="bug">Bug / Issue</option>
+                                            <option value="suggestion">Suggestion</option>
+                                            <option value="account_issue">Account Issue</option>
+                                            <option value="payment">Payment</option>
+                                        </select>
+                                    </div>
+
 
                                     {/* Message */}
                                     <div className="mb-4">

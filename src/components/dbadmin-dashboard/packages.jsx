@@ -18,6 +18,25 @@ import {
 import AsyncSelect from "react-select/async";
 import "bootstrap-icons/font/bootstrap-icons.css";
 
+const tealSelectStyles = {
+  control: (base, state) => ({
+    ...base,
+    borderColor: state.isFocused ? "#36565F" : "#ccc",
+    boxShadow: state.isFocused ? "0 0 0 1px #36565F" : "none",
+    "&:hover": { borderColor: "#36565F" },
+  }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected
+      ? "#36565F"
+      : state.isFocused
+        ? "#e8eef0"
+        : "#fff",
+    color: state.isSelected ? "#fff" : "#000",
+    cursor: "pointer",
+  }),
+};
+
 // ─── Pricing model definitions ────────────────────────────────────────────────
 const PRICING_MODELS = [
   {
@@ -157,6 +176,17 @@ class Packages extends Component {
       currentPage: 1,
       totalPackages: 0,
       isActive: "all",
+      statusDropdownOpen: false,
+      packageTypeDropdownOpen: false,
+      statusDropdownOpen: false,
+      packageTypeDropdownOpen: false,
+      billingModelDropdownOpen: false,
+      qualificationFilterDropdownOpen: false,
+      billingCycleDropdownOpen: false,
+      unlockScopeDropdownOpen: false,
+      boostTypeDropdownOpen: false,
+      boostDurationDropdownOpen: false,
+      durationDaysDropdownOpen: false,
     };
     this.itemsPerPage = 50;
     this.apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -669,6 +699,76 @@ class Packages extends Component {
     return `${item.price ?? "—"} ${cur}`;
   };
 
+  renderCustomSelect = (name, value, options, dropdownKey) => {
+    const isOpen = this.state[dropdownKey];
+    const selectedLabel =
+      options.find((o) => String(o.value) === String(value))?.label ||
+      options[0]?.label;
+
+    return (
+      <div style={{ position: "relative" }}>
+        <button
+          type="button"
+          className="form-select text-start custom-dropdown-btn"
+          style={{ cursor: "pointer" }}
+          onClick={() =>
+            this.setState((prev) => ({ [dropdownKey]: !prev[dropdownKey] }))
+          }
+        >
+          {selectedLabel}
+        </button>
+
+        {isOpen && (
+          <div
+            className="shadow-sm"
+            style={{
+              position: "absolute",
+              top: "100%",
+              left: 0,
+              right: 0,
+              zIndex: 1000,
+              background: "#fff",
+              border: "1px solid #ccc",
+              borderRadius: "6px",
+              marginTop: "2px",
+              maxHeight: "220px",
+              overflowY: "auto",
+            }}
+          >
+            {options.map((opt) => (
+              <div
+                key={opt.value}
+                onClick={() => {
+                  this.handleInputChange({
+                    target: { name, value: opt.value, type: "text" },
+                  });
+                  this.setState({ [dropdownKey]: false });
+                }}
+                style={{
+                  padding: "8px 12px",
+                  cursor: "pointer",
+                  backgroundColor:
+                    String(value) === String(opt.value) ? "#36565F" : "#fff",
+                  color: String(value) === String(opt.value) ? "#fff" : "#000",
+                }}
+                onMouseEnter={(e) => {
+                  if (String(value) !== String(opt.value))
+                    e.currentTarget.style.backgroundColor = "#e8eef0";
+                }}
+                onMouseLeave={(e) => {
+                  if (String(value) !== String(opt.value))
+                    e.currentTarget.style.backgroundColor = "#fff";
+                }}
+              >
+                {opt.label}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   renderModelSummaryCell = (item) => {
     const pm = item.pricing_model;
     if (pm === "daily_budget")
@@ -732,15 +832,15 @@ class Packages extends Component {
               <label className="form-label fw-semibold">
                 Billing model <span className="text-danger">*</span>
               </label>
-              <select
-                name="billing_model"
-                value={FormData.billing_model}
-                onChange={this.handleInputChange}
-                className="form-select"
-              >
-                <option value="ppv">PPV — Per Profile View</option>
-                <option value="pps">PPS — Per Shortlist</option>
-              </select>
+              {this.renderCustomSelect(
+                "billing_model",
+                FormData.billing_model,
+                [
+                  { value: "ppv", label: "PPV — Per Profile View" },
+                  { value: "pps", label: "PPS — Per Shortlist" },
+                ],
+                "billingModelDropdownOpen"
+              )}
             </div>
           </Col>
           <Col md={6}>
@@ -866,16 +966,16 @@ class Packages extends Component {
           <Col md={6}>
             <div className="mb-3">
               <label className="form-label fw-semibold">Qualification filter</label>
-              <select
-                name="qualification_filter"
-                value={FormData.qualification_filter}
-                onChange={this.handleInputChange}
-                className="form-select"
-              >
-                <option value="any">Any application received</option>
-                <option value="screened">Passed screening questions</option>
-                <option value="viewed">Employer opened profile</option>
-              </select>
+              {this.renderCustomSelect(
+                "qualification_filter",
+                FormData.qualification_filter,
+                [
+                  { value: "any", label: "Any application received" },
+                  { value: "screened", label: "Passed screening questions" },
+                  { value: "viewed", label: "Employer opened profile" },
+                ],
+                "qualificationFilterDropdownOpen"
+              )}
               <small className="text-muted">Only charge when applicant meets this bar</small>
             </div>
           </Col>
@@ -915,16 +1015,16 @@ class Packages extends Component {
           <Col md={6}>
             <div className="mb-3">
               <label className="form-label fw-semibold">Billing cycle</label>
-              <select
-                name="billing_cycle"
-                value={FormData.billing_cycle}
-                onChange={this.handleInputChange}
-                className="form-select"
-              >
-                <option value="monthly">Monthly</option>
-                <option value="quarterly">Quarterly</option>
-                <option value="annual">Annual</option>
-              </select>
+              {this.renderCustomSelect(
+                "billing_cycle",
+                FormData.billing_cycle,
+                [
+                  { value: "monthly", label: "Monthly" },
+                  { value: "quarterly", label: "Quarterly" },
+                  { value: "annual", label: "Annual" },
+                ],
+                "billingCycleDropdownOpen"
+              )}
             </div>
           </Col>
           <Col md={6}>
@@ -1006,19 +1106,19 @@ class Packages extends Component {
                 <label className="form-label fw-semibold">
                   Boost duration <span className="text-danger">*</span>
                 </label>
-                <select
-                  name="duration_days"
-                  value={FormData.duration_days}
-                  onChange={this.handleInputChange}
-                  className="form-select"
-                >
-                  <option value="7">7 days</option>
-                  <option value="14">14 days</option>
-                  <option value="30">30 days</option>
-                  <option value="60">60 days</option>
-                  <option value="90">90 days</option>
-                  <option value="custom">Custom…</option>
-                </select>
+                {this.renderCustomSelect(
+                  "duration_days",
+                  FormData.duration_days,
+                  [
+                    { value: "7", label: "7 days" },
+                    { value: "14", label: "14 days" },
+                    { value: "30", label: "30 days" },
+                    { value: "60", label: "60 days" },
+                    { value: "90", label: "90 days" },
+                    { value: "custom", label: "Custom…" },
+                  ],
+                  "durationDaysDropdownOpen"
+                )}
                 <small className="text-muted">Your profile will remain featured for the selected number of days</small>
               </div>
             </Col>
@@ -1069,17 +1169,17 @@ class Packages extends Component {
               <label className="form-label fw-semibold">
                 Posting duration <span className="text-danger">*</span>
               </label>
-              <select
-                name="duration_days"
-                value={FormData.duration_days}
-                onChange={this.handleInputChange}
-                className="form-select"
-              >
-                <option value="30">30 days</option>
-                <option value="60">60 days</option>
-                <option value="90">90 days</option>
-                <option value="custom">Custom…</option>
-              </select>
+              {this.renderCustomSelect(
+                "duration_days",
+                FormData.duration_days,
+                [
+                  { value: "30", label: "30 days" },
+                  { value: "60", label: "60 days" },
+                  { value: "90", label: "90 days" },
+                  { value: "custom", label: "Custom…" },
+                ],
+                "durationDaysDropdownOpen"
+              )}
             </div>
           </Col>
           {FormData.duration_days === "custom" && (
@@ -1203,16 +1303,16 @@ class Packages extends Component {
           <Col md={12}>
             <div className="mb-3">
               <label className="form-label fw-semibold">Unlock scope</label>
-              <select
-                name="unlock_scope"
-                value={FormData.unlock_scope}
-                onChange={this.handleInputChange}
-                className="form-select"
-              >
-                <option value="basic">Basic info only (name, title)</option>
-                <option value="contact">Contact details</option>
-                <option value="full">Full CV + contact</option>
-              </select>
+              {this.renderCustomSelect(
+                "unlock_scope",
+                FormData.unlock_scope,
+                [
+                  { value: "basic", label: "Basic info only (name, title)" },
+                  { value: "contact", label: "Contact details" },
+                  { value: "full", label: "Full CV + contact" },
+                ],
+                "unlockScopeDropdownOpen"
+              )}
             </div>
           </Col>
         </Row>
@@ -1266,36 +1366,40 @@ class Packages extends Component {
           <Col md={6}>
             <div className="mb-3">
               <label className="form-label fw-semibold">Boost type</label>
-              <select name="boost_type" value={FormData.boost_type}
-                onChange={this.handleInputChange} className="form-select">
-                {isCandidate ? (
-                  <>
-                    <option value="profile_top">Top of search results</option>
-                    <option value="highlighted_profile">Highlighted profile</option>
-                    <option value="recruiter_spotlight">Recruiter spotlight</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="top">Top of search results</option>
-                    <option value="highlighted">Highlighted listing</option>
-                    <option value="homepage">Homepage spotlight</option>
-                    <option value="email">Candidate email blast</option>
-                  </>
-                )}
-              </select>
+              {this.renderCustomSelect(
+                "boost_type",
+                FormData.boost_type,
+                isCandidate
+                  ? [
+                    { value: "profile_top", label: "Top of search results" },
+                    { value: "highlighted_profile", label: "Highlighted profile" },
+                    { value: "recruiter_spotlight", label: "Recruiter spotlight" },
+                  ]
+                  : [
+                    { value: "top", label: "Top of search results" },
+                    { value: "highlighted", label: "Highlighted listing" },
+                    { value: "homepage", label: "Homepage spotlight" },
+                    { value: "email", label: "Candidate email blast" },
+                  ],
+                "boostTypeDropdownOpen"
+              )}
             </div>
           </Col>
           <Col md={6}>
             <div className="mb-3">
               <label className="form-label fw-semibold">Boost duration</label>
-              <select name="boost_duration_days" value={FormData.boost_duration_days}
-                onChange={this.handleInputChange} className="form-select">
-                <option value="1">1 day</option>
-                <option value="3">3 days</option>
-                <option value="7">7 days</option>
-                <option value="14">14 days</option>
-                <option value="30">30 days</option>
-              </select>
+              {this.renderCustomSelect(
+                "boost_duration_days",
+                FormData.boost_duration_days,
+                [
+                  { value: "1", label: "1 day" },
+                  { value: "3", label: "3 days" },
+                  { value: "7", label: "7 days" },
+                  { value: "14", label: "14 days" },
+                  { value: "30", label: "30 days" },
+                ],
+                "boostDurationDropdownOpen"
+              )}
             </div>
           </Col>
         </Row>
@@ -1347,6 +1451,27 @@ class Packages extends Component {
     const totalPages = Math.ceil(totalPackages / this.itemsPerPage);
     const selectedModelMeta = this.getPricingModelMeta(FormData.pricing_model);
 
+    const highlightStyle = `
+    .highlight-row td {
+        background-color: #fff3cd !important;
+        transition: background-color 0.5s ease;
+    }
+
+    /* Teal theme - override Bootstrap default blue focus */
+    .form-select:focus,
+    .form-control:focus {
+        border-color: #36565F !important;
+        box-shadow: 0 0 0 0.2rem rgba(54, 86, 95, 0.25) !important;
+    }
+
+    .custom-dropdown-btn { outline: none !important; }
+.custom-dropdown-btn:focus {
+  outline: none !important;
+  border-color: #36565F !important;
+  box-shadow: 0 0 0 0.2rem rgba(54, 86, 95, 0.25) !important;
+}
+`;
+
     return (
       <React.Fragment>
         <style>{`
@@ -1355,7 +1480,7 @@ class Packages extends Component {
           @media (max-width: 576px) { .model-selector-grid { grid-template-columns: repeat(2, 1fr); } }
           .model-selector-card { border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; cursor: pointer; transition: all .18s; background: #fff; }
           .model-selector-card:hover { border-color: #94a3b8; background: #f8fafc; }
-          .model-selector-card.selected { border-color: #185FA5; background: #EBF4FF; }
+          .model-selector-card.selected { border-color: #36565F; background: #E7EEEF; }
           .model-selector-card .mc-icon { font-size: 1.3rem; margin-bottom: 4px; }
           .model-selector-card .mc-title { font-size: 0.82rem; font-weight: 600; color: #1e293b; margin-bottom: 1px; }
           .model-selector-card .mc-desc { font-size: 0.72rem; color: #64748b; line-height: 1.3; }
@@ -1375,16 +1500,68 @@ class Packages extends Component {
             <div className="institute-header-section d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
               <div className="d-flex align-items-center gap-2">
                 <span className="filter-label text-dark">Filter by Status:</span>
-                <select
-                  className="rounded-square form-select p-2"
-                  style={{ maxWidth: "200px" }}
-                  value={isActive}
-                  onChange={(e) => this.setState({ isActive: e.target.value })}
-                >
-                  <option value="all">All</option>
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
+
+                <div style={{ position: "relative", maxWidth: "200px", width: "100%" }}>
+                  <button
+                    type="button"
+                    className="form-select rounded-square p-2 text-start"
+                    style={{ cursor: "pointer" }}
+                    onClick={() =>
+                      this.setState((prev) => ({
+                        statusDropdownOpen: !prev.statusDropdownOpen,
+                      }))
+                    }
+                  >
+                    {isActive === "all" ? "All" : isActive}
+                  </button>
+
+                  {this.state.statusDropdownOpen && (
+                    <div
+                      className="shadow-sm"
+                      style={{
+                        position: "absolute",
+                        top: "100%",
+                        left: 0,
+                        right: 0,
+                        zIndex: 1000,
+                        background: "#fff",
+                        border: "1px solid #ccc",
+                        borderRadius: "6px",
+                        marginTop: "2px",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {[
+                        { label: "All", value: "all" },
+                        { label: "Active", value: "Active" },
+                        { label: "Inactive", value: "Inactive" },
+                      ].map((opt) => (
+                        <div
+                          key={opt.value}
+                          onClick={() =>
+                            this.setState({ isActive: opt.value, statusDropdownOpen: false })
+                          }
+                          style={{
+                            padding: "8px 12px",
+                            cursor: "pointer",
+                            backgroundColor: isActive === opt.value ? "#36565F" : "#fff",
+                            color: isActive === opt.value ? "#fff" : "#000",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (isActive !== opt.value)
+                              e.currentTarget.style.backgroundColor = "#e8eef0";
+                          }}
+                          onMouseLeave={(e) => {
+                            if (isActive !== opt.value)
+                              e.currentTarget.style.backgroundColor = "#fff";
+                          }}
+                        >
+                          {opt.label}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="d-flex align-items-end gap-2 flex-wrap">
                 <Button variant="dark" onClick={() => this.toggleForm()}>
@@ -1498,7 +1675,10 @@ class Packages extends Component {
                         >
                           <td className="text-center">{item.name}</td>
                           <td className="text-center">
-                            <span className={`badge ${item.package_type === "Company" ? "bg-primary" : "bg-success"} text-white`}>
+                            <span
+                              className={`badge text-white ${item.package_type !== "Company" ? "bg-success" : ""}`}
+                              style={item.package_type === "Company" ? { backgroundColor: "#4f7e8b" } : {}}
+                            >
                               {item.package_type}
                             </span>
                           </td>
@@ -1513,7 +1693,7 @@ class Packages extends Component {
                           </td>
                           <td className="text-center">
                             {item.is_featured ? (
-                              <span className="badge" style={{ background: "#378ADD", color: "#fff" }}>Yes</span>
+                              <span className="badge" style={{ background: "#4f7e8b", color: "#fff" }}>Yes</span>
                             ) : (
                               <span className="badge bg-light text-muted border">No</span>
                             )}
@@ -1528,7 +1708,7 @@ class Packages extends Component {
                           <td className="status text-center">
                             <div className="d-flex justify-content-center align-items-center gap-3">
                               <button onClick={() => this.toggleForm(item)} className="icon-btn" title="Update">
-                                <i className="bi bi-pencil-square text-primary" />
+                                <i className="bi bi-pencil-square" style={{ color: "#36565F" }} />
                               </button>
                               <button onClick={() => this.confirmDelete(item.id, item.status)} className="icon-btn"
                                 title={item.status === "Active" ? "Inactivate" : "Activate"}>
@@ -1573,16 +1753,75 @@ class Packages extends Component {
                     <label className="form-label fw-semibold">
                       Package type <span className="text-danger">*</span>
                     </label>
-                    <select
-                      name="package_type"
-                      value={FormData.package_type}
-                      onChange={this.handleInputChange}
-                      className={`form-select ${errors.package_type ? "is-invalid" : ""}`}
-                    >
-                      <option value="">Select type first</option>
-                      <option value="Company">Company — for posting jobs</option>
-                      <option value="Candidate">Candidate — for boosting profile</option>
-                    </select>
+                    <div style={{ position: "relative" }}>
+                      <button
+                        type="button"
+                        className={`form-select text-start ${errors.package_type ? "is-invalid" : ""}`}
+                        style={{ cursor: "pointer" }}
+                        onClick={() =>
+                          this.setState((prev) => ({
+                            packageTypeDropdownOpen: !prev.packageTypeDropdownOpen,
+                          }))
+                        }
+                      >
+                        {FormData.package_type === "Company"
+                          ? "Company — for posting jobs"
+                          : FormData.package_type === "Candidate"
+                            ? "Candidate — for boosting profile"
+                            : "Select type first"}
+                      </button>
+
+                      {this.state.packageTypeDropdownOpen && (
+                        <div
+                          className="shadow-sm"
+                          style={{
+                            position: "absolute",
+                            top: "100%",
+                            left: 0,
+                            right: 0,
+                            zIndex: 1000,
+                            background: "#fff",
+                            border: "1px solid #ccc",
+                            borderRadius: "6px",
+                            marginTop: "2px",
+                            overflow: "hidden",
+                          }}
+                        >
+                          {[
+                            { label: "Company — for posting jobs", value: "Company" },
+                            { label: "Candidate — for boosting profile", value: "Candidate" },
+                          ].map((opt) => (
+                            <div
+                              key={opt.value}
+                              onClick={() => {
+                                this.setState((prev) => ({
+                                  FormData: { ...prev.FormData, package_type: opt.value, pricing_model: "" },
+                                  errors: { ...prev.errors, package_type: "" },
+                                  packageTypeDropdownOpen: false,
+                                }));
+                              }}
+                              style={{
+                                padding: "8px 12px",
+                                cursor: "pointer",
+                                backgroundColor:
+                                  FormData.package_type === opt.value ? "#36565F" : "#fff",
+                                color: FormData.package_type === opt.value ? "#fff" : "#000",
+                              }}
+                              onMouseEnter={(e) => {
+                                if (FormData.package_type !== opt.value)
+                                  e.currentTarget.style.backgroundColor = "#e8eef0";
+                              }}
+                              onMouseLeave={(e) => {
+                                if (FormData.package_type !== opt.value)
+                                  e.currentTarget.style.backgroundColor = "#fff";
+                              }}
+                            >
+                              {opt.label}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     {errors.package_type && (
                       <div className="text-danger small mt-1">{errors.package_type}</div>
                     )}
@@ -1672,6 +1911,7 @@ class Packages extends Component {
                           onChange={this.handleCurrencyChange}
                           placeholder="Select Currency"
                           classNamePrefix="react-select"
+                          styles={tealSelectStyles}
                         />
                         {errors.currency && (
                           <div className="text-danger small mt-1">{errors.currency}</div>

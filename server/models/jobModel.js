@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const connection = require("../connection");
 const logAudit = require("../utils/auditLogger.js");
-const cron = require("node-cron"); 
+const cron = require("node-cron");
 const { CompanyModule } = require("@faker-js/faker");
 const { logBillingEvent, logDailySpend } = require("../utils/billingLogger");
 
@@ -629,21 +629,21 @@ const approveJob = (req, res) => {
                             .json({ success: false, message: "Commit failed" }),
                         );
                       }
- logBillingEvent({
-    account_id:    job.account_id,
-    job_id:        job.id,
-    payment_id:    payResult.insertId,
-    event_type:    'daily_budget_charge',
-    pricing_model: 'daily_budget',
-    amount:        job.daily_budget,
-    description:   `Daily budget charge on job approval: job_${job.id}`,
-  }).catch(err => console.error("billingLogger error:", err));
-  logDailySpend({
-  job_id:     job.id,
-  account_id: job.account_id,
-  amount:     job.daily_budget,
-  clicks:     0,
-}).catch(err => console.error("logDailySpend error:", err));
+                      logBillingEvent({
+                        account_id: job.account_id,
+                        job_id: job.id,
+                        payment_id: payResult.insertId,
+                        event_type: 'daily_budget_charge',
+                        pricing_model: 'daily_budget',
+                        amount: job.daily_budget,
+                        description: `Daily budget charge on job approval: job_${job.id}`,
+                      }).catch(err => console.error("billingLogger error:", err));
+                      logDailySpend({
+                        job_id: job.id,
+                        account_id: job.account_id,
+                        amount: job.daily_budget,
+                        clicks: 0,
+                      }).catch(err => console.error("logDailySpend error:", err));
                       // ✅ ALREADY EXISTS — job timeline
                       logAudit({
                         tableName: "history",
@@ -892,9 +892,9 @@ const getSingleJob = (req, res) => {
       ...job,
       skill_ids: job.skill_ids
         ? String(job.skill_ids)
-            .replace(/\s+/g, "") // remove spaces
-            .split(",")
-            .map(Number)
+          .replace(/\s+/g, "") // remove spaces
+          .split(",")
+          .map(Number)
         : [],
       skills: job.skills ? String(job.skills).split(",") : [],
     }));
@@ -1270,8 +1270,8 @@ const postJob = (req, res) => {
         speciality_id,
         degree_id,
         Array.isArray(degreefields_id) && degreefields_id.length
-  ? JSON.stringify(degreefields_id)
-  : null,
+          ? JSON.stringify(degreefields_id)
+          : null,
         application_deadline,
         no_of_positions,
         industry,
@@ -1396,6 +1396,7 @@ const updatePostJob = (req, res) => {
     job_type_id,
     min_salary,
     max_salary,
+    salary_period,  
     max_experience,
     min_experience,
     speciality_id,
@@ -1417,7 +1418,8 @@ const updatePostJob = (req, res) => {
   } = req.body;
 
   connection.query(
-    `SELECT approval_status, status, application_deadline as old_deadline FROM job_posts WHERE id = ? AND account_id = ?`,
+    `SELECT approval_status, status, application_deadline as old_deadline 
+     FROM job_posts WHERE id = ? AND account_id = ?`,
     [jobId, userId],
     (checkErr, jobData) => {
       if (checkErr || !jobData.length) {
@@ -1427,10 +1429,162 @@ const updatePostJob = (req, res) => {
       const currentJob = jobData[0];
       const oldDeadline = currentJob.old_deadline;
       const isApproved = currentJob.approval_status === 'Approved';
+      const isActive = currentJob.status === 'Active';
       const isPending = currentJob.approval_status === 'Pending' ||
         currentJob.approval_status === 'Pending Payment';
 
-      if (isApproved && application_deadline) {
+      // CASE 1: Approved + Active → LIMITED EDITING (Allowed fields)
+      if (isApproved && isActive) {
+        // Fields that are ALLOWED to be edited when job is live
+        const allowedFields = [
+          'job_description',
+          'industry',
+          'min_salary',
+          'max_salary',
+          'currency_id',
+          'salary_period',
+          'no_of_positions',
+          'application_deadline'
+        ];
+
+        // Fields that are RESTRICTED (cannot be edited when live)
+        const restrictedFields = [
+          'job_title',
+          'skill_ids',
+          'time_from',
+          'time_to',
+          'job_type_id',
+          'min_experience',
+          'max_experience',
+          'speciality_id',
+          'degree_id',
+          'country_id',
+          'district_id',
+          'city_id',
+          'package_id',
+          'job_location_type',
+          'screening_start',
+          'screening_end',
+          'interview_start',
+          'interview_end',
+          'expected_joining_date'
+        ];
+
+        // Check if any restricted field was sent
+        const hasRestrictedChanges = restrictedFields.some(field =>
+          req.body.hasOwnProperty(field) && req.body[field] !== undefined && req.body[field] !== null && req.body[field] !== ''
+        );
+
+        if (hasRestrictedChanges) {
+          return res.status(403).json({
+            error: "Cannot edit restricted fields while job is live (Approved + Active). Only Description, Industry, Salary, Positions and Deadline can be edited."
+          });
+        }
+
+        // Validate deadline if being updated
+        if (application_deadline) {
+          const newDeadlineDate = new Date(application_deadline);
+          const oldDeadlineDate = new Date(oldDeadline);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          if (newDeadlineDate < today) {
+            return res.status(400).json({
+              error: "Deadline cannot be in the past"
+            });
+          }
+
+          if (newDeadlineDate < oldDeadlineDate) {
+            return res.status(400).json({
+              error: "Cannot reduce deadline when job is live. Can only extend."
+            });
+          }
+        }
+
+        // Perform limited update with only allowed fields
+        const updateFields = [];
+        const updateParams = [];
+
+        if (job_description !== undefined) {
+          updateFields.push("job_description = ?");
+          updateParams.push(job_description);
+        }
+        if (industry !== undefined) {
+          updateFields.push("industry = ?");
+          updateParams.push(industry);
+        }
+        if (min_salary !== undefined) {
+          updateFields.push("min_salary = ?");
+          updateParams.push(min_salary || null);
+        }
+        if (max_salary !== undefined) {
+          updateFields.push("max_salary = ?");
+          updateParams.push(max_salary || null);
+        }
+        if (currency_id !== undefined) {
+          updateFields.push("currency_id = ?");
+          updateParams.push(currency_id || null);
+        }
+        if (salary_period !== undefined) {
+          updateFields.push("salary_period = ?");
+          updateParams.push(salary_period || 'monthly');
+        }
+        if (no_of_positions !== undefined) {
+          updateFields.push("no_of_positions = ?");
+          updateParams.push(no_of_positions);
+        }
+        if (application_deadline !== undefined) {
+          updateFields.push("application_deadline = ?");
+          updateParams.push(application_deadline);
+          // Also update status if deadline extended and job was inactive
+          if (new Date(application_deadline) > new Date(oldDeadline) && currentJob.status !== 'Active') {
+            updateFields.push("status = 'Active'");
+          }
+        }
+
+        if (updateFields.length === 0) {
+          return res.status(400).json({ error: "No valid fields to update" });
+        }
+
+        updateFields.push("updated_at = NOW()");
+        updateParams.push(jobId, userId);
+
+        const updateSql = `UPDATE job_posts SET ${updateFields.join(", ")} WHERE id = ? AND account_id = ?`;
+
+        connection.query(updateSql, updateParams, (error, result) => {
+          if (error) {
+            console.error("ERROR updating job post:", error);
+            return res.status(500).json({ error: "Database error" });
+          }
+
+          if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "Job not found or unauthorized" });
+          }
+
+          // Log audit
+          logAudit({
+            tableName: "history",
+            entityType: "job",
+            entityId: jobId,
+            action: "UPDATED_LIVE_JOB",
+            data: {
+              event: "Live job updated (allowed fields only)",
+              updated_fields: updateFields,
+              changedBy: userId,
+            },
+            changedBy: userId,
+          });
+
+          return res.status(200).json({
+            message: "Job updated successfully",
+            job_id: jobId,
+            status: currentJob.status,
+          });
+        });
+        return;
+      }
+
+      if (isApproved && !isActive && application_deadline) {
         const newDeadlineDate = new Date(application_deadline);
         const oldDeadlineDate = new Date(oldDeadline);
 
@@ -1441,6 +1595,14 @@ const updatePostJob = (req, res) => {
         }
       }
 
+      // Check if deadline is in the past for non-approved jobs
+      if (!isApproved && application_deadline && new Date(application_deadline) < new Date()) {
+        return res.status(400).json({
+          error: "Application deadline cannot be in the past"
+        });
+      }
+
+      // Determine new status
       let newStatus = currentJob.status;
       if (application_deadline && oldDeadline) {
         const newDeadlineDate = new Date(application_deadline);
@@ -1451,18 +1613,12 @@ const updatePostJob = (req, res) => {
         }
       }
 
-      if (application_deadline && new Date(application_deadline) < new Date() && !isApproved) {
-        return res.status(400).json({
-          error: "Application deadline cannot be in the past"
-        });
-      }
-
-      // Proceed with update
-      performUpdate(newStatus);
+      // Proceed with full update
+      performFullUpdate(newStatus);
     }
   );
 
-  function performUpdate(updatedStatus) {
+  function performFullUpdate(updatedStatus) {
     const sql = `
       UPDATE job_posts SET
         job_title = ?,
@@ -1474,6 +1630,7 @@ const updatePostJob = (req, res) => {
         min_salary = ?,
         max_salary = ?,
         currency_id = ?,
+        salary_period = ?,
         min_experience = ?,
         max_experience = ?,
         speciality_id = ?,
@@ -1506,6 +1663,7 @@ const updatePostJob = (req, res) => {
       min_salary || null,
       max_salary || null,
       currency_id || null,
+      salary_period || "monthly",
       min_experience,
       max_experience,
       speciality_id,
@@ -1525,7 +1683,7 @@ const updatePostJob = (req, res) => {
       interview_start || null,
       interview_end || null,
       expected_joining_date || null,
-      updatedStatus,  // ← Updated status
+      updatedStatus,
       jobId,
       userId,
     ];
@@ -1552,19 +1710,6 @@ const updatePostJob = (req, res) => {
           },
           changedBy: userId,
         });
-
-        logAudit({
-          tableName: "history",
-          entityType: "employer",
-          entityId: userId,
-          action: "REACTIVATED",
-          data: {
-            event: `Job "${job_title}" reactivated - deadline extended`,
-            job_id: jobId,
-            new_deadline: application_deadline,
-          },
-          changedBy: userId,
-        });
       }
 
       logAudit({
@@ -1583,6 +1728,7 @@ const updatePostJob = (req, res) => {
           min_salary,
           max_salary,
           currency_id,
+          salary_period,
           min_experience,
           max_experience,
           speciality_id,
@@ -1605,21 +1751,6 @@ const updatePostJob = (req, res) => {
         changedBy: userId,
       });
 
-      logAudit({
-        tableName: "history",
-        entityType: "employer",
-        entityId: userId,
-        action: "UPDATED",
-        data: {
-          event: "Job updated",
-          job_title,
-          job_id: jobId,
-          status: updatedStatus,
-          deadline_extended: application_deadline ? true : false,
-        },
-        changedBy: userId,
-      });
-
       return res.status(200).json({
         message: updatedStatus === 'Active'
           ? "Job updated successfully and reactivated (deadline extended)"
@@ -1630,7 +1761,6 @@ const updatePostJob = (req, res) => {
     });
   }
 };
-
 
 const deactivateExpiredJobs = () => {
   console.log("⏰ Checking for expired jobs...", new Date().toISOString());
@@ -1696,7 +1826,7 @@ const deactivateExpiredJobs = () => {
 
 cron.schedule("0 0 * * *", () => {
   deactivateExpiredJobs();
-  resetDailyBudgets();  
+  resetDailyBudgets();
 });
 
 setTimeout(() => {
@@ -1990,14 +2120,14 @@ const getUserPackages = (req, res) => {
 
         return {
           subscription_id: p.subscription_id || p.id,
-          start_date:      p.start_date,
-          end_date:        p.end_date,
-          pricing_model:   p.pricing_model,
-          status:          isExpired ? "expired" : (p.status?.toLowerCase() || "active"),
-          used_posts:      p.used_posts,
-          used_credits:    p.used_credits,
-          used_slots:      p.used_slots,
-          package:         { ...pkg, id: pkg.id },
+          start_date: p.start_date,
+          end_date: p.end_date,
+          pricing_model: p.pricing_model,
+          status: isExpired ? "expired" : (p.status?.toLowerCase() || "active"),
+          used_posts: p.used_posts,
+          used_credits: p.used_credits,
+          used_slots: p.used_slots,
+          package: { ...pkg, id: pkg.id },
           remaining_credits: Math.max((pkg.credit_count || 0) - (p.used_credits || 0), 0),
           is_daily_budget: false,
         };
@@ -2008,22 +2138,22 @@ const getUserPackages = (req, res) => {
 
         return {
           subscription_id: `job_${job.id}`,
-          start_date:      null,
-          end_date:        job.application_deadline,
-          pricing_model:   "daily_budget",
-          status:          isExpired ? "expired" : (job.status?.toLowerCase() || "active"),
-          used_posts:      0,
-          used_credits:    0,
-          used_slots:      0,
+          start_date: null,
+          end_date: job.application_deadline,
+          pricing_model: "daily_budget",
+          status: isExpired ? "expired" : (job.status?.toLowerCase() || "active"),
+          used_posts: 0,
+          used_credits: 0,
+          used_slots: 0,
           is_daily_budget: true,
           package: {
-            name:              job.job_title,
-            pricing_model:     "daily_budget",
-            billing_model:     job.billing_model,
-            daily_budget_cap:  job.daily_budget_cap,
+            name: job.job_title,
+            pricing_model: "daily_budget",
+            billing_model: job.billing_model,
+            daily_budget_cap: job.daily_budget_cap,
             daily_spend_today: 0,
-            total_spend:       job.total_spend,
-            price:             job.total_spend,
+            total_spend: job.total_spend,
+            price: job.total_spend,
           },
         };
       });
@@ -2456,20 +2586,20 @@ const viewCandidate = (req, res) => {
                             .json({ success: false, message: "Commit failed" }),
                         );
                       }
-  logBillingEvent({
-    account_id:    userId,
-    job_id:        job.id,
-    event_type:    'daily_budget_charge',
-    pricing_model: 'daily_budget',
-    amount:        job.cost_per_click,
-    description:   `CPC click: job_${job.id} candidate_${candidateId}`,
-  }).catch(err => console.error("billingLogger error:", err));
-  logDailySpend({
-  job_id:     job.id,
-  account_id: userId,
-  amount:     job.cost_per_click,
-  clicks:     1,
-}).catch(err => console.error("logDailySpend error:", err));
+                      logBillingEvent({
+                        account_id: userId,
+                        job_id: job.id,
+                        event_type: 'daily_budget_charge',
+                        pricing_model: 'daily_budget',
+                        amount: job.cost_per_click,
+                        description: `CPC click: job_${job.id} candidate_${candidateId}`,
+                      }).catch(err => console.error("billingLogger error:", err));
+                      logDailySpend({
+                        job_id: job.id,
+                        account_id: userId,
+                        amount: job.cost_per_click,
+                        clicks: 1,
+                      }).catch(err => console.error("logDailySpend error:", err));
                       // ─────────────────────────────────────────────
                       // STEP 6: RETURN CANDIDATE PROFILE
                       // ─────────────────────────────────────────────
@@ -2637,6 +2767,6 @@ module.exports = {
   triggerJobAlerts,
   viewCandidate,
   subcribePackageInternal,
-   deactivateExpiredJobs,
+  deactivateExpiredJobs,
   checkExpiredJobs,
 };

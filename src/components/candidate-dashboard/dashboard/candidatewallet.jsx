@@ -57,8 +57,12 @@ const PkgCard = ({ pkg, isSelected, onClick }) => {
     : pkg.status === "expired" ? 100 : 0;
 
   return (
-    <div className={`card border-2 h-100 cursor-pointer ${isSelected ? "border-primary shadow" : "border-light"}`}
-      style={{ borderTopColor: color, cursor: "pointer" }} onClick={onClick}>
+    <div className={`card border-2 h-100 cursor-pointer ${isSelected ? "shadow" : "border-light"}`}
+      style={{
+        borderTopColor: color,
+        borderColor: isSelected ? color : undefined,
+        cursor: "pointer",
+      }} onClick={onClick}>
       <div className="card-body p-3">
         <StatusBadge status={pkg.status} />
         <p className="fw-semibold mt-2 mb-0" style={{ fontSize: 13 }}>{pkg.package_name}</p>

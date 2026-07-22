@@ -23,18 +23,19 @@ class BoostRequests extends Component {
             historyData: [],
             successMessage: "",
             errorMessage: "",
+            statusDropdownOpen: false,
         };
 
         this.tableHeaders = [
-            { key: "candidate_name",      label: "Candidate" },
-            { key: "candidate_email",     label: "Email" },
-            { key: "package_name",        label: "Package" },
-            { key: "price",               label: "Price" },
+            { key: "candidate_name", label: "Candidate" },
+            { key: "candidate_email", label: "Email" },
+            { key: "package_name", label: "Package" },
+            { key: "price", label: "Price" },
             { key: "boost_duration_days", label: "Duration" },
-            { key: "start_date",          label: "Start" },
-            { key: "end_date",            label: "End" },
-            { key: "status",              label: "Status" },
-            { key: "action",              label: "Action" },
+            { key: "start_date", label: "Start" },
+            { key: "end_date", label: "End" },
+            { key: "status", label: "Status" },
+            { key: "action", label: "Action" },
         ];
 
         this.apibaseurl = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -82,33 +83,33 @@ class BoostRequests extends Component {
     //             setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     //         });
     // };
-      getHistory = (id) => {
+    getHistory = (id) => {
         const accountType = "candidate";
         const apiUrl = `${this.apibaseurl}gethistory/${id}/${accountType}`;
         const token = localStorage.getItem("token");
-    
+
         api
-          .get(apiUrl, { headers: { Authorization: `Bearer ${token}` } })
-          .then((res) => {
-            const filteredHistory = (res.data.history || []).map((item) => {
-              if (item.data) {
-                const { logo, ...restData } = item.data; // ❌ remove logo
-                return { ...item, data: restData };
-              }
-              return item;
+            .get(apiUrl, { headers: { Authorization: `Bearer ${token}` } })
+            .then((res) => {
+                const filteredHistory = (res.data.history || []).map((item) => {
+                    if (item.data) {
+                        const { logo, ...restData } = item.data; // ❌ remove logo
+                        return { ...item, data: restData };
+                    }
+                    return item;
+                });
+
+                this.setState({
+                    historyData: filteredHistory,
+                    historyModalOpen: true,
+                });
+            })
+            .catch((err) => {
+                console.error("Error fetching history:", err);
+                this.setState({ errorMessage: "Failed to fetch history." });
+                setTimeout(() => this.setState({ errorMessage: "" }), 3000);
             });
-    
-            this.setState({
-              historyData: filteredHistory,
-              historyModalOpen: true,
-            });
-          })
-          .catch((err) => {
-            console.error("Error fetching history:", err);
-            this.setState({ errorMessage: "Failed to fetch history." });
-            setTimeout(() => this.setState({ errorMessage: "" }), 3000);
-          });
-      };
+    };
 
     handleSearchChange = (key, value) => {
         this.setState((prev) => ({
@@ -137,8 +138,8 @@ class BoostRequests extends Component {
 
     getStatusBadge = (status) => {
         const map = {
-            active:   { bg: "#d4edda", color: "#155724", border: "#c3e6cb" },
-            expired:  { bg: "#e2e3e5", color: "#383d41", border: "#d6d8db" },
+            active: { bg: "#d4edda", color: "#155724", border: "#c3e6cb" },
+            expired: { bg: "#e2e3e5", color: "#383d41", border: "#d6d8db" },
         };
         const s = map[status] || map.expired;
         return (
@@ -187,16 +188,90 @@ class BoostRequests extends Component {
                     <Col className="text-end">
                         <FormGroup className="d-inline-block mb-0">
                             <Label className="me-2 mb-0">Status:</Label>
-                            <Input
-                                type="select"
-                                value={statusFilter}
-                                onChange={(e) => this.setState({ statusFilter: e.target.value })}
-                                style={{ display: "inline-block", width: "auto" }}
-                            >
-                                <option value="All">All</option>
-                                <option value="active">Active</option>
-                                <option value="expired">Expired</option>
-                            </Input>
+                            <div style={{ position: "relative", display: "inline-block", minWidth: "150px", textAlign: "left" }}>
+                                <button
+                                    type="button"
+                                    className="custom-dropdown-btn"
+                                    style={{
+                                        display: "inline-block",
+                                        width: "100%",
+                                        textAlign: "left",
+                                        cursor: "pointer",
+                                        borderColor: "#36565f",
+                                        color: "#36565f",
+                                        boxShadow: "none",
+                                        outline: "none",
+                                        background: "#fff",
+                                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2336565f' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
+                                        backgroundRepeat: "no-repeat",
+                                        backgroundPosition: "right 8px center",
+                                        paddingRight: "28px",
+                                        paddingLeft: "12px",
+                                        paddingTop: "6px",
+                                        paddingBottom: "6px",
+                                        border: "1px solid #36565f",
+                                        borderRadius: "6px",
+                                        appearance: "none",
+                                        WebkitAppearance: "none",
+                                    }}
+                                    onClick={() =>
+                                        this.setState((prev) => ({
+                                            statusDropdownOpen: !prev.statusDropdownOpen,
+                                        }))
+                                    }
+                                >
+                                    {statusFilter === "All" ? "All" : statusFilter === "active" ? "Active" : "Expired"}
+                                </button>
+
+                                {this.state.statusDropdownOpen && (
+                                    <div
+                                        className="shadow-sm"
+                                        style={{
+                                            position: "absolute",
+                                            top: "100%",
+                                            left: 0,
+                                            right: 0,
+                                            zIndex: 1000,
+                                            background: "#fff",
+                                            border: "1px solid #ccc",
+                                            borderRadius: "6px",
+                                            marginTop: "2px",
+                                            overflow: "hidden",
+                                            textAlign: "left",
+                                        }}
+                                    >
+                                        {[
+                                            { label: "All", value: "All" },
+                                            { label: "Active", value: "active" },
+                                            { label: "Expired", value: "expired" },
+                                        ].map((opt) => (
+                                            <div
+                                                key={opt.value}
+                                                onClick={() => {
+                                                    this.setState({ statusFilter: opt.value, statusDropdownOpen: false });
+                                                }}
+                                                style={{
+                                                    padding: "8px 12px",
+                                                    cursor: "pointer",
+                                                    textAlign: "left",
+                                                    backgroundColor: statusFilter === opt.value ? "#36565F" : "#fff",
+                                                    color: statusFilter === opt.value ? "#fff" : "#000",
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    if (statusFilter !== opt.value)
+                                                        e.currentTarget.style.backgroundColor = "#e8eef0";
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    if (statusFilter !== opt.value)
+                                                        e.currentTarget.style.backgroundColor = "#fff";
+                                                }}
+                                            >
+                                                {opt.label}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </FormGroup>
                     </Col>
                 </Row>
@@ -263,16 +338,16 @@ class BoostRequests extends Component {
                                                             title="View Details"
                                                             onClick={() => this.setState({ selectedOrder: o, showDetailModal: true })}
                                                         >
-                                                            <i className="bi bi-eye text-primary"></i>
+                                                            <i className="bi bi-eye" style={{ color: "#36565F" }}></i>
                                                         </button>
 
-<button
-    className="icon-btn"
-    title="View History"
-    onClick={() => this.getHistory(o.account_id)}
->
-    <i className="bi bi-clock-history text-dark"></i>
-</button>
+                                                        <button
+                                                            className="icon-btn"
+                                                            title="View History"
+                                                            onClick={() => this.getHistory(o.account_id)}
+                                                        >
+                                                            <i className="bi bi-clock-history text-dark"></i>
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -322,15 +397,15 @@ class BoostRequests extends Component {
 
                             <table style={{ width: "100%", borderCollapse: "collapse" }}>
                                 {[
-                                    { label: "Candidate",  value: selectedOrder.candidate_name },
-                                    { label: "Email",      value: <a href={`mailto:${selectedOrder.candidate_email}`} style={{ color: "#264752" }}>{selectedOrder.candidate_email}</a> },
-                                    { label: "Package",    value: selectedOrder.package_name },
-                                    { label: "Price",      value: `${selectedOrder.currency} ${selectedOrder.price}` },
-                                    { label: "Duration",   value: `${selectedOrder.boost_duration_days} days` },
+                                    { label: "Candidate", value: selectedOrder.candidate_name },
+                                    { label: "Email", value: <a href={`mailto:${selectedOrder.candidate_email}`} style={{ color: "#264752" }}>{selectedOrder.candidate_email}</a> },
+                                    { label: "Package", value: selectedOrder.package_name },
+                                    { label: "Price", value: `${selectedOrder.currency} ${selectedOrder.price}` },
+                                    { label: "Duration", value: `${selectedOrder.boost_duration_days} days` },
                                     { label: "Start Date", value: this.formatDate(selectedOrder.start_date) },
-                                    { label: "End Date",   value: this.formatDate(selectedOrder.end_date) },
+                                    { label: "End Date", value: this.formatDate(selectedOrder.end_date) },
                                     { label: "Ordered At", value: this.formatDate(selectedOrder.created_at) },
-                                    { label: "Status",     value: this.getStatusBadge(selectedOrder.status) },
+                                    { label: "Status", value: this.getStatusBadge(selectedOrder.status) },
                                 ].map((row, i) => (
                                     <tr key={i} style={{ background: i % 2 === 0 ? "#f9f9f9" : "#fff" }}>
                                         <td style={{ padding: "10px 12px", color: "#888", width: "110px", fontWeight: 500, fontSize: "0.88rem" }}>{row.label}</td>

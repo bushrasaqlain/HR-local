@@ -869,3 +869,8 @@ body.messages-page #__next {
   background-color: #e2f0f0 !important;
   color: #36565f !important;
 }
+
+.form-control:focus {
+  border-color: #36565F !important;
+  box-shadow: 0 0 0 0.2rem rgba(54, 86, 95, 0.25) !important;
+}

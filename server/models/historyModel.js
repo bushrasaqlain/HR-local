@@ -8,17 +8,39 @@ const createHistoryTable = () => {
         id INT AUTO_INCREMENT PRIMARY KEY,
         entity_type VARCHAR(50) NOT NULL,
         entity_id INT NOT NULL,
-        action ENUM('ADDED',
-                    'ACTIVE', 
-                    'UPDATED',
-                    'INACTIVE',
-                    'CREATED',
-                    'APPROVED',
-                    'PAYMENT',
-                    'PACKAGE_SUBSCRIBED',
-                    'CANDIDATE_UNLOCKED',
-                    'SHORTLISTED',
-                    'CARD_SAVED') NOT NULL,
+       action ENUM(
+                'ADDED',
+                'ACTIVE', 
+                'UPDATED',
+                'INACTIVE',
+                'CREATED',
+                'APPROVED',
+                'PAYMENT',
+                'PACKAGE_SUBSCRIBED',
+                'CANDIDATE_UNLOCKED',
+                'SHORTLISTED',
+                'CARD_SAVED',
+                'BOOST_ACTIVATED',
+                'BOOST_REJECTED',
+                'BOOST_REQUESTED',
+                'APPLIED',
+                'INTERVIEW_SCHEDULED',
+                'INTERVIEW_CONFIRMED',
+                'VIEWED_APPLICANTS',
+                'CANDIDATE_PROFILE_REVISITED',
+                'PROFILE_VIEWED',
+                'JOB_APPLIED',
+                'APPLICATION_RECEIVED',
+                'APPLICATION_CANCELLED',
+                'INTERVIEW_CONDUCTED',
+                'CONSIDERED',
+                'OFFERED',
+                'SELECTED',
+                'JOINED',
+                'REJECTED',
+                'REFUSED_TO_JOIN',
+                'SAVED'
+            ) NOT NULL,
         data JSON NOT NULL,
         changed_by INT NOT NULL,
         changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -51,15 +73,33 @@ const getHistory = (req, res) => {
         return res.status(400).json({ error: "entity_type and entity_id are required" });
     }
 
-    const query = `SELECT h.*, 
-           COALESCE(ci.company_name, cand.full_name, u.email) AS changed_by_name
-           FROM history h
-           LEFT JOIN account u ON h.changed_by = u.id
-           LEFT JOIN company_info ci ON ci.account_id = u.id
-           LEFT JOIN candidate_info cand ON cand.account_id = u.id
-           WHERE h.entity_type = ? AND h.entity_id = ?`;
-
-    connection.query(query, [entity_type, entity_id], async (err, results) => {
+    if (entity_type === "candidate") {
+        query = `SELECT h.*, 
+               COALESCE(ci.company_name, cand.full_name, u.email) AS changed_by_name
+               FROM history h
+               LEFT JOIN account u ON h.changed_by = u.id
+               LEFT JOIN company_info ci ON ci.account_id = u.id
+               LEFT JOIN candidate_info cand ON cand.account_id = u.id
+               WHERE h.entity_type = ? 
+               AND (h.entity_id = ? OR h.entity_id = (
+                   SELECT id FROM candidate_info WHERE account_id = ?
+               ) OR h.entity_id = (
+                   SELECT account_id FROM candidate_info WHERE id = ?
+               ))
+               ORDER BY h.changed_at DESC`;
+        params = [entity_type, entity_id, entity_id, entity_id];
+    } else {
+        query = `SELECT h.*, 
+               COALESCE(ci.company_name, cand.full_name, u.email) AS changed_by_name
+               FROM history h
+               LEFT JOIN account u ON h.changed_by = u.id
+               LEFT JOIN company_info ci ON ci.account_id = u.id
+               LEFT JOIN candidate_info cand ON cand.account_id = u.id
+               WHERE h.entity_type = ? AND h.entity_id = ?
+               ORDER BY h.changed_at DESC`;
+        params = [entity_type, entity_id];
+    }
+    connection.query(query, params, async (err, results) => {
         if (err) return res.status(500).json({ error: "Database error" });
 
         // Fetch mapping tables separately

@@ -357,6 +357,32 @@ class CompanyProfile extends Component {
     const { formData, logoImg, successMessage, countryOptions, districtOptions, cityOptions, businesstypeOptions } =
       this.state;
 
+    const customSelectStyles = {
+      control: (base, state) => ({
+        ...base,
+        minHeight: "38px",
+        borderRadius: "6px",
+        border: state.isFocused
+          ? "1.5px solid #36565f"
+          : "1px solid #ced4da",
+        boxShadow: state.isFocused ? "0 0 0 3px rgba(54,86,95,0.15)" : "none",
+        "&:hover": { borderColor: "#36565f" },
+      }),
+      option: (base, state) => ({
+        ...base,
+        backgroundColor: state.isSelected
+          ? "#36565f"
+          : state.isFocused
+            ? "#e6eeef"
+            : "#fff",
+        color: state.isSelected ? "#fff" : "#212529",
+        cursor: "pointer",
+      }),
+      singleValue: (base) => ({ ...base, color: "#212529" }),
+      placeholder: (base) => ({ ...base, color: "#6c757d" }),
+      indicatorSeparator: () => ({ display: "none" }),
+    };
+
     return (
       <>
         <Head>
@@ -471,6 +497,7 @@ class CompanyProfile extends Component {
                           options={businesstypeOptions}
                           onChange={this.handleBusinessTypeChange}
                           placeholder="Select Business Type"
+                          styles={customSelectStyles}
                         />
                       </FormGroup>
                     </Col>
@@ -522,6 +549,7 @@ class CompanyProfile extends Component {
                           value={this.state.selectedCountry}
                           options={countryOptions}
                           onChange={this.handleCountryChange}
+                          styles={customSelectStyles}
                         />
                       </FormGroup>
                     </Col>
@@ -534,6 +562,7 @@ class CompanyProfile extends Component {
                           options={districtOptions}
                           onChange={this.handleDistrictChange}
                           isDisabled={!this.state.selectedCountry}
+                          styles={customSelectStyles}
                         />
                       </FormGroup>
                     </Col>
@@ -546,6 +575,7 @@ class CompanyProfile extends Component {
                           options={cityOptions}
                           onChange={this.handleCityChange}
                           isDisabled={!this.state.selectedDistrict}
+                          styles={customSelectStyles}
                         />
                       </FormGroup>
                     </Col>

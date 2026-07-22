@@ -211,7 +211,7 @@ const login = (req, res) => {
       FROM account a
       LEFT JOIN candidate_info ci ON a.id = ci.account_id
       LEFT JOIN company_info comp ON a.id = comp.account_id
-      WHERE a.email = ? AND a.password = ?
+      WHERE a.email = ? AND BINARY a.password = ?
       LIMIT 1
     `;
 

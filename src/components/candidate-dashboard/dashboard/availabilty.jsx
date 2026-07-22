@@ -13,6 +13,68 @@ import {
 } from "reactstrap";
 import api from "../../lib/api";
 
+const CustomSelect = ({ options, value, onChange, placeholder = "Select...", disabled = false }) => {
+  const [open, setOpen] = React.useState(false);
+  const wrapRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find((o) => o.value === value);
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative", width: "100%" }}>
+      <div
+        onClick={() => !disabled && setOpen(!open)}
+        style={{
+          height: "38px", padding: "0 12px", fontSize: "14px",
+          border: `1px solid ${open ? "#36565f" : "#ced4da"}`,
+          borderRadius: "6px", background: disabled ? "#e9ecef" : "#fff",
+          color: selectedOption ? "#212529" : "#6c757d",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          cursor: disabled ? "not-allowed" : "pointer",
+          boxShadow: open ? "0 0 0 3px rgba(54,86,95,0.15)" : "none",
+        }}
+      >
+        <span>{selectedOption ? selectedOption.label : placeholder}</span>
+        <span style={{ fontSize: "10px", color: "#9ca3af", marginLeft: "8px" }}>▾</span>
+      </div>
+
+      {open && !disabled && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 30,
+          background: "#fff", borderRadius: "6px", border: "1px solid #ced4da",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.08)", maxHeight: "220px", overflowY: "auto",
+        }}>
+          {options.map((opt) => {
+            const isSelected = opt.value === value;
+            return (
+              <div
+                key={opt.value}
+                onClick={() => { onChange(opt.value); setOpen(false); }}
+                style={{
+                  padding: "8px 12px", fontSize: "14px", cursor: "pointer",
+                  background: isSelected ? "#36565f" : "#fff",
+                  color: isSelected ? "#fff" : "#212529",
+                }}
+                onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "#e6eeef"; }}
+                onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = "#fff"; }}
+              >
+                {opt.label}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 class AvailabilityStep extends Component {
   state = {
     availability: [],
@@ -551,16 +613,12 @@ class AvailabilityStep extends Component {
             {/* Day Selection */}
             <div className="mb-3">
               <label className="fw-semibold">Day <span className="text-danger">*</span></label>
-              <Input
-                type="select"
+              <CustomSelect
+                options={dayOptions.map((d) => ({ value: d, label: d }))}
                 value={form.day}
-                onChange={(e) => this.handleFormChange("day", e.target.value)}
-              >
-                <option value="">Select Day</option>
-                {dayOptions.map(day => (
-                  <option key={day} value={day}>{day}</option>
-                ))}
-              </Input>
+                onChange={(val) => this.handleFormChange("day", val)}
+                placeholder="Select Day"
+              />
               {isAllDays && !is247 && (
                 <small className="text-muted d-block mt-1">
                   This will add availability for all 7 days (Monday to Sunday)
@@ -571,21 +629,18 @@ class AvailabilityStep extends Component {
             {/* Shift Selection */}
             <div className="mb-3">
               <label className="fw-semibold">Shift <span className="text-danger">*</span></label>
-              <Input
-                type="select"
+              <CustomSelect
+                options={shiftOptions.map((s) => ({
+                  value: s,
+                  label: s === "All Shifts" ? "All Shifts (24/7 availability)"
+                    : s === "morning" ? "Morning"
+                      : s === "evening" ? "Evening"
+                        : s === "night" ? "Night" : s,
+                }))}
                 value={form.shift}
-                onChange={(e) => this.handleFormChange("shift", e.target.value)}
-              >
-                <option value="">Select Shift</option>
-                {shiftOptions.map(shift => (
-                  <option key={shift} value={shift}>
-                    {shift === "All Shifts" ? "All Shifts (24/7 availability)" :
-                      shift === "morning" ? "Morning" :
-                        shift === "evening" ? "Evening" :
-                          "Night"}
-                  </option>
-                ))}
-              </Input>
+                onChange={(val) => this.handleFormChange("shift", val)}
+                placeholder="Select Shift"
+              />
             </div>
 
             {/* Time inputs based on selection */}

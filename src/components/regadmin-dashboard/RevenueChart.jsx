@@ -85,7 +85,7 @@ class RevenueChart extends Component {
     this.setState({ months, activeIndex: null });
     try {
       const token = localStorage.getItem("token");
-      const res = await api.get("/admin/revenue/trend", {
+      const res = await api.get("/revenue/trend", {
         headers: { Authorization: `Bearer ${token}` },
         params: { months },
       });
@@ -103,7 +103,7 @@ class RevenueChart extends Component {
     this.setState({ spendLoading: true });
     try {
       const token = localStorage.getItem("token");
-      const res = await api.get(`/admin/revenue/daily-spend/account/${id}`, {
+      const res = await api.get(`/revenue/daily-spend/account/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
         params: { days },
       });
@@ -125,8 +125,8 @@ class RevenueChart extends Component {
     try {
       const token = localStorage.getItem("token");
       const endpoint = refundType === "refund"
-        ? "/admin/revenue/refund"
-        : "/admin/revenue/adjustment";
+        ? "/revenue/refund"
+        : "/revenue/adjustment";
       const payload = refundType === "refund"
         ? { account_id: rfAccountId, amount: rfAmount, description: rfDescription, payment_id: rfPaymentId || undefined }
         : { account_id: rfAccountId, amount: rfAmount, description: rfDescription };

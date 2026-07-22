@@ -5,7 +5,7 @@ const bodyParser = require("body-parser");
 // Import the cors middleware
 const cors = require("cors");
 const connection = require("./connection");
-require("./cron"); 
+require("./cron");
 
 const { startAlertCron } = require("./alertCron"); // adjust path if needed
 startAlertCron();
@@ -47,9 +47,9 @@ const paymentRoutes = require("./routes/paymentRoutes")
 const candidate_educationRoutes = require("./routes/candidateeducationRoutes")
 const candidate_experienceRoutes = require('./routes/candidateexperienceRoutes')
 const resumeRoute = require("./routes/resumeRoutes");
-const candidate_availabilityRoutes= require("./routes/candidateAvailabilityRoutes")
-const cadidateresearchRoutes=require("./routes/candidatereasearchRoutes")
-const candidatecertificateRoutes=require("./routes/candidatecertificateRoutes")
+const candidate_availabilityRoutes = require("./routes/candidateAvailabilityRoutes")
+const cadidateresearchRoutes = require("./routes/candidatereasearchRoutes")
+const candidatecertificateRoutes = require("./routes/candidatecertificateRoutes")
 // const revenuerecordRoutes=require("./routes/revenuerecordRoutes")
 
 

@@ -13,9 +13,9 @@ const THEME = {
   borderHover: "rgba(0,0,0,0.18)",
   text: "#111110",
   muted: "#888884",
-  accent: "#1A56DB",
-  accentLight: "#EBF2FF",
-  accentMid: "#3B82F6",
+  accent: "#36565f",
+  accentLight: "#E6EEEF",
+  accentMid: "#4A737D",
   featured: "#0F172A",
   featuredText: "#F8FAFC",
   success: "#059669",
@@ -998,12 +998,12 @@ const FilterTabs = ({ models, active, onChange }) => (
 ═══════════════════════════════════════════════════════════════ */
 class PaymentModal extends Component {
   state = {
-    paymentMethod: "card",        
+    paymentMethod: "card",
     // ── saved card selection ──
     savedCards: [],
     savedCardsLoading: true,
-    selectedSavedCardId: null,      
-    showNewCardForm: false,      
+    selectedSavedCardId: null,
+    showNewCardForm: false,
     // ── new card fields ──
     cardName: "",
     cardNumber: "",

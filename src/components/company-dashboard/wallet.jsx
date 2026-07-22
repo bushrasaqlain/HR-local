@@ -22,7 +22,7 @@ ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarEle
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const TYPE_META = {
-  cv_credits:      { label: "CV Credits",    color: "#2164f3", light: "#e8f0fe" },
+  cv_credits:      { label: "CV Credits",    color: "#36565f", light: "#e8f0fe" },
   job_slot:        { label: "Job Slots",      color: "#7c3aed", light: "#ede9fe" },
   subscription:    { label: "Subscription",   color: "#0891b2", light: "#cffafe" },
   bundle:          { label: "Bundle",         color: "#059669", light: "#d1fae5" },
@@ -55,7 +55,7 @@ const IconArrow = () => (
   </svg>
 );
 const IconSpinner = () => (
-  <div className="spinner-border spinner-border-sm text-primary" role="status">
+  <div className="spinner-border spinner-border-sm" role="status" style={{ color: "#36565f" }}>
     <span className="visually-hidden">Loading...</span>
   </div>
 );
@@ -68,8 +68,14 @@ function PackageCard({ pkg, isSelected, onClick }) {
 
   return (
     <div
-      className={`card h-100 border-2 ${isSelected ? "border-primary bg-primary bg-opacity-10" : ""}`}
-      style={{ cursor: "pointer", borderTopColor: meta.color, transition: "all .15s" }}
+      className="card h-100 border-2"
+      style={{
+        cursor: "pointer",
+        borderTopColor: meta.color,
+        borderColor: isSelected ? meta.color : undefined,
+        background: isSelected ? meta.light : undefined,
+        transition: "all .15s",
+      }}
       onClick={onClick}
     >
       {/* accent stripe */}
