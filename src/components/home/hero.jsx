@@ -24,7 +24,19 @@ class Hero extends Component {
             objectFit="cover"
             quality={100}
           />
-
+{/* <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="position-absolute w-100 h-100"
+            style={{ objectFit: "cover", top: 0, left: 0 }}
+            ref={(video) => {
+              if (video) video.playbackRate = 0.6;
+            }}
+          >
+            <source src="/videos/HUNAR.mp4" type="video/mp4" />
+          </video> */}
           {/* <video
             autoPlay
             loop
@@ -73,7 +85,9 @@ class Hero extends Component {
                 transition={{ delay: 0.3, duration: 0.8 }}
                 className="mb-4 text-white"
               >
-                Sick of drowning in resumes just to find a few people worth talking to? Hunar skips the noise and puts vetted, ready-to-go candidates right in front of you — so you can get straight to interviewing people who actually fit.
+                Sick of drowning in resumes just to find a few people worth talking to? 
+                <span className="fw-bold fs-5 me-2">Hunar</span>
+                 skips the noise and puts vetted, ready-to-go candidates right in front of you — so you can get straight to interviewing people who actually fit.
               </motion.p>
 
               {/* 🔷 Animated Button */}

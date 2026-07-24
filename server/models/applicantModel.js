@@ -313,6 +313,7 @@ const getAllApplicants = async (req, res) => {
 
         /* ── FIX: single LEFT JOIN replaces 10 correlated subqueries ── */
         COALESCE(la.status,                   'Pending') AS candidateStatus,
+        la.id AS application_id,
         la.interview_day,
         la.interview_time,
         la.message,
@@ -1010,11 +1011,13 @@ const unlockCandidate = async (req, res) => {
 
     // 10. Fetch full candidate data
     const candidateRow = await new Promise((resolve, reject) =>
-      connection.query(
-        `SELECT c.*, a.email, a.username FROM candidate_info c 
-         INNER JOIN account a ON a.id = c.account_id 
-         WHERE c.id = ?`,
-        [candidateId],
+  connection.query(
+    `SELECT c.*, a.email, a.username,
+            (SELECT id FROM applications WHERE candidate_id = c.id AND job_id = ? ORDER BY id DESC LIMIT 1) AS application_id
+     FROM candidate_info c 
+     INNER JOIN account a ON a.id = c.account_id  
+     WHERE c.id = ?`,
+    [jobId, candidateId],
         (err, rows) => (err ? reject(err) : resolve(rows[0]))
       )
     );

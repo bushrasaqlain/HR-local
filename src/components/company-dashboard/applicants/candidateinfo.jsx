@@ -19,17 +19,33 @@
         candidateData: props.candidate || null,
         interviewDay: "",
         interviewTime: "",
+        screeningAnswers: [],
+    loadingAnswers: false,
       };
     }
 
     componentDidMount() {
       if (!this.state.candidateData && this.props.id) {
         this.fetchCandidate();
-      } else {
-        this.setState({ loading: false });
-      }
+      }  else {
+    this.setState({ loading: false }, this.fetchScreeningAnswers);
+  }
     }
-
+fetchScreeningAnswers = async () => {
+  const appId = this.state.candidateData?.application_id;
+  if (!appId) return;
+  this.setState({ loadingAnswers: true });
+  try {
+    const token = localStorage.getItem("token");
+    const res = await api.get(`applications/${appId}/answers`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    this.setState({ screeningAnswers: res.data.answers || [], loadingAnswers: false });
+  } catch (err) {
+    console.error("Failed to fetch screening answers:", err);
+    this.setState({ loadingAnswers: false });
+  }
+};
     fetchCandidate = async () => {
       const { id } = this.props;
       if (!id) return;
@@ -40,7 +56,7 @@
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        this.setState({ candidateData: res.data, loading: false });
+        this.setState({ candidateData: res.data, loading: false }, this.fetchScreeningAnswers);
       } catch (err) {
         console.error("Failed to fetch candidate:", err);
         this.setState({ loading: false });
@@ -150,6 +166,7 @@
     render() {
       const { loading, candidateData } = this.state;
       const { onBack } = this.props;
+      console.log("candidateData:", candidateData);
 
       return (
         <Container fluid>
@@ -359,8 +376,26 @@
     <p>{candidateData.license_number || "-"}</p>
     
   </div>
-
+{/* Screening Answers */}
+{candidateData.application_id && (
+  <div className="card shadow-sm rounded-4 p-4">
+    <h5 className="mb-3">Screening Answers</h5>
+    {this.state.loadingAnswers ? (
+      <div className="text-muted small">Loading…</div>
+    ) : !this.state.screeningAnswers.length ? (
+      <div className="text-muted small">No screening answers submitted.</div>
+    ) : (
+      this.state.screeningAnswers.map((a, i) => (
+        <div key={i} className="mb-3 pb-3 border-bottom">
+          <div className="fw-semibold small mb-1">{a.question_text}</div>
+          <div className="text-secondary small">{a.answer_text || "—"}</div>
+        </div>
+      ))
+    )}
+  </div>
+)}
 </div>
+
               </>
             )}
           </div>

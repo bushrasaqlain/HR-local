@@ -70,6 +70,9 @@ class AllApplicants extends Component {
   showJobDropdown: false,
   activeTab: "applicants",
   isTyping: false,
+  screeningAnswers: null,
+  screeningAnswersOpen: false,
+  loadingAnswers: false,
   };
 
   apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -101,6 +104,19 @@ class AllApplicants extends Component {
     });
   };
 
+viewScreeningAnswers = async (candidate) => {
+  if (!candidate.application_id) return;
+  this.setState({ screeningAnswersOpen: true, loadingAnswers: true, screeningAnswers: null });
+  try {
+    const res = await axios.get(`${this.apiBaseUrl}applications/${candidate.application_id}/answers`);
+    this.setState({ screeningAnswers: res.data.answers, loadingAnswers: false });
+  } catch (err) {
+    console.error(err);
+    this.setState({ loadingAnswers: false });
+  }
+};
+
+closeScreeningAnswers = () => this.setState({ screeningAnswersOpen: false, screeningAnswers: null });
   trackCandidateProfileView = async (candidateAccountId, jobId) => {
     if (!candidateAccountId) return;
     try {
@@ -167,6 +183,7 @@ fetchPostedJobs = async () => {
           : (c.city_name || cityMapObj[c.city] || "-");
         return {
           ...c,
+          application_id: c.application_id || null,
           age: c.date_of_birth ? new Date().getFullYear() - new Date(c.date_of_birth).getFullYear() : null,
           skill_names: (c.skills || []).map(s => s.name || s),
           city_name, otherPreferredCities,

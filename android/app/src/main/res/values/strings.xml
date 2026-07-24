@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Hunar</string>
+    <string name="title_activity_main">Hunar</string>
+    <string name="package_name">com.hunar.app</string>
+    <string name="custom_url_scheme">com.hunar.app</string>
+</resources>

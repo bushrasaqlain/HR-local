@@ -2,7 +2,11 @@
 const nextConfig = {
   reactStrictMode: false,
 
+  // Required for Capacitor static Android build
+  output: "export",
+
   images: {
+    unoptimized: true,
     domains: ["localhost"],
   },
 
@@ -21,7 +25,8 @@ const nextConfig = {
     ];
     return config;
   },
-  outputFileTracingRoot: require('path').join(__dirname, '../'),
+
+  outputFileTracingRoot: require("path").join(__dirname, "../"),
 };
 
 module.exports = nextConfig;

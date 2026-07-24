@@ -12,6 +12,9 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.92.0",
     "@babel/core": "^7.0.0",
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/cli": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
     "@faker-js/faker": "^7.6.0",
     "@fortawesome/fontawesome-svg-core": "^7.2.0",
     "@fortawesome/free-solid-svg-icons": "^7.2.0",

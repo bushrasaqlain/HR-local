@@ -14,6 +14,7 @@ const createScreeningQuestionsTable = () => {
       question_text VARCHAR(500) NOT NULL,
       question_type ENUM('text','yes_no','multiple_choice') DEFAULT 'text',
       options JSON NULL,
+      is_active BOOLEAN DEFAULT true,
       is_required BOOLEAN DEFAULT true,
       display_order INT DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -49,84 +50,127 @@ const createApplicationAnswersTable = () => {
 // ─────────────────────────────────────────────────────────────────
 const addScreeningQuestions = (req, res) => {
   const { jobId } = req.params;
-  const { userId, questions } = req.body; // questions: [{question_text, question_type, options, is_required}]
+  const { userId, questions } = req.body; // [{id?, question_text, question_type, options, is_required}]
 
   if (!jobId || !Array.isArray(questions)) {
     return res.status(400).json({ error: "jobId and questions[] are required" });
   }
 
-  // verify ownership
   connection.query(
     `SELECT account_id, job_title FROM job_posts WHERE id = ?`,
     [jobId],
     (err, jobRows) => {
-      if (err) return res.status(500).json({ error: "Database error" });
+      if (err) {
+        console.error("SELECT job_posts failed:", err.sqlMessage || err.message);
+        return res.status(500).json({ error: "Database error", stage: "select_job" });
+      }
       if (!jobRows.length) return res.status(404).json({ error: "Job not found" });
       if (userId && jobRows[0].account_id !== Number(userId)) {
         return res.status(403).json({ error: "Not authorized for this job" });
       }
 
       const jobTitle = jobRows[0].job_title;
+      const incomingIds = questions.filter((q) => q.id).map((q) => q.id);
 
-      // replace existing questions for this job
-      connection.query(
-        `DELETE FROM job_screening_questions WHERE job_id = ?`,
-        [jobId],
-        (delErr) => {
-          if (delErr) return res.status(500).json({ error: "Database error" });
+      // 1. Soft-delete any existing questions the employer removed from the list
+      const deactivateSql = incomingIds.length
+        ? `UPDATE job_screening_questions SET is_active = false
+           WHERE job_id = ? AND id NOT IN (?)`
+        : `UPDATE job_screening_questions SET is_active = false WHERE job_id = ?`;
+      const deactivateParams = incomingIds.length ? [jobId, incomingIds] : [jobId];
 
-          if (!questions.length) {
-            // company chose to remove all screening questions — job goes back to quick-apply
+      connection.query(deactivateSql, deactivateParams, (deactErr) => {
+        if (deactErr) {
+          console.error("Deactivate questions failed:", deactErr.sqlMessage || deactErr.message);
+          return res.status(500).json({ error: "Database error", stage: "deactivate" });
+        }
+
+        if (!questions.length) {
+          logAudit({
+            tableName: "history",
+            entityType: "employer",
+            entityId: jobRows[0].account_id,
+            action: "SCREENING_QUESTIONS_CLEARED",
+            data: { event: `Screening questions removed for job: ${jobTitle}`, job_id: jobId },
+            changedBy: userId || jobRows[0].account_id,
+          });
+          return res.json({ success: true, message: "Screening questions cleared", count: 0 });
+        }
+
+        // 2. Split into updates (has id) and inserts (no id)
+        const toUpdate = questions.filter((q) => q.id);
+        const toInsert = questions.filter((q) => !q.id);
+
+        const runUpdates = () =>
+          new Promise((resolve, reject) => {
+            if (!toUpdate.length) return resolve();
+            let remaining = toUpdate.length;
+            let failed = null;
+            toUpdate.forEach((q, i) => {
+              connection.query(
+                `UPDATE job_screening_questions
+                 SET question_text = ?, question_type = ?, options = ?, is_required = ?, display_order = ?, is_active = true
+                 WHERE id = ? AND job_id = ?`,
+                [
+                  q.question_text,
+                  q.question_type || "text",
+                  q.options ? JSON.stringify(q.options) : null,
+                  q.is_required !== undefined ? !!q.is_required : true,
+                  i,
+                  q.id,
+                  jobId,
+                ],
+                (upErr) => {
+                  if (upErr && !failed) failed = upErr;
+                  if (--remaining === 0) (failed ? reject(failed) : resolve());
+                }
+              );
+            });
+          });
+
+        const runInserts = () =>
+          new Promise((resolve, reject) => {
+            if (!toInsert.length) return resolve();
+            const startOrder = toUpdate.length;
+            const values = toInsert.map((q, i) => [
+              jobId,
+              q.question_text,
+              q.question_type || "text",
+              q.options ? JSON.stringify(q.options) : null,
+              q.is_required !== undefined ? !!q.is_required : true,
+              startOrder + i,
+            ]);
+            connection.query(
+              `INSERT INTO job_screening_questions
+               (job_id, question_text, question_type, options, is_required, display_order)
+               VALUES ?`,
+              [values],
+              (insErr) => (insErr ? reject(insErr) : resolve())
+            );
+          });
+
+        runUpdates()
+          .then(runInserts)
+          .then(() => {
             logAudit({
               tableName: "history",
               entityType: "employer",
               entityId: jobRows[0].account_id,
-              action: "SCREENING_QUESTIONS_CLEARED",
-              data: { event: `Screening questions removed for job: ${jobTitle}`, job_id: jobId },
+              action: "SCREENING_QUESTIONS_ADDED",
+              data: {
+                event: `Screening questions updated for job: ${jobTitle}`,
+                job_id: jobId,
+                count: questions.length,
+              },
               changedBy: userId || jobRows[0].account_id,
             });
-            return res.json({ success: true, message: "Screening questions cleared", count: 0 });
-          }
-
-          const values = questions.map((q, i) => [
-            jobId,
-            q.question_text,
-            q.question_type || "text",
-            q.options ? JSON.stringify(q.options) : null,
-            q.is_required !== undefined ? !!q.is_required : true,
-            i,
-          ]);
-
-          connection.query(
-            `INSERT INTO job_screening_questions
-             (job_id, question_text, question_type, options, is_required, display_order)
-             VALUES ?`,
-            [values],
-            (insErr, result) => {
-              if (insErr) return res.status(500).json({ error: "Database error" });
-
-              logAudit({
-                tableName: "history",
-                entityType: "employer",
-                entityId: jobRows[0].account_id,
-                action: "SCREENING_QUESTIONS_ADDED",
-                data: {
-                  event: `Screening questions added for job: ${jobTitle}`,
-                  job_id: jobId,
-                  count: questions.length,
-                },
-                changedBy: userId || jobRows[0].account_id,
-              });
-
-              return res.status(201).json({
-                success: true,
-                message: "Screening questions saved",
-                count: result.affectedRows,
-              });
-            }
-          );
-        }
-      );
+            return res.status(201).json({ success: true, message: "Screening questions saved" });
+          })
+          .catch((saveErr) => {
+            console.error("Save screening questions failed:", saveErr.sqlMessage || saveErr.message);
+            return res.status(500).json({ error: "Database error", stage: "save" });
+          });
+      });
     }
   );
 };
@@ -140,7 +184,7 @@ const getScreeningQuestions = (req, res) => {
   connection.query(
     `SELECT id, question_text, question_type, options, is_required
      FROM job_screening_questions
-     WHERE job_id = ?
+     WHERE job_id = ? AND is_active = true
      ORDER BY display_order ASC, id ASC`,
     [jobId],
     (err, rows) => {

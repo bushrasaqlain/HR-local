@@ -1,0 +1,1 @@
+(self.webpackChunk_N_E=self.webpackChunk_N_E||[]).push([[498],{55554:(_,n,u)=>{(window.__NEXT_P=window.__NEXT_P||[]).push(["/publicfooter",function(){return u(64977)}])}},_=>{_.O(0,[636,593,792],()=>_(_.s=55554)),_N_E=_.O()}]);
