@@ -665,12 +665,28 @@ class DashboardHeader extends Component {
 
     return (
       <>
+        <style jsx global>{`
+  .user-menu-dropdown .dropdown-item:hover,
+  .user-menu-dropdown .dropdown-item:focus,
+  .user-menu-dropdown .dropdown-item:active {
+    background-color: rgba(54, 86, 95, 0.1) !important;
+    color: #36565F !important;
+  }
+
+  .navbar-toggler:focus {
+    box-shadow: 0 0 0 0.2rem rgba(54, 86, 95, 0.25) !important;
+  }
+
+  .btn:focus {
+    box-shadow: 0 0 0 0.2rem rgba(54, 86, 95, 0.25) !important;
+  }
+`}</style>
         <Navbar expand="md" fixed="top" className="shadow-sm custom-bg">
           <div className="container-fluid d-flex align-items-center justify-content-between flex-nowrap py-2">
 
             {/* LEFT: Logo + Desktop Menu */}
             <div className="d-flex align-items-center gap-3 flex-nowrap">
-                <NavbarBrand href="/">
+              <NavbarBrand href="/">
                 <Image width={120} height={60} src="/images/12.png" alt="brand" />
               </NavbarBrand>
 
@@ -710,7 +726,7 @@ class DashboardHeader extends Component {
                 <span className="text-white" style={{ whiteSpace: "nowrap" }}>
                   <strong>{displayName || "Admin"}</strong>
                 </span>
-                <Dropdown isOpen={userDropdownOpen} toggle={this.toggleUserDropdown}>
+                <Dropdown isOpen={userDropdownOpen} toggle={this.toggleUserDropdown} className="user-menu-dropdown">
                   <DropdownToggle tag="span">
                     {this.state.userAvatarUrl ? (
                       <img

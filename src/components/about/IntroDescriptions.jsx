@@ -18,13 +18,15 @@ const IntroDescriptions = () => {
       {/* 🔷 HERO SECTION */}
       <div className="about-hero d-flex align-items-center justify-content-center text-center">
         <motion.div
+          className="hero-content"
           initial={{ opacity: 0, y: -40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          className="text-white"
         >
-          <h1 className="fw-bold text-white">About Us</h1>
-          <p className="hero-tagline">Connecting Talent with Opportunities</p>
+          <h1 className="about-title">About Us</h1>
+          <p className="hero-tagline">
+            Connecting Talent with Opportunities
+          </p>
         </motion.div>
       </div>
 
@@ -39,8 +41,8 @@ const IntroDescriptions = () => {
           <Row className="mb-5">
             <Col md="10" className="mx-auto text-center">
               <p className="text-muted">
-                Our platform is a complete job portal system designed to connect 
-                employers and candidates efficiently. It ensures a secure and 
+                Our platform is a complete job portal system designed to connect
+                employers and candidates efficiently. It ensures a secure and
                 reliable hiring process through admin approvals and structured workflows.
               </p>
             </Col>
@@ -50,7 +52,7 @@ const IntroDescriptions = () => {
         {/* 🔷 Vision, Mission, System */}
         <Row className="text-center">
 
-          {[ 
+          {[
             { icon: <FaBullseye />, title: "Vision", text: "To connect qualified talent with the right opportunities." },
             { icon: <FaRocket />, title: "Mission", text: "To simplify hiring through a secure and efficient system." },
             { icon: <FaCogs />, title: "Our System", text: "Provides a structured platform for job posting and approvals." }
@@ -78,7 +80,7 @@ const IntroDescriptions = () => {
             <h3 className="fw-bold mb-4">How It Works</h3>
           </Col>
 
-          {[ 
+          {[
             { icon: <FaUserPlus />, title: "Register", text: "Users create accounts" },
             { icon: <FaCheckCircle />, title: "Approval", text: "Admin verifies users" },
             { icon: <FaBriefcase />, title: "Post Job", text: "Employers post jobs" },

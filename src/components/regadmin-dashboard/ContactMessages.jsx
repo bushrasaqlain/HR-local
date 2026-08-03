@@ -166,8 +166,8 @@ class ContactMessages extends Component {
 
     avatarBg(userType) {
         const t = userType?.toLowerCase();
-        if (t === "employer" || t === "company") return { bg: "#d1ecf1", color: "#0c5460" };
-        if (t === "candidate") return { bg: "#e8d5f5", color: "#6f42c1" };
+        if (t === "employer" || t === "company") return { bg: "#e4faff", color: "#36565F" };
+        if (t === "candidate") return { bg: "#e4faff", color: "#36565F" };
         return { bg: "#e2e3e5", color: "#555" };
     }
 

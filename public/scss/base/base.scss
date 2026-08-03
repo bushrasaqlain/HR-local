@@ -149,11 +149,17 @@
     padding-bottom: 72px; /* height of fixed dashboard footer */
   }
 
-  @media (max-width: 768px) {
-    .dashboard-wrapper {
-      padding-top: 64px;
-      padding-bottom: 64px;
-    }
+@media (max-width: 768px) {
+  .dashboard-wrapper {
+    padding-top: 64px;
+    padding-bottom: 110px; 
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-wrapper {
+    padding-bottom: 140px; 
+  }
   }
 
   .dashboard-content {
@@ -1338,4 +1344,21 @@ body.messages-page #__next {
 .cr-btn-outline:hover {
     background: #36565f;
     color: #fff;
+}
+
+input,
+textarea,
+select {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  color: #363636;
+  font-size: 1rem;
+  border: 1px solid #ced4da; /* default state */
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: #36565f !important;
+  box-shadow: 0 0 0 3px rgba(54, 86, 95, 0.13) !important;
+  outline: none !important;
 }

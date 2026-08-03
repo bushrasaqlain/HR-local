@@ -13,6 +13,118 @@ import {
 } from "reactstrap";
 import api from "../../lib/api";
 
+const CustomTimePicker = ({ value, onChange, disabled = false }) => {
+  const [open, setOpen] = React.useState(false);
+  const wrapRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const parseValue = (val) => {
+    if (!val) return { hour12: "09", minute: "00", period: "AM" };
+    const [h, m] = val.split(":");
+    let hourNum = parseInt(h, 10);
+    const period = hourNum >= 12 ? "PM" : "AM";
+    hourNum = hourNum % 12;
+    if (hourNum === 0) hourNum = 12;
+    return { hour12: String(hourNum).padStart(2, "0"), minute: m, period };
+  };
+
+  const { hour12, minute, period } = parseValue(value);
+
+  const to24Hour = (h12, min, per) => {
+    let h = parseInt(h12, 10);
+    if (per === "AM") { if (h === 12) h = 0; }
+    else { if (h !== 12) h += 12; }
+    return `${String(h).padStart(2, "0")}:${min}`;
+  };
+
+  const hours = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
+  const minutes = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
+  const periods = ["AM", "PM"];
+
+  const updatePart = (part, val) => {
+    let h = hour12, m = minute, p = period;
+    if (part === "hour") h = val;
+    if (part === "minute") m = val;
+    if (part === "period") p = val;
+    onChange(to24Hour(h, m, p));
+  };
+
+  const displayLabel = value ? `${hour12}:${minute} ${period}` : "Select time";
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative", width: "100%" }}>
+      <div
+        onClick={() => !disabled && setOpen(!open)}
+        style={{
+          height: "38px", padding: "0 12px", fontSize: "14px",
+          border: `1px solid ${open ? "#36565f" : "#ced4da"}`,
+          borderRadius: "6px", background: disabled ? "#e9ecef" : "#fff",
+          color: value ? "#212529" : "#6c757d",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          cursor: disabled ? "not-allowed" : "pointer",
+          boxShadow: open ? "0 0 0 3px rgba(54,86,95,0.15)" : "none",
+        }}
+      >
+        <span>{displayLabel}</span>
+        <span style={{ fontSize: "13px", color: "#9ca3af", marginLeft: "8px" }}>🕒</span>
+      </div>
+
+      {open && !disabled && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 40,
+          background: "#fff", borderRadius: "6px", border: "1px solid #ced4da",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+          display: "flex", overflow: "hidden", minWidth: "180px",
+        }}>
+          <div style={{ maxHeight: "200px", overflowY: "auto", borderRight: "1px solid #eee" }}>
+            {hours.map((h) => (
+              <div key={h} onClick={() => updatePart("hour", h)}
+                style={{
+                  padding: "6px 14px", fontSize: "14px", cursor: "pointer", textAlign: "center",
+                  background: hour12 === h ? "#36565f" : "#fff", color: hour12 === h ? "#fff" : "#212529"
+                }}
+                onMouseEnter={(e) => { if (hour12 !== h) e.currentTarget.style.background = "#e6eeef"; }}
+                onMouseLeave={(e) => { if (hour12 !== h) e.currentTarget.style.background = "#fff"; }}
+              >{h}</div>
+            ))}
+          </div>
+          <div style={{ maxHeight: "200px", overflowY: "auto", borderRight: "1px solid #eee" }}>
+            {minutes.map((m) => (
+              <div key={m} onClick={() => updatePart("minute", m)}
+                style={{
+                  padding: "6px 14px", fontSize: "14px", cursor: "pointer", textAlign: "center",
+                  background: minute === m ? "#36565f" : "#fff", color: minute === m ? "#fff" : "#212529"
+                }}
+                onMouseEnter={(e) => { if (minute !== m) e.currentTarget.style.background = "#e6eeef"; }}
+                onMouseLeave={(e) => { if (minute !== m) e.currentTarget.style.background = "#fff"; }}
+              >{m}</div>
+            ))}
+          </div>
+          <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+            {periods.map((p) => (
+              <div key={p} onClick={() => updatePart("period", p)}
+                style={{
+                  padding: "6px 14px", fontSize: "14px", cursor: "pointer", textAlign: "center",
+                  background: period === p ? "#36565f" : "#fff", color: period === p ? "#fff" : "#212529"
+                }}
+                onMouseEnter={(e) => { if (period !== p) e.currentTarget.style.background = "#e6eeef"; }}
+                onMouseLeave={(e) => { if (period !== p) e.currentTarget.style.background = "#fff"; }}
+              >{p}</div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const CustomSelect = ({ options, value, onChange, placeholder = "Select...", disabled = false }) => {
   const [open, setOpen] = React.useState(false);
   const wrapRef = React.useRef(null);
@@ -424,18 +536,16 @@ class AvailabilityStep extends Component {
                 </Col>
                 <Col md={4}>
                   <label className="small">Start Time</label>
-                  <Input
-                    type="time"
+                  <CustomTimePicker
                     value={timing.startTime}
-                    onChange={(e) => this.handleAllShiftsTimingChange(shift.key, "startTime", e.target.value)}
+                    onChange={(val) => this.handleAllShiftsTimingChange(shift.key, "startTime", val)}
                   />
                 </Col>
                 <Col md={4}>
                   <label className="small">End Time</label>
-                  <Input
-                    type="time"
+                  <CustomTimePicker
                     value={timing.endTime}
-                    onChange={(e) => this.handleAllShiftsTimingChange(shift.key, "endTime", e.target.value)}
+                    onChange={(val) => this.handleAllShiftsTimingChange(shift.key, "endTime", val)}
                   />
                 </Col>
                 <Col md={1}>
@@ -467,22 +577,16 @@ class AvailabilityStep extends Component {
       <>
         <div className="mb-3">
           <label className="fw-semibold">Start Time <span className="text-danger">*</span></label>
-          <Input
-            type="time"
+          <CustomTimePicker
             value={form.startTime}
-            onChange={(e) => {
-              this.handleFormChange("startTime", e.target.value);
-            }}
+            onChange={(val) => this.handleFormChange("startTime", val)}
           />
         </div>
         <div className="mb-3">
           <label className="fw-semibold">End Time <span className="text-danger">*</span></label>
-          <Input
-            type="time"
+          <CustomTimePicker
             value={form.endTime}
-            onChange={(e) => {
-              this.handleFormChange("endTime", e.target.value);
-            }}
+            onChange={(val) => this.handleFormChange("endTime", val)}
           />
         </div>
 

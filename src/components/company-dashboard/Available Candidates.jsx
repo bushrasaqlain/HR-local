@@ -2,6 +2,83 @@ import React, { Component } from "react";
 import axios from "axios";
 import Head from "next/head";
 
+class CustomSelect extends Component {
+    state = { isOpen: false };
+    wrapperRef = React.createRef();
+
+    componentDidMount() {
+        document.addEventListener("mousedown", this.handleOutsideClick);
+    }
+    componentWillUnmount() {
+        document.removeEventListener("mousedown", this.handleOutsideClick);
+    }
+    handleOutsideClick = (e) => {
+        if (this.wrapperRef.current && !this.wrapperRef.current.contains(e.target)) {
+            this.setState({ isOpen: false });
+        }
+    };
+    toggleOpen = () => this.setState(prev => ({ isOpen: !prev.isOpen }));
+    handleSelect = (value) => {
+        this.props.onChange(value);
+        this.setState({ isOpen: false });
+    };
+
+    render() {
+        const { options, value, placeholder, maxWidth } = this.props;
+        const { isOpen } = this.state;
+        const selectedLabel = options.find(opt => String(opt.value) === String(value))?.label || placeholder;
+
+        return (
+            <div ref={this.wrapperRef} style={{ position: "relative", width: "100%", maxWidth: maxWidth || 160 }}>
+                <div
+                    onClick={this.toggleOpen}
+                    style={{
+                        border: "1px solid #36565f", borderRadius: "6px", padding: "6px 12px",
+                        fontSize: "0.875rem", color: "#1e293b", background: "#fff",
+                        display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer",
+                    }}
+                >
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {selectedLabel}
+                    </span>
+                    <span style={{
+                        color: "#36565f", fontSize: "0.7rem", marginLeft: "8px",
+                        transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s ease",
+                    }}>▼</span>
+                </div>
+
+                {isOpen && (
+                    <div style={{
+                        position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0,
+                        background: "#fff", border: "1px solid #e2e8f0", borderRadius: "8px",
+                        boxShadow: "0 8px 20px rgba(0,0,0,0.12)", maxHeight: "240px", overflowY: "auto", zIndex: 1000,
+                    }}>
+                        {options.map(opt => {
+                            const isSelected = String(opt.value) === String(value);
+                            return (
+                                <div
+                                    key={opt.value}
+                                    onClick={() => this.handleSelect(opt.value)}
+                                    style={{
+                                        padding: "8px 12px", fontSize: "0.875rem", cursor: "pointer",
+                                        background: isSelected ? "rgba(54, 86, 95, 0.1)" : "#fff",
+                                        color: isSelected ? "#36565f" : "#1e293b",
+                                        fontWeight: isSelected ? "600" : "400",
+                                    }}
+                                    onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "#f1f5f9"; }}
+                                    onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = "#fff"; }}
+                                >
+                                    {opt.label}
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        );
+    }
+}
+
 const AVATAR_COLORS = ["primary", "success", "warning", "danger", "info", "secondary"];
 const avatarColor = (idx) => AVATAR_COLORS[idx % AVATAR_COLORS.length];
 
@@ -262,6 +339,23 @@ class AvailableCandidates extends Component {
         return (
             <>
                 <Head><title>Available Candidates | Dashboard</title></Head>
+
+                <style jsx global>{`
+            .form-select:focus {
+                border-color: #36565f !important;
+                box-shadow: 0 0 0 0.2rem rgba(54, 86, 95, 0.25) !important;
+            }
+            .page-item.active .page-link {
+                background-color: #36565f !important;
+                border-color: #36565f !important;
+            }
+            .page-link {
+                color: #36565f !important;
+            }
+            .page-link:focus {
+                box-shadow: 0 0 0 0.2rem rgba(54, 86, 95, 0.25) !important;
+            }
+        `}</style>
                 <div className="container-fluid px-4 py-4" style={{ maxWidth: 1200, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
 
                     {/* Alert */}
@@ -311,7 +405,7 @@ class AvailableCandidates extends Component {
 
                     {hasActiveJob && creditBalance && (
                         <div className="alert mb-4"
-                        style={{color: "#36565f", background: "#e2f0f0"}}>
+                            style={{ color: "#36565f", background: "#e2f0f0" }}>
                             <strong>Ready to hire!</strong> Click "Unlock" on any candidate to reveal their profile.
                             You have <strong>{creditBalance.remaining_credits}</strong> credits ({creditBalance.unlock_scope} scope).
                         </div>
@@ -337,20 +431,38 @@ class AvailableCandidates extends Component {
 
                     {/* Filters */}
                     <div className="d-flex flex-wrap gap-2 mb-4">
-                        <select className="form-select form-select-sm" style={{ maxWidth: 160 }} value={this.state.skillId} onChange={e => this.handleFilter("skillId", e.target.value)}>
-                            <option value="">All Skills</option>
-                            {this.state.skills.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-                        <select className="form-select form-select-sm" style={{ maxWidth: 160 }} value={cityId} onChange={e => this.handleFilter("cityId", e.target.value)}>
-                            <option value="">All Cities</option>
-                            {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                        <select className="form-select form-select-sm" style={{ maxWidth: 160 }} value={experience} onChange={e => this.handleFilter("experience", e.target.value)}>
-                            <option value="fresh">Fresh Graduate</option>
-                            <option value="1-3">1 – 3 Years</option>
-                            <option value="3-5">3 – 5 Years</option>
-                            <option value="5+">5+ Years</option>
-                        </select>
+                        <CustomSelect
+                            placeholder="All Skills"
+                            maxWidth={160}
+                            value={this.state.skillId}
+                            onChange={(val) => this.handleFilter("skillId", val)}
+                            options={[
+                                { value: "", label: "All Skills" },
+                                ...this.state.skills.map(s => ({ value: s.id, label: s.name }))
+                            ]}
+                        />
+                        <CustomSelect
+                            placeholder="All Cities"
+                            maxWidth={160}
+                            value={cityId}
+                            onChange={(val) => this.handleFilter("cityId", val)}
+                            options={[
+                                { value: "", label: "All Cities" },
+                                ...cities.map(c => ({ value: c.id, label: c.name }))
+                            ]}
+                        />
+                        <CustomSelect
+                            placeholder="Fresh Graduate"
+                            maxWidth={160}
+                            value={experience}
+                            onChange={(val) => this.handleFilter("experience", val)}
+                            options={[
+                                { value: "fresh", label: "Fresh Graduate" },
+                                { value: "1-3", label: "1 – 3 Years" },
+                                { value: "3-5", label: "3 – 5 Years" },
+                                { value: "5+", label: "5+ Years" },
+                            ]}
+                        />
                     </div>
 
                     {/* Content */}
@@ -375,13 +487,13 @@ class AvailableCandidates extends Component {
                             <div className="d-flex flex-wrap justify-content-center gap-2 mt-2">
                                 {this.state.skills.slice(0, 6).map(s => (
                                     <button
-  key={s.id}
-  className="btn btn-sm rounded-pill"
-  style={{ border: "1px solid #36565f", color: "#36565f" }}
-  onClick={() => this.handleFilter("skillId", String(s.id))}
->
-  💡 {s.name}
-</button>
+                                        key={s.id}
+                                        className="btn btn-sm rounded-pill"
+                                        style={{ border: "1px solid #36565f", color: "#36565f" }}
+                                        onClick={() => this.handleFilter("skillId", String(s.id))}
+                                    >
+                                        💡 {s.name}
+                                    </button>
                                 ))}
                             </div>
                         </div>

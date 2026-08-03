@@ -175,12 +175,12 @@ class JobListings extends Component {
       sortConfig: { key, direction }
     });
   };
-toggleScreeningModal = (jobId) => {
-  this.setState((prev) => ({
-    screeningModalOpen: !prev.screeningModalOpen,
-    screeningJobId: jobId,
-  }));
-};
+  toggleScreeningModal = (jobId) => {
+    this.setState((prev) => ({
+      screeningModalOpen: !prev.screeningModalOpen,
+      screeningJobId: jobId,
+    }));
+  };
   getSortIcon = (key) => {
     const { sortConfig } = this.state;
     if (sortConfig.key !== key) return '';
@@ -504,7 +504,7 @@ toggleScreeningModal = (jobId) => {
                   }}>
 
                     <Dropdown isOpen={statusFilterOpen} toggle={this.toggleStatusFilter}>
-                      <DropdownToggle caret color="link" style={{ color: '#1e293b', textDecoration: 'none', padding: 0 }}>
+                      <DropdownToggle caret color="link" style={{ color: '#36565F', textDecoration: 'none', padding: 0 }}>
                         Status: {quickStatusFilter === "" ? "All" : quickStatusFilter}
                       </DropdownToggle>
                       <DropdownMenu>
@@ -793,10 +793,10 @@ toggleScreeningModal = (jobId) => {
                                 <DropdownItem onClick={() => this.toggleEditModal(job.id)}>
                                   <i className="la la-edit me-2" style={{ color: '#36565F' }} /> Edit
                                 </DropdownItem>
-<DropdownItem onClick={() => this.toggleScreeningModal(job.id)}>
-  <i className="la la-question-circle me-2" style={{ color: '#36565F' }} />
-  {job.has_screening ? "Edit Screening Questions" : "Add Screening Questions"}
-</DropdownItem>
+                                <DropdownItem onClick={() => this.toggleScreeningModal(job.id)}>
+                                  <i className="la la-question-circle me-2" style={{ color: '#36565F' }} />
+                                  {job.has_screening ? "Edit Screening Questions" : "Add Screening Questions"}
+                                </DropdownItem>
                                 {job.approval_status === "Pending Payment" && (
                                   <DropdownItem onClick={() => this.handlePay(job)}>
                                     <i className="la la-credit-card me-2" style={{ color: '#10b981' }} /> Pay
@@ -952,26 +952,26 @@ toggleScreeningModal = (jobId) => {
             </ModalBody>
           </Modal>
           <Modal
-  isOpen={this.state.screeningModalOpen}
-  toggle={() => this.toggleScreeningModal()}
-  size="lg"
-  centered
->
-  <ModalHeader toggle={() => this.toggleScreeningModal()}>
-    <span style={{ color: '#36565F' }}>❓ Screening Questions</span>
-  </ModalHeader>
-  <ModalBody>
-    {this.state.screeningJobId && (
-      <ScreeningQuestionsForm
-        jobId={this.state.screeningJobId}
-        onSuccess={() => {
-          this.toggleScreeningModal();
-          this.fetchData(this.userId);
-        }}
-      />
-    )}
-  </ModalBody>
-</Modal>
+            isOpen={this.state.screeningModalOpen}
+            toggle={() => this.toggleScreeningModal()}
+            size="lg"
+            centered
+          >
+            <ModalHeader toggle={() => this.toggleScreeningModal()}>
+              <span style={{ color: '#36565F' }}>❓ Screening Questions</span>
+            </ModalHeader>
+            <ModalBody>
+              {this.state.screeningJobId && (
+                <ScreeningQuestionsForm
+                  jobId={this.state.screeningJobId}
+                  onSuccess={() => {
+                    this.toggleScreeningModal();
+                    this.fetchData(this.userId);
+                  }}
+                />
+              )}
+            </ModalBody>
+          </Modal>
         </Container>
 
         <style jsx>{`
@@ -1018,6 +1018,44 @@ toggleScreeningModal = (jobId) => {
             transition: color 0.2s ease;
           }
         `}</style>
+
+        <style jsx global>{`
+  /* Search input & filter inputs - remove blue focus ring */
+  .form-control:focus,
+  input.form-control:focus {
+    border-color: #36565F !important;
+    box-shadow: 0 0 0 0.2rem rgba(54, 86, 95, 0.25) !important;
+  }
+
+  /* Status filter + Actions dropdown toggle (btn-link) */
+  .btn-link,
+  .btn-link:hover,
+  .btn-link:focus,
+  .btn-link:active {
+    color: #36565F !important;
+    box-shadow: none !important;
+  }
+
+  /* Any bootstrap button focus ring */
+  .btn:focus,
+  .btn.focus {
+    box-shadow: 0 0 0 0.2rem rgba(54, 86, 95, 0.25) !important;
+  }
+
+  /* Dropdown menu items - hover/active/focus state */
+  .dropdown-item:hover,
+  .dropdown-item:focus,
+  .dropdown-item.active,
+  .dropdown-item:active {
+    background-color: rgba(54, 86, 95, 0.1) !important;
+    color: #36565F !important;
+  }
+
+  /* Dropdown toggle caret arrow color */
+  .dropdown-toggle::after {
+    border-top-color: #36565F !important;
+  }
+`}</style>
       </>
     );
   }

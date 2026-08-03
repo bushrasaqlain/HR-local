@@ -14,7 +14,7 @@ const SEVERITY = {
     badge: "#fef3c7",
     label: "Good Match",
   },
-  low: { color: "#3b82f6", bg: "#eff6ff", badge: "#dbeafe", label: "New Job" },
+  low: { color: "#36565F", bg: "#eff6ff", badge: "#dbeafe", label: "New Job" },
 };
 
 const sev = (alert) => {
@@ -254,8 +254,8 @@ class CandidateJobAlertsPage extends React.Component {
                   label: "Shortlisted",
                 },
                 interview: {
-                  color: "#3b82f6",
-                  badge: "#dbeafe",
+                  color: "#36565F",
+                  badge: "#e7faff",
                   label: "Interview",
                 },
                 offer: { color: "#8b5cf6", badge: "#ede9fe", label: "Offer" },
@@ -603,7 +603,7 @@ class CandidateJobAlertsPage extends React.Component {
                   {
                     rejection: "#ef4444",
                     shortlisted: "#10b981",
-                    interview: "#3b82f6",
+                    interview: "#36565F",
                     offer: "#8b5cf6",
                     selected: "#10b981",
                   }[selected.alert_type] || "#36565f",
@@ -649,7 +649,7 @@ class CandidateJobAlertsPage extends React.Component {
                   interview: {
                     icon: "📅",
                     title: "Interview Scheduled",
-                    color: "#3b82f6",
+                    color: "#36565F",
                     text:
                       selected.message ||
                       `Your interview for <b>${selected.job_title}</b> at <b>${selected.company_name}</b> has been scheduled.`,

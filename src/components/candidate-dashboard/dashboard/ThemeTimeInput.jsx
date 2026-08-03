@@ -44,7 +44,7 @@ class ThemedTimeInput extends React.Component {
   render() {
     const { open, hour, minute, period } = this.state;
     const hours = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
-    const minuteStep = this.props.minuteStep || 15;
+    const minuteStep = this.props.minuteStep || 5;
 const minutes = Array.from({ length: 60 / minuteStep }, (_, i) =>
   String(i * minuteStep).padStart(2, "0")
 );

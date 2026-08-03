@@ -5,7 +5,7 @@ import axios from "axios";
 const SEVERITY = {
   critical: { color: "#ef4444", bg: "#fef2f2", badge: "#fee2e2", label: "Critical" },
   warning: { color: "#f59e0b", bg: "#fffbeb", badge: "#fef3c7", label: "Warning" },
-  info: { color: "#3b82f6", bg: "#eff6ff", badge: "#dbeafe", label: "Info" },
+  info: { color: "#36565f", bg: "#eff6ff", badge: "#dbeafe", label: "Info" },
 };
 const sev = (s) => SEVERITY[s] || SEVERITY.info;
 const TYPE_ICON = {
@@ -270,7 +270,7 @@ function NotificationCenter({ userId, apiBaseUrl }) {
                       {!n.is_read && (
                         <div style={{
                           width: 7, height: 7, borderRadius: "50%",
-                          background: "#2164f3", flexShrink: 0, marginTop: 5,
+                          background: "#36565f", flexShrink: 0, marginTop: 5,
                         }} />
                       )}
                     </div>
@@ -605,9 +605,9 @@ export function NotificationsPage({ userId, apiBaseUrl, onTabChange, initialSele
           <button key={f} onClick={() => setFilter(f)} style={{
             flex: 1, padding: "10px 4px", fontSize: 12,
             fontWeight: filter === f ? 700 : 500,
-            color: filter === f ? "#2164f3" : "#6b7280",
+            color: filter === f ? "#36565f" : "#6b7280",
             background: "none", border: "none",
-            borderBottom: filter === f ? "2px solid #2164f3" : "2px solid transparent",
+            borderBottom: filter === f ? "2px solid #36565f" : "2px solid transparent",
             cursor: "pointer", fontFamily: "inherit",
             marginBottom: -1, transition: "all 0.12s",
           }}>

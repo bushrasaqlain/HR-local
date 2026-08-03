@@ -91,8 +91,8 @@ class TopCardBlock extends Component {
         tabKey: "jobList",
         filterStatus: null,
         bgColor: "#FFFFFF",
-        iconBg: "#EEF2FF",
-        iconColor: "#4F46E5",
+        iconBg: "#edfafd",
+        iconColor: "#36565f",
         textColor: "#1F2937",
         subTextColor: "#6B7280"
       },

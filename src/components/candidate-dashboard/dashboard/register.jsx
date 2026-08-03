@@ -14,12 +14,108 @@ import ThemedTimeInput from "./ThemeTimeInput";
 let faceapi = null;
 
 const rsSelectStyles = {
-  control: (b) => ({ ...b, borderColor: "#e5e7eb", borderRadius: 7, fontSize: 14, minHeight: 38 }),
+  control: (b, state) => ({
+    ...b,
+    borderColor: state.isFocused ? "#36565f" : "#e5e7eb",
+    boxShadow: state.isFocused ? "0 0 0 3px rgba(54,86,95,0.13)" : "none",
+    borderRadius: 7,
+    fontSize: 14,
+    minHeight: 38,
+    "&:hover": { borderColor: "#36565f" },
+  }),
+  option: (b, state) => ({
+    ...b,
+    backgroundColor: state.isSelected ? "#36565f" : state.isFocused ? "#e6eeef" : "#fff",
+    color: state.isSelected ? "#fff" : "#1a1a1a",
+    cursor: "pointer",
+  }),
+  multiValue: (b) => ({ ...b, backgroundColor: "#e2f0f0" }),
+  multiValueLabel: (b) => ({ ...b, color: "#36565f" }),
 };
 
 const StyledInput = (props) => <input {...props} className={`cr-field-input ${props.className || ""}`} />;
 const StyledSelect = (props) => <select {...props} className={`cr-field-input cr-field-select ${props.className || ""}`} />;
 const StyledTextarea = (props) => <textarea {...props} className={`cr-field-textarea ${props.className || ""}`} />;
+
+const CustomSelect = ({ options, value, onChange, placeholder = "Select...", disabled = false }) => {
+  const [open, setOpen] = React.useState(false);
+  const wrapRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find((o) => String(o.value) === String(value));
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative", width: "100%" }}>
+      <div
+        onClick={() => !disabled && setOpen(!open)}
+        style={{
+          height: "38px", padding: "0 12px", fontSize: "14px",
+          border: `1px solid ${open ? "#36565f" : "#e5e7eb"}`,
+          borderRadius: "7px", background: disabled ? "#e9ecef" : "#fff",
+          color: selectedOption ? "#1a1a1a" : "#6c757d",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          cursor: disabled ? "not-allowed" : "pointer",
+          boxShadow: open ? "0 0 0 3px rgba(54,86,95,0.13)" : "none",
+        }}
+      >
+        <span>{selectedOption ? selectedOption.label : placeholder}</span>
+        <span style={{ fontSize: "10px", color: "#9ca3af", marginLeft: "8px" }}>▾</span>
+      </div>
+
+      {open && !disabled && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 30,
+          background: "#fff", borderRadius: "7px", border: "1px solid #e5e7eb",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.08)", maxHeight: "220px", overflowY: "auto",
+        }}>
+          {options.map((opt) => {
+            const isSelected = String(opt.value) === String(value);
+            return (
+              <div
+                key={opt.value}
+                onClick={() => { onChange(opt.value); setOpen(false); }}
+                style={{
+                  padding: "8px 12px", fontSize: "14px", cursor: "pointer",
+                  background: isSelected ? "#36565f" : "#fff",
+                  color: isSelected ? "#fff" : "#1a1a1a",
+                }}
+                onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "#e6eeef"; }}
+                onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = "#fff"; }}
+              >
+                {opt.label}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Formik-bound wrapper so we don't repeat <Field><CustomSelect/></Field> everywhere
+const FormikCustomSelect = ({ name, options, placeholder, onExtraChange, disabled = false }) => (
+  <Field name={name}>
+    {({ field, form }) => (
+      <CustomSelect
+        options={options}
+        value={field.value}
+        disabled={disabled}
+        onChange={(val) => {
+          form.setFieldValue(name, val);
+          if (onExtraChange) onExtraChange(val, form);
+        }}
+        placeholder={placeholder}
+      />
+    )}
+  </Field>
+);
 
 const FieldWrap = ({ label, required, hint, error, children, span2 = false }) => (
   <div className={`cr-field-group ${span2 ? "span-2" : ""}`}>
@@ -275,7 +371,7 @@ class CandidateRegisterForm extends Component {
     // after an earlier CV upload), prefill from the backend instead of
     // starting from the resume screen.
     this.fetchExistingProfileIfAny();
-     console.log("🟢 fetchExistingProfileIfAny() called");
+    console.log("🟢 fetchExistingProfileIfAny() called");
   }
 
   /* ───────────────────── existing profile prefill ───────────────────── */
@@ -308,113 +404,113 @@ class CandidateRegisterForm extends Component {
   // Silently checks whether this candidate already has profile data (e.g. a
   // previously-uploaded CV). If so, skip straight to the full form,
   // prefilled — otherwise start at the resume-upload screen.
-fetchExistingProfileIfAny = async () => {
-  console.log("🔵 STEP 1 - inside fetchExistingProfileIfAny");
-  try {
-    const token = sessionStorage.getItem("token");
-    console.log("🔵 STEP 2 - token is:", token);
-    if (!token) return;
+  fetchExistingProfileIfAny = async () => {
+    console.log("🔵 STEP 1 - inside fetchExistingProfileIfAny");
+    try {
+      const token = sessionStorage.getItem("token");
+      console.log("🔵 STEP 2 - token is:", token);
+      if (!token) return;
 
-    const headers = { Authorization: `Bearer ${token}` };
+      const headers = { Authorization: `Bearer ${token}` };
 
-    const [profileRes, eduRes, expRes, availRes] = await Promise.allSettled([
-      api.get("/candidateProfile/candidate", { headers }),
-      api.get(`/candidateeducation/getallcandidateeducation`, { headers }),
-      api.get(`/candidateexperience/getexperience`, { headers }),
-      api.get(`/candidate_availability/getavailability`, { headers }),
-    ]);
+      const [profileRes, eduRes, expRes, availRes] = await Promise.allSettled([
+        api.get("/candidateProfile/candidate", { headers }),
+        api.get(`/candidateeducation/getallcandidateeducation`, { headers }),
+        api.get(`/candidateexperience/getexperience`, { headers }),
+        api.get(`/candidate_availability/getavailability`, { headers }),
+      ]);
 
-    console.log("🟣 STEP 3 - settled results:", { profileRes, eduRes, expRes, availRes });
+      console.log("🟣 STEP 3 - settled results:", { profileRes, eduRes, expRes, availRes });
 
-    if (profileRes.status !== "fulfilled") {
-      console.log("🔴 STEP 3a - profile call itself failed, bailing:", profileRes.reason);
-      return;
+      if (profileRes.status !== "fulfilled") {
+        console.log("🔴 STEP 3a - profile call itself failed, bailing:", profileRes.reason);
+        return;
+      }
+
+      const data = profileRes.value.data || {};
+      const eduData = eduRes.status === "fulfilled" ? eduRes.value.data : [];
+      const expData = expRes.status === "fulfilled" ? expRes.value.data : { data: [] };
+      const availData = availRes.status === "fulfilled" ? availRes.value.data : { data: [] };
+
+      console.log("🟡 STEP 4 - extracted data:", { data, eduData, expData, availData });
+      console.log("🟡 STEP 4a - individual call statuses:", {
+        profile: profileRes.status,
+        education: eduRes.status,
+        experience: expRes.status,
+        availability: availRes.status,
+      });
+      if (eduRes.status === "rejected") console.log("🔴 education call failed:", eduRes.reason);
+      if (expRes.status === "rejected") console.log("🔴 experience call failed:", expRes.reason);
+      if (availRes.status === "rejected") console.log("🔴 availability call failed:", availRes.reason);
+
+      const hasAnyProfileData = Boolean(
+        data.full_name || data.phone || data.email || data.resume ||
+        (Array.isArray(eduData) && eduData.length) ||
+        (Array.isArray(expData?.data) && expData.data.length)
+      );
+      console.log("🟢 STEP 5 - hasAnyProfileData:", hasAnyProfileData);
+      if (!hasAnyProfileData) {
+        console.log("⚪ STEP 5a - no profile data found, staying on resume screen");
+        return;
+      }
+
+      const mappedData = {
+        ...EMPTY_FORM_DATA,
+        full_name: data.full_name ?? "",
+        phone: data.phone ?? "",
+        email: data.email ?? "",
+        date_of_birth: data.date_of_birth ? new Date(data.date_of_birth).toISOString().slice(0, 10) : "",
+        gender: data.gender ?? "",
+        marital_status: data.marital_status ?? "",
+        total_experience: data.total_experience ?? "",
+        current_salary: data.current_salary ?? "",
+        expected_salary: data.expected_salary ?? "",
+        skills: Array.isArray(data.skills) ? data.skills.map((s) => s.id) : [],
+        otherPreferredCities: Array.isArray(data.otherPreferredCities) ? data.otherPreferredCities : [],
+        address: data.address ?? "",
+        passport_photoPreview: data.passport_photo
+          ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${data.passport_photo}`
+          : "",
+        education: [
+          { degree: "", degreeTitle: "", degreeTitle_label: "", institutes: "", startDate: "", endDate: "", ongoing: false, id: null },
+          ...this.mapEducation(eduData || []),
+        ],
+        experience: [
+          { companyName: "", speciality_id: "", designation: "", job_type_id: "", startDate: "", endDate: "", ongoing: false, id: null },
+          ...this.mapExperience(expData?.data || []),
+        ],
+        passport_photo: data.passport_photo || null,
+        resume: data.resume ? {
+          name: data.resume.split("/").pop(),
+          url: `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${data.resume}`,
+          isExisting: true,
+        } : null,
+        country: data.country?.id || "",
+        district: data.district?.id || "",
+        city: data.city?.id || "",
+        isFresher: data.is_fresher || false,
+        license_type: data.license_type?.id || "",
+        license_number: data.license_number ?? "",
+      };
+
+      console.log("🟢 STEP 6 - mappedData built:", mappedData);
+      console.log("🟢 STEP 6a - mappedData.email specifically:", mappedData.email);
+
+      const rawAvail = Array.isArray(availData?.data) ? availData.data : [];
+      const entries = rawAvail.map((e) => ({ day: e.day, shift: e.shift, startTime: e.startTime, endTime: e.endTime }));
+
+      console.log("🟢 STEP 7 - entries built:", entries);
+
+      this.setState({ formData: mappedData, entries, phase: "form" }, () => {
+        console.log("✅ STEP 8 - setState complete, this.state.formData is now:", this.state.formData);
+      });
+
+      if (mappedData.country) await this.loadDistricts(mappedData.country);
+      if (mappedData.district) await this.loadCities(mappedData.district);
+    } catch (err) {
+      console.error("🔴 Prefill fetch failed", err);
     }
-
-    const data = profileRes.value.data || {};
-    const eduData = eduRes.status === "fulfilled" ? eduRes.value.data : [];
-    const expData = expRes.status === "fulfilled" ? expRes.value.data : { data: [] };
-    const availData = availRes.status === "fulfilled" ? availRes.value.data : { data: [] };
-
-    console.log("🟡 STEP 4 - extracted data:", { data, eduData, expData, availData });
-    console.log("🟡 STEP 4a - individual call statuses:", {
-      profile: profileRes.status,
-      education: eduRes.status,
-      experience: expRes.status,
-      availability: availRes.status,
-    });
-    if (eduRes.status === "rejected") console.log("🔴 education call failed:", eduRes.reason);
-    if (expRes.status === "rejected") console.log("🔴 experience call failed:", expRes.reason);
-    if (availRes.status === "rejected") console.log("🔴 availability call failed:", availRes.reason);
-
-    const hasAnyProfileData = Boolean(
-  data.full_name || data.phone || data.email || data.resume ||
-  (Array.isArray(eduData) && eduData.length) ||
-  (Array.isArray(expData?.data) && expData.data.length)
-);
-    console.log("🟢 STEP 5 - hasAnyProfileData:", hasAnyProfileData);
-    if (!hasAnyProfileData) {
-      console.log("⚪ STEP 5a - no profile data found, staying on resume screen");
-      return;
-    }
-
-    const mappedData = {
-      ...EMPTY_FORM_DATA,
-      full_name: data.full_name ?? "",
-      phone: data.phone ?? "",
-      email: data.email ?? "",
-      date_of_birth: data.date_of_birth ? new Date(data.date_of_birth).toISOString().slice(0, 10) : "",
-      gender: data.gender ?? "",
-      marital_status: data.marital_status ?? "",
-      total_experience: data.total_experience ?? "",
-      current_salary: data.current_salary ?? "",
-      expected_salary: data.expected_salary ?? "",
-      skills: Array.isArray(data.skills) ? data.skills.map((s) => s.id) : [],
-      otherPreferredCities: Array.isArray(data.otherPreferredCities) ? data.otherPreferredCities : [],
-      address: data.address ?? "",
-      passport_photoPreview: data.passport_photo
-        ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${data.passport_photo}`
-        : "",
-      education: [
-        { degree: "", degreeTitle: "", degreeTitle_label: "", institutes: "", startDate: "", endDate: "", ongoing: false, id: null },
-        ...this.mapEducation(eduData || []),
-      ],
-      experience: [
-        { companyName: "", speciality_id: "", designation: "", job_type_id: "", startDate: "", endDate: "", ongoing: false, id: null },
-        ...this.mapExperience(expData?.data || []),
-      ],
-      passport_photo: data.passport_photo || null,
-      resume: data.resume ? {
-        name: data.resume.split("/").pop(),
-        url: `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${data.resume}`,
-        isExisting: true,
-      } : null,
-      country: data.country?.id || "",
-      district: data.district?.id || "",
-      city: data.city?.id || "",
-      isFresher: data.is_fresher || false,
-      license_type: data.license_type?.id || "",
-      license_number: data.license_number ?? "",
-    };
-
-    console.log("🟢 STEP 6 - mappedData built:", mappedData);
-    console.log("🟢 STEP 6a - mappedData.email specifically:", mappedData.email);
-
-    const rawAvail = Array.isArray(availData?.data) ? availData.data : [];
-    const entries = rawAvail.map((e) => ({ day: e.day, shift: e.shift, startTime: e.startTime, endTime: e.endTime }));
-
-    console.log("🟢 STEP 7 - entries built:", entries);
-
-    this.setState({ formData: mappedData, entries, phase: "form" }, () => {
-      console.log("✅ STEP 8 - setState complete, this.state.formData is now:", this.state.formData);
-    });
-
-    if (mappedData.country) await this.loadDistricts(mappedData.country);
-    if (mappedData.district) await this.loadCities(mappedData.district);
-  } catch (err) {
-    console.error("🔴 Prefill fetch failed", err);
-  }
-};
+  };
   /* ───────────────────────── resume / CV extraction ───────────────────────── */
 
   handleCVUpload = async (e) => {
@@ -460,51 +556,51 @@ fetchExistingProfileIfAny = async () => {
         // Merge extracted values into formData so the full form opens prefilled.
         this.setState((prev) => {
           const merged = {
-  ...prev.formData,
-  resume: { name: file.name, url: URL.createObjectURL(file), isExisting: false, file },
-  full_name: ext.full_name || prev.formData.full_name,
-  phone: ext.phone || prev.formData.phone,
-  email: ext.email || prev.formData.email,
-  date_of_birth: ext.date_of_birth || prev.formData.date_of_birth,
-  gender: ext.gender || prev.formData.gender,
-  marital_status: ext.marital_status || prev.formData.marital_status,
-  skills: Array.isArray(ext.skill_ids) && ext.skill_ids.length ? ext.skill_ids : prev.formData.skills,
-};
+            ...prev.formData,
+            resume: { name: file.name, url: URL.createObjectURL(file), isExisting: false, file },
+            full_name: ext.full_name || prev.formData.full_name,
+            phone: ext.phone || prev.formData.phone,
+            email: ext.email || prev.formData.email,
+            date_of_birth: ext.date_of_birth || prev.formData.date_of_birth,
+            gender: ext.gender || prev.formData.gender,
+            marital_status: ext.marital_status || prev.formData.marital_status,
+            skills: Array.isArray(ext.skill_ids) && ext.skill_ids.length ? ext.skill_ids : prev.formData.skills,
+          };
 
-const degreeTypeLabel = (typeId) =>
-  this.state.degreeFieldData.find((d) => String(d.id) === String(typeId))?.name || "";
+          const degreeTypeLabel = (typeId) =>
+            this.state.degreeFieldData.find((d) => String(d.id) === String(typeId))?.name || "";
 
-const education = Array.isArray(ext.education) && ext.education.length
-  ? [
-      { degree: "", degreeTitle: "", degreeTitle_label: "", institutes: "", institutes_label: "", startDate: "", endDate: "", ongoing: false, id: null },
-      ...ext.education.map((edu) => ({
-        id: edu.id || null,
-        degree: edu.degree_type_id ? String(edu.degree_type_id) : "",
-        degree_label: degreeTypeLabel(edu.degree_type_id) || edu.degree_name || "",
-        degreeTitle: edu.degreefield_id || "",
-        degreeTitle_label: edu.degreefield_name || edu.raw_line || "",
-        institutes: edu.institute_id || "",
-        institutes_label: edu.institute_name || "",
-        startDate: edu.startDate || "",
-        endDate: edu.endDate || "",
-        ongoing: edu.ongoing ?? !edu.endDate,
-      })),
-    ]
-  : prev.formData.education;
+          const education = Array.isArray(ext.education) && ext.education.length
+            ? [
+              { degree: "", degreeTitle: "", degreeTitle_label: "", institutes: "", institutes_label: "", startDate: "", endDate: "", ongoing: false, id: null },
+              ...ext.education.map((edu) => ({
+                id: edu.id || null,
+                degree: edu.degree_type_id ? String(edu.degree_type_id) : "",
+                degree_label: degreeTypeLabel(edu.degree_type_id) || edu.degree_name || "",
+                degreeTitle: edu.degreefield_id || "",
+                degreeTitle_label: edu.degreefield_name || edu.raw_line || "",
+                institutes: edu.institute_id || "",
+                institutes_label: edu.institute_name || "",
+                startDate: edu.startDate || "",
+                endDate: edu.endDate || "",
+                ongoing: edu.ongoing ?? !edu.endDate,
+              })),
+            ]
+            : prev.formData.education;
           const experience = Array.isArray(ext.experience) && ext.experience.length
             ? [
-                prev.formData.experience[0],
-                ...ext.experience.map((exp) => ({
-                  id: exp.id || null,
-                  companyName: exp.company_name || exp.companyName || "",
-                  designation: exp.designation || "",
-                  speciality_id: exp.speciality_id || "",
-                  job_type_id: exp.job_type_id || "",
-                  startDate: exp.start_date || "",
-                  endDate: exp.end_date || "",
-                  ongoing: !exp.end_date,
-                })),
-              ]
+              prev.formData.experience[0],
+              ...ext.experience.map((exp) => ({
+                id: exp.id || null,
+                companyName: exp.company_name || exp.companyName || "",
+                designation: exp.designation || "",
+                speciality_id: exp.speciality_id || "",
+                job_type_id: exp.job_type_id || "",
+                startDate: exp.start_date || "",
+                endDate: exp.end_date || "",
+                ongoing: !exp.end_date,
+              })),
+            ]
             : prev.formData.experience;
 
           return {
@@ -832,21 +928,27 @@ const education = Array.isArray(ext.education) && ext.education.length
 
       <div className="cr-grid-2" style={{ marginTop: 14 }}>
         <FieldWrap label="Gender">
-          <Field as="select" name="gender" className="cr-field-input cr-field-select">
-            <option value="">Select gender</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-          </Field>
+          <FormikCustomSelect
+            name="gender"
+            placeholder="Select gender"
+            options={[
+              { value: "male", label: "Male" },
+              { value: "female", label: "Female" },
+            ]}
+          />
         </FieldWrap>
         <FieldWrap label="Marital status">
-          <Field as="select" name="marital_status" className="cr-field-input cr-field-select">
-            <option value="">Select status</option>
-            <option value="single">Single</option>
-            <option value="married">Married</option>
-            <option value="divorced">Divorced</option>
-            <option value="widowed">Widowed</option>
-            <option value="separated">Separated</option>
-          </Field>
+          <FormikCustomSelect
+            name="marital_status"
+            placeholder="Select status"
+            options={[
+              { value: "single", label: "Single" },
+              { value: "married", label: "Married" },
+              { value: "divorced", label: "Divorced" },
+              { value: "widowed", label: "Widowed" },
+              { value: "separated", label: "Separated" },
+            ]}
+          />
         </FieldWrap>
       </div>
 
@@ -854,13 +956,11 @@ const education = Array.isArray(ext.education) && ext.education.length
 
       <div className="cr-grid-2">
         <FieldWrap label="License type">
-          <Field as="select" name="license_type" className="cr-field-input cr-field-select"
-            onChange={(e) => setFieldValue("license_type", e.target.value)}>
-            <option value="">Select license type</option>
-            {(this.state.licenseTypes || []).map((l) => (
-              <option key={l.id} value={String(l.id)}>{l.name}</option>
-            ))}
-          </Field>
+          <FormikCustomSelect
+            name="license_type"
+            placeholder="Select license type"
+            options={(this.state.licenseTypes || []).map((l) => ({ value: String(l.id), label: l.name }))}
+          />
         </FieldWrap>
         <FieldWrap label="License number" required error={touched.license_number && errors.license_number}>
           <Field name="license_number">
@@ -904,35 +1004,34 @@ const education = Array.isArray(ext.education) && ext.education.length
 
       <div className="cr-grid-3">
         <FieldWrap label="Country">
-          <Field as="select" name="country" className="cr-field-input cr-field-select"
-            onChange={(e) => {
-              const countryId = e.target.value;
-              setFieldValue("country", countryId);
-              setFieldValue("district", "");
-              setFieldValue("city", "");
-              this.loadDistricts(countryId);
-            }}>
-            <option value="">Select country</option>
-            {this.state.countries.map((c) => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
-          </Field>
+          <FormikCustomSelect
+            name="country"
+            placeholder="Select country"
+            options={this.state.countries.map((c) => ({ value: String(c.id), label: c.name }))}
+            onExtraChange={(val, form) => {
+              form.setFieldValue("district", "");
+              form.setFieldValue("city", "");
+              this.loadDistricts(val);
+            }}
+          />
         </FieldWrap>
         <FieldWrap label="District">
-          <Field as="select" name="district" className="cr-field-input cr-field-select"
-            onChange={(e) => {
-              const districtId = e.target.value;
-              setFieldValue("district", districtId);
-              setFieldValue("city", "");
-              this.loadCities(districtId);
-            }}>
-            <option value="">Select district</option>
-            {this.state.districts.map((d) => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
-          </Field>
+          <FormikCustomSelect
+            name="district"
+            placeholder="Select district"
+            options={this.state.districts.map((d) => ({ value: String(d.id), label: d.name }))}
+            onExtraChange={(val, form) => {
+              form.setFieldValue("city", "");
+              this.loadCities(val);
+            }}
+          />
         </FieldWrap>
         <FieldWrap label="City">
-          <Field as="select" name="city" className="cr-field-input cr-field-select">
-            <option value="">Select city</option>
-            {this.state.cities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </Field>
+          <FormikCustomSelect
+            name="city"
+            placeholder="Select city"
+            options={this.state.cities.map((c) => ({ value: c.id, label: c.name }))}
+          />
         </FieldWrap>
       </div>
 
@@ -973,15 +1072,15 @@ const education = Array.isArray(ext.education) && ext.education.length
 
                 <div className="cr-grid-2">
                   <FieldWrap label="Degree">
-                    <Field as="select" name="education.0.degree" className="cr-field-input cr-field-select"
-                      onChange={(e) => {
-                        setFieldValue("education.0.degree", e.target.value);
-                        setFieldValue("education.0.degreeTitle", "");
-                        setFieldValue("education.0.degreeTitle_label", "");
-                      }}>
-                      <option value="">Select degree</option>
-                      {this.state.degreeFieldData.map((d) => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
-                    </Field>
+                    <FormikCustomSelect
+                      name="education.0.degree"
+                      placeholder="Select degree"
+                      options={this.state.degreeFieldData.map((d) => ({ value: String(d.id), label: d.name }))}
+                      onExtraChange={(val, form) => {
+                        form.setFieldValue("education.0.degreeTitle", "");
+                        form.setFieldValue("education.0.degreeTitle_label", "");
+                      }}
+                    />
                   </FieldWrap>
                   <FieldWrap label="Degree title">
                     <AsyncSelect key={draft.degree || "no-degree"} cacheOptions={false} defaultOptions
@@ -1019,29 +1118,29 @@ const education = Array.isArray(ext.education) && ext.education.length
                 </div>
 
                 <button type="button" className="cr-btn-add" style={{ marginTop: "1rem" }}
-  onClick={() => {
-    if (!draft.degree || !draft.degreeTitle) {
-      this.setState({ formMessage: { type: "error", text: "Please fill required fields" } });
-      return;
-    }
+                  onClick={() => {
+                    if (!draft.degree || !draft.degreeTitle) {
+                      this.setState({ formMessage: { type: "error", text: "Please fill required fields" } });
+                      return;
+                    }
 
-    const degreeLabel = this.state.degreeFieldData.find(
-      (d) => String(d.id) === String(draft.degree)
-    )?.name || "";
+                    const degreeLabel = this.state.degreeFieldData.find(
+                      (d) => String(d.id) === String(draft.degree)
+                    )?.name || "";
 
-    const entryToSave = { ...draft, degree_label: degreeLabel };
+                    const entryToSave = { ...draft, degree_label: degreeLabel };
 
-    if (draft.id) {
-      const index = values.education.findIndex((e) => e.id === draft.id);
-      if (index > -1) setFieldValue(`education.${index}`, entryToSave);
-    } else {
-      push(entryToSave);
-    }
-    setFieldValue("education.0", { degree: "", degreeTitle: "", degreeTitle_label: "", institutes: "", startDate: "", endDate: "", id: null });
-    this.setState({ editID: null });
-  }}>
-  + Add education
-</button>
+                    if (draft.id) {
+                      const index = values.education.findIndex((e) => e.id === draft.id);
+                      if (index > -1) setFieldValue(`education.${index}`, entryToSave);
+                    } else {
+                      push(entryToSave);
+                    }
+                    setFieldValue("education.0", { degree: "", degreeTitle: "", degreeTitle_label: "", institutes: "", startDate: "", endDate: "", id: null });
+                    this.setState({ editID: null });
+                  }}>
+                  + Add education
+                </button>
               </div>
 
               {values.education.length > 1 && (
@@ -1058,7 +1157,7 @@ const education = Array.isArray(ext.education) && ext.education.length
                       {values.education.slice(1).map((edu, i) => (
                         <tr key={edu.id || i}>
                           <td className="cr-td">{edu.degree_label}</td>
-<td className="cr-td">{edu.degreeTitle_label}</td>
+                          <td className="cr-td">{edu.degreeTitle_label}</td>
                           <td className="cr-td">{edu.institutes_label}</td>
                           <td className="cr-td">{edu.startDate}</td>
                           <td className="cr-td">
@@ -1133,20 +1232,18 @@ const education = Array.isArray(ext.education) && ext.education.length
 
                   <div className="cr-grid-2" style={{ marginTop: 14 }}>
                     <FieldWrap label="Speciality">
-                      <Field as="select" name="experience.0.speciality_id" className="cr-field-input cr-field-select">
-                        <option value="">Select speciality</option>
-                        {Array.isArray(this.state.speciality) && this.state.speciality.map((s) => (
-                          <option key={s.id} value={String(s.id)}>{s.name}</option>
-                        ))}
-                      </Field>
+                      <FormikCustomSelect
+                        name="experience.0.speciality_id"
+                        placeholder="Select speciality"
+                        options={Array.isArray(this.state.speciality) ? this.state.speciality.map((s) => ({ value: String(s.id), label: s.name })) : []}
+                      />
                     </FieldWrap>
                     <FieldWrap label="Job Type">
-                      <Field as="select" name="experience.0.job_type_id" className="cr-field-input cr-field-select">
-                        <option value="">Select job type</option>
-                        {Array.isArray(this.state.jobTypes) && this.state.jobTypes.map((jt) => (
-                          <option key={jt.id} value={String(jt.id)}>{jt.name}</option>
-                        ))}
-                      </Field>
+                      <FormikCustomSelect
+                        name="experience.0.job_type_id"
+                        placeholder="Select job type"
+                        options={Array.isArray(this.state.jobTypes) ? this.state.jobTypes.map((jt) => ({ value: String(jt.id), label: jt.name })) : []}
+                      />
                     </FieldWrap>
                   </div>
 
@@ -1258,86 +1355,86 @@ const education = Array.isArray(ext.education) && ext.education.length
     </div>
   );
 
-renderResume = (values, setFieldValue, errors, touched, setFieldTouched, setFieldError) => {
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    setFieldTouched("resume", true);
-    if (!file) return;
+  renderResume = (values, setFieldValue, errors, touched, setFieldTouched, setFieldError) => {
+    const handleFileChange = (e) => {
+      const file = e.target.files[0];
+      setFieldTouched("resume", true);
+      if (!file) return;
 
-    const maxSize = 3 * 1024 * 1024; // 3MB
-    const allowedTypes = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+      const maxSize = 3 * 1024 * 1024; // 3MB
+      const allowedTypes = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
 
-    if (!allowedTypes.includes(file.type)) {
-      setFieldError("resume", "Invalid file type");
-      setFieldValue("resume", null);
-      e.target.value = "";
-      return;
-    }
-    if (file.size > maxSize) {
-      setFieldError("resume", "File too large — max 3MB");
-      setFieldValue("resume", null);
-      e.target.value = "";
-      return;
-    }
+      if (!allowedTypes.includes(file.type)) {
+        setFieldError("resume", "Invalid file type");
+        setFieldValue("resume", null);
+        e.target.value = "";
+        return;
+      }
+      if (file.size > maxSize) {
+        setFieldError("resume", "File too large — max 3MB");
+        setFieldValue("resume", null);
+        e.target.value = "";
+        return;
+      }
 
-    setFieldValue("resume", { name: file.name, url: URL.createObjectURL(file), isExisting: false, file });
-    setFieldError("resume", "");
+      setFieldValue("resume", { name: file.name, url: URL.createObjectURL(file), isExisting: false, file });
+      setFieldError("resume", "");
+    };
+
+    return (
+      <div className="cr-step-group">
+        <div className="cr-step-group-title">Resume</div>
+
+        {values.resume ? (
+          <div className="cr-resume-uploaded">
+            <div className="cr-resume-uploaded-info">
+              <span className="cr-resume-icon">📄</span>
+              <div>
+                <a href={values.resume.url} target="_blank" rel="noopener noreferrer" className="cr-resume-name">
+                  {values.resume.name}
+                </a>
+                <div className="cr-resume-meta">PDF, DOC, DOCX — max 3MB</div>
+              </div>
+            </div>
+            <label className="cr-btn-outline" style={{ cursor: "pointer" }}>
+              Replace
+              <input
+                type="file"
+                name="resume"
+                accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf"
+                style={{ display: "none" }}
+                onChange={handleFileChange}
+              />
+            </label>
+          </div>
+        ) : (
+          <div className="cr-cv-dropzone">
+            <div style={{ fontSize: 36, marginBottom: 8 }}>📄</div>
+            <div style={{ fontSize: 15, fontWeight: 500, color: "#1a1a1a", marginBottom: 4 }}>
+              Click to upload your resume
+            </div>
+            <div style={{ fontSize: 12, color: "#6b7280", marginBottom: "1.2rem" }}>PDF, DOC, DOCX — max 3MB</div>
+            <label className="cr-btn-next" style={{ display: "inline-flex", cursor: "pointer" }}>
+              Browse file
+              <input
+                type="file"
+                name="resume"
+                accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf"
+                style={{ display: "none" }}
+                onChange={handleFileChange}
+              />
+            </label>
+          </div>
+        )}
+
+        {errors.resume && touched.resume && (
+          <div className="cr-field-error" style={{ marginTop: 8 }}>{errors.resume}</div>
+        )}
+      </div>
+    );
   };
 
-  return (
-    <div className="cr-step-group">
-      <div className="cr-step-group-title">Resume</div>
-
-      {values.resume ? (
-        <div className="cr-resume-uploaded">
-          <div className="cr-resume-uploaded-info">
-            <span className="cr-resume-icon">📄</span>
-            <div>
-              <a href={values.resume.url} target="_blank" rel="noopener noreferrer" className="cr-resume-name">
-                {values.resume.name}
-              </a>
-              <div className="cr-resume-meta">PDF, DOC, DOCX — max 3MB</div>
-            </div>
-          </div>
-          <label className="cr-btn-outline" style={{ cursor: "pointer" }}>
-            Replace
-            <input
-              type="file"
-              name="resume"
-              accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf"
-              style={{ display: "none" }}
-              onChange={handleFileChange}
-            />
-          </label>
-        </div>
-      ) : (
-        <div className="cr-cv-dropzone">
-          <div style={{ fontSize: 36, marginBottom: 8 }}>📄</div>
-          <div style={{ fontSize: 15, fontWeight: 500, color: "#1a1a1a", marginBottom: 4 }}>
-            Click to upload your resume
-          </div>
-          <div style={{ fontSize: 12, color: "#6b7280", marginBottom: "1.2rem" }}>PDF, DOC, DOCX — max 3MB</div>
-          <label className="cr-btn-next" style={{ display: "inline-flex", cursor: "pointer" }}>
-            Browse file
-            <input
-              type="file"
-              name="resume"
-              accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf"
-              style={{ display: "none" }}
-              onChange={handleFileChange}
-            />
-          </label>
-        </div>
-      )}
-
-      {errors.resume && touched.resume && (
-        <div className="cr-field-error" style={{ marginTop: 8 }}>{errors.resume}</div>
-      )}
-    </div>
-  );
-};
-
- renderAvailability = () => {
+  renderAvailability = () => {
     const isTimeCrossingMidnight = (startTime, endTime) => {
       if (!startTime || !endTime) return false;
       return startTime > endTime;
@@ -1384,38 +1481,44 @@ renderResume = (values, setFieldValue, errors, touched, setFieldTouched, setFiel
 
           <div style={{ marginBottom: "1rem" }}>
             <FieldWrap label="Day">
-              <StyledSelect
+              <CustomSelect
                 value={currentEntry?.day || ""}
-                onChange={(e) => {
-                  const selectedDay = e.target.value;
+                placeholder="Select Day"
+                options={[
+                  { value: "All Days", label: "All Days" },
+                  { value: "Monday", label: "Monday" },
+                  { value: "Tuesday", label: "Tuesday" },
+                  { value: "Wednesday", label: "Wednesday" },
+                  { value: "Thursday", label: "Thursday" },
+                  { value: "Friday", label: "Friday" },
+                  { value: "Saturday", label: "Saturday" },
+                  { value: "Sunday", label: "Sunday" },
+                ]}
+                onChange={(val) => {
                   this.setState((prev) => ({
-                    currentEntry: { ...prev.currentEntry, day: selectedDay === "All Days" ? "All Days" : selectedDay },
+                    currentEntry: { ...prev.currentEntry, day: val },
                     timingError: null,
                   }));
                 }}
-              >
-                <option value="">Select Day</option>
-                <option value="All Days">All Days</option>
-                <option value="Monday">Monday</option>
-                <option value="Tuesday">Tuesday</option>
-                <option value="Wednesday">Wednesday</option>
-                <option value="Thursday">Thursday</option>
-                <option value="Friday">Friday</option>
-                <option value="Saturday">Saturday</option>
-                <option value="Sunday">Sunday</option>
-              </StyledSelect>
+              />
             </FieldWrap>
           </div>
 
           <div style={{ marginBottom: "1rem" }}>
             <FieldWrap label="Shift">
-              <StyledSelect
+              <CustomSelect
                 value={currentEntry?.shift || ""}
-                onChange={(e) => {
-                  const selectedShift = e.target.value;
-                  const isAllShifts = selectedShift === "All Shifts";
+                placeholder="Select Shift"
+                options={[
+                  { value: "All Shifts", label: "All Shifts (24/7 availability)" },
+                  { value: "morning", label: "Morning" },
+                  { value: "evening", label: "Evening" },
+                  { value: "night", label: "Night" },
+                ]}
+                onChange={(val) => {
+                  const isAllShifts = val === "All Shifts";
                   this.setState((prev) => ({
-                    currentEntry: { ...prev.currentEntry, shift: selectedShift, startTime: "", endTime: "" },
+                    currentEntry: { ...prev.currentEntry, shift: val, startTime: "", endTime: "" },
                     isAllShiftsMode: isAllShifts,
                     timingError: null,
                     allShiftsTimings: isAllShifts ? {
@@ -1425,13 +1528,7 @@ renderResume = (values, setFieldValue, errors, touched, setFieldTouched, setFiel
                     } : prev.allShiftsTimings,
                   }));
                 }}
-              >
-                <option value="">Select Shift</option>
-                <option value="All Shifts">All Shifts (24/7 availability)</option>
-                <option value="morning">Morning</option>
-                <option value="evening">Evening</option>
-                <option value="night">Night</option>
-              </StyledSelect>
+              />
             </FieldWrap>
           </div>
 
@@ -1448,73 +1545,73 @@ renderResume = (values, setFieldValue, errors, touched, setFieldTouched, setFiel
           {currentEntry?.shift === "All Shifts" && !is247 ? (
             <div style={{ marginTop: "1rem" }}>
               <label className="cr-field-label" style={{ display: "block", marginBottom: 8 }}>Set timings for each shift:</label>
-{[
-  { key: "morning", label: "Morning Shift" },
-  { key: "evening", label: "Evening Shift" },
-  { key: "night", label: "Night Shift" },
-].map((shift) => {
-  const timing = this.state.allShiftsTimings?.[shift.key] || { startTime: "", endTime: "" };
-  const validation = validateShiftTiming(shift.key, timing.startTime, timing.endTime);
-  return (
-    <div key={shift.key} className="time-box" style={{ marginBottom: 12, flexWrap: "wrap" }}>
-      <div style={{ minWidth: 110 }}><strong>{shift.label}</strong></div>
-      <div>
-        <label className="cr-field-label" style={{ display: "block", marginBottom: 4 }}>Start Time</label>
-        <ThemedTimeInput
-          value={timing.startTime}
-          onChange={(e) => {
-            const newTimings = { ...this.state.allShiftsTimings };
-            newTimings[shift.key] = { ...newTimings[shift.key], startTime: e.target.value };
-            this.setState({ allShiftsTimings: newTimings, timingError: null });
-          }}
-        />
-      </div>
-      <div>
-        <label className="cr-field-label" style={{ display: "block", marginBottom: 4 }}>End Time</label>
-        <ThemedTimeInput
-          value={timing.endTime}
-          onChange={(e) => {
-            const newTimings = { ...this.state.allShiftsTimings };
-            newTimings[shift.key] = { ...newTimings[shift.key], endTime: e.target.value };
-            this.setState({ allShiftsTimings: newTimings, timingError: null });
-          }}
-        />
-      </div>
-      {validation.isValid === false && (
-        <small className="cr-field-error" style={{ display: "block", width: "100%", marginTop: 4 }}>{validation.error}</small>
-      )}
-    </div>
-  );
-})}
+              {[
+                { key: "morning", label: "Morning Shift" },
+                { key: "evening", label: "Evening Shift" },
+                { key: "night", label: "Night Shift" },
+              ].map((shift) => {
+                const timing = this.state.allShiftsTimings?.[shift.key] || { startTime: "", endTime: "" };
+                const validation = validateShiftTiming(shift.key, timing.startTime, timing.endTime);
+                return (
+                  <div key={shift.key} className="time-box" style={{ marginBottom: 12, flexWrap: "wrap" }}>
+                    <div style={{ minWidth: 110 }}><strong>{shift.label}</strong></div>
+                    <div>
+                      <label className="cr-field-label" style={{ display: "block", marginBottom: 4 }}>Start Time</label>
+                      <ThemedTimeInput
+                        value={timing.startTime}
+                        onChange={(e) => {
+                          const newTimings = { ...this.state.allShiftsTimings };
+                          newTimings[shift.key] = { ...newTimings[shift.key], startTime: e.target.value };
+                          this.setState({ allShiftsTimings: newTimings, timingError: null });
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label className="cr-field-label" style={{ display: "block", marginBottom: 4 }}>End Time</label>
+                      <ThemedTimeInput
+                        value={timing.endTime}
+                        onChange={(e) => {
+                          const newTimings = { ...this.state.allShiftsTimings };
+                          newTimings[shift.key] = { ...newTimings[shift.key], endTime: e.target.value };
+                          this.setState({ allShiftsTimings: newTimings, timingError: null });
+                        }}
+                      />
+                    </div>
+                    {validation.isValid === false && (
+                      <small className="cr-field-error" style={{ display: "block", width: "100%", marginTop: 4 }}>{validation.error}</small>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ) : currentEntry?.shift && !is247 && (
-  <>
-    <div className="time-box" style={{ marginTop: 14 }}>
-      <FieldWrap label="Start Time">
-        <ThemedTimeInput
-          value={currentEntry?.startTime || ""}
-          onChange={(e) => {
-            this.setState((prev) => ({ currentEntry: { ...prev.currentEntry, startTime: e.target.value }, timingError: null }));
-          }}
-        />
-      </FieldWrap>
-      <FieldWrap label="End Time">
-        <ThemedTimeInput
-          value={currentEntry?.endTime || ""}
-          onChange={(e) => {
-            this.setState((prev) => ({ currentEntry: { ...prev.currentEntry, endTime: e.target.value }, timingError: null }));
-          }}
-        />
-      </FieldWrap>
-    </div>
+            <>
+              <div className="time-box" style={{ marginTop: 14 }}>
+                <FieldWrap label="Start Time">
+                  <ThemedTimeInput
+                    value={currentEntry?.startTime || ""}
+                    onChange={(e) => {
+                      this.setState((prev) => ({ currentEntry: { ...prev.currentEntry, startTime: e.target.value }, timingError: null }));
+                    }}
+                  />
+                </FieldWrap>
+                <FieldWrap label="End Time">
+                  <ThemedTimeInput
+                    value={currentEntry?.endTime || ""}
+                    onChange={(e) => {
+                      this.setState((prev) => ({ currentEntry: { ...prev.currentEntry, endTime: e.target.value }, timingError: null }));
+                    }}
+                  />
+                </FieldWrap>
+              </div>
 
-    {getTimingError() && (
-      <div className="cr-alert cr-alert-error" style={{ marginTop: 8, fontSize: 12, padding: "8px 12px" }}>
-        <span>⚠️ {getTimingError()}</span>
-      </div>
-    )}
-  </>
-)}
+              {getTimingError() && (
+                <div className="cr-alert cr-alert-error" style={{ marginTop: 8, fontSize: 12, padding: "8px 12px" }}>
+                  <span>⚠️ {getTimingError()}</span>
+                </div>
+              )}
+            </>
+          )}
 
           {currentEntry?.day && currentEntry?.shift && (
             <div className={`cr-alert cr-alert-info ${is247 ? "cr-alert-success" : ""}`} style={{ marginTop: "1rem", fontSize: 13, padding: "8px 12px" }}>
@@ -1549,32 +1646,32 @@ renderResume = (values, setFieldValue, errors, touched, setFieldTouched, setFiel
                 daysToAdd = [currentEntry.day];
               }
 
-            const isAllShifts = currentEntry.shift === "All Shifts";
+              const isAllShifts = currentEntry.shift === "All Shifts";
 
-if (isAllShifts) {
-  if (currentEntry.day === "All Days") {
-    // True 24/7 across every day — store as ONE entry
-    availabilityArray.push({ day: "All Days", shift: "All Shifts", startTime: null, endTime: null });
-  } else {
-    // Single day, all shifts — still one entry
-    availabilityArray.push({ day: currentEntry.day, shift: "All Shifts", startTime: null, endTime: null });
-  }
-} else {
-  if (!currentEntry.startTime || !currentEntry.endTime) {
-    this.setState({ formMessage: { type: "error", text: "Please select start time and end time" } });
-    return;
-  }
+              if (isAllShifts) {
+                if (currentEntry.day === "All Days") {
+                  // True 24/7 across every day — store as ONE entry
+                  availabilityArray.push({ day: "All Days", shift: "All Shifts", startTime: null, endTime: null });
+                } else {
+                  // Single day, all shifts — still one entry
+                  availabilityArray.push({ day: currentEntry.day, shift: "All Shifts", startTime: null, endTime: null });
+                }
+              } else {
+                if (!currentEntry.startTime || !currentEntry.endTime) {
+                  this.setState({ formMessage: { type: "error", text: "Please select start time and end time" } });
+                  return;
+                }
 
-  const validation = validateShiftTiming(currentEntry.shift, currentEntry.startTime, currentEntry.endTime);
-  if (!validation.isValid) {
-    this.setState({ formMessage: { type: "error", text: validation.error } });
-    return;
-  }
+                const validation = validateShiftTiming(currentEntry.shift, currentEntry.startTime, currentEntry.endTime);
+                if (!validation.isValid) {
+                  this.setState({ formMessage: { type: "error", text: validation.error } });
+                  return;
+                }
 
-  for (const day of daysToAdd) {
-    availabilityArray.push({ day, shift: currentEntry.shift, startTime: currentEntry.startTime, endTime: currentEntry.endTime });
-  }
-}
+                for (const day of daysToAdd) {
+                  availabilityArray.push({ day, shift: currentEntry.shift, startTime: currentEntry.startTime, endTime: currentEntry.endTime });
+                }
+              }
 
               this.setState((prev) => ({
                 entries: [...prev.entries, ...availabilityArray],
@@ -1605,26 +1702,26 @@ if (isAllShifts) {
               </thead>
               <tbody>
                 {this.state.entries.map((e, i) => {
-  const isFullyOpen = e.day === "All Days" && e.shift === "All Shifts";
-  const dayLabel = e.day === "All Days" ? "All Days" : e.day;
-  const shiftLabel = e.shift === "All Shifts" ? "All Shifts" : (e.shift === "morning" ? "Morning" : e.shift === "evening" ? "Evening" : "Night");
+                  const isFullyOpen = e.day === "All Days" && e.shift === "All Shifts";
+                  const dayLabel = e.day === "All Days" ? "All Days" : e.day;
+                  const shiftLabel = e.shift === "All Shifts" ? "All Shifts" : (e.shift === "morning" ? "Morning" : e.shift === "evening" ? "Evening" : "Night");
 
-  return (
-    <tr key={i}>
-      <td className="cr-td"><span className="cr-tag">{dayLabel}</span></td>
-      <td className="cr-td">{shiftLabel}</td>
-      <td className="cr-td">{isFullyOpen ? "—" : (e.startTime || "24/7")}</td>
-      <td className="cr-td">
-        {isFullyOpen ? <span className="cr-ongoing-badge">Available Anytime</span> : (e.endTime || "Available")}
-      </td>
-      <td className="cr-td">
-        <button type="button" className="cr-btn-danger" onClick={() => this.setState((prev) => ({ entries: prev.entries.filter((_, idx) => idx !== i) }))}>
-          Remove
-        </button>
-      </td>
-    </tr>
-  );
-})}
+                  return (
+                    <tr key={i}>
+                      <td className="cr-td"><span className="cr-tag">{dayLabel}</span></td>
+                      <td className="cr-td">{shiftLabel}</td>
+                      <td className="cr-td">{isFullyOpen ? "—" : (e.startTime || "24/7")}</td>
+                      <td className="cr-td">
+                        {isFullyOpen ? <span className="cr-ongoing-badge">Available Anytime</span> : (e.endTime || "Available")}
+                      </td>
+                      <td className="cr-td">
+                        <button type="button" className="cr-btn-danger" onClick={() => this.setState((prev) => ({ entries: prev.entries.filter((_, idx) => idx !== i) }))}>
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1723,12 +1820,12 @@ if (isAllShifts) {
                 <div className="cr-card">
                   <div className="cr-card-header">
                     <div className="cr-card-header-icon">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#36565f" strokeWidth="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#36565f" strokeWidth="1.8"><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" /></svg>
                     </div>
                     <span className="cr-card-header-title">Candidate Profile</span>
                   </div>
                   <div className="cr-card-body">
-                    
+
                     {this.renderPersonalDetails(values, setFieldValue, errors, touched)}
                     {this.renderEducation(values, setFieldValue)}
                     {this.renderExperience(values, setFieldValue)}
@@ -1753,7 +1850,7 @@ if (isAllShifts) {
 
   /* ───────────────────────── main render ───────────────────────── */
 
-render() {
+  render() {
     return this.renderFullForm();
   }
 }
