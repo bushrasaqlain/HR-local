@@ -181,8 +181,13 @@ class EditProfile extends Component {
       this.loadLicenseTypes();
     });
   }
-  loadFaceModels = async () => {
-    if (faceapiLoaded) return; // already loaded, skip
+loadFaceModels = async () => {
+  if (faceapiLoaded) return; // already loaded, skip
+
+  try {
+    const tf = await import("@tensorflow/tfjs");
+    await tf.setBackend("webgl");
+    await tf.ready();
 
     // Dynamically import so it only runs in the browser
     faceapi = await import("@vladmandic/face-api");
@@ -190,7 +195,11 @@ class EditProfile extends Component {
 
     const MODEL_URL = "/models";
     await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-  };
+  } catch (err) {
+    console.error("Face model load failed:", err);
+    faceapiLoaded = false; // allow retry on next call
+  }
+};
 
   detectFace = async (file) => {
     try {

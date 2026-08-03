@@ -1567,19 +1567,7 @@ class Packages extends Component {
                 <Button variant="dark" onClick={() => this.toggleForm()}>
                   <i className="bi bi-plus-lg me-1" />Add Package
                 </Button>
-                <Button variant="secondary" onClick={() => this.fileInputRef.click()}>
-                  <i className="bi bi-upload me-1" />Import Excel
-                </Button>
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  ref={(ref) => (this.fileInputRef = ref)}
-                  style={{ display: "none" }}
-                  onChange={this.handleExcelImport}
-                />
-                <Button variant="success" onClick={this.handleExcelExport}>
-                  <i className="bi bi-download me-1" />Export
-                </Button>
+                
               </div>
             </div>
 

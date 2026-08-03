@@ -20,6 +20,14 @@ const createCandidateAvailabilityTable = () => {
 };
 
 // ===================== ADD AVAILABILITY =====================
+
+const ALL_DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const ALL_SHIFT_TIMINGS = {
+  morning: { startTime: '09:00', endTime: '17:00' },
+  evening: { startTime: '15:00', endTime: '23:00' },
+  night:   { startTime: '21:00', endTime: '06:00' },
+};
+
 const addavailability = (req, res) => {
   const account_id = req.user.userId;
   const availabilityData = req.body.availability;
@@ -40,18 +48,36 @@ const addavailability = (req, res) => {
     const values = [];
 
     availabilityData.forEach((item) => {
-      const shiftValue = (Array.isArray(item.shift) ? item.shift[0] : item.shift || '').trim();
-      const startTime = item.startTime || null;
-      const endTime = item.endTime || null;
+      const rawDay = (Array.isArray(item.day) ? item.day[0] : item.day || '').trim();
+      const rawShift = (Array.isArray(item.shift) ? item.shift[0] : item.shift || '').trim();
 
-      if (!validShifts.includes(shiftValue)) return;
+      // Expand shorthand "All Days" / "All Shifts" into real (day, shift) rows
+      // the ENUM columns actually accept, using default per-shift timings
+      // when the shorthand didn't carry explicit times.
+      const daysToExpand = rawDay === 'All Days' ? ALL_DAYS : [rawDay];
+      const shiftsToExpand = rawShift === 'All Shifts' ? Object.keys(ALL_SHIFT_TIMINGS) : [rawShift];
 
-      const days = Array.isArray(item.day) ? item.day : [item.day];
-      days.forEach((singleDay) => {
-        const dayValue = (singleDay || '').trim();
+      daysToExpand.forEach((dayValue) => {
         if (!validDays.includes(dayValue)) return;
 
-        values.push([candidateId, dayValue, shiftValue, startTime, endTime]);
+        shiftsToExpand.forEach((shiftValue) => {
+          if (!validShifts.includes(shiftValue)) return;
+
+          let startTime = item.startTime || null;
+          let endTime = item.endTime || null;
+
+          // If this row came from shorthand expansion and didn't bring its
+          // own explicit times, fall back to the default timing for that shift.
+          if (!startTime || !endTime) {
+            const fallback = ALL_SHIFT_TIMINGS[shiftValue];
+            if (fallback) {
+              startTime = startTime || fallback.startTime;
+              endTime = endTime || fallback.endTime;
+            }
+          }
+
+          values.push([candidateId, dayValue, shiftValue, startTime, endTime]);
+        });
       });
     });
 

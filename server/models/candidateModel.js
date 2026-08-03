@@ -151,9 +151,9 @@ const createJobAlertsTable = () => {
       job_id INT NOT NULL,
       
       is_read BOOLEAN DEFAULT FALSE,
-      
+      alert_type VARCHAR DEFAULT JOB_MATCH,
       sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      
+      message VARCHAR,
       FOREIGN KEY (candidate_id) 
         REFERENCES candidate_info(id) ON DELETE CASCADE,
       FOREIGN KEY (job_id) 

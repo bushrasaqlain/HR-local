@@ -441,7 +441,12 @@ const HistoryPage = ({ inlineId, inlineType, onBack }) => {
 </Head>
             <div className="hp-wrap">
                 <div className="hp-header">
-                    <button className="hp-back" onClick={onBack || (() => router.back())}>← Back</button>
+                    
+<button className="hp-back" onClick={onBack || (() => {
+  const from = router.query.from || "district";
+  sessionStorage.setItem("activeTab", from);
+  window.location.href = "/"; // or your actual dashboard root route
+})}>← Back</button>
                     <h2 className="hp-title">History</h2>
                 </div>
 

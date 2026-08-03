@@ -125,10 +125,12 @@ const addcandidateeducation = (req, res) => {
         console.error("Education insert error:", err);
         return res.status(500).json({ msg: "SERVER_ERROR" });
       }
-
+const firstId = result.insertId;
+  const insertedIds = cleanEducation.map((_, i) => firstId + i);
       res.status(200).json({
         msg: "Education saved successfully",
         inserted: result.affectedRows,
+        insertedIds,
       });
     });
   });

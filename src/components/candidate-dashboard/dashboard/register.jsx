@@ -284,6 +284,7 @@ class CandidateRegisterForm extends Component {
     list.map((edu) => ({
       id: edu.id,
       degree: edu.degree_id || "",
+       degree_label: edu.degreetype || edu.degree_name || "Not detected",
       degreeTitle: edu.degreefield_id || "",
       degreeTitle_label: edu.degreefield || "",
       institutes: edu.institute_id || "",
@@ -480,7 +481,7 @@ const education = Array.isArray(ext.education) && ext.education.length
       ...ext.education.map((edu) => ({
         id: edu.id || null,
         degree: edu.degree_type_id ? String(edu.degree_type_id) : "",
-        degree_label: degreeTypeLabel(edu.degree_type_id) || edu.degree_name || "",
+        degree_label: degreeTypeLabel(edu.degree_type_id) || edu.degree_name || edu.degree_raw_line || "Not detected",
         degreeTitle: edu.degreefield_id || "",
         degreeTitle_label: edu.degreefield_name || edu.raw_line || "",
         institutes: edu.institute_id || "",
@@ -613,10 +614,21 @@ const education = Array.isArray(ext.education) && ext.education.length
       if (editedRows.length > 0) {
         await api.put(`/candidateeducation/editcandidateeducation`, { education: editedRows });
       }
-      if (newRows.length > 0) {
-        await api.post(`/candidateeducation/addcandidateeducation`, { education: newRows, mode: "save" });
-      }
-
+     if (newRows.length > 0) {
+  const res = await api.post(`/candidateeducation/addcandidateeducation`, { education: newRows, mode: "save" });
+  const insertedIds = res.data?.insertedIds || [];
+  newRows.forEach((row, i) => {
+    row.id = insertedIds[i] || row.id;
+  });
+  // if you want it reflected in Formik state too:
+  this.formikRef.current?.setFieldValue(
+    "education",
+    values.education.map((e) => {
+      const match = newRows.find((n) => n === e); // or match by degreeTitle+startDate if reference differs
+      return match ? { ...e, id: match.id } : e;
+    })
+  );
+}
       // ---- Experience ----
       if (!values.isFresher) {
         const existingExperiences = values.experience.slice(1).filter((e) => e.id);
@@ -1019,27 +1031,28 @@ const education = Array.isArray(ext.education) && ext.education.length
                 </div>
 
                 <button type="button" className="cr-btn-add" style={{ marginTop: "1rem" }}
-  onClick={() => {
-    if (!draft.degree || !draft.degreeTitle) {
-      this.setState({ formMessage: { type: "error", text: "Please fill required fields" } });
-      return;
-    }
+ onClick={() => {
+  if (!draft.degree || !draft.degreeTitle) {
+    this.setState({ formMessage: { type: "error", text: "Please fill required fields" } });
+    return;
+  }
 
-    const degreeLabel = this.state.degreeFieldData.find(
-      (d) => String(d.id) === String(draft.degree)
-    )?.name || "";
+  const degreeLabel = this.state.degreeFieldData.find(
+    (d) => String(d.id) === String(draft.degree)
+  )?.name || "";
 
-    const entryToSave = { ...draft, degree_label: degreeLabel };
+  const computedOngoing = isDateOngoing(draft.endDate); // 👈 derive from actual dates
+  const entryToSave = { ...draft, degree_label: degreeLabel, ongoing: computedOngoing };
 
-    if (draft.id) {
-      const index = values.education.findIndex((e) => e.id === draft.id);
-      if (index > -1) setFieldValue(`education.${index}`, entryToSave);
-    } else {
-      push(entryToSave);
-    }
-    setFieldValue("education.0", { degree: "", degreeTitle: "", degreeTitle_label: "", institutes: "", startDate: "", endDate: "", id: null });
-    this.setState({ editID: null });
-  }}>
+  if (draft.id) {
+    const index = values.education.findIndex((e) => e.id === draft.id);
+    if (index > -1) setFieldValue(`education.${index}`, entryToSave);
+  } else {
+    push(entryToSave);
+  }
+  setFieldValue("education.0", { degree: "", degreeTitle: "", degreeTitle_label: "", institutes: "", startDate: "", endDate: "", ongoing: false, id: null });
+  this.setState({ editID: null });
+}}>
   + Add education
 </button>
               </div>

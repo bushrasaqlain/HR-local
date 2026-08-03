@@ -639,7 +639,7 @@ class Degreetype extends Component {
           >
             <Modal.Header closeButton style={{ paddingBottom: "0.25rem" }}>
               <Modal.Title style={{ fontSize: "1rem", marginBottom: "0" }}>
-                {editId ? "Edit degreetype" : "Add New degreetype"}
+                {editId ? "Edit Degree Type" : "Add New Degree Type"}
               </Modal.Title>
             </Modal.Header>
             <Modal.Body style={{ paddingTop: "0.5rem" }}>
@@ -648,7 +648,7 @@ class Degreetype extends Component {
                 type="text"
                 value={inputValue}
                 onChange={(e) => this.setState({ inputValue: e.target.value })}
-                placeholder="Enter degreetype name"
+                placeholder="Enter Degree Type name"
                 className="form-control"
               />
             </Modal.Body>

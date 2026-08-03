@@ -154,22 +154,16 @@ class DashboardHeader extends Component {
     }
 
     const validTabs = [
-      "profile",
-      "postJob",
-      "companyProfile",
-      "allApplicants",
-      "jobList",
-      "packagesList",
-      "viewpackage",
-      "shortlistedcandidates",
-      "approved",
-      "chatBox",
-      "changepassword",
-      "messages",
-      "lists",
-      "appliedJobs",
-      "jobAlerts",
-    ];
+  "profile", "postJob", "companyProfile", "allApplicants", "jobList",
+  "packagesList", "viewpackage", "shortlistedcandidates", "approved",
+  "chatBox", "changepassword", "messages", "lists", "appliedJobs", "jobAlerts",
+  // db_admin tabs
+  "country", "district", "city", "institute", "degreetype", "degreefields",
+  "skills", "speciality", "businessentitytypes", "jobtypes", "jobtitles",
+  "packages", "licensetypes", "bank", "currency",
+  // reg_admin tabs
+  "company", "candidate", "job", "boosts", "contactMessages",
+];
 
     const safeTab =
       savedTab && validTabs.includes(savedTab)
@@ -413,25 +407,29 @@ class DashboardHeader extends Component {
   };
 
   handleTabChange = (tabKey, filterStatus = null) => {
-    sessionStorage.setItem("activeTab", tabKey);
-    this.setState({
-      activeTab: tabKey,
-      jobListFilterStatus: filterStatus,
-    });
-
-    if (typeof window !== "undefined") {
-      const accountType = sessionStorage.getItem("accountType");
-      const routeMap = getRouteMap(accountType);
-      const path = routeMap[tabKey];
-      if (path && window.history) {
-        window.history.replaceState(
-          { ...window.history.state, tabKey },
-          "",
-          path
-        );
-      }
+  sessionStorage.setItem("activeTab", tabKey);
+  this.setState({
+    activeTab: tabKey,
+    jobListFilterStatus: filterStatus,
+    openDesktopDropdown: null,   // add this
+    openMobileDropdown: null,    // add this
+  });
+setTimeout(() => {
+    this.setState({ openDesktopDropdown: null, openMobileDropdown: null });
+  }, 0);
+  if (typeof window !== "undefined") {
+    const accountType = sessionStorage.getItem("accountType");
+    const routeMap = getRouteMap(accountType);
+    const path = routeMap[tabKey];
+    if (path && window.history) {
+      window.history.replaceState(
+        { ...window.history.state, tabKey },
+        "",
+        path
+      );
     }
-  };
+  }
+};
 
   handleViewJobFromAlert = (jobAlert) => {
     const jobId = jobAlert.job_id || jobAlert.id;
@@ -618,19 +616,21 @@ class DashboardHeader extends Component {
             {item.children.map((child) => (
               <DropdownItem
                 key={child.key}
-                onClick={() => {
-                  if (this.props.headerOnly) {
-                    window.history.back();
-                    return;
-                  }
-                  this.handleTabChange(child.key);
-                  this.setState({
-                    isMobileMenuOpen: false,
-                    openMobileDropdown: null,
-                    openDesktopDropdown: null,
-                    [item.key]: false,
-                  });
-                }}
+onClick={() => {
+  if (this.props.headerOnly) {
+    window.history.back();
+    return;
+  }
+  this.handleTabChange(child.key);
+  this.setState({
+    isMobileMenuOpen: false,
+    openMobileDropdown: null,
+    openDesktopDropdown: null,
+  });
+  setTimeout(() => {
+    this.setState({ openDesktopDropdown: null, openMobileDropdown: null });
+  }, 0);
+}}
                 style={{
                   color: activeTab === child.key ? "#36565F" : "#fff",
                   backgroundColor:

@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS job_posts (
   FOREIGN KEY (currency_id) REFERENCES currencies(id),
   FOREIGN KEY (country_id) REFERENCES countries(id),
   FOREIGN KEY (company_package_id) REFERENCES company_packages(id),
+  FOREIGN KEY (chosen_daily_package_id) REFERENCES company_packages(id),
   FOREIGN KEY (package_id) REFERENCES packages(id),
   FOREIGN KEY (industry) REFERENCES industry(id),
 );

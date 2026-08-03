@@ -539,11 +539,6 @@ class PostBoxForm extends Component {
       console.log("countryRes data:", countryRes?.data);
       const languages = [
         "English",
-        "Arabic",
-        "Urdu",
-        "French",
-        "Spanish",
-        "German",
       ];
       const modalCountries =
         countryRes?.data?.countries?.map((c) => ({
@@ -583,7 +578,7 @@ class PostBoxForm extends Component {
     } catch (err) {
       console.error(err);
       this.setState({
-        languages: ["English", "Arabic", "Urdu", "French", "Spanish", "German"],
+        languages: ["English"],
         modalCountries: [],
         jobCountry: "Pakistan",
       });
@@ -1234,6 +1229,9 @@ class PostBoxForm extends Component {
       { v: '00:00', l: '12:00 AM' }, { v: '00:30', l: '12:30 AM' },
       { v: '01:00', l: '01:00 AM' }, { v: '01:30', l: '01:30 AM' },
       { v: '02:00', l: '02:00 AM' }, { v: '02:30', l: '02:30 AM' },
+      { v: '03:00', l: '03:00 AM' }, { v: '03:30', l: '03:30 AM' },
+      { v: '04:00', l: '04:00 AM' }, { v: '04:30', l: '04:30 AM' },
+      { v: '05:00', l: '05:00 AM' }, { v: '05:30', l: '05:30 AM' },
     ];
     return slots.map(s => <option key={s.v} value={s.v}>{s.l}</option>);
   };
@@ -1261,9 +1259,12 @@ class PostBoxForm extends Component {
       { v: '00:00', l: '12:00 AM' }, { v: '00:30', l: '12:30 AM' },
       { v: '01:00', l: '01:00 AM' }, { v: '01:30', l: '01:30 AM' },
       { v: '02:00', l: '02:00 AM' }, { v: '02:30', l: '02:30 AM' },
+      { v: '03:00', l: '03:00 AM' }, { v: '03:30', l: '03:30 AM' },
+      { v: '04:00', l: '04:00 AM' }, { v: '04:30', l: '04:30 AM' },
+      { v: '05:00', l: '05:00 AM' }, { v: '05:30', l: '05:30 AM' },
     ];
     return slots.map(s => ({ value: s.v, label: s.l }));
-  };
+};
 
   fmt12 = (v) => {
     if (!v) return '';
@@ -2260,41 +2261,42 @@ class PostBoxForm extends Component {
               ) : (
                 <>
                   {/* Language */}
-                  <div style={{ marginBottom: "18px" }}>
-                    <label
-                      style={{
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        color: TEXT_PRIMARY,
-                        display: "block",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      Language of job post <span style={{ color: RED }}>*</span>
-                    </label>
-                    <select
-                      value={this.state.jobLanguage}
-                      onChange={(e) =>
-                        this.setState({ jobLanguage: e.target.value })
-                      }
-                      style={{ ...s.select, width: "100%" }}
-                    >
-                      {this.state.languages.map((lang) => (
-                        <option key={lang} value={lang}>
-                          {lang}
-                        </option>
-                      ))}
-                    </select>
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        color: TEXT_SECONDARY,
-                        marginTop: "5px",
-                      }}
-                    >
-                      The language your job post is written in.
-                    </div>
-                  </div>
+                 {/* Language */}
+<div style={{ marginBottom: "18px" }}>
+  <label
+    style={{
+      fontSize: "13px",
+      fontWeight: 600,
+      color: TEXT_PRIMARY,
+      display: "block",
+      marginBottom: "6px",
+    }}
+  >
+    Language of job post
+  </label>
+  <div
+    style={{
+      ...s.select,
+      width: "100%",
+      display: "flex",
+      alignItems: "center",
+      background: "#f3f4f6",
+      color: TEXT_PRIMARY,
+      cursor: "default",
+    }}
+  >
+    {this.state.jobLanguage}
+  </div>
+  <div
+    style={{
+      fontSize: "12px",
+      color: TEXT_SECONDARY,
+      marginTop: "5px",
+    }}
+  >
+    Currently only English is supported.
+  </div>
+</div>
 
                   {/* Country */}
                   {/* Country */}

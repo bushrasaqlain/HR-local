@@ -64,21 +64,19 @@ class JobListings extends Component {
 
     this.modalFields = [
       "job_title",
-      "username",
       "country",
       "district",
       "city",
+        "education", 
+      "billing_model",
       "package_amount",
       "packageprice",
       "packagecurrency",
       "job_description",
-      "max_experience",
-      "min_experience",
-      "max_salary",
-      "min_salary",
+       "experience_range", 
+      "salary_range", 
       "skills",
-      "time_from",
-      "time_to",
+      "time_range",
       "created_at",
       "updated_at",
     ];
@@ -806,11 +804,12 @@ if (this.state.screeningJob) {
                                 <DropdownItem onClick={() => this.toggleEditModal(job.id)}>
                                   <i className="la la-edit me-2" style={{ color: '#36565F' }} /> Edit
                                 </DropdownItem>
+{job.status === "Active" && (
 <DropdownItem onClick={() => this.openScreeningView(job)}>
    <i className="la la-question-circle me-2" style={{ color: '#36565F' }} />
    {job.has_screening ? "Edit Screening Questions" : "Add Screening Questions"}
  </DropdownItem>
-
+)}
                                 {job.approval_status === "Pending Payment" && (
                                   <DropdownItem onClick={() => this.handlePay(job)}>
                                     <i className="la la-credit-card me-2" style={{ color: '#10b981' }} /> Pay
@@ -884,15 +883,76 @@ if (this.state.screeningJob) {
           </div>
 
           {/* Modals */}
-          {selectedJob && (
-            <DetailModal
-              isOpen={modalOpen}
-              toggle={this.toggleModal}
-              title={selectedJob.job_title}
-              details={selectedJob}
-              fields={this.modalFields}
-            />
-          )}
+         {selectedJob && (
+  <DetailModal
+    isOpen={modalOpen}
+    toggle={this.toggleModal}
+    title={selectedJob.job_title}
+    details={selectedJob}
+    fields={this.modalFields}
+customRenderers={{
+education: (d) => {
+  const degree = d.degree;
+  const fields = Array.isArray(d.degree_fields) ? d.degree_fields.join(", ") : d.degree_fields;
+  if (!degree && !fields) return "-";
+  if (degree && fields) return `${degree} in ${fields}`;
+  return degree || fields;
+},
+  billing_model: (d) => this.billingModelLabels[d.billing_model] || d.billing_model || "-",
+  experience_range: (d) => {
+  const min = d.min_experience;
+  const max = d.max_experience;
+  if (!min && !max) return "-";
+
+  // Extract just the numeric part in case value already has "Years" text
+  const clean = (v) => String(v).replace(/[^\d.]/g, "").trim();
+  const unit = (n) => `${n} ${Number(n) === 1 ? "year" : "years"}`;
+
+  const minNum = clean(min);
+  const maxNum = clean(max);
+
+  if (minNum && maxNum) return `${unit(minNum)} - ${unit(maxNum)}`;
+  return minNum ? `${unit(minNum)}+` : `Up to ${unit(maxNum)}`;
+},
+  salary_range: (d) => {
+    const min = d.min_salary;
+    const max = d.max_salary;
+    const cur = d.packagecurrency || "Rs.";
+    if (!min && !max) return "-";
+    if (min && max) return `${cur} ${Number(min).toLocaleString('en-IN')} - ${Number(max).toLocaleString('en-IN')}`;
+    return min
+      ? `${cur} ${Number(min).toLocaleString('en-IN')}+`
+      : `Up to ${cur} ${Number(max).toLocaleString('en-IN')}`;
+  },
+  time_range: (d) => {
+  const from = d.time_from;
+  const to = d.time_to;
+  if (!from && !to) return "-";
+
+  // formatTime handles both "HH:mm:ss"/"HH:mm" raw values and already-formatted "8:00 AM" strings
+  const formatTime = (val) => {
+    if (!val) return null;
+    // already formatted like "8:00 AM"
+    if (/AM|PM/i.test(val)) return val;
+    // raw "HH:mm" or "HH:mm:ss"
+    const match = String(val).match(/^(\d{2}):(\d{2})/);
+    if (!match) return val;
+    let h = parseInt(match[1], 10);
+    const m = match[2];
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return `${h}:${m} ${ampm}`;
+  };
+
+  const fromFormatted = formatTime(from);
+  const toFormatted = formatTime(to);
+
+  if (fromFormatted && toFormatted) return `${fromFormatted} - ${toFormatted}`;
+  return fromFormatted || toFormatted;
+},
+}}
+  />
+)}
 
           <Modal
             isOpen={this.state.editModalOpen}

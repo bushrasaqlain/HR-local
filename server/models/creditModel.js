@@ -237,7 +237,6 @@ const getUnlockedCandidateData = (req, res) => {
             let fields = `
         ci.id AS candidate_id,
         ci.full_name,
-        ci.total_experience,
         ci.gender,
         city.name AS city_name
       `;
@@ -292,7 +291,6 @@ const getUnlockedCandidatesList = (req, res) => {
       MIN(cu.unlocked_at) AS first_unlocked_at,
       MAX(cu.unlocked_at) AS last_unlocked_at,
       ci.full_name,
-      ci.total_experience,
       ci.gender,
       city.name AS city_name
     FROM candidate_unlocks cu

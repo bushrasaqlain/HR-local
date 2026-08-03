@@ -11,7 +11,14 @@ const {
 const pct = (used, total) =>
   total > 0 ? Math.min(Math.round((used / total) * 100), 100) : 0;
 
-const wasRecentlyNotified = (existingNotifications, type, packageName) => {
+// mode "once" -> never repeat this type+package combo, ever
+// mode "24h"  -> only skip if the same type+package fired within the last 24h
+const wasAlreadyNotified = (existingNotifications, type, packageName, mode = "once") => {
+  if (mode === "once") {
+    return existingNotifications.some(
+      (n) => n.notification_type === type && n.package_name === packageName
+    );
+  }
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
   return existingNotifications.some(
     (n) =>
@@ -28,8 +35,8 @@ const getAllEmployerAccounts = () => {
     const query = `
       SELECT DISTINCT a.id as account_id
       FROM account a
-      WHERE a.role = 'employer'
-        AND a.status = 'active'
+      WHERE a.accountType = 'employer'
+        AND a.isActive = 'active'
     `;
     connection.query(query, (err, results) => {
       if (err) return reject(err);
@@ -38,7 +45,7 @@ const getAllEmployerAccounts = () => {
   });
 };
 
-// ─── Fetch packages for a specific account (FIXED) ───────────────────────────
+// ─── Fetch packages for a specific account ───────────────────────────────────
 
 const fetchPackagesForAccount = (accountId) => {
   return new Promise((resolve, reject) => {
@@ -149,7 +156,7 @@ const checkAndCreateAlerts = async (accountId) => {
     const [settings, packages, existingNotifs] = await Promise.all([
       getAlertSettings(accountId),
       fetchPackagesForAccount(accountId),
-      getNotifications(accountId, 100),
+      getNotifications(accountId, 500), // bumped from 100 so "once" alerts don't scroll off
     ]);
 
     console.log(`📦 Packages found: ${packages.length}`);
@@ -163,7 +170,7 @@ const checkAndCreateAlerts = async (accountId) => {
     const alertsToCreate = [];
     const now = new Date();
 
-    // ── 1. Low Credits Alert ──────────────────────────────────────────────
+    // ── 1. Low Credits Alert (re-triggerable — 24h window) ────────────────
     if (settings.lowCredits?.enabled) {
       const threshold = settings.lowCredits.threshold || 20;
 
@@ -174,7 +181,7 @@ const checkAndCreateAlerts = async (accountId) => {
           const remainingPct = 100 - usagePct;
 
           if (remainingPct <= threshold && pkg.remaining > 0) {
-            if (!wasRecentlyNotified(existingNotifs, "low_credits", pkg.name)) {
+            if (!wasAlreadyNotified(existingNotifs, "low_credits", pkg.name, "24h")) {
               alertsToCreate.push({
                 accountId,
                 type: "low_credits",
@@ -190,7 +197,9 @@ const checkAndCreateAlerts = async (accountId) => {
         });
     }
 
-    // ── 2. Package Expiry Alert ───────────────────────────────────────────
+    // ── 2. Package Expiry Alert ────────────────────────────────────────────
+    // "expiring soon" -> 24h window (days-left count changes daily, worth repeating)
+    // "expired"       -> once ever (no point repeating after it's already expired)
     if (settings.packageExpiry?.enabled) {
       const daysBefore = settings.packageExpiry.daysBefore || 7;
 
@@ -202,7 +211,7 @@ const checkAndCreateAlerts = async (accountId) => {
           );
 
           if (daysLeft > 0 && daysLeft <= daysBefore) {
-            if (!wasRecentlyNotified(existingNotifs, "expiry", pkg.name)) {
+            if (!wasAlreadyNotified(existingNotifs, "expiry", pkg.name, "24h")) {
               alertsToCreate.push({
                 accountId,
                 type: "expiry",
@@ -221,7 +230,7 @@ const checkAndCreateAlerts = async (accountId) => {
           }
 
           if (daysLeft <= 0) {
-            if (!wasRecentlyNotified(existingNotifs, "expired", pkg.name)) {
+            if (!wasAlreadyNotified(existingNotifs, "expired", pkg.name, "once")) {
               alertsToCreate.push({
                 accountId,
                 type: "expired",
@@ -235,7 +244,7 @@ const checkAndCreateAlerts = async (accountId) => {
         });
     }
 
-    // ── 3. Budget Threshold Alert ─────────────────────────────────────────
+    // ── 3. Budget Threshold Alert (re-triggerable — 24h window) ───────────
     if (settings.budgetThreshold?.enabled) {
       const threshold = settings.budgetThreshold.threshold || 80;
 
@@ -245,7 +254,7 @@ const checkAndCreateAlerts = async (accountId) => {
           const spendPct = pct(pkg.totalSpend, pkg.dailyBudgetCap);
 
           if (spendPct >= threshold) {
-            if (!wasRecentlyNotified(existingNotifs, "budget_threshold", pkg.name)) {
+            if (!wasAlreadyNotified(existingNotifs, "budget_threshold", pkg.name, "24h")) {
               alertsToCreate.push({
                 accountId,
                 type: "budget_threshold",
@@ -264,10 +273,10 @@ const checkAndCreateAlerts = async (accountId) => {
     // ── 4. Unusual Spending Alert (skipped until daily_spend_today tracked) ─
     // Requires a daily_spend_today column in job_posts — skipping for now
 
-    // ── 5. Payment Method Missing ─────────────────────────────────────────
+    // ── 5. Payment Method Missing (once ever) ──────────────────────────────
     const hasPendingPackages = packages.some((p) => p.status === "pending_payment");
     if (hasPendingPackages) {
-      if (!wasRecentlyNotified(existingNotifs, "payment_missing", "Payment Method")) {
+      if (!wasAlreadyNotified(existingNotifs, "payment_missing", "Payment Method", "once")) {
         alertsToCreate.push({
           accountId,
           type: "payment_missing",
@@ -280,10 +289,18 @@ const checkAndCreateAlerts = async (accountId) => {
       }
     }
 
-    // ── Insert all new alerts ─────────────────────────────────────────────
-    if (alertsToCreate.length > 0) {
+    // ── Insert all new alerts (deduped within this run) ────────────────────
+    const seen = new Set();
+    const dedupedAlerts = alertsToCreate.filter((a) => {
+      const key = `${a.type}:${a.packageName}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    if (dedupedAlerts.length > 0) {
       await Promise.all(
-        alertsToCreate.map((alert) =>
+        dedupedAlerts.map((alert) =>
           createNotification(
             alert.accountId,
             alert.type,
@@ -296,7 +313,7 @@ const checkAndCreateAlerts = async (accountId) => {
           )
         )
       );
-      console.log(`✅ Created ${alertsToCreate.length} alert(s) for account ${accountId}`);
+      console.log(`✅ Created ${dedupedAlerts.length} alert(s) for account ${accountId}`);
     } else {
       console.log(`ℹ️  No new alerts needed for account ${accountId}`);
     }
@@ -336,7 +353,7 @@ const startAlertCron = () => {
         if (!packages.length) continue;
 
         const existingNotifs = await getNotifications(account.account_id, 10);
-        if (wasRecentlyNotified(existingNotifs, "daily_digest", "Summary")) continue;
+        if (wasAlreadyNotified(existingNotifs, "daily_digest", "Summary", "24h")) continue;
 
         const activePackages = packages.filter((p) => p.status === "active");
         const totalSpend = packages.reduce((s, p) => s + Number(p.totalSpend || 0), 0);
@@ -371,20 +388,20 @@ const startAlertCron = () => {
 };
 
 // ─── Boost expiry — every hour ─────────────────────────────────────────
-  cron.schedule("0 * * * *", () => {
-    connection.query(
-      `UPDATE boost_orders bo
-       JOIN candidate_info ci ON ci.id = bo.candidate_id
-       SET bo.status = 'expired',
-           ci.is_boosted = 0,
-           ci.boost_expires_at = NULL
-       WHERE bo.status = 'active' AND bo.end_date < NOW()`,
-      (err, result) => {
-        if (err) return console.error("Boost expiry cron error:", err.message);
-        if (result.affectedRows > 0)
-          console.log(`⏰ Expired ${result.affectedRows} boost order(s)`);
-      }
-    );
-  });
+cron.schedule("0 * * * *", () => {
+  connection.query(
+    `UPDATE boost_orders bo
+     JOIN candidate_info ci ON ci.id = bo.candidate_id
+     SET bo.status = 'expired',
+         ci.is_boosted = 0,
+         ci.boost_expires_at = NULL
+     WHERE bo.status = 'active' AND bo.end_date < NOW()`,
+    (err, result) => {
+      if (err) return console.error("Boost expiry cron error:", err.message);
+      if (result.affectedRows > 0)
+        console.log(`⏰ Expired ${result.affectedRows} boost order(s)`);
+    }
+  );
+});
 
 module.exports = { startAlertCron, checkAndCreateAlerts };

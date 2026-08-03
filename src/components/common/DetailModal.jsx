@@ -81,12 +81,13 @@ class DetailModal extends Component {
   }
 
   // Special formatter for price/salary fields
-  static formatPrice(value) {
-    if (value === undefined || value === null || value === "") return "-";
-    const numValue = Number(value);
-    if (isNaN(numValue)) return value;
-    return numValue.toLocaleString('en-IN'); // or 'en-US'
-  }
+static formatPrice(value, currency = "") {
+  if (value === undefined || value === null || value === "") return "-";
+  const numValue = Number(value);
+  if (isNaN(numValue)) return value;
+  const formatted = numValue.toLocaleString('en-IN');
+  return currency ? `${currency} ${formatted}` : formatted;
+}
 
   render() {
     const { isOpen, toggle, title, details, fields, customRenderers } =
@@ -111,14 +112,15 @@ class DetailModal extends Component {
 
             // Check if this is a price or salary field
             const isPriceField = key.toLowerCase().includes('price') || 
-                                key.toLowerCase().includes('salary') ||
-                                key.toLowerCase().includes('amount') ||
-                                key.toLowerCase().includes('cost');
+                    key.toLowerCase().includes('salary') ||
+                    key.toLowerCase().includes('amount') ||
+                    key.toLowerCase().includes('cost');
 
-            // Format price/salary fields with commas
-            if (isPriceField && !isNaN(value) && value !== '') {
-              value = Number(value).toLocaleString('en-IN');
-            }
+const isSyntheticField = key === 'salary_range' || key === 'experience_range' || key === 'time_range' || key === 'education';
+
+if (isPriceField && !isSyntheticField && !isNaN(value) && value !== '') {
+  value = Number(value).toLocaleString('en-IN');
+}
 
             return (
               <div
@@ -136,7 +138,8 @@ class DetailModal extends Component {
 
                 {/* Value */}
                 <div className="col-8">
-                  <span className="text-dark">
+                  <span className="text-dark"
+                   style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>
                     {DetailModal.formatValue(value)}
                   </span>
                 </div>
@@ -156,6 +159,11 @@ DetailModal.propTypes = {
   details: PropTypes.object.isRequired,
   fields: PropTypes.array.isRequired,
   customRenderers: PropTypes.object,
+  currency: PropTypes.string, 
+};
+
+DetailModal.defaultProps = {
+  currency: "Rs.",
 };
 
 export default DetailModal;
