@@ -539,8 +539,8 @@ const addCandidateInfo = async (req, res) => {
     // 🔹 Determine which file was uploaded
     const passportPhotoPath = req.passportPhotoPath
       ? req.passportPhotoPath
-        .replace(/\\/g, "/")
-        .replace(/^.*uploads/, "/uploads")
+          .replace(/\\/g, "/")
+          .replace(/^.*uploads/, "/uploads")
       : null;
 
     const resumePath = req.resumePath
@@ -796,12 +796,12 @@ const getCandidateInfo = (req, res) => {
         // Expire it in the background
         connection.query(
           `UPDATE candidate_info SET is_boosted = 0, boost_expires_at = NULL WHERE account_id = ?`,
-          [accountId]
+          [accountId],
         );
         connection.query(
           `UPDATE boost_orders SET status = 'expired' 
          WHERE candidate_id = ? AND status = 'active'`,
-          [candidate.candidate_id]
+          [candidate.candidate_id],
         );
         // Correct the in-memory object too
         candidate.is_boosted = 0;
@@ -864,16 +864,24 @@ const getCandidateInfo = (req, res) => {
 
     Promise.all([
       new Promise((resolve, reject) => {
-        connection.query(availabilitySql, [candidate.candidate_id], (err, rows) => {
-          if (err) return reject(err);
-          resolve(rows.length > 0);
-        });
+        connection.query(
+          availabilitySql,
+          [candidate.candidate_id],
+          (err, rows) => {
+            if (err) return reject(err);
+            resolve(rows.length > 0);
+          },
+        );
       }),
       new Promise((resolve, reject) => {
-        connection.query(certificatesSql, [candidate.candidate_id], (err, rows) => {
-          if (err) return reject(err);
-          resolve(rows.length > 0);
-        });
+        connection.query(
+          certificatesSql,
+          [candidate.candidate_id],
+          (err, rows) => {
+            if (err) return reject(err);
+            resolve(rows.length > 0);
+          },
+        );
       }),
     ])
       .then(([hasAvailability, hasCertificates]) => {
@@ -881,7 +889,9 @@ const getCandidateInfo = (req, res) => {
         if (hasCertificates) completedCount++;
 
         const totalFields = fieldsToCheck.length + 2; // ✅ +2 only (availability + certificates)
-        const profile_completion_percent = Math.round((completedCount / totalFields) * 100); 
+        const profile_completion_percent = Math.round(
+          (completedCount / totalFields) * 100,
+        );
 
         // -------- Response object --------
         const response = {
@@ -1003,7 +1013,10 @@ const getCandidateInfo = (req, res) => {
               (err, rows) => {
                 if (err) return reject(err);
                 rows.forEach((r) => {
-                  if (r.status === "Interview_Scheduled" || r.status === "Interview_Conducted")
+                  if (
+                    r.status === "Interview_Scheduled" ||
+                    r.status === "Interview_Conducted"
+                  )
                     response.shortlisted_count += r.count;
                   if (r.status === "Offered")
                     response.approved_count += r.count;
@@ -1028,7 +1041,9 @@ const getCandidateInfo = (req, res) => {
                     company_status: row.company_status,
                     company_id: row.company_id,
                     company_name: row.company_name,
-                    logo: row.logo ? Buffer.from(row.logo).toString('base64') : null,
+                    logo: row.logo
+                      ? Buffer.from(row.logo).toString("base64")
+                      : null,
                     job_id: row.job_id,
                     job_title: row.job_title,
                     interview_day: row.interview_day || null,
@@ -1048,7 +1063,10 @@ const getCandidateInfo = (req, res) => {
                     response.considered_companies.push(companyData);
                   if (row.application_status === "Offered")
                     response.offered_companies.push(companyData);
-                  if (row.application_status === "Offered" || row.application_status === "Selected")
+                  if (
+                    row.application_status === "Offered" ||
+                    row.application_status === "Selected"
+                  )
                     response.approved_companies.push(companyData);
                   if (row.application_status === "Rejected")
                     response.rejected_companies.push(companyData);
@@ -1089,8 +1107,8 @@ const editCandidateInfo = (req, res) => {
   // ✅ Correct file handling
   const passportPhotoPath = req.passportPhotoPath
     ? req.passportPhotoPath
-      .replace(/\\/g, "/")
-      .replace(/^.*uploads/, "/uploads")
+        .replace(/\\/g, "/")
+        .replace(/^.*uploads/, "/uploads")
     : null;
 
   const resumePath = req.resumePath
@@ -1280,36 +1298,36 @@ const getCandidateFullProfilebyId = async (req, res) => {
       ...candidateInfoResults[0],
       experiences: Array.isArray(workResults)
         ? workResults.map((exp, index) => ({
-          ...exp,
-          start_date: formatDate(exp.start_date),
-          end_date: formatDate(exp.end_date),
-          first: index === 0,
-        }))
+            ...exp,
+            start_date: formatDate(exp.start_date),
+            end_date: formatDate(exp.end_date),
+            first: index === 0,
+          }))
         : [],
 
       education: Array.isArray(educationResults)
         ? educationResults.map((edu, index) => ({
-          ...edu,
-          start_date: formatDate(edu.start_date),
-          end_date: formatDate(edu.end_date),
-          first: index === 0,
-        }))
+            ...edu,
+            start_date: formatDate(edu.start_date),
+            end_date: formatDate(edu.end_date),
+            first: index === 0,
+          }))
         : [],
 
       projects: Array.isArray(projectsResults)
         ? projectsResults.map((proj, index) => ({
-          ...proj,
-          start_date: formatDate(proj.start_date),
-          end_date: formatDate(proj.end_date),
-          first: index === 0,
-        }))
+            ...proj,
+            start_date: formatDate(proj.start_date),
+            end_date: formatDate(proj.end_date),
+            first: index === 0,
+          }))
         : [],
 
       awards: Array.isArray(awardsResults)
         ? awardsResults.map((awd, index) => ({
-          ...awd,
-          first: index === 0,
-        }))
+            ...awd,
+            first: index === 0,
+          }))
         : [],
     };
 
@@ -1389,7 +1407,9 @@ const placeBoostOrder = (req, res) => {
   const { package_id } = req.body;
 
   if (!package_id) {
-    return res.status(400).json({ success: false, message: "Please select a package" });
+    return res
+      .status(400)
+      .json({ success: false, message: "Please select a package" });
   }
 
   connection.query(
@@ -1398,17 +1418,28 @@ const placeBoostOrder = (req, res) => {
      WHERE ci.account_id = ? AND bo.status IN ('pending', 'active')`,
     [accountId],
     (err, existing) => {
-      if (err) return res.status(500).json({ error: "Database error", details: err.message });
+      if (err)
+        return res
+          .status(500)
+          .json({ error: "Database error", details: err.message });
       if (existing.length > 0) {
-        return res.status(400).json({ success: false, message: "A boost order is already active" });
+        return res
+          .status(400)
+          .json({ success: false, message: "A boost order is already active" });
       }
 
       connection.query(
         "SELECT id FROM candidate_info WHERE account_id = ?",
         [accountId],
         (err2, rows) => {
-          if (err2) return res.status(500).json({ error: "Database error", details: err2.message });
-          if (!rows.length) return res.status(404).json({ success: false, message: "Candidate not found" });
+          if (err2)
+            return res
+              .status(500)
+              .json({ error: "Database error", details: err2.message });
+          if (!rows.length)
+            return res
+              .status(404)
+              .json({ success: false, message: "Candidate not found" });
 
           const candidateInfoId = rows[0].id;
 
@@ -1417,8 +1448,12 @@ const placeBoostOrder = (req, res) => {
              FROM packages WHERE id = ?`,
             [package_id],
             (err3, pkgRows) => {
-              if (err3) return res.status(500).json({ error: "Database error" });
-              if (!pkgRows.length) return res.status(404).json({ success: false, message: "Package not found" });
+              if (err3)
+                return res.status(500).json({ error: "Database error" });
+              if (!pkgRows.length)
+                return res
+                  .status(404)
+                  .json({ success: false, message: "Package not found" });
 
               const days = parseInt(pkgRows[0].duration_days || 0);
               const start = new Date();
@@ -1430,33 +1465,47 @@ const placeBoostOrder = (req, res) => {
                  VALUES (?, ?, 'active', ?, ?)`,
                 [candidateInfoId, package_id, start, end],
                 (err4) => {
-                  if (err4) return res.status(500).json({ error: "Database error", details: err4.message });
+                  if (err4)
+                    return res
+                      .status(500)
+                      .json({ error: "Database error", details: err4.message });
 
                   connection.query(
                     "UPDATE candidate_info SET is_boosted=1, boost_expires_at=? WHERE id=?",
                     [end, candidateInfoId],
                     (err5) => {
-                      if (err5) return res.status(500).json({ error: "Database error" });
+                      if (err5)
+                        return res
+                          .status(500)
+                          .json({ error: "Database error" });
 
                       logAudit({
                         tableName: "history",
                         entityType: "candidate",
                         entityId: accountId,
                         action: "BOOST_ACTIVATED",
-                        data: { event: "Boost auto-activated on purchase", package_id, boost_expires_at: end },
+                        data: {
+                          event: "Boost auto-activated on purchase",
+                          package_id,
+                          boost_expires_at: end,
+                        },
                         changedBy: accountId,
                       });
 
-                      res.json({ success: true, message: "Profile boosted successfully!", boost_expires_at: end });
-                    }
+                      res.json({
+                        success: true,
+                        message: "Profile boosted successfully!",
+                        boost_expires_at: end,
+                      });
+                    },
                   );
-                }
+                },
               );
-            }
+            },
           );
-        }
+        },
       );
-    }
+    },
   );
 };
 const getMyBoostStatus = (req, res) => {
@@ -1536,9 +1585,9 @@ const getBoostOrders = (req, res) => {
         (err, results) => {
           if (err) return res.status(500).json({ error: "Database error" });
           res.json({ success: true, data: results });
-        }
+        },
       );
-    }
+    },
   );
 };
 
@@ -2307,7 +2356,9 @@ const getAllCandidatesForEmployer = (req, res) => {
           let skillIds = [];
           try {
             const parsed =
-              typeof c.skills === "string" ? JSON.parse(c.skills) : c.skills || [];
+              typeof c.skills === "string"
+                ? JSON.parse(c.skills)
+                : c.skills || [];
             skillIds = Array.isArray(parsed) ? parsed : [];
           } catch {
             skillIds = [];
@@ -2360,7 +2411,9 @@ const getAllCandidatesForEmployer = (req, res) => {
         const stats = {
           total_candidates: filteredTotal,
           new_this_week: candidates.filter(
-            (c) => c.account_created_at && new Date(c.account_created_at) >= sevenDaysAgo,
+            (c) =>
+              c.account_created_at &&
+              new Date(c.account_created_at) >= sevenDaysAgo,
           ).length,
           boosted_count: candidates.filter((c) => c.is_boosted).length,
         };
@@ -2423,29 +2476,41 @@ const parseCVAndSave = async (req, res) => {
       const phoneMatch = text.match(/(03\d{2}[-\s]?\d{7})/);
       const expMatch = text.match(/(\d+)\+?\s*years?/i);
 
-      const foundSkills = skillsListFromDB.filter(skill =>
-        new RegExp(`\\b${skill.name}\\b`, "i").test(text)
+      const foundSkills = skillsListFromDB.filter((skill) =>
+        new RegExp(`\\b${skill.name}\\b`, "i").test(text),
       );
 
-      const firstLine = text.split("\n").map(l => l.trim()).find(l => l.length > 2) || null;
+      const firstLine =
+        text
+          .split("\n")
+          .map((l) => l.trim())
+          .find((l) => l.length > 2) || null;
 
       return {
         full_name: firstLine,
         email: emailMatch ? emailMatch[0] : null,
         phone: phoneMatch ? phoneMatch[0] : null,
         total_experience: expMatch ? expMatch[1] : null,
-        skills_text: foundSkills.map(s => s.name),
+        skills_text: foundSkills.map((s) => s.name),
         is_fresher: !expMatch,
       };
     }
 
-    let extracted = { full_name: null, total_experience: null, skills_text: [], is_fresher: false };
+    let extracted = {
+      full_name: null,
+      total_experience: null,
+      skills_text: [],
+      is_fresher: false,
+    };
 
     if (cvText.length > 50) {
       const allSkills = await new Promise((resolve) => {
-        connection.query(`SELECT id, name FROM skills WHERE status = 'Active'`, (err, rows) => {
-          resolve(err ? [] : rows);
-        });
+        connection.query(
+          `SELECT id, name FROM skills WHERE status = 'Active'`,
+          (err, rows) => {
+            resolve(err ? [] : rows);
+          },
+        );
       });
       extracted = extractFieldsFree(cvText, allSkills);
     }
@@ -2453,8 +2518,12 @@ const parseCVAndSave = async (req, res) => {
     // ✅ Skills DB match (still fine to keep — refines the match)
     let skillIds = [];
     if (extracted.skills_text?.length) {
-      const skillNames = extracted.skills_text.map((s) => s.toLowerCase().trim());
-      const placeholders = skillNames.map(() => "LOWER(name) LIKE ?").join(" OR ");
+      const skillNames = extracted.skills_text.map((s) =>
+        s.toLowerCase().trim(),
+      );
+      const placeholders = skillNames
+        .map(() => "LOWER(name) LIKE ?")
+        .join(" OR ");
       const skillValues = skillNames.map((s) => `%${s}%`);
 
       await new Promise((resolve) => {
