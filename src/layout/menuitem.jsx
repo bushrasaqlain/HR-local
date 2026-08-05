@@ -77,7 +77,7 @@ export const companymenuitem = [
 export const candidatesmenuitem = [
   { key: "profile", label: "Dashboard" },
   { key: "lists", label: "Job List" },
-  { key: "appliedJobs", label: "Applied Jobs" },
+  { key: "appliedJobs", label: "Job Activity" },
   // { key: "chatbox", label: "Message"},
   { key: "register", label: "Candidate Register Form" },
   {key: "candidatewallet", label: "Wallet", type: "single"},

@@ -88,17 +88,6 @@ const ContactDescriptions = () => {
     return (
         <>
             {/* HERO SECTION */}
-            <div className="contact-hero d-flex align-items-center justify-content-center text-center">
-                <motion.div
-                    initial={{ opacity: 0, y: -40 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8 }}
-                    className="text-white"
-                >
-                    <h1 className="fw-bold text-white">Contact Us</h1>
-                    <p className="hero-tagline">We're Here to Help You</p>
-                </motion.div>
-            </div>
 
             <Container className="mt-5 mb-5" style={{ paddingBottom: "80px" }}>
 

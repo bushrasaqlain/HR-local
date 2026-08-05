@@ -68,7 +68,7 @@ class AllApplicants extends Component {
     jobMessage: "",
     jobSearch: "",
   showJobDropdown: false,
-  activeTab: "applicants",
+  activeTab: "all",
   isTyping: false,
   screeningAnswers: null,
   screeningAnswersOpen: false,
@@ -91,19 +91,18 @@ class AllApplicants extends Component {
   handleResize = () => this.setState({ windowWidth: window.innerWidth });
   isMobile = () => this.state.windowWidth <= 768;
 
-  openCandidatePage = (candidate) => {
-    if (candidate.locked) return;
-    const mobile = this.isMobile();
-    this.trackCandidateProfileView(candidate.account_id || candidate.candidate_id || candidate.id, Number(this.state.selectedJobId) || null);
-    this.setState({ selectedCandidate: null }, () => {
-      this.setState({
-        selectedCandidate: candidate,
-        selectedCandidateId: candidate.candidate_id || candidate.id,
-        splitViewActive: !mobile, mobileDetailView: mobile, showCandidateInfo: true,
-      });
+openCandidatePage = (candidate) => {
+  if (candidate.locked) return;
+  const mobile = this.isMobile();
+  this.trackCandidateProfileView(candidate.account_id || candidate.candidate_id || candidate.id, Number(this.state.selectedJobId) || null);
+  this.setState({ selectedCandidate: null }, () => {
+    this.setState({
+      selectedCandidate: candidate,
+      selectedCandidateId: candidate.candidate_id || candidate.id,
+      splitViewActive: !mobile, mobileDetailView: mobile, showCandidateInfo: true,
     });
-  };
-
+  });
+};
 viewScreeningAnswers = async (candidate) => {
   if (!candidate.application_id) return;
   this.setState({ screeningAnswersOpen: true, loadingAnswers: true, screeningAnswers: null });
@@ -194,14 +193,14 @@ fetchPostedJobs = async () => {
         };
       });
 
-      const counts = { all: candidates.length, pending: 0, shortlisted: 0, rejected: 0, approved: 0,applied: 0 };
-      candidates.forEach(a => {
-        if (a.candidateStatus === "Pending") counts.pending++;
-        if (a.candidateStatus === "Shortlisted") counts.shortlisted++;
-        if (a.candidateStatus === "Rejected") counts.rejected++;
-        if (a.candidateStatus === "Approved") counts.approved++;
-        if (a.has_applied) counts.applied++; 
-      });
+      const counts = { all: candidates.length, pending: 0, shortlisted: 0, rejected: 0, approved: 0, applied: 0 };
+candidates.forEach(a => {
+  if (a.candidateStatus === "Pending") counts.pending++;
+  if (a.candidateStatus === "Shortlisted") counts.shortlisted++;
+  if (a.candidateStatus === "Rejected") counts.rejected++;
+  if (a.candidateStatus === "Approved") counts.approved++;
+  if (a.has_applied && (!a.candidateStatus || a.candidateStatus === "Pending")) counts.applied++;
+});
 
       this.setState({
         candidates, allApplicants: candidates, counts, budgetStatus,
@@ -231,7 +230,11 @@ fetchPostedJobs = async () => {
           ? { ...c, ...candidate, id: candidate.id || candidateId, locked: false, skills: Array.isArray(candidate.skills) ? candidate.skills : [] }
           : c
       );
-      this.setState(prev => ({ candidates: merge(prev.candidates), allApplicants: merge(prev.allApplicants), budgetStatus: budget_status || prev.budgetStatus }));
+      this.setState(prev => ({
+  candidates: merge(prev.candidates),
+  allApplicants: merge(prev.allApplicants),
+  budgetStatus: budget_status ? { ...prev.budgetStatus, ...budget_status } : prev.budgetStatus
+}));
     } catch (error) {
       const msg = error.response?.data?.error;
       alert(msg === "Daily budget exhausted"
@@ -264,12 +267,15 @@ filterApplicants = () => {
   const { allApplicants, searchFilters, selectedStatus, selectedCityId, activeTab } = this.state;
   const query = searchFilters?.query?.toLowerCase() || "";
   return allApplicants.filter(c => {
-    const tabMatch = activeTab === "applicants" ? c.has_applied === true : true;
+    const tabMatch =
+      activeTab === "applicants"
+        ? c.has_applied === true && (!c.candidateStatus || c.candidateStatus === "Pending")
+        : true; // "all" and "search" show everyone
 
-    // ← only apply the status filter when NOT on the "applicants" tab
-    const statusMatch = activeTab === "applicants"
-      ? true
-      : (selectedStatus ? String(c.candidateStatus || "").trim().toLowerCase() === selectedStatus.toLowerCase() : true);
+    const statusMatch =
+      activeTab === "applicants" || activeTab === "all"
+        ? true
+        : (selectedStatus ? String(c.candidateStatus || "").trim().toLowerCase() === selectedStatus.toLowerCase() : true);
 
     const cityMatch = selectedCityId
       ? Number(c.city) === Number(selectedCityId) || c.otherPreferredCities?.some(city => Number(city.id) === Number(selectedCityId))
@@ -431,6 +437,7 @@ filterApplicants = () => {
 </div>
 <div className="d-flex gap-2 mb-3">
   {[
+    { key: "all", label: `All Candidates (${counts.all || 0})` },
     { key: "applicants", label: `Applicants (${counts.applied || 0})` },
     { key: "search", label: "Search Candidates" },
   ].map(tab => (
@@ -482,7 +489,7 @@ filterApplicants = () => {
                               key={cId}
                               className="d-flex align-items-center gap-2 p-2 rounded-2 border"
                               style={{ cursor: isLocked ? "default" : "pointer", background: cId === selectedCandidateId ? BRAND_LIGHT : "", borderColor: cId === selectedCandidateId ? BRAND : "transparent" }}
-                              onClick={() => !isLocked && this.openCandidatePage(c)}
+                             onClick={() => { console.log('clicked', cId, 'locked:', c.locked, typeof c.locked); !isLocked && this.openCandidatePage(c); }}
                             >
                               <Avatar src={c.passport_photo} name={c.full_name} size={36} locked={isLocked} />
                               <div className="overflow-hidden flex-grow-1">
@@ -542,7 +549,7 @@ filterApplicants = () => {
                           <table className="table align-middle mb-0">
                             <thead>
                              <tr style={{ background: BRAND }}>
-  {["Candidate", "Status", "Location", "Match", ...(this.state.activeTab === "applicants" ? ["Action"] : [])].map(h => (
+  {["Candidate", "Status", "Location", "Match", ...(this.state.budgetStatus?.model === "daily_budget" ? ["Action"] : [])].map(h => (
     <th key={h} className="text-white fw-semibold small py-3 text-center">{h}</th>
   ))}
 </tr>
@@ -562,7 +569,7 @@ filterApplicants = () => {
                                       borderLeft: isSelected ? `4px solid ${BRAND}` : (!isLocked && c.is_boosted ? "3px solid #f59e0b" : ""),
                                       background: !isLocked && c.is_boosted && !isSelected ? "#fffbeb" : undefined,
                                     }}
-                                    onClick={() => !isLocked && this.openCandidatePage(c)}
+                                   onClick={() => { console.log('clicked', cId, 'locked:', c.locked, typeof c.locked); !isLocked && this.openCandidatePage(c); }}
                                   >
                                     <td>
                                       <div className="d-flex align-items-center gap-2">
@@ -578,7 +585,7 @@ filterApplicants = () => {
                                       <span className="badge bg-light text-secondary border rounded-pill">📍 {c.city_name || "Not specified"}</span>
                                     </td>
                                    <td className="text-center"><TierBadge candidate={c} /></td>
-{this.state.activeTab === "applicants" && (
+{this.state.budgetStatus?.model === "daily_budget" && (
   <td className="text-center">
     {isLocked ? (
       <button

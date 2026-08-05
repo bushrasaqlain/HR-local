@@ -2238,12 +2238,10 @@ const getAllCandidatesForEmployer = (req, res) => {
     whereConditions.push(`ci.full_name LIKE ?`);
     values.push(`%${search}%`);
   }
-
   if (cityId) {
     whereConditions.push(`ci.city = ?`);
     values.push(cityId);
   }
-
   if (skillId) {
     whereConditions.push(`JSON_CONTAINS(ci.skills, JSON_ARRAY(?))`);
     values.push(parseInt(skillId));
@@ -2260,6 +2258,7 @@ const getAllCandidatesForEmployer = (req, res) => {
       ci.boost_expires_at,
       ci.gender,
       ci.passport_photo,
+      a.created_at            AS account_created_at,
       city.name               AS city_name,
       ctry.name               AS country_name,
       UPPER(LEFT(ci.full_name, 1)) AS initial,
@@ -2280,137 +2279,109 @@ const getAllCandidatesForEmployer = (req, res) => {
     ORDER BY
       ci.is_boosted DESC,
       ci.updated_at DESC
-    LIMIT ? OFFSET ?
   `;
 
-  const queryParams = [...values, limit, offset];
-
-  connection.query(query, queryParams, (err, results) => {
+  connection.query(query, values, (err, results) => {
     if (err) {
       console.error("❌ getAllCandidatesForEmployer error:", err.sqlMessage);
       return res.status(500).json({ error: "Database error" });
     }
 
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM account a
-      LEFT JOIN candidate_info ci ON a.id = ci.account_id
-      ${whereClause}
-    `;
-
     const candidateIdsForExp = results.map((c) => c.candidate_id);
 
-    connection.query(countQuery, values, (err2, countResult) => {
-      if (err2) {
-        console.error("❌ Count error:", err2.sqlMessage);
-        return res.status(500).json({ error: "Database error" });
-      }
+    const expQuery = candidateIdsForExp.length
+      ? `SELECT candidate_id, start_date, end_date, is_ongoing FROM candidate_experience WHERE candidate_id IN (?)`
+      : null;
 
-      const expQuery = candidateIdsForExp.length
-        ? `SELECT candidate_id, start_date, end_date, is_ongoing FROM candidate_experience WHERE candidate_id IN (?)`
-        : null;
+    const fetchExp = expQuery
+      ? new Promise((resolve, reject) =>
+          connection.query(expQuery, [candidateIdsForExp], (e, rows) =>
+            e ? reject(e) : resolve(rows),
+          ),
+        )
+      : Promise.resolve([]);
 
-      const fetchExp = expQuery
-        ? new Promise((resolve, reject) =>
-            connection.query(expQuery, [candidateIdsForExp], (e, rows) =>
-              e ? reject(e) : resolve(rows),
-            ),
-          )
-        : Promise.resolve([]);
-
-      fetchExp
-        .then((expRows) => {
-          let candidates = results.map((c) => {
-            let skillIds = [];
-            try {
-              const parsed =
-                typeof c.skills === "string"
-                  ? JSON.parse(c.skills)
-                  : c.skills || [];
-              skillIds = Array.isArray(parsed) ? parsed : [];
-            } catch {
-              skillIds = [];
-            }
-
-            let photoUrl = null;
-            if (c.passport_photo) {
-              photoUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${c.passport_photo}`;
-            }
-
-            const candExp = calculateTotalExperience(
-              expRows.filter((e) => e.candidate_id === c.candidate_id),
-            );
-
-            return {
-              candidate_id: c.candidate_id,
-              full_name: c.full_name || "Anonymous",
-              initial: c.initial || "?",
-              total_experience: candExp,
-              city_name: c.city_name || null,
-              country_name: c.country_name || null,
-              is_boosted: !!c.is_boosted,
-              gender: c.gender || null,
-              skills_count: skillIds.length,
-              availability_status: c.availability_status || "Not specified",
-              passport_photo: photoUrl,
-            };
-          });
-
-          if (experience === "fresh") {
-            candidates = candidates.filter((c) => c.total_experience === 0);
-          } else if (experience === "1-3") {
-            candidates = candidates.filter(
-              (c) => c.total_experience >= 1 && c.total_experience <= 3,
-            );
-          } else if (experience === "3-5") {
-            candidates = candidates.filter(
-              (c) => c.total_experience >= 3 && c.total_experience <= 5,
-            );
-          } else if (experience === "5+") {
-            candidates = candidates.filter((c) => c.total_experience >= 5);
+    fetchExp
+      .then((expRows) => {
+        let candidates = results.map((c) => {
+          let skillIds = [];
+          try {
+            const parsed =
+              typeof c.skills === "string" ? JSON.parse(c.skills) : c.skills || [];
+            skillIds = Array.isArray(parsed) ? parsed : [];
+          } catch {
+            skillIds = [];
           }
 
-          const statsQuery = `
-            SELECT
-              COUNT(*) AS total_candidates,
-              SUM(CASE WHEN a.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS new_this_week,
-              SUM(CASE WHEN ci.is_boosted = 1 THEN 1 ELSE 0 END) AS boosted_count
-            FROM account a
-            LEFT JOIN candidate_info ci ON a.id = ci.account_id
-            WHERE a.accountType = 'candidate'
-              AND a.isActive = 'Active'
-              AND ci.profile_completed = 1
-          `;
+          let photoUrl = null;
+          if (c.passport_photo) {
+            photoUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${c.passport_photo}`;
+          }
 
-          connection.query(statsQuery, (err3, statsResult) => {
-            if (err3) {
-              return res.status(200).json({
-                total: countResult[0].total,
-                page,
-                limit,
-                candidates,
-                stats: null,
-              });
-            }
+          const candExp = calculateTotalExperience(
+            expRows.filter((e) => e.candidate_id === c.candidate_id),
+          );
 
-            return res.status(200).json({
-              total: countResult[0].total,
-              page,
-              limit,
-              candidates,
-              stats: {
-                total_candidates: statsResult[0].total_candidates || 0,
-                new_this_week: statsResult[0].new_this_week || 0,
-                boosted_count: statsResult[0].boosted_count || 0,
-              },
-            });
-          });
-        })
-        .catch((expErr) => {
-          console.error("❌ Experience fetch error:", expErr.message);
-          return res.status(500).json({ error: "Database error" });
+          return {
+            candidate_id: c.candidate_id,
+            full_name: c.full_name || "Anonymous",
+            initial: c.initial || "?",
+            total_experience: candExp,
+            city_name: c.city_name || null,
+            country_name: c.country_name || null,
+            is_boosted: !!c.is_boosted,
+            gender: c.gender || null,
+            skills_count: skillIds.length,
+            availability_status: c.availability_status || "Not specified",
+            passport_photo: photoUrl,
+            account_created_at: c.account_created_at, // used only for stats calc below
+          };
         });
-    });
+
+        // ✅ Experience filter runs on the FULL result set
+        if (experience === "fresh") {
+          candidates = candidates.filter((c) => c.total_experience === 0);
+        } else if (experience === "1-3") {
+          candidates = candidates.filter(
+            (c) => c.total_experience >= 1 && c.total_experience <= 3,
+          );
+        } else if (experience === "3-5") {
+          candidates = candidates.filter(
+            (c) => c.total_experience >= 3 && c.total_experience <= 5,
+          );
+        } else if (experience === "5+") {
+          candidates = candidates.filter((c) => c.total_experience >= 5);
+        }
+
+        // ✅ Stats now computed from the FILTERED set — reflects current selection
+        const filteredTotal = candidates.length;
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+        const stats = {
+          total_candidates: filteredTotal,
+          new_this_week: candidates.filter(
+            (c) => c.account_created_at && new Date(c.account_created_at) >= sevenDaysAgo,
+          ).length,
+          boosted_count: candidates.filter((c) => c.is_boosted).length,
+        };
+
+        // ✅ Paginate AFTER filtering, then strip the internal-only field
+        const paginatedCandidates = candidates
+          .slice(offset, offset + limit)
+          .map(({ account_created_at, ...rest }) => rest);
+
+        return res.status(200).json({
+          total: filteredTotal,
+          page,
+          limit,
+          candidates: paginatedCandidates,
+          stats,
+        });
+      })
+      .catch((expErr) => {
+        console.error("❌ Experience fetch error:", expErr.message);
+        return res.status(500).json({ error: "Database error" });
+      });
   });
 };
 const parseCVAndSave = async (req, res) => {

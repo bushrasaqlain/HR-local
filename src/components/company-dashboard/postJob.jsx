@@ -1606,7 +1606,7 @@ class PostBoxForm extends Component {
               errors.currency_id
             }
           >
-            <div style={{ ...s.row3, gridTemplateColumns: "1fr 1fr 120px 130px" }}>
+            <div className="salary-grid">
               <input
                 type="text"
                 name="min_salary"
@@ -2191,6 +2191,25 @@ class PostBoxForm extends Component {
             rel="stylesheet"
           />
         </Head>
+
+        <style jsx global>{`
+  .salary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 120px 130px;
+    gap: 12px;
+  }
+  @media (max-width: 640px) {
+    .salary-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+  }
+  @media (max-width: 400px) {
+    .salary-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+`}</style>
         {this.state.showLangModal && (
           <div
             style={{

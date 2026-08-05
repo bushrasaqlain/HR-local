@@ -9,12 +9,15 @@ const Index = () => {
       {/* 🔷 HERO SECTION */}
       <div className="faq-hero d-flex align-items-center justify-content-center text-center">
         <motion.div
+          className="hero-content"
           initial={{ opacity: 0, y: -40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          <h1 className="text-white fw-bold">FAQs</h1>
-          <p className="faq-tagline">Find answers to common questions</p>
+          <h1 className="faq-title">FAQs</h1>
+          <p className="faq-tagline">
+            Find answers to common questions
+          </p>
         </motion.div>
       </div>
 

@@ -515,7 +515,7 @@ if (this.state.screeningJob) {
                   }}>
 
                     <Dropdown isOpen={statusFilterOpen} toggle={this.toggleStatusFilter}>
-                      <DropdownToggle caret color="link" style={{ color: '#1e293b', textDecoration: 'none', padding: 0 }}>
+                      <DropdownToggle caret color="link" style={{ color: '#36565F', textDecoration: 'none', padding: 0 }}>
                         Status: {quickStatusFilter === "" ? "All" : quickStatusFilter}
                       </DropdownToggle>
                       <DropdownMenu>
@@ -1072,6 +1072,44 @@ education: (d) => {
             transition: color 0.2s ease;
           }
         `}</style>
+
+        <style jsx global>{`
+  /* Search input & filter inputs - remove blue focus ring */
+  .form-control:focus,
+  input.form-control:focus {
+    border-color: #36565F !important;
+    box-shadow: 0 0 0 0.2rem rgba(54, 86, 95, 0.25) !important;
+  }
+
+  /* Status filter + Actions dropdown toggle (btn-link) */
+  .btn-link,
+  .btn-link:hover,
+  .btn-link:focus,
+  .btn-link:active {
+    color: #36565F !important;
+    box-shadow: none !important;
+  }
+
+  /* Any bootstrap button focus ring */
+  .btn:focus,
+  .btn.focus {
+    box-shadow: 0 0 0 0.2rem rgba(54, 86, 95, 0.25) !important;
+  }
+
+  /* Dropdown menu items - hover/active/focus state */
+  .dropdown-item:hover,
+  .dropdown-item:focus,
+  .dropdown-item.active,
+  .dropdown-item:active {
+    background-color: rgba(54, 86, 95, 0.1) !important;
+    color: #36565F !important;
+  }
+
+  /* Dropdown toggle caret arrow color */
+  .dropdown-toggle::after {
+    border-top-color: #36565F !important;
+  }
+`}</style>
       </>
     );
   }

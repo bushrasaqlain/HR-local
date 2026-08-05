@@ -1,6 +1,6 @@
-  const connection = require("../connection");
-  const logAudit = require("../utils/auditLogger");
-  const openai = require("../lib/openai");
+const connection = require("../connection");
+const logAudit = require("../utils/auditLogger");
+const openai = require("../lib/openai");
 const auditDebounceCache = new Map();
 const AUDIT_DEBOUNCE_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -28,7 +28,17 @@ function calculateTotalExperience(experienceRows) {
 
   return Math.round((totalMonths / 12) * 10) / 10;
 }
-  // Add at top
+
+function formatTime12hr(timeStr) {
+  if (!timeStr) return "";
+  // handles "10:00:00" or "10:00"
+  const [h, m] = timeStr.split(":").map(Number);
+  if (isNaN(h) || isNaN(m)) return timeStr; // fallback if unexpected format
+  const ampm = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 || 12;
+  return `${String(hour12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+// Add at top
 const sendStatusNotification = async (candidateId, jobId, status, extraData = {}) => {
   try {
     const rows = await new Promise((resolve, reject) =>
@@ -82,7 +92,7 @@ const sendStatusNotification = async (candidateId, jobId, status, extraData = {}
       Interview_Scheduled: {
         alert_type: "interview",
         subject: `Interview Scheduled - for ${job_title} at ${company_name}`,
-        alert_message: `Your interview for ${job_title} at ${company_name} has been scheduled${extraData.interview_day ? ` on ${extraData.interview_day} at ${extraData.interview_time || ""}` : ""}.`,
+        alert_message: `Your interview for ${job_title} at ${company_name} has been scheduled${extraData.interview_day ? ` on ${extraData.interview_day} at ${formatTime12hr(extraData.interview_time) || ""}` : ""}.`,
         bodyHtml: `
           <p>Dear <strong>${full_name}</strong>,</p>
           <p>Your interview for the <strong>${job_title}</strong> position at <strong>${company_name}</strong> has been scheduled.</p>
@@ -165,11 +175,11 @@ Best of luck!/p>
     console.error("sendStatusNotification error:", err);
   }
 };
-  // ─────────────────────────────────────────────────────────────────
-  // CREATE TABLES
-  // ─────────────────────────────────────────────────────────────────
-  const createApplicantsTable = () => {
-    const applicantsTable = `
+// ─────────────────────────────────────────────────────────────────
+// CREATE TABLES
+// ─────────────────────────────────────────────────────────────────
+const createApplicantsTable = () => {
+  const applicantsTable = `
       CREATE TABLE IF NOT EXISTS applications (
         id INT AUTO_INCREMENT PRIMARY KEY,
         job_id INT,
@@ -196,14 +206,14 @@ Best of luck!/p>
         FOREIGN KEY (candidate_id) REFERENCES candidate_info(id)
       );`;
 
-    connection.query(applicantsTable, (err) => {
-      if (err) return console.error(err.message);
-      console.log("applications table created successfully");
-    });
-  };
+  connection.query(applicantsTable, (err) => {
+    if (err) return console.error(err.message);
+    console.log("applications table created successfully");
+  });
+};
 
-  const createCandidateSearchImpressionsTable = () => {
-    const sql = `
+const createCandidateSearchImpressionsTable = () => {
+  const sql = `
       CREATE TABLE IF NOT EXISTS candidate_search_impressions (
         id INT AUTO_INCREMENT PRIMARY KEY,
         company_id INT NOT NULL,
@@ -215,18 +225,18 @@ Best of luck!/p>
         FOREIGN KEY (job_id) REFERENCES job_posts(id)
       );`;
 
-    connection.query(sql, (err) => {
-      if (err) return console.error(err.message);
-      console.log("candidate_search_impressions table created successfully");
-    });
-  };
+  connection.query(sql, (err) => {
+    if (err) return console.error(err.message);
+    console.log("candidate_search_impressions table created successfully");
+  });
+};
 
-  // ─────────────────────────────────────────────────────────────────
-  // getAllApplicants
-  // ─────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+// getAllApplicants
+// ─────────────────────────────────────────────────────────────────
 const getAllApplicants = async (req, res) => {
   try {
-    const page  = parseInt(req.query.page,  10) || 1;
+    const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 50;
     const offset = (page - 1) * limit;
 
@@ -261,9 +271,9 @@ const getAllApplicants = async (req, res) => {
     const companyId = job.account_id;
 
     // ── STEP 2: Budget check ───────────────────────────────────────
-    const isDailyBudget  = job.billing_model === "daily_budget";
-    const dailyCap       = parseFloat(job.daily_budget  || 0);
-    const spentSoFar     = parseFloat(job.spent_amount  || 0);
+    const isDailyBudget = job.billing_model === "daily_budget";
+    const dailyCap = parseFloat(job.daily_budget || 0);
+    const spentSoFar = parseFloat(job.spent_amount || 0);
     const budgetExhausted = isDailyBudget && dailyCap > 0 && spentSoFar >= dailyCap;
 
     // ── STEP 3: Parse city IDs ─────────────────────────────────────
@@ -428,8 +438,8 @@ const getAllApplicants = async (req, res) => {
                 } catch { return {}; }
               })();
               const totalCredits = snapshot.credit_count || 0;
-              const usedCredits  = pkgRow.used_credits || 0;
-              const viewCount    = candidateIds.length;
+              const usedCredits = pkgRow.used_credits || 0;
+              const viewCount = candidateIds.length;
               if (usedCredits < totalCredits) {
                 const toDeduct = Math.min(viewCount, totalCredits - usedCredits);
                 connection.query(
@@ -457,52 +467,52 @@ const getAllApplicants = async (req, res) => {
       await Promise.all([
         candidateIds.length
           ? new Promise((resolve, reject) =>
-              connection.query(
-                `SELECT e.*, s.name AS speciality_name
+            connection.query(
+              `SELECT e.*, s.name AS speciality_name
                  FROM candidate_experience e
                  LEFT JOIN speciality s ON e.speciality_id = s.id
                  WHERE e.candidate_id IN (?)`,
-                [candidateIds], (err, rows) => (err ? reject(err) : resolve(rows))
-              ))
+              [candidateIds], (err, rows) => (err ? reject(err) : resolve(rows))
+            ))
           : Promise.resolve([]),
         candidateIds.length
           ? new Promise((resolve, reject) =>
-              connection.query(
-                `SELECT ed.*, df.name AS degreefield_name, dt.name AS degreetype_name, ins.name AS institute_name
+            connection.query(
+              `SELECT ed.*, df.name AS degreefield_name, dt.name AS degreetype_name, ins.name AS institute_name
                  FROM candidate_education ed
                  LEFT JOIN degreefields df  ON ed.degree_id      = df.id
                  LEFT JOIN degreetypes dt   ON df.degree_type_id = dt.id
                  LEFT JOIN institute ins    ON ed.institute_id   = ins.id
                  WHERE ed.candidate_id IN (?)`,
-                [candidateIds], (err, rows) => (err ? reject(err) : resolve(rows))
-              ))
+              [candidateIds], (err, rows) => (err ? reject(err) : resolve(rows))
+            ))
           : Promise.resolve([]),
         candidateIds.length
           ? new Promise((resolve, reject) =>
-              connection.query(
-                `SELECT * FROM candidate_availability WHERE candidate_id IN (?)`,
-                [candidateIds], (err, rows) => (err ? reject(err) : resolve(rows))
-              ))
+            connection.query(
+              `SELECT * FROM candidate_availability WHERE candidate_id IN (?)`,
+              [candidateIds], (err, rows) => (err ? reject(err) : resolve(rows))
+            ))
           : Promise.resolve([]),
         candidateIds.length
           ? new Promise((resolve, reject) =>
-              connection.query(
-                `SELECT * FROM candidate_certificates WHERE candidate_id IN (?) ORDER BY created_at DESC`,
-                [candidateIds], (err, rows) => (err ? reject(err) : resolve(rows))
-              ))
+            connection.query(
+              `SELECT * FROM candidate_certificates WHERE candidate_id IN (?) ORDER BY created_at DESC`,
+              [candidateIds], (err, rows) => (err ? reject(err) : resolve(rows))
+            ))
           : Promise.resolve([]),
         candidateIds.length
           ? new Promise((resolve, reject) =>
-              connection.query(
-                `SELECT * FROM candidate_research WHERE candidate_id IN (?) ORDER BY created_at DESC`,
-                [candidateIds], (err, rows) => (err ? reject(err) : resolve(rows))
-              ))
+            connection.query(
+              `SELECT * FROM candidate_research WHERE candidate_id IN (?) ORDER BY created_at DESC`,
+              [candidateIds], (err, rows) => (err ? reject(err) : resolve(rows))
+            ))
           : Promise.resolve([]),
       ]);
 
     // ── STEP 9: Map skills & cities ────────────────────────────────
     const allSkillIds = [];
-    const allCityIds  = [];
+    const allCityIds = [];
 
     candidatesRaw.forEach((c) => {
       try { c.skills = Array.isArray(c.skills) ? c.skills : JSON.parse(c.skills || "[]"); }
@@ -573,15 +583,15 @@ const getAllApplicants = async (req, res) => {
         .map((ed) => ({
           id: ed.id,
           degreefield: { id: ed.degree_id, name: ed.degreefield_name },
-          degreetype:  { id: ed.degree_type_id, name: ed.degreetype_name },
-          institute:   { id: ed.institute_id, name: ed.institute_name },
+          degreetype: { id: ed.degree_type_id, name: ed.degreetype_name },
+          institute: { id: ed.institute_id, name: ed.institute_name },
           is_ongoing: ed.is_ongoing,
           start_date: ed.start_date,
           end_date: ed.end_date,
         })),
       availability: availabilityRows.filter((av) => av.candidate_id === c.candidate_id),
       certificates: certificatesRows.filter((cert) => cert.candidate_id === c.candidate_id),
-      research:     researchRows.filter((r) => r.candidate_id === c.candidate_id),
+      research: researchRows.filter((r) => r.candidate_id === c.candidate_id),
     }));
 
     // ── STEP 11: Parse job requirements for scoring ────────────────
@@ -592,11 +602,11 @@ const getAllApplicants = async (req, res) => {
         : JSON.parse(job.skill_ids || "[]").map(Number);
     } catch { jobSkillIds = []; }
 
-    const jobMinSalary = parseFloat(job.min_salary  || 0);
-    const jobMaxSalary = parseFloat(job.max_salary  || 0);
-    const jobMinExp    = parseInt(job.min_experience) || 0;
-    const jobMaxExp    = parseInt(job.max_experience) || 50;
-    const tierOrder    = { strong: 0, good: 1, weak: 2 };
+    const jobMinSalary = parseFloat(job.min_salary || 0);
+    const jobMaxSalary = parseFloat(job.max_salary || 0);
+    const jobMinExp = parseInt(job.min_experience) || 0;
+    const jobMaxExp = parseInt(job.max_experience) || 50;
+    const tierOrder = { strong: 0, good: 1, weak: 2 };
 
     // ── STEP 12: Score + tier each candidate ──────────────────────
     const tieredCandidates = candidates
@@ -612,11 +622,11 @@ const getAllApplicants = async (req, res) => {
           locationScore = 10;
           location_type = "remote";
         } else {
-          const candidateCity    = Number(c.city);
+          const candidateCity = Number(c.city);
           const preferredCityIds = (c.otherPreferredCities || []).map((city) =>
             typeof city === "object" ? Number(city.id) : Number(city)
           );
-          const mainCityMatch      = jobCityIds.includes(candidateCity);
+          const mainCityMatch = jobCityIds.includes(candidateCity);
           const preferredCityMatch = jobCityIds.some((id) => preferredCityIds.includes(id));
           locationScore = mainCityMatch ? 10 : preferredCityMatch ? 6 : 0;
           location_type = mainCityMatch ? "main_city" : preferredCityMatch ? "preferred_city" : "pipeline";
@@ -639,14 +649,14 @@ const getAllApplicants = async (req, res) => {
         score += skillScore;
 
         // Experience (25pts)
-       const candExp = calculateTotalExperience(
-  experienceRows.filter((e) => e.candidate_id === c.candidate_id)
-);
+        const candExp = calculateTotalExperience(
+          experienceRows.filter((e) => e.candidate_id === c.candidate_id)
+        );
         let expScore = 0;
-        if (jobMinExp === 0 && jobMaxExp === 0)        { expScore = 25; }
+        if (jobMinExp === 0 && jobMaxExp === 0) { expScore = 25; }
         else if (candExp >= jobMinExp && candExp <= jobMaxExp) { expScore = 25; }
-        else if (candExp < jobMinExp)                  { expScore = Math.max(0, 25 - (jobMinExp - candExp) * 4); }
-        else                                           { expScore = 20; }
+        else if (candExp < jobMinExp) { expScore = Math.max(0, 25 - (jobMinExp - candExp) * 4); }
+        else { expScore = 20; }
         score += expScore;
         if (expScore >= 20) matched.push("Experience");
         else missing.push(`Experience (${candExp} yrs, need ${jobMinExp}-${jobMaxExp})`);
@@ -657,36 +667,36 @@ const getAllApplicants = async (req, res) => {
           .filter(Boolean)
           .map(Number);
         let specScore = 0;
-        if (!job.speciality_id)                                          { specScore = 20; matched.push("Speciality"); }
+        if (!job.speciality_id) { specScore = 20; matched.push("Speciality"); }
         else if (candSpecialities.includes(Number(job.speciality_id))) { specScore = 20; matched.push("Speciality"); }
-        else                                                             { missing.push("Speciality"); }
+        else { missing.push("Speciality"); }
         score += specScore;
 
         // Degree (10pts)
         const candidateEducation = c.education || [];
-        const hasDegree          = candidateEducation.length > 0;
+        const hasDegree = candidateEducation.length > 0;
         let degreeScore = 0;
         if (!job.degree_id && !job.degreefields_id) {
           degreeScore = hasDegree ? 10 : 0;
           if (hasDegree) matched.push("Education"); else missing.push("Education");
         } else {
-          const jobDegreeTypeId  = job.degree_id       ? Number(job.degree_id)       : null;
+          const jobDegreeTypeId = job.degree_id ? Number(job.degree_id) : null;
           const jobDegreeFieldId = job.degreefields_id ? Number(job.degreefields_id) : null;
-          const degreeTypeMatch  = candidateEducation.some((ed) => jobDegreeTypeId  && ed.degreetype?.id  === jobDegreeTypeId);
+          const degreeTypeMatch = candidateEducation.some((ed) => jobDegreeTypeId && ed.degreetype?.id === jobDegreeTypeId);
           const degreeFieldMatch = candidateEducation.some((ed) => jobDegreeFieldId && ed.degreefield?.id === jobDegreeFieldId);
           if (jobDegreeFieldId && jobDegreeTypeId) {
-            if (degreeFieldMatch && degreeTypeMatch)   { degreeScore = 10; matched.push("Education (degree & field match)"); }
+            if (degreeFieldMatch && degreeTypeMatch) { degreeScore = 10; matched.push("Education (degree & field match)"); }
             else if (degreeTypeMatch || degreeFieldMatch) { degreeScore = 5; matched.push(`Education (partial: ${degreeTypeMatch ? "type" : "field"} matched)`); }
-            else if (hasDegree)                        { degreeScore = 2; missing.push("Education (wrong degree type & field)"); }
-            else                                       { degreeScore = 0; missing.push("Education (none)"); }
+            else if (hasDegree) { degreeScore = 2; missing.push("Education (wrong degree type & field)"); }
+            else { degreeScore = 0; missing.push("Education (none)"); }
           } else if (jobDegreeFieldId) {
-            if (degreeFieldMatch)   { degreeScore = 10; matched.push("Education (field match)"); }
-            else if (hasDegree)     { degreeScore = 3;  missing.push("Education (wrong field)"); }
-            else                    { degreeScore = 0;  missing.push("Education (none)"); }
+            if (degreeFieldMatch) { degreeScore = 10; matched.push("Education (field match)"); }
+            else if (hasDegree) { degreeScore = 3; missing.push("Education (wrong field)"); }
+            else { degreeScore = 0; missing.push("Education (none)"); }
           } else if (jobDegreeTypeId) {
-            if (degreeTypeMatch)    { degreeScore = 10; matched.push("Education (degree type match)"); }
-            else if (hasDegree)     { degreeScore = 3;  missing.push("Education (wrong degree type)"); }
-            else                    { degreeScore = 0;  missing.push("Education (none)"); }
+            if (degreeTypeMatch) { degreeScore = 10; matched.push("Education (degree type match)"); }
+            else if (hasDegree) { degreeScore = 3; missing.push("Education (wrong degree type)"); }
+            else { degreeScore = 0; missing.push("Education (none)"); }
           }
         }
         score += degreeScore;
@@ -694,8 +704,8 @@ const getAllApplicants = async (req, res) => {
 
         // Salary (15pts)
         const candSalary = parseFloat(c.expected_salary || 0);
-        let salaryScore  = 15;
-        let salaryOver   = false;
+        let salaryScore = 15;
+        let salaryOver = false;
         if (jobMinSalary || jobMaxSalary) {
           if (candSalary >= jobMinSalary && candSalary <= jobMaxSalary) {
             salaryScore = 15; matched.push("Salary");
@@ -703,8 +713,8 @@ const getAllApplicants = async (req, res) => {
             salaryScore = 10; matched.push("Salary (expects less)");
           } else {
             const overage = ((candSalary - jobMaxSalary) / jobMaxSalary) * 100;
-            salaryScore   = overage > 50 ? 0 : overage > 25 ? 5 : 8;
-            salaryOver    = true;
+            salaryScore = overage > 50 ? 0 : overage > 25 ? 5 : 8;
+            salaryOver = true;
             missing.push("Salary (expects more than budget)");
           }
         } else {
@@ -726,21 +736,21 @@ const getAllApplicants = async (req, res) => {
             (slot) => slot.time_from <= job.time_to && slot.time_to >= job.time_from
           );
           if (hasOverlap) { availScore = 10; matched.push("Availability"); }
-          else            { availScore = 0;  missing.push(`Availability (hours don't overlap with ${job.time_from}–${job.time_to})`); }
+          else { availScore = 0; missing.push(`Availability (hours don't overlap with ${job.time_from}–${job.time_to})`); }
         }
         score += availScore;
 
         // Tier
-        const skillsMatched    = skillScore >= 20;
-        const expMatched       = expScore   >= 20;
-        const specMatched      = specScore  === 20;
+        const skillsMatched = skillScore >= 20;
+        const expMatched = expScore >= 20;
+        const specMatched = specScore === 20;
         const coreCriteriaCount = [skillsMatched, expMatched, specMatched, degreeMatched].filter(Boolean).length;
         if (coreCriteriaCount === 0) return null;
 
         let tier, tier_label, tier_color;
-        if      (coreCriteriaCount === 4) { tier = "strong"; tier_label = "Strong Match"; tier_color = "green"; }
-        else if (coreCriteriaCount >= 2)  { tier = "good";   tier_label = "Good Match";   tier_color = "blue"; }
-        else                              { tier = "weak";   tier_label = "Partial Match"; tier_color = "amber"; }
+        if (coreCriteriaCount === 4) { tier = "strong"; tier_label = "Strong Match"; tier_color = "green"; }
+        else if (coreCriteriaCount >= 2) { tier = "good"; tier_label = "Good Match"; tier_color = "blue"; }
+        else { tier = "weak"; tier_label = "Partial Match"; tier_color = "amber"; }
 
         if (salaryOver && tier === "strong") { tier = "good"; tier_label = "Good Match"; tier_color = "blue"; }
 
@@ -750,9 +760,9 @@ const getAllApplicants = async (req, res) => {
           tier, tier_label, tier_color, location_type, matched, missing,
           billing_info: {
             model: job.billing_model,
-            daily_budget:     isDailyBudget ? parseFloat(job.daily_budget  || 0) : null,
-            spent_amount:     isDailyBudget ? parseFloat(job.spent_amount  || 0) : null,
-            remaining_today:  isDailyBudget ? Math.max(0, parseFloat(job.daily_budget || 0) - parseFloat(job.spent_amount || 0)) : null,
+            daily_budget: isDailyBudget ? parseFloat(job.daily_budget || 0) : null,
+            spent_amount: isDailyBudget ? parseFloat(job.spent_amount || 0) : null,
+            remaining_today: isDailyBudget ? Math.max(0, parseFloat(job.daily_budget || 0) - parseFloat(job.spent_amount || 0)) : null,
           },
         };
       })
@@ -770,21 +780,21 @@ const getAllApplicants = async (req, res) => {
       if (!isDailyBudget) return c;
 
       const isShortlistedOrApproved = [
-        "Interview_Scheduled","Interview_Conducted","Shortlisted",
-        "Considered","Offered","Selected","Joined",
+        "Interview_Scheduled", "Interview_Conducted", "Shortlisted",
+        "Considered", "Offered", "Selected", "Joined",
       ].includes(c.candidateStatus);
 
       if (isShortlistedOrApproved && !unlockedIds.has(c.candidate_id)) {
         connection.query(
-          `INSERT IGNORE INTO candidate_unlocks
-           (employer_account_id, candidate_id, job_id, cost_charged, unlock_scope, company_package_id)
-           VALUES (?, ?, ?, 0, 'full', NULL)`,
-          [companyId, c.candidate_id, jobId],
-          (err) => {
-            if (err) console.error("Failed to auto-unlock shortlisted candidate:", err);
-            else console.log(`✅ Auto-unlocked shortlisted candidate ${c.candidate_id} for job ${jobId}`);
-          }
-        );
+  `INSERT IGNORE INTO candidate_unlocks
+   (employer_account_id, candidate_id, job_id, cost_charged, unlock_scope, unlock_type, company_package_id)
+   VALUES (?, ?, ?, 0, 'full', 'daily_budget', NULL)`,
+  [companyId, c.candidate_id, jobId],
+  (err) => {
+    if (err) console.error("Failed to auto-unlock shortlisted candidate:", err);
+    else console.log(`✅ Auto-unlocked shortlisted candidate ${c.candidate_id} for job ${jobId}`);
+  }
+);
         unlockedIds.add(c.candidate_id);
         return { ...c, locked: false };
       }
@@ -792,56 +802,56 @@ const getAllApplicants = async (req, res) => {
       if (unlockedIds.has(c.candidate_id)) return { ...c, locked: false };
 
       return {
-        candidate_id:     c.candidate_id,
-        locked:           true,
-        tier:             c.tier,
-        tier_label:       c.tier_label,
-        tier_color:       c.tier_color,
-        ai_score:         c.ai_score,
-        location_type:    c.location_type,
-        matched:          c.matched,
-        missing:          c.missing,
-        is_boosted:       c.is_boosted,
+        candidate_id: c.candidate_id,
+        locked: true,
+        tier: c.tier,
+        tier_label: c.tier_label,
+        tier_color: c.tier_color,
+        ai_score: c.ai_score,
+        location_type: c.location_type,
+        matched: c.matched,
+        missing: c.missing,
+        is_boosted: c.is_boosted,
         total_experience: c.total_experience,
-        has_applied:      c.has_applied,
-        billing_info:     c.billing_info,
-        candidateStatus:  c.candidateStatus,
-        full_name:        c.full_name,
-        skills:           c.skills,
-        experience:       c.experience,
-        availability:     c.availability,
-        email:            null,
-        phone:            null,
-        passport_photo:   c.passport_photo || null,
-        resume:           null,
-        address:          null,
-        date_of_birth:    null,
-        city_name:        c.city_name || null,
-        expected_salary:  null,
+        has_applied: c.has_applied,
+        billing_info: c.billing_info,
+        candidateStatus: c.candidateStatus,
+        full_name: c.full_name,
+        skills: c.skills,
+        experience: c.experience,
+        availability: c.availability,
+        email: null,
+        phone: null,
+        passport_photo: c.passport_photo || null,
+        resume: null,
+        address: null,
+        date_of_birth: null,
+        city_name: c.city_name || null,
+        expected_salary: null,
       };
     });
 
     // ── STEP 14: Summary + response ───────────────────────────────
     const summary = {
-      total:              finalCandidates.length,
-      strong:             finalCandidates.filter((c) => c.tier === "strong").length,
-      good:               finalCandidates.filter((c) => c.tier === "good").length,
-      weak:               finalCandidates.filter((c) => c.tier === "weak").length,
-      is_remote:          isRemote,
-      from_main_city:     finalCandidates.filter((c) => c.location_type === "main_city").length,
-      from_preferred_city:finalCandidates.filter((c) => c.location_type === "preferred_city").length,
-      from_remote:        finalCandidates.filter((c) => c.location_type === "remote").length,
+      total: finalCandidates.length,
+      strong: finalCandidates.filter((c) => c.tier === "strong").length,
+      good: finalCandidates.filter((c) => c.tier === "good").length,
+      weak: finalCandidates.filter((c) => c.tier === "weak").length,
+      is_remote: isRemote,
+      from_main_city: finalCandidates.filter((c) => c.location_type === "main_city").length,
+      from_preferred_city: finalCandidates.filter((c) => c.location_type === "preferred_city").length,
+      from_remote: finalCandidates.filter((c) => c.location_type === "remote").length,
     };
 
     const budgetStatus = isDailyBudget
       ? {
-          model:           "daily_budget",
-          daily_cap:       dailyCap,
-          spent_today:     spentSoFar,
-          remaining_today: Math.max(0, dailyCap - spentSoFar),
-          is_exhausted:    budgetExhausted,
-          cost_per_click:  parseFloat(job.cost_per_click || 0),
-        }
+        model: "daily_budget",
+        daily_cap: dailyCap,
+        spent_today: spentSoFar,
+        remaining_today: Math.max(0, dailyCap - spentSoFar),
+        is_exhausted: budgetExhausted,
+        cost_per_click: parseFloat(job.cost_per_click || 0),
+      }
       : job.billing_model === "cv_credits"
         ? { model: "cv_credits" }
         : { model: job.billing_model || "package" };
@@ -855,13 +865,13 @@ const getAllApplicants = async (req, res) => {
 };
 
 
-  // ─────────────────────────────────────────────────────────────────
-  // unlockCandidate
-  // ─────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+// unlockCandidate
+// ─────────────────────────────────────────────────────────────────
 const unlockCandidate = async (req, res) => {
   try {
     const { candidateId, jobId } = req.body;
-    if (!candidateId || !jobId) 
+    if (!candidateId || !jobId)
       return res.status(400).json({ error: "candidateId and jobId are required" });
 
     // 1. Fetch job
@@ -1038,14 +1048,14 @@ const unlockCandidate = async (req, res) => {
     } catch { candidateRow.otherPreferredCities = []; }
 
     // Fetch experience
-const experienceRows = await new Promise((resolve, reject) =>
-  connection.query(
-    `SELECT e.speciality_id, e.start_date, e.end_date, e.is_ongoing
+    const experienceRows = await new Promise((resolve, reject) =>
+      connection.query(
+        `SELECT e.speciality_id, e.start_date, e.end_date, e.is_ongoing
      FROM candidate_experience e WHERE e.candidate_id = ?`,
-    [candidateId],
-    (err, rows) => (err ? reject(err) : resolve(rows)),
-  ),
-);
+        [candidateId],
+        (err, rows) => (err ? reject(err) : resolve(rows)),
+      ),
+    );
     // Fetch education
     const educationRows = await new Promise((resolve, reject) =>
       connection.query(
@@ -1144,508 +1154,509 @@ const experienceRows = await new Promise((resolve, reject) =>
     return res.status(500).json({ error: "Server error", details: err.message });
   }
 };
-  // ─────────────────────────────────────────────────────────────────
-  // updateApplicantStatus
-  // ─────────────────────────────────────────────────────────────────
-  const updateApplcantStatus = (req, res) => {
-    const {
-      candidateId, jobId, status, interview_day, interview_time, message,
-      candidate_response, requested_interview_day, requested_interview_time,
-      candidate_response_message, company_status, company_offered_day, company_offered_time,
-      // ── new fields from ApplicantCard modals ──
-      offerDate, offeredSalary, joiningDate,
-    } = req.body;
+// ─────────────────────────────────────────────────────────────────
+// updateApplicantStatus
+// ─────────────────────────────────────────────────────────────────
+const updateApplcantStatus = (req, res) => {
+  const {
+    candidateId, jobId, status, interview_day, interview_time, message,
+    candidate_response, requested_interview_day, requested_interview_time,
+    candidate_response_message, company_status, company_offered_day, company_offered_time,
+    // ── new fields from ApplicantCard modals ──
+    offerDate, offeredSalary, joiningDate,
+  } = req.body;
 
-    if (!candidateId || !jobId) return res.status(400).json({ error: "Candidate ID and Job ID are required" });
+  if (!candidateId || !jobId) return res.status(400).json({ error: "Candidate ID and Job ID are required" });
 
-    const selectQuery = `SELECT * FROM applications WHERE candidate_id = ? AND job_id = ?`;
-    const employerQuery = `
+  const selectQuery = `SELECT * FROM applications WHERE candidate_id = ? AND job_id = ?`;
+  const employerQuery = `
       SELECT jp.account_id, jp.job_title, a.company_name
       FROM job_posts jp
       JOIN company_info a ON a.account_id = jp.account_id
       WHERE jp.id = ? LIMIT 1
     `;
 
-    const logStatusHistory = (employerId, jobTitle, companyName) => {
-      const loggableStatuses = ["Saved","Interview_Scheduled","Interview_Conducted","Shortlisted","Considered","Offered","Selected","Joined","Rejected","Refused to Join"];
-      if (loggableStatuses.includes(status)) {
-        const actionMap = {
-          Saved: "SAVED",
-          Interview_Scheduled: "INTERVIEW_SCHEDULED",
-          Interview_Conducted: "INTERVIEW_CONDUCTED",
-          Shortlisted: "SHORTLISTED",
-          Considered: "CONSIDERED",
-          Offered: "OFFERED",
-          Selected: "SELECTED",
-          Joined: "JOINED",
-          Rejected: "REJECTED",
-          "Refused to Join": "REFUSED_TO_JOIN",
-        };
-        const action = actionMap[status];
-        logAudit({ tableName: "history", entityType: "employer", entityId: employerId, action, data: { event: `Candidate ${status.toLowerCase()} for job: ${jobTitle}`, candidateId, jobId, status }, changedBy: employerId });
-        logAudit({ tableName: "history", entityType: "candidate", entityId: candidateId, action, data: { event: `You were ${status.toLowerCase()} for job: ${jobTitle} at ${companyName}`, jobId, status }, changedBy: employerId });
-      }
-    };
-
-    connection.query(selectQuery, [candidateId, jobId], (err, results) => {
-      if (err) return res.status(500).json({ error: "Database error" });
-
-      if (results.length > 0) {
-        const appId = results[0].id;
-        const fields = [];
-        const values = [];
-
-        if (status !== undefined)                    { fields.push("status = ?");                     values.push(status); }
-        if (interview_day !== undefined)             { fields.push("interview_day = ?");              values.push(interview_day); }
-        if (interview_time !== undefined)            { fields.push("interview_time = ?");             values.push(interview_time); }
-        if (message !== undefined)                   { fields.push("message = ?");                    values.push(message); }
-        if (candidate_response !== undefined)        { fields.push("candidate_response = ?");         values.push(candidate_response); }
-        if (requested_interview_day !== undefined)   { fields.push("requested_interview_day = ?");    values.push(requested_interview_day); }
-        if (requested_interview_time !== undefined)  { fields.push("requested_interview_time = ?");   values.push(requested_interview_time); }
-        if (candidate_response_message !== undefined){ fields.push("candidate_response_message = ?"); values.push(candidate_response_message); }
-        if (company_status !== undefined)            { fields.push("company_status = ?");             values.push(company_status); }
-        if (company_offered_day !== undefined)       { fields.push("company_offered_day = ?");        values.push(company_offered_day); }
-        if (company_offered_time !== undefined)      { fields.push("company_offered_time = ?");       values.push(company_offered_time); }
-        // ── new fields ──
-        if (offerDate !== undefined)                 { fields.push("offer_date = ?");                 values.push(offerDate); }
-        if (offeredSalary !== undefined)             { fields.push("offered_salary = ?");             values.push(offeredSalary); }
-        if (joiningDate !== undefined)               { fields.push("joining_date = ?");               values.push(joiningDate); }
-
-        if (fields.length === 0) return res.status(400).json({ error: "No fields provided to update" });
-
-        const updateQuery = `UPDATE applications SET ${fields.join(", ")} WHERE id = ?`;
-        values.push(appId);
-
-        connection.query(updateQuery, values, (err2) => {
-          if (err2) return res.status(500).json({ error: "Database error" });
-          connection.query(employerQuery, [jobId], (empErr, empRows) => {
-            if (!empErr && empRows.length) logStatusHistory(empRows[0].account_id, empRows[0].job_title, empRows[0].company_name);
-   const notifiableStatuses = ["Rejected", "Shortlisted", "Interview_Scheduled", "Offered", "Selected"];
-if (notifiableStatuses.includes(status)) {
-    sendStatusNotification(candidateId, jobId, status, {
-        interview_day,
-        interview_time,
-        offeredSalary,
-        joiningDate,
-    });
-}
-            return res.json({ message: "Application updated successfully" });
-          });
-        });
-
-      } else {
-        const insertQuery = `INSERT INTO applications (candidate_id, job_id, status, message, interview_day, interview_time, source) VALUES (?, ?, ?, ?, ?, ?,'employer')`;
-        connection.query(
-          insertQuery,
-          [candidateId, jobId, status || "Pending", message || "", interview_day || null, interview_time || null],
-          (err3) => {
-            if (err3) return res.status(500).json({ error: "Database error" });
-            connection.query(employerQuery, [jobId], (empErr, empRows) => {
-              if (!empErr && empRows.length) logStatusHistory(empRows[0].account_id, empRows[0].job_title, empRows[0].company_name);
-              return res.json({ message: "Application created successfully" });
-            });
-          }
-        );
-      }
-    });
+  const logStatusHistory = (employerId, jobTitle, companyName) => {
+    const loggableStatuses = ["Saved", "Interview_Scheduled", "Interview_Conducted", "Shortlisted", "Considered", "Offered", "Selected", "Joined", "Rejected", "Refused to Join"];
+    if (loggableStatuses.includes(status)) {
+      const actionMap = {
+        Saved: "SAVED",
+        Interview_Scheduled: "INTERVIEW_SCHEDULED",
+        Interview_Conducted: "INTERVIEW_CONDUCTED",
+        Shortlisted: "SHORTLISTED",
+        Considered: "CONSIDERED",
+        Offered: "OFFERED",
+        Selected: "SELECTED",
+        Joined: "JOINED",
+        Rejected: "REJECTED",
+        "Refused to Join": "REFUSED_TO_JOIN",
+      };
+      const action = actionMap[status];
+      logAudit({ tableName: "history", entityType: "employer", entityId: employerId, action, data: { event: `Candidate ${status.toLowerCase()} for job: ${jobTitle}`, candidateId, jobId, status }, changedBy: employerId });
+      logAudit({ tableName: "history", entityType: "candidate", entityId: candidateId, action, data: { event: `You were ${status.toLowerCase()} for job: ${jobTitle} at ${companyName}`, jobId, status }, changedBy: employerId });
+    }
   };
 
-  // ─────────────────────────────────────────────────────────────────
-  // applyJob
-  // ─────────────────────────────────────────────────────────────────
- // ─────────────────────────────────────────────────────────────────
-  // applyJob
-  // ─────────────────────────────────────────────────────────────────
-  const applyJob = (req, res) => {
-    const accountId = req.user.userId;
-    const { job_id, answers } = req.body; // ← answers: [{question_id, answer_text}]
+  connection.query(selectQuery, [candidateId, jobId], (err, results) => {
+    if (err) return res.status(500).json({ error: "Database error" });
 
-    if (!job_id) {
-      return res.status(400).json({ error: "job_id is required" });
+    if (results.length > 0) {
+      const appId = results[0].id;
+      const fields = [];
+      const values = [];
+
+      if (status !== undefined) { fields.push("status = ?"); values.push(status); }
+      if (interview_day !== undefined) { fields.push("interview_day = ?"); values.push(interview_day); }
+      if (interview_time !== undefined) { fields.push("interview_time = ?"); values.push(interview_time); }
+      if (message !== undefined) { fields.push("message = ?"); values.push(message); }
+      if (candidate_response !== undefined) { fields.push("candidate_response = ?"); values.push(candidate_response); }
+      if (requested_interview_day !== undefined) { fields.push("requested_interview_day = ?"); values.push(requested_interview_day); }
+      if (requested_interview_time !== undefined) { fields.push("requested_interview_time = ?"); values.push(requested_interview_time); }
+      if (candidate_response_message !== undefined) { fields.push("candidate_response_message = ?"); values.push(candidate_response_message); }
+      if (company_status !== undefined) { fields.push("company_status = ?"); values.push(company_status); }
+      if (company_offered_day !== undefined) { fields.push("company_offered_day = ?"); values.push(company_offered_day); }
+      if (company_offered_time !== undefined) { fields.push("company_offered_time = ?"); values.push(company_offered_time); }
+      // ── new fields ──
+      if (offerDate !== undefined) { fields.push("offer_date = ?"); values.push(offerDate); }
+      if (offeredSalary !== undefined) { fields.push("offered_salary = ?"); values.push(offeredSalary); }
+      if (joiningDate !== undefined) { fields.push("joining_date = ?"); values.push(joiningDate); }
+
+      if (fields.length === 0) return res.status(400).json({ error: "No fields provided to update" });
+
+      const updateQuery = `UPDATE applications SET ${fields.join(", ")} WHERE id = ?`;
+      values.push(appId);
+
+      connection.query(updateQuery, values, (err2) => {
+        if (err2) return res.status(500).json({ error: "Database error" });
+        connection.query(employerQuery, [jobId], (empErr, empRows) => {
+          if (!empErr && empRows.length) logStatusHistory(empRows[0].account_id, empRows[0].job_title, empRows[0].company_name);
+          const notifiableStatuses = ["Rejected", "Shortlisted", "Interview_Scheduled", "Offered", "Selected"];
+          if (notifiableStatuses.includes(status)) {
+            sendStatusNotification(candidateId, jobId, status, {
+              interview_day,
+              interview_time,
+              offeredSalary,
+              joiningDate,
+            });
+          }
+          return res.json({ message: "Application updated successfully" });
+        });
+      });
+
+    } else {
+      const insertQuery = `INSERT INTO applications (candidate_id, job_id, status, message, interview_day, interview_time, source) VALUES (?, ?, ?, ?, ?, ?,'employer')`;
+      connection.query(
+        insertQuery,
+        [candidateId, jobId, status || "Pending", message || "", interview_day || null, interview_time || null],
+        (err3) => {
+          if (err3) return res.status(500).json({ error: "Database error" });
+          connection.query(employerQuery, [jobId], (empErr, empRows) => {
+            if (!empErr && empRows.length) logStatusHistory(empRows[0].account_id, empRows[0].job_title, empRows[0].company_name);
+            return res.json({ message: "Application created successfully" });
+          });
+        }
+      );
     }
+  });
+};
 
-    connection.query(
-      "SELECT id FROM candidate_info WHERE account_id = ? LIMIT 1",
-      [accountId],
-      (err, rows) => {
-        if (err) {
-          return res.status(500).json({ error: "Database error" });
-        }
+// ─────────────────────────────────────────────────────────────────
+// applyJob
+// ─────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+// applyJob
+// ─────────────────────────────────────────────────────────────────
+const applyJob = (req, res) => {
+  const accountId = req.user.userId;
+  const { job_id, answers } = req.body; // ← answers: [{question_id, answer_text}]
 
-        if (!rows.length) {
-          return res.status(404).json({ error: "Candidate not found" });
-        }
+  if (!job_id) {
+    return res.status(400).json({ error: "job_id is required" });
+  }
 
-        const candidateId = rows[0].id;
+  connection.query(
+    "SELECT id FROM candidate_info WHERE account_id = ? LIMIT 1",
+    [accountId],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: "Database error" });
+      }
 
-        connection.query(
-          "SELECT id FROM applications WHERE job_id = ? AND candidate_id = ? AND status != 'Cancelled'",
-          [job_id, candidateId],
-          (err2, existing) => {
-            if (err2) {
-              return res.status(500).json({ error: "Database error" });
-            }
+      if (!rows.length) {
+        return res.status(404).json({ error: "Candidate not found" });
+      }
 
-            if (existing.length > 0) {
-              return res.status(409).json({ error: "Already applied" });
-            }
+      const candidateId = rows[0].id;
 
-            // ── If job has required screening questions, verify all are answered ──
-            connection.query(
-              "SELECT id, is_required FROM job_screening_questions WHERE job_id = ?",
-              [job_id],
-              (sqErr, screeningQuestions) => {
-                if (sqErr) {
-                  return res.status(500).json({ error: "Database error" });
-                }
+      connection.query(
+        "SELECT id FROM applications WHERE job_id = ? AND candidate_id = ? AND status != 'Cancelled'",
+        [job_id, candidateId],
+        (err2, existing) => {
+          if (err2) {
+            return res.status(500).json({ error: "Database error" });
+          }
 
-                const requiredIds = screeningQuestions
-                  .filter((q) => q.is_required)
-                  .map((q) => q.id);
+          if (existing.length > 0) {
+            return res.status(409).json({ error: "Already applied" });
+          }
 
-                const answeredIds = Array.isArray(answers)
-                  ? answers.map((a) => a.question_id)
-                  : [];
+          // ── If job has required screening questions, verify all are answered ──
+          connection.query(
+            "SELECT id, is_required FROM job_screening_questions WHERE job_id = ?",
+            [job_id],
+            (sqErr, screeningQuestions) => {
+              if (sqErr) {
+                return res.status(500).json({ error: "Database error" });
+              }
 
-                const missingRequired = requiredIds.filter(
-                  (id) => !answeredIds.includes(id)
-                );
+              const requiredIds = screeningQuestions
+                .filter((q) => q.is_required)
+                .map((q) => q.id);
 
-                if (missingRequired.length > 0) {
-                  return res.status(400).json({
-                    error: "Missing required screening answers",
-                    missing_question_ids: missingRequired,
-                  });
-                }
+              const answeredIds = Array.isArray(answers)
+                ? answers.map((a) => a.question_id)
+                : [];
 
-                connection.query(
-                  `SELECT jp.job_title, ci.company_name, jp.account_id
+              const missingRequired = requiredIds.filter(
+                (id) => !answeredIds.includes(id)
+              );
+
+              if (missingRequired.length > 0) {
+                return res.status(400).json({
+                  error: "Missing required screening answers",
+                  missing_question_ids: missingRequired,
+                });
+              }
+
+              connection.query(
+                `SELECT jp.job_title, ci.company_name, jp.account_id
                   FROM job_posts jp
                   LEFT JOIN company_info ci ON ci.account_id = jp.account_id
                   WHERE jp.id = ?
                   LIMIT 1`,
-                  [job_id],
-                  (jobErr, jobRows) => {
-                    if (jobErr) {
-                      return res.status(500).json({ error: "Database error" });
-                    }
+                [job_id],
+                (jobErr, jobRows) => {
+                  if (jobErr) {
+                    return res.status(500).json({ error: "Database error" });
+                  }
 
-                    const jobTitle = jobRows?.[0]?.job_title || "a job";
-                    const companyName = jobRows?.[0]?.company_name || "a company";
-                    const employerId = jobRows?.[0]?.account_id || null;
+                  const jobTitle = jobRows?.[0]?.job_title || "a job";
+                  const companyName = jobRows?.[0]?.company_name || "a company";
+                  const employerId = jobRows?.[0]?.account_id || null;
 
-                    connection.query(
-                      `INSERT INTO applications 
+                  connection.query(
+                    `INSERT INTO applications 
                       (job_id, candidate_id, status, message, source)
                       VALUES (?, ?, 'Applied', '', 'candidate')`,
-                      [job_id, candidateId],
-                      (err3, result3) => {
-                        if (err3) {
-                          return res.status(500).json({
-                            error: "Database error",
-                            details: err3.message,
-                          });
+                    [job_id, candidateId],
+                    (err3, result3) => {
+                      if (err3) {
+                        return res.status(500).json({
+                          error: "Database error",
+                          details: err3.message,
+                        });
+                      }
+
+                      const applicationId = result3.insertId;
+
+                      // ── Insert screening answers, if any ──
+                      const saveAnswers = (cb) => {
+                        if (!Array.isArray(answers) || !answers.length) {
+                          console.log("⚠️ No answers array or empty:", answers);
+                          return cb();
                         }
 
-                        const applicationId = result3.insertId;
+                        const values = answers
+                          .filter((a) => a.question_id && a.answer_text !== undefined)
+                          .map((a) => [applicationId, a.question_id, a.answer_text]);
 
-                        // ── Insert screening answers, if any ──
-                        const saveAnswers = (cb) => {
-  if (!Array.isArray(answers) || !answers.length) {
-    console.log("⚠️ No answers array or empty:", answers);
-    return cb();
-  }
+                        console.log("📝 applicationId:", applicationId);
+                        console.log("📝 values to insert:", values);
 
-  const values = answers
-    .filter((a) => a.question_id && a.answer_text !== undefined)
-    .map((a) => [applicationId, a.question_id, a.answer_text]);
+                        if (!values.length) {
+                          console.log("⚠️ values array empty after filtering — nothing to insert");
+                          return cb();
+                        }
 
-  console.log("📝 applicationId:", applicationId);
-  console.log("📝 values to insert:", values);
+                        connection.query(
+                          `INSERT INTO application_answers (application_id, question_id, answer_text) VALUES ?`,
+                          [values],
+                          (ansErr, result) => {
+                            if (ansErr) {
+                              console.error("❌ Failed to save screening answers:", ansErr);
+                            } else {
+                              console.log("✅ Answers saved, affectedRows:", result.affectedRows);
+                            }
+                            cb();
+                          }
+                        );
+                      };
 
-  if (!values.length) {
-    console.log("⚠️ values array empty after filtering — nothing to insert");
-    return cb();
-  }
+                      saveAnswers(() => {
+                        logAudit({
+                          tableName: "history",
+                          entityType: "candidate",
+                          entityId: accountId,
+                          action: "JOB_APPLIED",
+                          data: {
+                            event: `You applied for job: ${jobTitle} at ${companyName}`,
+                            job_id,
+                            jobTitle,
+                            companyName,
+                            employerId,
+                            had_screening_answers: Array.isArray(answers) && answers.length > 0,
+                          },
+                          changedBy: accountId,
+                        });
 
-  connection.query(
-    `INSERT INTO application_answers (application_id, question_id, answer_text) VALUES ?`,
-    [values],
-    (ansErr, result) => {
-      if (ansErr) {
-        console.error("❌ Failed to save screening answers:", ansErr);
-      } else {
-        console.log("✅ Answers saved, affectedRows:", result.affectedRows);
-      }
-      cb();
-    }
-  );
-};
-
-                        saveAnswers(() => {
+                        if (employerId) {
                           logAudit({
                             tableName: "history",
-                            entityType: "candidate",
-                            entityId: accountId,
-                            action: "JOB_APPLIED",
+                            entityType: "employer",
+                            entityId: employerId,
+                            action: "APPLICATION_RECEIVED",
                             data: {
-                              event: `You applied for job: ${jobTitle} at ${companyName}`,
+                              event: `New application received for job: ${jobTitle}`,
                               job_id,
                               jobTitle,
-                              companyName,
-                              employerId,
-                              had_screening_answers: Array.isArray(answers) && answers.length > 0,
+                              candidateId,
                             },
                             changedBy: accountId,
                           });
+                        }
 
-                          if (employerId) {
-                            logAudit({
-                              tableName: "history",
-                              entityType: "employer",
-                              entityId: employerId,
-                              action: "APPLICATION_RECEIVED",
-                              data: {
-                                event: `New application received for job: ${jobTitle}`,
-                                job_id,
-                                jobTitle,
-                                candidateId,
-                              },
-                              changedBy: accountId,
-                            });
-                          }
-
-                          return res.json({
-                            success: true,
-                            message: "Applied successfully",
-                            application_id: applicationId,
-                          });
+                        return res.json({
+                          success: true,
+                          message: "Applied successfully",
+                          application_id: applicationId,
                         });
-                      }
-                    );
-                  }
-                );
-              }
-            );
-          }
-        );
-      }
-    );
-  };
-  // ─────────────────────────────────────────────────────────────────
-  // getAppliedJobs
-  // ─────────────────────────────────────────────────────────────────
-  const getAppliedJobs = (req, res) => {
-    const accountId = req.user.userId;
-
-    connection.query("SELECT id FROM candidate_info WHERE account_id = ? LIMIT 1", [accountId], (err, rows) => {
-      if (err) return res.status(500).json({ error: "Database error" });
-      if (!rows.length) return res.status(404).json({ error: "Candidate not found" });
-
-      const candidateId = rows[0].id;
-      const query = `
-        SELECT
-          ap.id AS application_id,
-          ap.status,
-          ap.created_at,
-          jp.id AS job_id,
-          jp.job_title,
-          jp.account_id,
-          jp.min_salary,
-          jp.max_salary,
-          jp.job_type_id,
-          ccy.code AS currency,
-          jt.name AS job_type,
-          c.company_name,
-          city.name AS city_name,
-          comp.logo AS company_logo
-        FROM applications ap
-        INNER JOIN job_posts jp ON ap.job_id = jp.id
-        LEFT JOIN company_info c ON jp.account_id = c.account_id
-        LEFT JOIN currencies ccy ON jp.currency_id = ccy.id
-        LEFT JOIN jobtypes jt ON jp.job_type_id = jt.id
-        LEFT JOIN company_info comp ON jp.account_id = comp.account_id
-        LEFT JOIN cities city ON city.id = JSON_UNQUOTE(JSON_EXTRACT(jp.city_id, '$[0]'))
-        WHERE ap.candidate_id = ?
-        AND ap.status != 'Cancelled'
-        ORDER BY ap.created_at DESC
-      `;
-
-      connection.query(query, [candidateId], (err2, results) => {
-        if (err2) return res.status(500).json({ error: "Database error" });
-
-        const formattedResults = results.map(job => ({
-          ...job,
-          company_logo: job.company_logo ? job.company_logo.toString('base64') : null
-        }));
-
-        res.json({ success: true, data: formattedResults });
-      });
-    });
-  };
-  // ─────────────────────────────────────────────────────────────────
-  // getApplicationStats
-  // ─────────────────────────────────────────────────────────────────
-  const getApplicationStats = (req, res) => {
-    const accountId = req.user.userId;
-    const { period = "28days", type = "shortlisted" } = req.query;
-    const status = type === "approved" ? "Approved" : "Shortlisted";
-
-    connection.query(`SELECT id FROM candidate_info WHERE account_id = ? LIMIT 1`, [accountId], (err, rows) => {
-      if (err) return res.status(500).json({ error: "Database error" });
-      if (!rows.length) return res.json({ success: true, data: [], current_total: 0, previous_total: 0 });
-
-      const candidateId = rows[0].id;
-      let currentInterval, previousInterval, groupFormat;
-
-      if (period === "28days") { currentInterval = "INTERVAL 28 DAY"; previousInterval = "INTERVAL 56 DAY"; groupFormat = "%Y-%m-%d"; }
-      else if (period === "weekly") { currentInterval = "INTERVAL 8 WEEK"; previousInterval = "INTERVAL 16 WEEK"; groupFormat = "%x-%v"; }
-      else { currentInterval = "INTERVAL 6 MONTH"; previousInterval = "INTERVAL 12 MONTH"; groupFormat = "%Y-%m"; }
-
-      const currentSql = `SELECT DATE_FORMAT(created_at, ?) AS period_key, COUNT(*) AS count FROM applications WHERE candidate_id = ? AND status = ? AND created_at >= DATE_SUB(NOW(), ${currentInterval}) GROUP BY period_key ORDER BY period_key ASC`;
-      const previousSql = `SELECT COUNT(*) AS total FROM applications WHERE candidate_id = ? AND status = ? AND created_at >= DATE_SUB(NOW(), ${previousInterval}) AND created_at < DATE_SUB(NOW(), ${currentInterval})`;
-
-      connection.query(currentSql, [groupFormat, candidateId, status], (err2, currentRows) => {
-        if (err2) return res.status(500).json({ error: "Database error" });
-
-        connection.query(previousSql, [candidateId, status], (err3, prevRows) => {
-          if (err3) return res.status(500).json({ error: "Database error" });
-
-          const previousTotal = prevRows[0]?.total || 0;
-          const currentTotal = currentRows.reduce((sum, r) => sum + r.count, 0);
-          let filledData = [];
-
-          if (period === "28days") {
-            for (let i = 27; i >= 0; i--) {
-              const d = new Date();
-              d.setDate(d.getDate() - i);
-              const key = d.toISOString().slice(0, 10);
-              const label = d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
-              const found = currentRows.find((r) => r.period_key === key);
-              filledData.push({ label, count: found ? found.count : 0 });
+                      });
+                    }
+                  );
+                }
+              );
             }
-          } else if (period === "weekly") {
-            filledData = currentRows.map((r) => {
-              const [year, week] = r.period_key.split("-").map(Number);
-              const jan4 = new Date(year, 0, 4);
-              const dow = jan4.getDay() || 7;
-              const mon = new Date(jan4);
-              mon.setDate(jan4.getDate() - (dow - 1) + (week - 1) * 7);
-              const sun = new Date(mon);
-              sun.setDate(mon.getDate() + 6);
-              const fmt = (d) => d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
-              return { label: `${fmt(mon)} – ${fmt(sun)}`, count: r.count };
-            });
-          } else {
-            filledData = currentRows.map((r) => {
-              const [year, month] = r.period_key.split("-");
-              const label = new Date(year, parseInt(month) - 1, 1).toLocaleDateString("en-US", { month: "short", year: "numeric" });
-              return { label, count: r.count };
-            });
-          }
+          );
+        }
+      );
+    }
+  );
+};
+// ─────────────────────────────────────────────────────────────────
+// getAppliedJobs
+// ─────────────────────────────────────────────────────────────────
+const getAppliedJobs = (req, res) => {
+  const accountId = req.user.userId;
 
-          return res.json({ success: true, data: filledData, current_total: currentTotal, previous_total: previousTotal, period, type });
-        });
+  connection.query("SELECT id FROM candidate_info WHERE account_id = ? LIMIT 1", [accountId], (err, rows) => {
+    if (err) return res.status(500).json({ error: "Database error" });
+    if (!rows.length) return res.status(404).json({ error: "Candidate not found" });
+
+    const candidateId = rows[0].id;
+    const query = `
+  SELECT
+    ap.id AS application_id,
+    ap.status,
+    ap.source,
+    ap.created_at,
+    jp.id AS job_id,
+    jp.job_title,
+    jp.account_id,
+    jp.min_salary,
+    jp.max_salary,
+    jp.job_type_id,
+    ccy.code AS currency,
+    jt.name AS job_type,
+    c.company_name,
+    city.name AS city_name,
+    comp.logo AS company_logo
+  FROM applications ap
+  INNER JOIN job_posts jp ON ap.job_id = jp.id
+  LEFT JOIN company_info c ON jp.account_id = c.account_id
+  LEFT JOIN currencies ccy ON jp.currency_id = ccy.id
+  LEFT JOIN jobtypes jt ON jp.job_type_id = jt.id
+  LEFT JOIN company_info comp ON jp.account_id = comp.account_id
+  LEFT JOIN cities city ON city.id = JSON_UNQUOTE(JSON_EXTRACT(jp.city_id, '$[0]'))
+  WHERE ap.candidate_id = ?
+  AND ap.status != 'Cancelled'
+  ORDER BY ap.created_at DESC
+`;
+
+    connection.query(query, [candidateId], (err2, results) => {
+      if (err2) return res.status(500).json({ error: "Database error" });
+
+      const formattedResults = results.map(job => ({
+        ...job,
+        company_logo: job.company_logo ? job.company_logo.toString('base64') : null
+      }));
+
+      res.json({ success: true, data: formattedResults });
+    });
+  });
+};
+// ─────────────────────────────────────────────────────────────────
+// getApplicationStats
+// ─────────────────────────────────────────────────────────────────
+const getApplicationStats = (req, res) => {
+  const accountId = req.user.userId;
+  const { period = "28days", type = "shortlisted" } = req.query;
+  const status = type === "approved" ? "Approved" : "Shortlisted";
+
+  connection.query(`SELECT id FROM candidate_info WHERE account_id = ? LIMIT 1`, [accountId], (err, rows) => {
+    if (err) return res.status(500).json({ error: "Database error" });
+    if (!rows.length) return res.json({ success: true, data: [], current_total: 0, previous_total: 0 });
+
+    const candidateId = rows[0].id;
+    let currentInterval, previousInterval, groupFormat;
+
+    if (period === "28days") { currentInterval = "INTERVAL 28 DAY"; previousInterval = "INTERVAL 56 DAY"; groupFormat = "%Y-%m-%d"; }
+    else if (period === "weekly") { currentInterval = "INTERVAL 8 WEEK"; previousInterval = "INTERVAL 16 WEEK"; groupFormat = "%x-%v"; }
+    else { currentInterval = "INTERVAL 6 MONTH"; previousInterval = "INTERVAL 12 MONTH"; groupFormat = "%Y-%m"; }
+
+    const currentSql = `SELECT DATE_FORMAT(created_at, ?) AS period_key, COUNT(*) AS count FROM applications WHERE candidate_id = ? AND status = ? AND created_at >= DATE_SUB(NOW(), ${currentInterval}) GROUP BY period_key ORDER BY period_key ASC`;
+    const previousSql = `SELECT COUNT(*) AS total FROM applications WHERE candidate_id = ? AND status = ? AND created_at >= DATE_SUB(NOW(), ${previousInterval}) AND created_at < DATE_SUB(NOW(), ${currentInterval})`;
+
+    connection.query(currentSql, [groupFormat, candidateId, status], (err2, currentRows) => {
+      if (err2) return res.status(500).json({ error: "Database error" });
+
+      connection.query(previousSql, [candidateId, status], (err3, prevRows) => {
+        if (err3) return res.status(500).json({ error: "Database error" });
+
+        const previousTotal = prevRows[0]?.total || 0;
+        const currentTotal = currentRows.reduce((sum, r) => sum + r.count, 0);
+        let filledData = [];
+
+        if (period === "28days") {
+          for (let i = 27; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const key = d.toISOString().slice(0, 10);
+            const label = d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
+            const found = currentRows.find((r) => r.period_key === key);
+            filledData.push({ label, count: found ? found.count : 0 });
+          }
+        } else if (period === "weekly") {
+          filledData = currentRows.map((r) => {
+            const [year, week] = r.period_key.split("-").map(Number);
+            const jan4 = new Date(year, 0, 4);
+            const dow = jan4.getDay() || 7;
+            const mon = new Date(jan4);
+            mon.setDate(jan4.getDate() - (dow - 1) + (week - 1) * 7);
+            const sun = new Date(mon);
+            sun.setDate(mon.getDate() + 6);
+            const fmt = (d) => d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
+            return { label: `${fmt(mon)} – ${fmt(sun)}`, count: r.count };
+          });
+        } else {
+          filledData = currentRows.map((r) => {
+            const [year, month] = r.period_key.split("-");
+            const label = new Date(year, parseInt(month) - 1, 1).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+            return { label, count: r.count };
+          });
+        }
+
+        return res.json({ success: true, data: filledData, current_total: currentTotal, previous_total: previousTotal, period, type });
       });
     });
-  };
+  });
+};
 
-  const cancelApplication = (req, res) => {
-    const accountId = req.user.userId;
-    const { job_id } = req.body;
+const cancelApplication = (req, res) => {
+  const accountId = req.user.userId;
+  const { job_id } = req.body;
 
-    if (!job_id) {
-      return res.status(400).json({ error: "job_id is required" });
-    }
+  if (!job_id) {
+    return res.status(400).json({ error: "job_id is required" });
+  }
 
-    // First get candidate_id from account_id
-    connection.query(
-      "SELECT id FROM candidate_info WHERE account_id = ? LIMIT 1",
-      [accountId],
-      (err, rows) => {
-        if (err) {
-          console.error("Database error:", err);
-          return res.status(500).json({ error: "Database error" });
-        }
+  // First get candidate_id from account_id
+  connection.query(
+    "SELECT id FROM candidate_info WHERE account_id = ? LIMIT 1",
+    [accountId],
+    (err, rows) => {
+      if (err) {
+        console.error("Database error:", err);
+        return res.status(500).json({ error: "Database error" });
+      }
 
-        if (!rows.length) {
-          return res.status(404).json({ error: "Candidate not found" });
-        }
+      if (!rows.length) {
+        return res.status(404).json({ error: "Candidate not found" });
+      }
 
-        const candidateId = rows[0].id;
+      const candidateId = rows[0].id;
 
-        // Check if application exists and status is not already rejected/cancelled
-        connection.query(
-  `SELECT id, status FROM applications 
+      // Check if application exists and status is not already rejected/cancelled
+      connection.query(
+        `SELECT id, status FROM applications 
     WHERE candidate_id = ? AND job_id = ? 
     AND status = 'Applied'
     ORDER BY id DESC
     LIMIT 1`,
-  [candidateId, job_id],
-          (err2, apps) => {
-            if (err2) {
-              console.error("Database error:", err2);
-              return res.status(500).json({ error: "Database error" });
-            }
-
-            if (!apps.length) {
-              return res.status(404).json({ error: "Application not found" });
-            }
-
-            const application = apps[0];
-
-            // Only allow cancellation if status is 'Pending'
-            // if (application.status !== "Pending") {
-            //   return res.status(400).json({
-            //     error: "Cannot cancel application",
-            //     message: `Application is already ${application.status}. Only pending applications can be cancelled.`
-            //   });
-            // }
-
-            // Update status to 'Cancelled'
-            connection.query(
-              `UPDATE applications SET status = 'Cancelled' WHERE id = ?`,
-              [application.id],
-              (err3, result) => {
-                if (err3) {
-                  console.error("Update error:", err3);
-                  return res.status(500).json({ error: "Failed to cancel application" });
-                }
-
-                // Get job details for audit log
-                connection.query(
-                  `SELECT job_title FROM job_posts WHERE id = ?`,
-                  [job_id],
-                  (err4, jobRows) => {
-                    const jobTitle = jobRows[0]?.job_title || "Unknown job";
-
-                    // Audit log for candidate
-                    logAudit({
-                      tableName: "history",
-                      entityType: "candidate",
-                      entityId: accountId,
-                      action: "APPLICATION_CANCELLED",
-                      data: {
-                        event: `You cancelled your application for job: ${jobTitle}`,
-                        job_id,
-                        job_title: jobTitle
-                      },
-                      changedBy: accountId,
-                    });
-
-                    res.json({
-                      success: true,
-                      message: "Application cancelled successfully"
-                    });
-                  }
-                );
-              }
-            );
+        [candidateId, job_id],
+        (err2, apps) => {
+          if (err2) {
+            console.error("Database error:", err2);
+            return res.status(500).json({ error: "Database error" });
           }
-        );
-      }
-    );
-  };
+
+          if (!apps.length) {
+            return res.status(404).json({ error: "Application not found" });
+          }
+
+          const application = apps[0];
+
+          // Only allow cancellation if status is 'Pending'
+          // if (application.status !== "Pending") {
+          //   return res.status(400).json({
+          //     error: "Cannot cancel application",
+          //     message: `Application is already ${application.status}. Only pending applications can be cancelled.`
+          //   });
+          // }
+
+          // Update status to 'Cancelled'
+          connection.query(
+            `UPDATE applications SET status = 'Cancelled' WHERE id = ?`,
+            [application.id],
+            (err3, result) => {
+              if (err3) {
+                console.error("Update error:", err3);
+                return res.status(500).json({ error: "Failed to cancel application" });
+              }
+
+              // Get job details for audit log
+              connection.query(
+                `SELECT job_title FROM job_posts WHERE id = ?`,
+                [job_id],
+                (err4, jobRows) => {
+                  const jobTitle = jobRows[0]?.job_title || "Unknown job";
+
+                  // Audit log for candidate
+                  logAudit({
+                    tableName: "history",
+                    entityType: "candidate",
+                    entityId: accountId,
+                    action: "APPLICATION_CANCELLED",
+                    data: {
+                      event: `You cancelled your application for job: ${jobTitle}`,
+                      job_id,
+                      job_title: jobTitle
+                    },
+                    changedBy: accountId,
+                  });
+
+                  res.json({
+                    success: true,
+                    message: "Application cancelled successfully"
+                  });
+                }
+              );
+            }
+          );
+        }
+      );
+    }
+  );
+};
 
 const getDashboardData = async (req, res) => {
   const userId = req.params.userId;

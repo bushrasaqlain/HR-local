@@ -22,18 +22,18 @@ ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarEle
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const TYPE_META = {
-  cv_credits:      { label: "CV Credits",    color: "#36565f", light: "#e8f0fe" },
-  job_slot:        { label: "Job Slots",      color: "#7c3aed", light: "#ede9fe" },
-  subscription:    { label: "Subscription",   color: "#0891b2", light: "#cffafe" },
-  bundle:          { label: "Bundle",         color: "#059669", light: "#d1fae5" },
-  duration_bundle: { label: "Bundle",         color: "#059669", light: "#d1fae5" },
-  daily_budget:    { label: "Daily Budget",   color: "#854F0B", light: "#FAEEDA" },
-  featured_boost:  { label: "Featured Boost", color: "#d97706", light: "#fef3c7" },
+  cv_credits: { label: "CV Credits", color: "#36565f", light: "#e8f0fe" },
+  job_slot: { label: "Job Slots", color: "#7c3aed", light: "#ede9fe" },
+  subscription: { label: "Subscription", color: "#0891b2", light: "#cffafe" },
+  bundle: { label: "Bundle", color: "#059669", light: "#d1fae5" },
+  duration_bundle: { label: "Bundle", color: "#059669", light: "#d1fae5" },
+  daily_budget: { label: "Daily Budget", color: "#854F0B", light: "#FAEEDA" },
+  featured_boost: { label: "Featured Boost", color: "#d97706", light: "#fef3c7" },
 };
 
-const pct      = (used, total) => total > 0 ? Math.min(Math.round((used / total) * 100), 100) : 0;
+const pct = (used, total) => total > 0 ? Math.min(Math.round((used / total) * 100), 100) : 0;
 const fmtPrice = (n) => `PKR ${Number(n).toLocaleString("en-PK")}`;
-const fmtDate  = (d) => d
+const fmtDate = (d) => d
   ? new Date(d).toLocaleDateString("en-PK", { day: "numeric", month: "short", year: "numeric" })
   : "N/A";
 
@@ -62,7 +62,7 @@ const IconSpinner = () => (
 
 // ─── PackageCard ──────────────────────────────────────────────────────────────
 function PackageCard({ pkg, isSelected, onClick }) {
-  const meta  = TYPE_META[pkg.type] || TYPE_META.bundle;
+  const meta = TYPE_META[pkg.type] || TYPE_META.bundle;
   const usage = pct(pkg.used, pkg.total);
   const isExp = pkg.status === "expired";
 
@@ -120,7 +120,7 @@ function SpendSnapshot({ packages, activeType }) {
   }
 
   const grouped = displayPackages.reduce((acc, p) => {
-    const key  = p.type;
+    const key = p.type;
     const meta = TYPE_META[key] || TYPE_META.bundle;
     if (!acc[key]) acc[key] = { label: meta.label, color: meta.color, value: 0, isMonetary: p.isDailyBudget };
     // daily budget → sum PKR spent; others → sum units used
@@ -129,7 +129,7 @@ function SpendSnapshot({ packages, activeType }) {
   }, {});
 
   const groups = Object.values(grouped);
-  const total  = groups.reduce((s, g) => s + g.value, 0);
+  const total = groups.reduce((s, g) => s + g.value, 0);
 
   if (total === 0) {
     return (
@@ -170,7 +170,7 @@ function SpendSnapshot({ packages, activeType }) {
 
   // For center label — if mixed types, just show count
   const allMonetary = groups.every(g => g.isMonetary);
-  const allUnits    = groups.every(g => !g.isMonetary);
+  const allUnits = groups.every(g => !g.isMonetary);
 
   return (
     <div className="d-flex flex-wrap align-items-center gap-4">
@@ -216,14 +216,14 @@ function UsageROI({ packages, activeTab, onTab }) {
   }
 
   const filtered = packages.filter(p => (TYPE_META[p.type] || TYPE_META.bundle).label === tabs[safeTab]);
-  const totalUsed      = filtered.reduce((s, p) => s + p.used, 0);
+  const totalUsed = filtered.reduce((s, p) => s + p.used, 0);
   const totalRemaining = filtered.reduce((s, p) => s + p.remaining, 0);
-  const usagePct       = pct(totalUsed, totalUsed + totalRemaining);
+  const usagePct = pct(totalUsed, totalUsed + totalRemaining);
 
   const barData = {
     labels: filtered.map(p => p.name),
     datasets: [
-      { label: "Used",      data: filtered.map(p => p.used),      backgroundColor: "#36565f", borderRadius: 4, borderSkipped: false },
+      { label: "Used", data: filtered.map(p => p.used), backgroundColor: "#36565f", borderRadius: 4, borderSkipped: false },
       { label: "Remaining", data: filtered.map(p => p.remaining), backgroundColor: "#dbeafe", borderRadius: 4, borderSkipped: false },
     ],
   };
@@ -287,8 +287,8 @@ function UsageROI({ packages, activeTab, onTab }) {
 
 // ─── PackageDetail table ──────────────────────────────────────────────────────
 function PackageDetail({ pkg }) {
-  const meta      = TYPE_META[pkg.type] || TYPE_META.bundle;
-  const isExp     = pkg.status === "expired";
+  const meta = TYPE_META[pkg.type] || TYPE_META.bundle;
+  const isExp = pkg.status === "expired";
   const isPending = pkg.status === "pending_payment";
 
   const billingLabel = {
@@ -307,25 +307,25 @@ function PackageDetail({ pkg }) {
   );
 
   const rows = pkg.isDailyBudget ? [
-    { label: "Job title",       value: pkg.name },
-    { label: "Type",            value: <span className="badge" style={{ background: meta.light, color: meta.color }}>Daily Budget</span> },
-    { label: "Status",          value: statusBadge },
-    { label: "Billing model",   value: billingLabel },
-    { label: "Rate per unit",   value: `PKR ${pkg.ratePerUnit}` },
-    { label: "Daily cap",       value: `PKR ${pkg.dailyCapToday}` },
-    { label: "Spent today",     value: `PKR ${pkg.dailySpendToday}` },
-    { label: "Total spend",     value: fmtPrice(pkg.used) },
-    { label: "Deadline",        value: fmtDate(pkg.expiresRaw) },
+    { label: "Job title", value: pkg.name },
+    { label: "Type", value: <span className="badge" style={{ background: meta.light, color: meta.color }}>Daily Budget</span> },
+    { label: "Status", value: statusBadge },
+    { label: "Billing model", value: billingLabel },
+    { label: "Rate per unit", value: `PKR ${pkg.ratePerUnit}` },
+    { label: "Daily cap", value: `PKR ${pkg.dailyCapToday}` },
+    { label: "Spent today", value: `PKR ${pkg.dailySpendToday}` },
+    { label: "Total spend", value: fmtPrice(pkg.used) },
+    { label: "Deadline", value: fmtDate(pkg.expiresRaw) },
   ] : [
-    { label: "Package name",    value: pkg.name },
-    { label: "Type",            value: <span className="badge text-uppercase" style={{ background: meta.light, color: meta.color }}>{meta.label}</span> },
-    { label: "Amount paid",     value: fmtPrice(pkg.price) },
-    { label: "Status",          value: statusBadge },
-    { label: "Expiry date",     value: fmtDate(pkg.expiresRaw) },
-    { label: "Total units",     value: pkg.total },
-    { label: "Units used",      value: pkg.used },
-    { label: "Units left",      value: pkg.remaining },
-    { label: "Usage",           value: `${pct(pkg.used, pkg.total)}%` },
+    { label: "Package name", value: pkg.name },
+    { label: "Type", value: <span className="badge text-uppercase" style={{ background: meta.light, color: meta.color }}>{meta.label}</span> },
+    { label: "Amount paid", value: fmtPrice(pkg.price) },
+    { label: "Status", value: statusBadge },
+    { label: "Expiry date", value: fmtDate(pkg.expiresRaw) },
+    { label: "Total units", value: pkg.total },
+    { label: "Units used", value: pkg.used },
+    { label: "Units left", value: pkg.remaining },
+    { label: "Usage", value: `${pct(pkg.used, pkg.total)}%` },
   ];
 
   return (
@@ -348,10 +348,10 @@ function PackageDetail({ pkg }) {
 // ─── Payment Method card ──────────────────────────────────────────────────────
 function PaymentMethodCard({ method, onAdd, onChange }) {
   const brandColors = {
-    visa:       { bg: "linear-gradient(135deg, #1a1f71, #0d3880)", label: "VISA", text: "#fff" },
-    mastercard: { bg: "linear-gradient(135deg, #eb001b, #f79e1b)", label: "MC",   text: "#fff" },
-    amex:       { bg: "linear-gradient(135deg, #007bc1, #00a8e0)", label: "AMEX", text: "#fff" },
-    discover:   { bg: "linear-gradient(135deg, #ff6600, #ffaa00)", label: "DISC", text: "#fff" },
+    visa: { bg: "linear-gradient(135deg, #1a1f71, #0d3880)", label: "VISA", text: "#fff" },
+    mastercard: { bg: "linear-gradient(135deg, #eb001b, #f79e1b)", label: "MC", text: "#fff" },
+    amex: { bg: "linear-gradient(135deg, #007bc1, #00a8e0)", label: "AMEX", text: "#fff" },
+    discover: { bg: "linear-gradient(135deg, #ff6600, #ffaa00)", label: "DISC", text: "#fff" },
   };
   const brand = brandColors[method?.brand] || { bg: "linear-gradient(135deg, #36565f, #1e3a42)", label: "CARD", text: "#fff" };
 
@@ -372,8 +372,8 @@ function PaymentMethodCard({ method, onAdd, onChange }) {
           <div className="rounded-3 p-3 mb-3 position-relative overflow-hidden"
             style={{ background: brand.bg, color: brand.text, minHeight: 110 }}>
             {/* decorative circles */}
-            <div style={{ position:"absolute", top:-20, right:-20, width:100, height:100, borderRadius:"50%", background:"rgba(255,255,255,0.08)" }} />
-            <div style={{ position:"absolute", bottom:-30, right:30, width:140, height:140, borderRadius:"50%", background:"rgba(255,255,255,0.05)" }} />
+            <div style={{ position: "absolute", top: -20, right: -20, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,0.08)" }} />
+            <div style={{ position: "absolute", bottom: -30, right: 30, width: 140, height: 140, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
 
             <div className="d-flex justify-content-between align-items-start mb-3">
               <div style={{ fontSize: 10, opacity: 0.8, letterSpacing: "0.1em", textTransform: "uppercase" }}>
@@ -437,9 +437,9 @@ function PaymentMethodCard({ method, onAdd, onChange }) {
 function QuickLinks({ onBuy, onHistory, onCompareSpend, onSetAlerts }) {
   const links = [
     // { icon: "📈", name: "Buy More Packages", sub: "Add credits or slots", action: onBuy },
-    { icon: "🧾", name: "Transaction History",  sub: "View all past payments",    action: onHistory },
+    { icon: "🧾", name: "Transaction History", sub: "View all past payments", action: onHistory },
     // { icon: "📊", name: "Compare spend by type", sub: "Analyse usage patterns", action: onCompareSpend },
-    { icon: "🔔", name: "Set usage alerts",     sub: "Get notified on low credits", action: onSetAlerts },
+    { icon: "🔔", name: "Set usage alerts", sub: "Get notified on low credits", action: onSetAlerts },
   ];
 
   return (
@@ -478,29 +478,29 @@ function detectBrand(raw) {
 }
 
 const BRAND_META = {
-  visa:       { label: "VISA", bg: "#0D3880", color: "#fff" },
-  mastercard: { label: "MC",   bg: "#EB001B", color: "#fff" },
-  amex:       { label: "AMEX", bg: "#007BC1", color: "#fff" },
-  discover:   { label: "DISC", bg: "#FF6600", color: "#fff" },
+  visa: { label: "VISA", bg: "#0D3880", color: "#fff" },
+  mastercard: { label: "MC", bg: "#EB001B", color: "#fff" },
+  amex: { label: "AMEX", bg: "#007BC1", color: "#fff" },
+  discover: { label: "DISC", bg: "#FF6600", color: "#fff" },
 };
 
 const ALL_TYPES = [
-  { key: "visa",       label: "Visa",       dot: "#0D3880" },
+  { key: "visa", label: "Visa", dot: "#0D3880" },
   { key: "mastercard", label: "Mastercard", dot: "#EB001B" },
-  { key: "amex",       label: "Amex",       dot: "#007BC1" },
-  { key: "discover",   label: "Discover",   dot: "#FF6600" },
+  { key: "amex", label: "Amex", dot: "#007BC1" },
+  { key: "discover", label: "Discover", dot: "#FF6600" },
 ];
 
 // ─── AddCardForm ──────────────────────────────────────────────────────────────
 function AddCardForm({ onSave, onBrowse }) {
-  const [holder,      setHolder]  = React.useState("");
-  const [rawNum,      setRawNum]  = React.useState("");
-  const [displayNum,  setDisplay] = React.useState("");
-  const [expiry,      setExpiry]  = React.useState("");
-  const [cvv,         setCvv]     = React.useState("");
-  const [saveForLater, setSave]   = React.useState(true);
-  const [accepted,    setAccepted]= React.useState(["visa", "mastercard"]);
-  const [errors,      setErrors]  = React.useState({});
+  const [holder, setHolder] = React.useState("");
+  const [rawNum, setRawNum] = React.useState("");
+  const [displayNum, setDisplay] = React.useState("");
+  const [expiry, setExpiry] = React.useState("");
+  const [cvv, setCvv] = React.useState("");
+  const [saveForLater, setSave] = React.useState(true);
+  const [accepted, setAccepted] = React.useState(["visa", "mastercard"]);
+  const [errors, setErrors] = React.useState({});
 
   const brand = detectBrand(rawNum);
   const bMeta = BRAND_META[brand] || null;
@@ -512,20 +512,20 @@ function AddCardForm({ onSave, onBrowse }) {
     setCvv("");
   };
 
- const handleExpiry = (e) => {
-  let raw = e.target.value.replace(/\D/g, "").slice(0, 4);
-  if (raw.length >= 2) {
-    let month = parseInt(raw.slice(0, 2));
-    if (month > 12) raw = "12" + raw.slice(2);
-    if (month === 0) raw = "01" + raw.slice(2);
-  }
-  if (raw.length >= 3) {
-    const year = parseInt(raw.slice(2));
-    if (year > 39) return; // blocks anything past 2039, adjust as needed
-    raw = raw.slice(0, 2) + " / " + raw.slice(2);
-  }
-  setExpiry(raw);
-};
+  const handleExpiry = (e) => {
+    let raw = e.target.value.replace(/\D/g, "").slice(0, 4);
+    if (raw.length >= 2) {
+      let month = parseInt(raw.slice(0, 2));
+      if (month > 12) raw = "12" + raw.slice(2);
+      if (month === 0) raw = "01" + raw.slice(2);
+    }
+    if (raw.length >= 3) {
+      const year = parseInt(raw.slice(2));
+      if (year > 39) return; // blocks anything past 2039, adjust as needed
+      raw = raw.slice(0, 2) + " / " + raw.slice(2);
+    }
+    setExpiry(raw);
+  };
 
   const handleCvv = (e) => setCvv(e.target.value.replace(/\D/g, "").slice(0, brand === "amex" ? 4 : 3));
 
@@ -541,10 +541,10 @@ function AddCardForm({ onSave, onBrowse }) {
     } else {
       const parts = expiry.replace(/\s/g, "").split("/");
       const month = parseInt(parts[0]);
-      const year  = parseInt("20" + parts[1]);
-      const now   = new Date();
-      if (month < 1 || month > 12)             errs.exp = "Month must be between 01 and 12";
-      else if (year < now.getFullYear())        errs.exp = `Year cannot be before ${now.getFullYear()}`;
+      const year = parseInt("20" + parts[1]);
+      const now = new Date();
+      if (month < 1 || month > 12) errs.exp = "Month must be between 01 and 12";
+      else if (year < now.getFullYear()) errs.exp = `Year cannot be before ${now.getFullYear()}`;
       else if (year === now.getFullYear() && month < now.getMonth() + 1) errs.exp = "Card expired — enter a future date";
     }
     if (cvv.length < (brand === "amex" ? 4 : 3)) errs.cvv = `Enter ${brand === "amex" ? 4 : 3} digits`;
@@ -672,12 +672,12 @@ function CompareSpendByType({ packages }) {
     if (!acc[type]) acc[type] = { label: meta.label, color: meta.color, light: meta.light, totalSpend: 0, totalUnits: 0, totalUsed: 0, packages: [] };
     acc[type].totalSpend += Number(pkg.price) || 0;
     acc[type].totalUnits += pkg.total || 0;
-    acc[type].totalUsed  += pkg.used || 0;
+    acc[type].totalUsed += pkg.used || 0;
     acc[type].packages.push(pkg);
     return acc;
   }, {});
 
-  const sortedTypes   = Object.values(spendByType).sort((a, b) => b.totalSpend - a.totalSpend);
+  const sortedTypes = Object.values(spendByType).sort((a, b) => b.totalSpend - a.totalSpend);
   const totalSpendAll = sortedTypes.reduce((sum, t) => sum + t.totalSpend, 0);
 
   const getROI = (type) => {
@@ -737,7 +737,7 @@ function CompareSpendByType({ packages }) {
               <p className="fw-bold mb-3" style={{ fontSize: 13 }}>Spending Breakdown</p>
               {sortedTypes.map(type => {
                 const percentage = ((type.totalSpend / totalSpendAll) * 100).toFixed(1);
-                const usageRate  = ((type.totalUsed / type.totalUnits) * 100).toFixed(1);
+                const usageRate = ((type.totalUsed / type.totalUnits) * 100).toFixed(1);
                 return (
                   <div key={type.label} className="mb-3">
                     <div className="d-flex justify-content-between mb-1">
@@ -772,7 +772,7 @@ function CompareSpendByType({ packages }) {
                 </thead>
                 <tbody>
                   {packages.map(pkg => {
-                    const meta  = TYPE_META[pkg.type] || TYPE_META.bundle;
+                    const meta = TYPE_META[pkg.type] || TYPE_META.bundle;
                     const usage = pct(pkg.used, pkg.total);
                     return (
                       <tr key={pkg.id}>
@@ -820,10 +820,10 @@ function CompareSpendByType({ packages }) {
 function SetUsageAlerts({ packages, onSave, initialSettings }) {
   const [alerts, setAlerts] = React.useState(
     initialSettings || {
-      lowCredits:       { enabled: true,  threshold: 20 },
-      packageExpiry:    { enabled: true,  daysBefore: 7 },
-      budgetThreshold:  { enabled: false, threshold: 80 },
-      unusualSpending:  { enabled: true,  sensitivity: "medium" },
+      lowCredits: { enabled: true, threshold: 20 },
+      packageExpiry: { enabled: true, daysBefore: 7 },
+      budgetThreshold: { enabled: false, threshold: 80 },
+      unusualSpending: { enabled: true, sensitivity: "medium" },
     }
   );
 
@@ -872,7 +872,7 @@ function SetUsageAlerts({ packages, onSave, initialSettings }) {
       <div className="row g-3 mb-4">
         {alertCards.map(({ key, icon, title, bg, field, label, min, max, unit, warning }) => {
           const enabled = alerts[key]?.enabled || false;
-          const val     = alerts[key]?.[field] || min;
+          const val = alerts[key]?.[field] || min;
           return (
             <div className="col-md-4" key={key}>
               <div className="rounded p-3 border h-100" style={{ background: enabled ? bg : "#fff" }}>
@@ -929,25 +929,25 @@ class CompanyWallet extends Component {
     let savedAlertSettings = null;
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("wallet_alert_settings");
-      if (saved) { try { savedAlertSettings = JSON.parse(saved); } catch (e) {} }
+      if (saved) { try { savedAlertSettings = JSON.parse(saved); } catch (e) { } }
     }
     this.state = {
-      showAddCard:    false,
+      showAddCard: false,
       notifSelectedId: null,
-      packages:       [],
-      selectedCard:   0,
-      activeRoiTab:   0,
-      loading:        true,
-      error:          null,
-      activeTab:      "overview",
-      savedMethod:    null,
-      cardSaved:      false,
+      packages: [],
+      selectedCard: 0,
+      activeRoiTab: 0,
+      loading: true,
+      error: null,
+      activeTab: "overview",
+      savedMethod: null,
+      cardSaved: false,
       showCompareSpend: false,
       activePackageType: null,
-      showSetAlerts:  false,
+      showSetAlerts: false,
       alertSettings: {
-        lowCredits:      { enabled: true,  threshold: 20 },
-        packageExpiry:   { enabled: true,  daysBefore: 7 },
+        lowCredits: { enabled: true, threshold: 20 },
+        packageExpiry: { enabled: true, daysBefore: 7 },
         budgetThreshold: { enabled: false, threshold: 80 },
       },
     };
@@ -964,12 +964,12 @@ class CompanyWallet extends Component {
     }
 
     this._openNotifHandler = (e) => this.setState({ activeTab: "notifications", notifSelectedId: e?.detail?.selectedId || null });
-    window.addEventListener("openNotifications",       this._openNotifHandler);
+    window.addEventListener("openNotifications", this._openNotifHandler);
     window.addEventListener("walletOpenNotifications", this._openNotifHandler);
   }
 
   componentWillUnmount() {
-    window.removeEventListener("openNotifications",       this._openNotifHandler);
+    window.removeEventListener("openNotifications", this._openNotifHandler);
     window.removeEventListener("walletOpenNotifications", this._openNotifHandler);
   }
 
@@ -992,10 +992,10 @@ class CompanyWallet extends Component {
       const subPackages = res.data.filter(p => !p.is_daily_budget).map(p => {
         const pkg = (() => { try { return typeof p.package === "string" ? JSON.parse(p.package) : (p.package || {}); } catch { return {}; } })();
         let total = 0;
-        if      (pkg.pricing_model === "featured_boost") total = pkg.boost_duration_days || 0;
-        else if (pkg.pricing_model === "job_slot")        total = pkg.slot_count || 0;
-        else if (pkg.pricing_model === "cv_credits")      total = pkg.credit_count || 0;
-        else                                              total = pkg.num_posts || pkg.slot_count || pkg.credit_count || 0;
+        if (pkg.pricing_model === "featured_boost") total = pkg.boost_duration_days || 0;
+        else if (pkg.pricing_model === "job_slot") total = pkg.slot_count || 0;
+        else if (pkg.pricing_model === "cv_credits") total = pkg.credit_count || 0;
+        else total = pkg.num_posts || pkg.slot_count || pkg.credit_count || 0;
         const used = p.used_posts || p.used_credits || p.used_slots || 0;
         return { id: p.subscription_id, name: pkg.name || "Package", type: pkg.pricing_model || "bundle", total, used, remaining: Math.max(total - used, 0), price: pkg.price || 0, status: p.status || "active", expiresRaw: p.end_date || null, isDailyBudget: false };
       });
@@ -1051,27 +1051,58 @@ class CompanyWallet extends Component {
     const { packages, selectedCard, activeRoiTab, loading, error, savedMethod, activeTab, alertSettings } = this.state;
 
     if (loading) return <div className="d-flex align-items-center justify-content-center" style={{ minHeight: 400 }}><IconSpinner /><span className="ms-2 text-secondary">Loading wallet…</span></div>;
-    if (error)   return <div className="alert alert-danger m-4">{error}</div>;
+    if (error) return <div className="alert alert-danger m-4">{error}</div>;
 
     const Topbar = (
-      <nav className="navbar navbar-expand bg-white border-bottom px-3" style={{ height: 52 }}>
-        <div className="d-flex align-items-center h-100 overflow-auto flex-fill" style={{ scrollbarWidth: "none" }}>
-          {["overview", "transactions", "packages"].map(tab => (
-            <button key={tab} onClick={() => this.setState({ activeTab: tab })}
-              className="btn btn-link text-decoration-none fw-semibold px-3 h-100 d-flex align-items-center rounded-0"
-              style={{ fontSize: 13.5, color: activeTab === tab ? "#1a1a1a" : "#595959", borderBottom: activeTab === tab ? "3px solid #36565f" : "3px solid transparent", whiteSpace: "nowrap" }}>
-              {tab === "overview" ? "Overview" : tab === "transactions" ? "Transactions" : "Packages"}
+      <>
+        <style jsx global>{`
+      /* Toggle switches (Low Credits, Package Expiry, Budget Threshold) */
+      .form-check-input:checked {
+        background-color: #36565f !important;
+        border-color: #36565f !important;
+      }
+      .form-check-input:focus {
+        border-color: #36565f !important;
+        box-shadow: 0 0 0 0.2rem rgba(54, 86, 95, 0.25) !important;
+      }
+
+      /* Range sliders (threshold / days sliders) */
+      .form-range::-webkit-slider-thumb {
+        background-color: #36565f !important;
+      }
+      .form-range::-moz-range-thumb {
+        background-color: #36565f !important;
+      }
+      .form-range:focus::-webkit-slider-thumb {
+        box-shadow: 0 0 0 1px #fff, 0 0 0 0.2rem rgba(54, 86, 95, 0.25) !important;
+      }
+      .form-range::-webkit-slider-runnable-track {
+        background-color: #dee2e6;
+      }
+      .form-range::-moz-range-track {
+        background-color: #dee2e6;
+      }
+    `}</style>
+
+        <nav className="navbar navbar-expand bg-white border-bottom px-3" style={{ height: 52 }}>
+          <div className="d-flex align-items-center h-100 overflow-auto flex-fill" style={{ scrollbarWidth: "none" }}>
+            {["overview", "transactions", "packages"].map(tab => (
+              <button key={tab} onClick={() => this.setState({ activeTab: tab })}
+                className="btn btn-link text-decoration-none fw-semibold px-3 h-100 d-flex align-items-center rounded-0"
+                style={{ fontSize: 13.5, color: activeTab === tab ? "#1a1a1a" : "#595959", borderBottom: activeTab === tab ? "3px solid #36565f" : "3px solid transparent", whiteSpace: "nowrap" }}>
+                {tab === "overview" ? "Overview" : tab === "transactions" ? "Transactions" : "Packages"}
+              </button>
+            ))}
+          </div>
+          <div className="d-flex align-items-center gap-2 flex-shrink-0">
+            <NotificationCenter userId={this.userId} apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL} />
+            <button className="btn btn-outline-secondary btn-sm d-none d-md-flex" onClick={this.fetchPackages}>Refresh</button>
+            <button className="btn btn-sm text-white d-flex align-items-center gap-1" style={{ background: "#36565f" }} onClick={() => this.setState({ activeTab: "packages" })}>
+              <IconPlus /><span className="d-none d-sm-inline">Buy Packages</span>
             </button>
-          ))}
-        </div>
-        <div className="d-flex align-items-center gap-2 flex-shrink-0">
-          <NotificationCenter userId={this.userId} apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL} />
-          <button className="btn btn-outline-secondary btn-sm d-none d-md-flex" onClick={this.fetchPackages}>Refresh</button>
-          <button className="btn btn-sm text-white d-flex align-items-center gap-1" style={{ background: "#36565f" }} onClick={() => this.setState({ activeTab: "packages" })}>
-            <IconPlus /><span className="d-none d-sm-inline">Buy Packages</span>
-          </button>
-        </div>
-      </nav>
+          </div>
+        </nav>
+      </>
     );
 
     // ── Empty state (no packages) ──
@@ -1081,7 +1112,7 @@ class CompanyWallet extends Component {
         {Topbar}
 
         {activeTab === "transactions" && <div className="p-4"><TransactionHistory /></div>}
-        {activeTab === "packages"     && <div className="p-4"><PricingPage /></div>}
+        {activeTab === "packages" && <div className="p-4"><PricingPage /></div>}
         {activeTab === "notifications" && (
           <NotificationsPage userId={this.userId} apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
             onTabChange={tab => this.setState({ activeTab: tab })} initialSelectedId={this.state.notifSelectedId} />
@@ -1142,8 +1173,8 @@ class CompanyWallet extends Component {
     );
 
     // ── Normal state (has packages) ──
-    const pkg     = packages[selectedCard];
-    const now     = new Date();
+    const pkg = packages[selectedCard];
+    const now = new Date();
     const monthAgo = new Date(now); monthAgo.setMonth(now.getMonth() - 1);
     const rangeStr = `${monthAgo.toLocaleDateString("en-PK", { day: "numeric", month: "short", year: "numeric" })} – ${now.toLocaleDateString("en-PK", { day: "numeric", month: "short", year: "numeric" })}`;
 
@@ -1153,7 +1184,7 @@ class CompanyWallet extends Component {
         {Topbar}
 
         {activeTab === "transactions" && <div className="p-4"><TransactionHistory /></div>}
-        {activeTab === "packages"     && <div className="p-4"><PricingPage /></div>}
+        {activeTab === "packages" && <div className="p-4"><PricingPage /></div>}
         {activeTab === "notifications" && (
           <NotificationsPage userId={this.userId} apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL}
             onTabChange={tab => this.setState({ activeTab: tab })} initialSelectedId={this.state.notifSelectedId} />
@@ -1175,78 +1206,78 @@ class CompanyWallet extends Component {
               </div> */}
             </div>
 
-           {/* Packages grid */}
-<div className="card mb-4">
-  <div className="card-body">
-    <p className="fw-bold mb-1">Your Packages</p>
-    <p className="text-secondary small mb-3">
-      {packages.filter(p => !p.expiresRaw || new Date(p.expiresRaw) > new Date()).length} active package{packages.length !== 1 ? "s" : ""} — select a type to view
-    </p>
+            {/* Packages grid */}
+            <div className="card mb-4">
+              <div className="card-body">
+                <p className="fw-bold mb-1">Your Packages</p>
+                <p className="text-secondary small mb-3">
+                  {packages.filter(p => !p.expiresRaw || new Date(p.expiresRaw) > new Date()).length} active package{packages.length !== 1 ? "s" : ""} — select a type to view
+                </p>
 
-    {/* Type tabs */}
-    <div className="d-flex flex-wrap gap-2 mb-3">
-      {[...new Set(packages.filter(p => !p.expiresRaw || new Date(p.expiresRaw) > new Date()).map(p => p.type))].map(type => {
-  const meta  = TYPE_META[type] || TYPE_META.bundle;
-  const count = packages.filter(p => p.type === type && (!p.expiresRaw || new Date(p.expiresRaw) > new Date())).length;
-        const isActive = this.state.activePackageType === type;
-        return (
-          <div
-            key={type}
-            onClick={() => this.setState({ activePackageType: isActive ? null : type, selectedCard: 0 })}
-            className="d-flex align-items-center gap-2 px-3 py-2 rounded"
-            style={{
-              cursor: "pointer",
-              border: `2px solid ${isActive ? meta.color : "#e0e0e0"}`,
-              background: isActive ? meta.light : "#fff",
-              transition: "all .15s",
-            }}
-          >
-            <span className="rounded-circle flex-shrink-0"
-              style={{ width: 8, height: 8, background: meta.color, display: "inline-block" }} />
-            <span className="fw-semibold" style={{ fontSize: 13, color: isActive ? meta.color : "#595959" }}>
-              {meta.label}
-            </span>
-            <span className="badge rounded-pill"
-              style={{ background: isActive ? meta.color : "#f0f0f0", color: isActive ? "#fff" : "#595959", fontSize: 11 }}>
-              {count}
-            </span>
-          </div>
-        );
-      })}
-    </div>
+                {/* Type tabs */}
+                <div className="d-flex flex-wrap gap-2 mb-3">
+                  {[...new Set(packages.filter(p => !p.expiresRaw || new Date(p.expiresRaw) > new Date()).map(p => p.type))].map(type => {
+                    const meta = TYPE_META[type] || TYPE_META.bundle;
+                    const count = packages.filter(p => p.type === type && (!p.expiresRaw || new Date(p.expiresRaw) > new Date())).length;
+                    const isActive = this.state.activePackageType === type;
+                    return (
+                      <div
+                        key={type}
+                        onClick={() => this.setState({ activePackageType: isActive ? null : type, selectedCard: 0 })}
+                        className="d-flex align-items-center gap-2 px-3 py-2 rounded"
+                        style={{
+                          cursor: "pointer",
+                          border: `2px solid ${isActive ? meta.color : "#e0e0e0"}`,
+                          background: isActive ? meta.light : "#fff",
+                          transition: "all .15s",
+                        }}
+                      >
+                        <span className="rounded-circle flex-shrink-0"
+                          style={{ width: 8, height: 8, background: meta.color, display: "inline-block" }} />
+                        <span className="fw-semibold" style={{ fontSize: 13, color: isActive ? meta.color : "#595959" }}>
+                          {meta.label}
+                        </span>
+                        <span className="badge rounded-pill"
+                          style={{ background: isActive ? meta.color : "#f0f0f0", color: isActive ? "#fff" : "#595959", fontSize: 11 }}>
+                          {count}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
 
-    {/* Cards for selected type */}
-    {this.state.activePackageType && (() => {
-      const now = new Date();
-const filtered = packages.filter(p => 
-  p.type === this.state.activePackageType && 
-  (!p.expiresRaw || new Date(p.expiresRaw) > now)
-);
-      return (
-        <div className="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 g-3">
-          {filtered.map((p) => {
-            const globalIndex = packages.indexOf(p);
-            return (
-              <div key={p.id} className="col">
-                <PackageCard
-                  pkg={p}
-                  isSelected={selectedCard === globalIndex}
-                  onClick={() => this.setState({ selectedCard: globalIndex })}
-                />
+                {/* Cards for selected type */}
+                {this.state.activePackageType && (() => {
+                  const now = new Date();
+                  const filtered = packages.filter(p =>
+                    p.type === this.state.activePackageType &&
+                    (!p.expiresRaw || new Date(p.expiresRaw) > now)
+                  );
+                  return (
+                    <div className="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 g-3">
+                      {filtered.map((p) => {
+                        const globalIndex = packages.indexOf(p);
+                        return (
+                          <div key={p.id} className="col">
+                            <PackageCard
+                              pkg={p}
+                              isSelected={selectedCard === globalIndex}
+                              onClick={() => this.setState({ selectedCard: globalIndex })}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
+                {!this.state.activePackageType && (
+                  <div className="text-center py-3 text-secondary small">
+                    👆 Click a type above to see packages
+                  </div>
+                )}
               </div>
-            );
-          })}
-        </div>
-      );
-    })()}
-
-    {!this.state.activePackageType && (
-      <div className="text-center py-3 text-secondary small">
-        👆 Click a type above to see packages
-      </div>
-    )}
-  </div>
-</div>
+            </div>
 
             {/* Spend snapshot + (ROI commented) */}
             <div className="row g-4 mb-4">
@@ -1271,9 +1302,9 @@ const filtered = packages.filter(p =>
 
             {/* Add card modal (commented) */}
             {this.state.showAddCard && (
-              <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16 }}>
-                <div className="card" style={{ width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto",padding:"28px 32px",position:"relative" }}>
-                  <button onClick={() => this.setState({ showAddCard: false })} style={{ position:"absolute",top:16,right:16,background:"#fee2e2",border:"none",borderRadius:"50%",width:32,height:32,cursor:"pointer",color:"#991b1b",fontWeight:700,fontSize:16 }}>×</button>
+              <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 16 }}>
+                <div className="card" style={{ width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto", padding: "28px 32px", position: "relative" }}>
+                  <button onClick={() => this.setState({ showAddCard: false })} style={{ position: "absolute", top: 16, right: 16, background: "#fee2e2", border: "none", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", color: "#991b1b", fontWeight: 700, fontSize: 16 }}>×</button>
                   <h5 className="fw-bold mb-4">{savedMethod ? "Change Payment Card" : "Add Payment Method"}</h5>
                   <AddCardForm onSave={this.handleSaveCard} onBrowse={() => this.setState({ showAddCard: false, activeTab: "packages" })} />
                 </div>

@@ -9,6 +9,7 @@ const Messages = ({ selectedContactProp = null }) => {
     const [unreadCounts, setUnreadCounts] = useState({});
     const [mobileView, setMobileView] = useState("list");
     const [isMobile, setIsMobile] = useState(false);
+    const [chromeHeight, setChromeHeight] = useState({ navbar: 72, footer: 72 }); // 👈 NEW
 
     const userId = sessionStorage.getItem("userId");
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -17,6 +18,29 @@ const Messages = ({ selectedContactProp = null }) => {
     useEffect(() => {
         document.body.classList.add("messages-page");
         return () => document.body.classList.remove("messages-page");
+    }, []);
+
+    // 👇 NEW: measure actual navbar & footer height, live-update on resize/content change
+    useEffect(() => {
+        const measure = () => {
+            const navEl = document.querySelector("nav.navbar, .hunar-navbar, header");
+            const footerEl = document.querySelector("footer.dashboard-footer, footer");
+            setChromeHeight({
+                navbar: navEl ? navEl.offsetHeight : 72,
+                footer: footerEl ? footerEl.offsetHeight : 72,
+            });
+        };
+
+        measure();
+        window.addEventListener("resize", measure);
+
+        // footer height can change after fonts/layout settle, re-check shortly after mount
+        const t = setTimeout(measure, 300);
+
+        return () => {
+            window.removeEventListener("resize", measure);
+            clearTimeout(t);
+        };
     }, []);
 
     useEffect(() => {
@@ -87,33 +111,45 @@ const Messages = ({ selectedContactProp = null }) => {
         setMobileView("list");
     };
 
+    // 👇 NEW: compute exact available height from measured chrome
+    const availableHeight = `calc(100vh - ${chromeHeight.navbar}px - ${chromeHeight.footer}px)`;
+
     return (
         <>
             <Head>
                 <title>Messages</title>
                 <style>{`
-                    /* ✅ Only active on messages page */
                     body.messages-page {
                         overflow: hidden !important;
                     }
-                    body.messages-page #__next {
-                        height: 100vh;
-                        display: flex;
-                        flex-direction: column;
-                        overflow: hidden;
-                    }
 
                     .user-dashboard {
-                        height: calc(100vh - 80px);
                         display: flex;
                         flex-direction: column;
                         overflow: hidden;
+                        padding: 16px;
+                        box-sizing: border-box;
+                        background: #eef2f3;
                     }
+                    @media (max-width: 768px) {
+                        .user-dashboard {
+                            padding: 12px 10px;
+                        }
+                    }
+                    @media (max-width: 480px) {
+                        .user-dashboard {
+                            padding: 10px 8px;
+                        }
+                    }
+
                     .dashboard-outer {
                         flex: 1;
                         display: flex;
                         flex-direction: column;
                         overflow: hidden;
+                        border-radius: 12px;
+                        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+                        background: #fff;
                     }
                     .messages-layout {
                         display: flex;
@@ -121,7 +157,6 @@ const Messages = ({ selectedContactProp = null }) => {
                         overflow: hidden;
                     }
 
-                    /* LEFT SIDEBAR */
                     .messages-sidebar {
                         width: 320px;
                         min-width: 320px;
@@ -198,7 +233,6 @@ const Messages = ({ selectedContactProp = null }) => {
                         color: #888;
                     }
 
-                    /* RIGHT CHAT PANEL */
                     .messages-chat-panel {
                         flex: 1;
                         display: flex;
@@ -208,7 +242,6 @@ const Messages = ({ selectedContactProp = null }) => {
                         background: #f7f9fa;
                     }
 
-                    /* EMPTY STATE */
                     .messages-empty-state {
                         flex: 1;
                         display: flex;
@@ -224,14 +257,10 @@ const Messages = ({ selectedContactProp = null }) => {
                         margin-bottom: 12px;
                     }
 
-                    /* MOBILE */
                     .mobile-hidden {
                         display: none !important;
                     }
                     @media (max-width: 768px) {
-                        .user-dashboard {
-                            height: calc(100vh - 60px);
-                        }
                         .messages-sidebar {
                             width: 100%;
                             min-width: unset;
@@ -240,7 +269,8 @@ const Messages = ({ selectedContactProp = null }) => {
                 `}</style>
             </Head>
 
-            <section className="user-dashboard">
+            {/* 👇 height now set inline from measured navbar/footer, not guessed in CSS */}
+            <section className="user-dashboard" style={{ height: availableHeight }}>
                 <div className="dashboard-outer p-0" style={{ padding: 0, height: '100%' }}>
                     <div className="messages-layout">
 

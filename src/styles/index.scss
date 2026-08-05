@@ -176,17 +176,44 @@ span.badge.badge-inactive-custom {
 }
 
 /* 🔷 HERO */
-.about-hero {
-  width: 100vw;
-  /* 🔥 full screen width */
-  margin-left: calc(-50vw + 50%);
-  height: 300px;
+.about-hero{
+    position: relative;
+    width:100vw;
+    margin-left:calc(-50vw + 50%);
+    margin-right:calc(-50vw + 50%);
+    min-height:400px;
 
-  background: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)),
-    url('/images/background/bg.png');
+    display:flex;
+    justify-content:center;
+    align-items:center;
 
-  background-size: cover;
-  background-position: center;
+    background:
+      linear-gradient(rgba(255,255,255,.18),rgba(255,255,255,.18)),
+      url('/images/background/aboutus.png') center center no-repeat;
+      background-size:cover;
+}
+
+.about-hero::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:linear-gradient(
+        rgba(18,55,60,.18),
+        rgba(18,55,60,.18)
+    );
+}
+
+.hero-content{
+    position:relative;
+    z-index:2;
+    text-align:center;
+}
+
+.about-title{
+    font-size:60px;
+    font-weight:800;
+    color:#24484d;
+    margin-bottom:10px;
 }
 
 .privacy-hero {
@@ -214,10 +241,10 @@ span.badge.badge-inactive-custom {
 }
 
 /* ✅ tagline white */
-.hero-tagline {
-  color: #ffffff;
-  font-size: 18px;
-  opacity: 0.9;
+.hero-tagline{
+    font-size:22px;
+    color:#36565f;
+    font-weight:600;
 }
 
 /* 🔷 CARDS */
@@ -267,14 +294,40 @@ span.badge.badge-inactive-custom {
 }
 
 /* 🔷 HERO */
-.faq-hero {
-  width: 100vw;
-  margin-left: calc(-50vw + 50%);
-  height: 350px;
-  background: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)),
-    url('/images/background/2.png');
-  background-size: cover;
-  background-position: center;
+.faq-hero{
+    position:relative;
+    width:100%;
+    min-height:460px;
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding-top: 70px;
+
+    background:
+        linear-gradient(rgba(20,50,55,.18), rgba(20,50,55,.18)),
+        url('/images/background/FAQ1.png') center center no-repeat;
+
+    background-size:cover;
+}
+
+.faq-hero .hero-content{
+    position: relative;
+    z-index: 2;
+}
+
+@media (max-width:991px){
+    .faq-hero{
+        min-height:300px;
+        background-position:center;
+    }
+}
+
+@media (max-width:768px){
+    .faq-hero{
+        min-height:250px;
+        background-position:center;
+    }
 }
 
 /* 🔷 SECTION */
@@ -288,10 +341,24 @@ span.badge.badge-inactive-custom {
   margin-bottom: 50px;
 }
 
-.faq-tagline {
-  color: #ffffff;
-  font-size: 18px;
-  opacity: 0.9;
+.faq-title{
+    font-size:60px;
+    font-weight:800;
+    color:#36565f;
+
+    text-shadow:
+        0 2px 10px rgba(255,255,255,.9),
+        0 6px 20px rgba(255,255,255,.8);
+
+    margin-bottom:10px;
+}
+
+.faq-tagline{
+    font-size:22px;
+    color:#36565f;
+    font-weight:600;
+
+    text-shadow:0 1px 8px rgba(255,255,255,.8);
 }
 
 /* 🔷 ACCORDION */

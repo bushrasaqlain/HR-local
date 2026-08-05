@@ -164,8 +164,8 @@ class SavedJobsPage extends Component {
                                                             )}
                                                             {job.min_experience && (
                                                                 <span style={{
-                                                                    fontSize: 11, background: "#dbeafe",
-                                                                    color: "#1e40af", borderRadius: 20,
+                                                                    fontSize: 11, background: "#e8f7fc",
+                                                                    color: "#36565F", borderRadius: 20,
                                                                     padding: "2px 10px", fontWeight: 500,
                                                                 }}>
                                                                     {job.min_experience} – {job.max_experience} 
@@ -243,7 +243,7 @@ class SavedJobsPage extends Component {
                                 )}
                                 {selectedJob.min_experience && (
                                     <span style={{
-                                        background: "#dbeafe", color: "#1e40af",
+                                        background: "#e8f7fc", color: "#36565F",
                                         borderRadius: "20px", padding: "4px 12px",
                                         fontSize: "12px", fontWeight: 600,
                                     }}>

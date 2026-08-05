@@ -283,7 +283,7 @@ class CandidateMessages extends Component {
             />
           </div>
         )}
-        <Card className="message-card" style={{ height: "400px", display: "flex", flexDirection: "column" }}>
+        <Card className="message-card" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
           <CardHeader className="" style={{ background: "#5F8190", flexShrink: 0 }}>
             <div className="user_info justify-content-center">
               <span className="text-white">
@@ -392,7 +392,7 @@ class CandidateMessages extends Component {
         {/* Add custom CSS */}
         <style jsx>{`
           .message-card {
-            height: 400px;
+            height: 100%;
             display: flex;
             flex-direction: column;
           }

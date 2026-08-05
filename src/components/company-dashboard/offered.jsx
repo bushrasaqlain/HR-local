@@ -193,19 +193,37 @@ class Offered extends Component {
     return (
       <>
         <Head><title>Offered Candidates</title></Head>
+        <style jsx>{`
+      .offered-table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .offered-table-wrap :global(table.table) {
+        min-width: 560px;
+      }
+      @media (max-width: 640px) {
+        .offered-table-wrap :global(table.table) {
+          min-width: 520px;
+        }
+        .offered-table-wrap :global(th),
+        .offered-table-wrap :global(td) {
+          white-space: nowrap;
+        }
+      }
+    `}</style>
         <div className="min-vh-100 p-3 p-md-4" style={{ background: "#e2f0f0" }}>
           <div style={{ maxWidth: 1200, margin: "0 auto" }}>
 
             <div className="bg-white rounded-3 shadow p-3 p-md-4 mb-3">
-  <label className="fw-semibold small mb-2 d-block">Select Job Position</label>
-  <div className="position-relative">
-    <input
-      type="text"
-      className="form-control"
-      placeholder="Search or select a job..."
-      value={this.state.jobSearch}
-      onChange={e => this.setState({ jobSearch: e.target.value, showJobDropdown: true })}
-      onFocus={() => this.setState({ showJobDropdown: true, isTyping: false })}
+              <label className="fw-semibold small mb-2 d-block">Select Job Position</label>
+              <div className="position-relative">
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Search or select a job..."
+                  value={this.state.jobSearch}
+                  onChange={e => this.setState({ jobSearch: e.target.value, showJobDropdown: true })}
+                  onFocus={() => this.setState({ showJobDropdown: true, isTyping: false })}
 
                   onChange={e => this.setState({
                     jobSearch: e.target.value,
@@ -220,90 +238,90 @@ class Offered extends Component {
                       jobSearch: selectedJob ? selectedJob.job_title : ""
                     });
                   }, 150)}
-      onBlur={() => setTimeout(() => this.setState({ showJobDropdown: false }), 150)}
-      style={{
-        borderColor: "#36565f",
-        boxShadow: "none",
-        outline: "none",
-      }}
-    />
+                  onBlur={() => setTimeout(() => this.setState({ showJobDropdown: false }), 150)}
+                  style={{
+                    borderColor: "#36565f",
+                    boxShadow: "none",
+                    outline: "none",
+                  }}
+                />
 
-    {this.state.showJobDropdown && (
-      <div
-        className="position-absolute w-100 bg-white border rounded-3 shadow-sm"
-        style={{
-          top: "calc(100% + 4px)",
-          zIndex: 999,
-          maxHeight: 220,
-          overflowY: "auto",
-          borderColor: "#36565f",
-        }}
-      >
-        {/* Optional: "All" option */}
-        <div
-          className="px-3 py-2 small"
-          style={{ cursor: "pointer", color: "#36565f" }}
-          onMouseDown={() => {
-            this.setState({
-              selectedJobId: "",
-              jobSearch: "",
-              showJobDropdown: false,
-              showFilters: false,
-              splitViewActive: false,
-              mobileDetailView: false,
-              selectedCandidate: null,
-              selectedCandidateId: null,
-              budgetStatus: null,
-            });
-          }}
-        >
-          -- Choose a job to view candidates --
-        </div>
+                {this.state.showJobDropdown && (
+                  <div
+                    className="position-absolute w-100 bg-white border rounded-3 shadow-sm"
+                    style={{
+                      top: "calc(100% + 4px)",
+                      zIndex: 999,
+                      maxHeight: 220,
+                      overflowY: "auto",
+                      borderColor: "#36565f",
+                    }}
+                  >
+                    {/* Optional: "All" option */}
+                    <div
+                      className="px-3 py-2 small"
+                      style={{ cursor: "pointer", color: "#36565f" }}
+                      onMouseDown={() => {
+                        this.setState({
+                          selectedJobId: "",
+                          jobSearch: "",
+                          showJobDropdown: false,
+                          showFilters: false,
+                          splitViewActive: false,
+                          mobileDetailView: false,
+                          selectedCandidate: null,
+                          selectedCandidateId: null,
+                          budgetStatus: null,
+                        });
+                      }}
+                    >
+                      -- Choose a job to view candidates --
+                    </div>
 
-         {this.state.postedJobs
+                    {this.state.postedJobs
                       .filter(j =>
                         !this.state.isTyping ||
                         j.job_title.toLowerCase().includes((this.state.jobSearch || "").toLowerCase())
                       )
                       .map(j => (
-            <div
-              key={j.id}
-              className="px-3 py-2 small"
-              style={{
-                cursor: "pointer",
-                background: this.state.selectedJobId === j.id ? "#e8f0f1" : "",
-                color: "#2d3748",
-                fontWeight: this.state.selectedJobId === j.id ? 600 : 400,
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = "#e8f0f1")}
-              onMouseLeave={e => (e.currentTarget.style.background = this.state.selectedJobId === j.id ? "#e8f0f1" : "")}
-              onMouseDown={() => {
-                this.setState({
-                  selectedJobId: j.id,
-                  jobSearch: j.job_title,
-                  showJobDropdown: false,
-                  showFilters: true,
-                  splitViewActive: false,
-                  mobileDetailView: false,
-                  selectedCandidate: null,
-                  selectedCandidateId: null,
-                  budgetStatus: null,
-                }, () => this.fetchAllCandidates());
-              }}
-            >
-              {j.job_title}
-            </div>
-          ))}
+                        <div
+                          key={j.id}
+                          className="px-3 py-2 small"
+                          style={{
+                            cursor: "pointer",
+                            background: this.state.selectedJobId === j.id ? "#e8f0f1" : "",
+                            color: "#2d3748",
+                            fontWeight: this.state.selectedJobId === j.id ? 600 : 400,
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#e8f0f1")}
+                          onMouseLeave={e => (e.currentTarget.style.background = this.state.selectedJobId === j.id ? "#e8f0f1" : "")}
+                          onMouseDown={() => {
+                            this.setState({
+                              selectedJobId: j.id,
+                              jobSearch: j.job_title,
+                              showJobDropdown: false,
+                              showFilters: true,
+                              splitViewActive: false,
+                              mobileDetailView: false,
+                              selectedCandidate: null,
+                              selectedCandidateId: null,
+                              budgetStatus: null,
+                            }, () => this.fetchAllCandidates());
+                          }}
+                        >
+                          {j.job_title}
+                        </div>
+                      ))}
 
-        {this.state.postedJobs.filter(j =>
-          j.job_title.toLowerCase().includes((this.state.jobSearch || "").toLowerCase())
-        ).length === 0 && (
-          <div className="px-3 py-2 small text-muted">No jobs found</div>
-        )}
-      </div>
-    )}
-  </div>
-</div>
+                    {this.state.postedJobs.filter(j =>
+                      j.job_title.toLowerCase().includes((this.state.jobSearch || "").toLowerCase())
+                    ).length === 0 && (
+                        <div className="px-3 py-2 small text-muted">No jobs found</div>
+                      )}
+                  </div>
+                )}
+              </div>
+            </div>
 
             {this.state.showFilters && (
               <>
@@ -358,7 +376,7 @@ class Offered extends Component {
                       </div>
                     ) : (
                       <>
-                        <div className="table-responsive">
+                        <div className="table-responsive offered-table-wrap">
                           <table className="table align-middle mb-0">
                             <thead>
                               <tr style={{ background: BRAND }}>
@@ -400,19 +418,19 @@ class Offered extends Component {
                                         )}
                                       </div>
                                     </td>
-                                   <td className="text-center">
-  <div className="d-flex gap-1 justify-content-center">
-    {c.candidate_response === "Accepted" && (
-      <button
-        className="btn btn-sm rounded-circle text-white"
-        style={{ background: BRAND, width: 34, height: 34 }}
-        onClick={e => { e.stopPropagation(); this.openCandidateMessage(c); }}
-      >
-        <FaEnvelope size={14} />
-      </button>
-    )}
-  </div>
-</td>
+                                    <td className="text-center">
+                                      <div className="d-flex gap-1 justify-content-center">
+                                        {c.candidate_response === "Accepted" && (
+                                          <button
+                                            className="btn btn-sm rounded-circle text-white"
+                                            style={{ background: BRAND, width: 34, height: 34 }}
+                                            onClick={e => { e.stopPropagation(); this.openCandidateMessage(c); }}
+                                          >
+                                            <FaEnvelope size={14} />
+                                          </button>
+                                        )}
+                                      </div>
+                                    </td>
                                   </>}
                                 </tr>
                               ))}

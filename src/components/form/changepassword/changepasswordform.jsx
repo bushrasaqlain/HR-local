@@ -72,6 +72,15 @@ const ChangePasswordForm = () => {
 
   return (
     <div className="change-password-wrapper">
+      <style jsx global>{`
+        .form-control:focus {
+          border-color: #36565f !important;
+          box-shadow: 0 0 0 0.2rem rgba(54, 86, 95, 0.25) !important;
+        }
+        .input-group:focus-within .input-group-text {
+          border-color: #36565f !important;
+        }
+      `}</style>
       <Container fluid>
         <Row className="full-height">
 
@@ -79,7 +88,7 @@ const ChangePasswordForm = () => {
           <Col md={6} className="left-side d-none d-md-flex">
             <div className="image-box">
               <img
-                src="/images/reset1.jpg" 
+                src="/images/reset1.jpg"
                 alt="change password"
               />
             </div>
