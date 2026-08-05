@@ -154,7 +154,12 @@ const EMPTY_FORM = {
   // featured_boost
   boost_type: "top",
   boost_duration_days: "7",
-  boost_compatible: ["job_slot", "duration_bundle", "per_apply", "daily_budget"],
+  boost_compatible: [
+    "job_slot",
+    "duration_bundle",
+    "per_apply",
+    "daily_budget",
+  ],
 };
 
 class Packages extends Component {
@@ -194,7 +199,18 @@ class Packages extends Component {
 
   componentDidMount() {
     this.fetchPackages();
+    document.addEventListener("wheel", this.handleWheelBlur, { passive: true });
   }
+
+  componentWillUnmount() {
+    document.removeEventListener("wheel", this.handleWheelBlur);
+  }
+
+  handleWheelBlur = () => {
+    if (document.activeElement && document.activeElement.type === "number") {
+      document.activeElement.blur();
+    }
+  };
 
   componentDidUpdate(prevProps, prevState) {
     if (
@@ -242,7 +258,12 @@ class Packages extends Component {
   loadCurrencies = async (inputValue) => {
     try {
       const res = await axios.get(`${this.apiBaseUrl}getallcurrencies`, {
-        params: { search: inputValue || "", page: 1, limit: 15, status: "Active" },
+        params: {
+          search: inputValue || "",
+          page: 1,
+          limit: 15,
+          status: "Active",
+        },
       });
       return res.data.currencies.map((c) => ({ label: c.code, value: c.id }));
     } catch (err) {
@@ -262,7 +283,8 @@ class Packages extends Component {
   };
 
   formatLimit = (value) => {
-    if (value === null || value === undefined || value === "") return "Unlimited";
+    if (value === null || value === undefined || value === "")
+      return "Unlimited";
     return value;
   };
 
@@ -333,7 +355,10 @@ class Packages extends Component {
           is_featured: row["Is Featured"] === "Yes" ? 1 : 0,
           description: row["Description"] || null,
         }));
-        await api.post(`${this.apiBaseUrl}packages/`, { type: "csv", data: formatted });
+        await api.post(`${this.apiBaseUrl}packages/`, {
+          type: "csv",
+          data: formatted,
+        });
         this.setState({ successMessage: "Packages imported successfully" });
         setTimeout(() => this.setState({ successMessage: "" }), 3000);
         this.fetchPackages(1);
@@ -369,28 +394,41 @@ class Packages extends Component {
 
   handleSearch = async (e) => {
     const { name, value } = e.target;
-    ["price", "pricing_model", "status", "created_at", "updated_at"].forEach((input) => {
-      if (input !== name) {
-        const ele = document.getElementById(input);
-        if (ele) ele.value = "";
-      }
-    });
+    ["price", "pricing_model", "status", "created_at", "updated_at"].forEach(
+      (input) => {
+        if (input !== name) {
+          const ele = document.getElementById(input);
+          if (ele) ele.value = "";
+        }
+      },
+    );
     this.setState({ currentPage: 1 });
     try {
       const res = await axios.get(`${this.apiBaseUrl}packages/getallpackages`, {
-        params: { name, search: value, status: this.state.isActive, page: 1, limit: this.itemsPerPage },
+        params: {
+          name,
+          search: value,
+          status: this.state.isActive,
+          page: 1,
+          limit: this.itemsPerPage,
+        },
       });
-      this.setState({ packages: res.data.packages || [], totalPackages: res.data.total || 0 });
+      this.setState({
+        packages: res.data.packages || [],
+        totalPackages: res.data.total || 0,
+      });
     } catch (error) {
       console.error("Error searching packages:", error);
     }
   };
 
   resetSearch = () => {
-    ["price", "pricing_model", "status", "created_at", "updated_at"].forEach((id) => {
-      const ele = document.getElementById(id);
-      if (ele) ele.value = "";
-    });
+    ["price", "pricing_model", "status", "created_at", "updated_at"].forEach(
+      (id) => {
+        const ele = document.getElementById(id);
+        if (ele) ele.value = "";
+      },
+    );
   };
 
   handlePageChange = (page) => this.setState({ currentPage: page });
@@ -400,24 +438,30 @@ class Packages extends Component {
     const { FormData, selectedCurrency } = this.state;
     let errors = {};
 
-    if (!FormData.package_type) errors.package_type = "Package type is required";
-    if (!FormData.pricing_model) errors.pricing_model = "Pricing model is required";
+    if (!FormData.package_type)
+      errors.package_type = "Package type is required";
+    if (!FormData.pricing_model)
+      errors.pricing_model = "Pricing model is required";
     if (!selectedCurrency) errors.currency = "Currency is required";
 
     const pm = FormData.pricing_model;
 
     if (pm === "daily_budget") {
-      if (!FormData.daily_budget_cap) errors.daily_budget_cap = "Daily budget cap is required";
-      if (!FormData.rate_per_unit) errors.rate_per_unit = "Rate per unit is required";
+      if (!FormData.daily_budget_cap)
+        errors.daily_budget_cap = "Daily budget cap is required";
+      if (!FormData.rate_per_unit)
+        errors.rate_per_unit = "Rate per unit is required";
     }
 
     if (pm === "per_apply") {
-      if (!FormData.cost_per_apply) errors.cost_per_apply = "Cost per apply is required";
+      if (!FormData.cost_per_apply)
+        errors.cost_per_apply = "Cost per apply is required";
     }
 
     if (pm === "job_slot") {
       if (!FormData.slot_count) errors.slot_count = "Slot count is required";
-      if (!FormData.price_per_slot) errors.price_per_slot = "Price per slot is required";
+      if (!FormData.price_per_slot)
+        errors.price_per_slot = "Price per slot is required";
     }
 
     if (pm === "duration_bundle") {
@@ -429,7 +473,8 @@ class Packages extends Component {
     }
 
     if (pm === "cv_credits") {
-      if (!FormData.credit_count) errors.credit_count = "Credit count is required";
+      if (!FormData.credit_count)
+        errors.credit_count = "Credit count is required";
       if (!FormData.price) errors.price = "Pack price is required";
     }
 
@@ -547,7 +592,9 @@ class Packages extends Component {
         price: Number(FormData.cost_per_apply),
         cost_per_apply: Number(FormData.cost_per_apply),
         max_applies: FormData.max_applies ? Number(FormData.max_applies) : null,
-        budget_ceiling: FormData.budget_ceiling ? Number(FormData.budget_ceiling) : null,
+        budget_ceiling: FormData.budget_ceiling
+          ? Number(FormData.budget_ceiling)
+          : null,
         qualification_filter: FormData.qualification_filter,
       };
     }
@@ -597,9 +644,13 @@ class Packages extends Component {
           ? Number(FormData.credit_expiry_days)
           : null,
         unlock_scope: FormData.unlock_scope,
-        tier2_credits: FormData.tier2_credits ? Number(FormData.tier2_credits) : null,
+        tier2_credits: FormData.tier2_credits
+          ? Number(FormData.tier2_credits)
+          : null,
         tier2_price: FormData.tier2_price ? Number(FormData.tier2_price) : null,
-        tier3_credits: FormData.tier3_credits ? Number(FormData.tier3_credits) : null,
+        tier3_credits: FormData.tier3_credits
+          ? Number(FormData.tier3_credits)
+          : null,
         tier3_price: FormData.tier3_price ? Number(FormData.tier3_price) : null,
       };
     }
@@ -634,7 +685,9 @@ class Packages extends Component {
         FormData: { ...EMPTY_FORM },
         selectedCurrency: null,
         errors: {},
-        successMessage: editId ? "Package updated successfully!" : "Package added successfully!",
+        successMessage: editId
+          ? "Package updated successfully!"
+          : "Package added successfully!",
       });
       setTimeout(() => this.setState({ successMessage: "" }), 3000);
     } catch (error) {
@@ -645,7 +698,11 @@ class Packages extends Component {
 
   // ─── Delete ────────────────────────────────────────────────────────────────
   confirmDelete = (id, status) =>
-    this.setState({ deleteId: id, deleteStatus: status, showDeleteConfirm: true });
+    this.setState({
+      deleteId: id,
+      deleteStatus: status,
+      showDeleteConfirm: true,
+    });
 
   handleDelete = async () => {
     const { deleteId, deleteStatus } = this.state;
@@ -655,18 +712,24 @@ class Packages extends Component {
         {
           showDeleteConfirm: false,
           successMessage:
-            deleteStatus === "Active" ? "Inactivated successfully" : "Activated successfully",
+            deleteStatus === "Active"
+              ? "Inactivated successfully"
+              : "Activated successfully",
         },
         this.fetchPackages,
       );
       setTimeout(() => this.setState({ successMessage: "" }), 3000);
     } catch (error) {
-      this.setState({ showDeleteConfirm: false, errorMessage: "Failed to update status" });
+      this.setState({
+        showDeleteConfirm: false,
+        errorMessage: "Failed to update status",
+      });
       setTimeout(() => this.setState({ errorMessage: "" }), 3000);
     }
   };
 
-  cancelDelete = () => this.setState({ showDeleteConfirm: false, deleteId: null });
+  cancelDelete = () =>
+    this.setState({ showDeleteConfirm: false, deleteId: null });
 
   // ─── Render helpers ────────────────────────────────────────────────────────
   renderModelBadge = (pricingModel) => {
@@ -792,7 +855,8 @@ class Packages extends Component {
     return (
       <>
         <div className="model-form-divider">
-          <i className="bi bi-calendar2-day me-2" />Campaign settings
+          <i className="bi bi-calendar2-day me-2" />
+          Campaign settings
         </div>
         <Row>
           <Col md={6}>
@@ -809,14 +873,18 @@ class Packages extends Component {
                 placeholder="e.g. 500"
               />
               {errors.daily_budget_cap && (
-                <div className="text-danger small mt-1">{errors.daily_budget_cap}</div>
+                <div className="text-danger small mt-1">
+                  {errors.daily_budget_cap}
+                </div>
               )}
               <small className="text-muted">Max spend per calendar day</small>
             </div>
           </Col>
           <Col md={6}>
             <div className="mb-3">
-              <label className="form-label fw-semibold">Min. daily budget</label>
+              <label className="form-label fw-semibold">
+                Min. daily budget
+              </label>
               <input
                 type="number"
                 name="min_daily_budget"
@@ -839,7 +907,7 @@ class Packages extends Component {
                   { value: "ppv", label: "PPV — Per Profile View" },
                   { value: "pps", label: "PPS — Per Shortlist" },
                 ],
-                "billingModelDropdownOpen"
+                "billingModelDropdownOpen",
               )}
             </div>
           </Col>
@@ -857,14 +925,20 @@ class Packages extends Component {
                 placeholder="e.g. 15"
               />
               {errors.rate_per_unit && (
-                <div className="text-danger small mt-1">{errors.rate_per_unit}</div>
+                <div className="text-danger small mt-1">
+                  {errors.rate_per_unit}
+                </div>
               )}
-              <small className="text-muted">Cost per click / 1k impressions / apply</small>
+              <small className="text-muted">
+                Cost per click / 1k impressions / apply
+              </small>
             </div>
           </Col>
           <Col md={6}>
             <div className="mb-3">
-              <label className="form-label fw-semibold">Campaign duration (days)</label>
+              <label className="form-label fw-semibold">
+                Campaign duration (days)
+              </label>
               <input
                 type="number"
                 name="campaign_duration_days"
@@ -877,7 +951,8 @@ class Packages extends Component {
           </Col>
         </Row>
         <div className="model-form-divider">
-          <i className="bi bi-rocket-takeoff me-2" />Boost add-ons
+          <i className="bi bi-rocket-takeoff me-2" />
+          Boost add-ons
         </div>
         <div className="form-check mb-2">
           <input
@@ -889,7 +964,8 @@ class Packages extends Component {
             className="form-check-input"
           />
           <label htmlFor="sponsor_to_top" className="form-check-label">
-            Sponsored to top of results <span className="text-muted">(+20% surcharge)</span>
+            Sponsored to top of results{" "}
+            <span className="text-muted">(+20% surcharge)</span>
           </label>
         </div>
         <div className="form-check mb-3">
@@ -902,7 +978,8 @@ class Packages extends Component {
             className="form-check-input"
           />
           <label htmlFor="email_blast" className="form-check-label">
-            Candidate email blast <span className="text-muted">(one-time add-on)</span>
+            Candidate email blast{" "}
+            <span className="text-muted">(one-time add-on)</span>
           </label>
         </div>
       </>
@@ -914,7 +991,8 @@ class Packages extends Component {
     return (
       <>
         <div className="model-form-divider">
-          <i className="bi bi-hand-index-thumb me-2" />Application pricing
+          <i className="bi bi-hand-index-thumb me-2" />
+          Application pricing
         </div>
         <Row>
           <Col md={6}>
@@ -931,13 +1009,17 @@ class Packages extends Component {
                 placeholder="e.g. 250"
               />
               {errors.cost_per_apply && (
-                <div className="text-danger small mt-1">{errors.cost_per_apply}</div>
+                <div className="text-danger small mt-1">
+                  {errors.cost_per_apply}
+                </div>
               )}
             </div>
           </Col>
           <Col md={6}>
             <div className="mb-3">
-              <label className="form-label fw-semibold">Max applications cap</label>
+              <label className="form-label fw-semibold">
+                Max applications cap
+              </label>
               <input
                 type="number"
                 name="max_applies"
@@ -946,12 +1028,16 @@ class Packages extends Component {
                 className="form-control"
                 placeholder="Leave blank = unlimited"
               />
-              <small className="text-muted">Stop charging after N applies</small>
+              <small className="text-muted">
+                Stop charging after N applies
+              </small>
             </div>
           </Col>
           <Col md={6}>
             <div className="mb-3">
-              <label className="form-label fw-semibold">Total budget ceiling</label>
+              <label className="form-label fw-semibold">
+                Total budget ceiling
+              </label>
               <input
                 type="number"
                 name="budget_ceiling"
@@ -960,12 +1046,16 @@ class Packages extends Component {
                 className="form-control"
                 placeholder="e.g. 10,000"
               />
-              <small className="text-muted">Total spend limit for this job</small>
+              <small className="text-muted">
+                Total spend limit for this job
+              </small>
             </div>
           </Col>
           <Col md={6}>
             <div className="mb-3">
-              <label className="form-label fw-semibold">Qualification filter</label>
+              <label className="form-label fw-semibold">
+                Qualification filter
+              </label>
               {this.renderCustomSelect(
                 "qualification_filter",
                 FormData.qualification_filter,
@@ -974,9 +1064,11 @@ class Packages extends Component {
                   { value: "screened", label: "Passed screening questions" },
                   { value: "viewed", label: "Employer opened profile" },
                 ],
-                "qualificationFilterDropdownOpen"
+                "qualificationFilterDropdownOpen",
               )}
-              <small className="text-muted">Only charge when applicant meets this bar</small>
+              <small className="text-muted">
+                Only charge when applicant meets this bar
+              </small>
             </div>
           </Col>
         </Row>
@@ -989,7 +1081,8 @@ class Packages extends Component {
     return (
       <>
         <div className="model-form-divider">
-          <i className="bi bi-grid-1x2 me-2" />Slot subscription settings
+          <i className="bi bi-grid-1x2 me-2" />
+          Slot subscription settings
         </div>
         <Row>
           <Col md={6}>
@@ -1007,9 +1100,13 @@ class Packages extends Component {
                 min="1"
               />
               {errors.slot_count && (
-                <div className="text-danger small mt-1">{errors.slot_count}</div>
+                <div className="text-danger small mt-1">
+                  {errors.slot_count}
+                </div>
               )}
-              <small className="text-muted">Simultaneous live jobs employer can run</small>
+              <small className="text-muted">
+                Simultaneous live jobs employer can run
+              </small>
             </div>
           </Col>
           <Col md={6}>
@@ -1023,7 +1120,7 @@ class Packages extends Component {
                   { value: "quarterly", label: "Quarterly" },
                   { value: "annual", label: "Annual" },
                 ],
-                "billingCycleDropdownOpen"
+                "billingCycleDropdownOpen",
               )}
             </div>
           </Col>
@@ -1041,13 +1138,17 @@ class Packages extends Component {
                 placeholder="e.g. 8,000"
               />
               {errors.price_per_slot && (
-                <div className="text-danger small mt-1">{errors.price_per_slot}</div>
+                <div className="text-danger small mt-1">
+                  {errors.price_per_slot}
+                </div>
               )}
             </div>
           </Col>
           <Col md={6}>
             <div className="mb-3">
-              <label className="form-label fw-semibold">Free CV views per slot / month</label>
+              <label className="form-label fw-semibold">
+                Free CV views per slot / month
+              </label>
               <input
                 type="number"
                 name="free_views_per_slot"
@@ -1060,7 +1161,9 @@ class Packages extends Component {
           </Col>
           <Col md={6}>
             <div className="mb-3">
-              <label className="form-label fw-semibold">Extra view charge</label>
+              <label className="form-label fw-semibold">
+                Extra view charge
+              </label>
               <input
                 type="number"
                 name="extra_view_charge"
@@ -1098,7 +1201,8 @@ class Packages extends Component {
       return (
         <>
           <div className="model-form-divider">
-            <i className="bi bi-calendar-range me-2" />Boost duration
+            <i className="bi bi-calendar-range me-2" />
+            Boost duration
           </div>
           <Row>
             <Col md={6}>
@@ -1117,9 +1221,12 @@ class Packages extends Component {
                     { value: "90", label: "90 days" },
                     { value: "custom", label: "Custom…" },
                   ],
-                  "durationDaysDropdownOpen"
+                  "durationDaysDropdownOpen",
                 )}
-                <small className="text-muted">Your profile will remain featured for the selected number of days</small>
+                <small className="text-muted">
+                  Your profile will remain featured for the selected number of
+                  days
+                </small>
               </div>
             </Col>
 
@@ -1138,7 +1245,9 @@ class Packages extends Component {
                     placeholder="e.g. 45"
                   />
                   {errors.custom_duration_days && (
-                    <div className="text-danger small mt-1">{errors.custom_duration_days}</div>
+                    <div className="text-danger small mt-1">
+                      {errors.custom_duration_days}
+                    </div>
                   )}
                 </div>
               </Col>
@@ -1153,7 +1262,8 @@ class Packages extends Component {
                 ? FormData.custom_duration_days || "?"
                 : FormData.duration_days}{" "}
               days
-            </strong>.
+            </strong>
+            .
           </div>
         </>
       );
@@ -1161,7 +1271,8 @@ class Packages extends Component {
     return (
       <>
         <div className="model-form-divider">
-          <i className="bi bi-calendar-range me-2" />Bundle configuration
+          <i className="bi bi-calendar-range me-2" />
+          Bundle configuration
         </div>
         <Row>
           <Col md={6}>
@@ -1178,7 +1289,7 @@ class Packages extends Component {
                   { value: "90", label: "90 days" },
                   { value: "custom", label: "Custom…" },
                 ],
-                "durationDaysDropdownOpen"
+                "durationDaysDropdownOpen",
               )}
             </div>
           </Col>
@@ -1197,7 +1308,9 @@ class Packages extends Component {
                   placeholder="e.g. 45"
                 />
                 {errors.custom_duration_days && (
-                  <div className="text-danger small mt-1">{errors.custom_duration_days}</div>
+                  <div className="text-danger small mt-1">
+                    {errors.custom_duration_days}
+                  </div>
                 )}
               </div>
             </Col>
@@ -1222,7 +1335,9 @@ class Packages extends Component {
           </Col>
           <Col md={6}>
             <div className="mb-3">
-              <label className="form-label fw-semibold">Bundle validity (days)</label>
+              <label className="form-label fw-semibold">
+                Bundle validity (days)
+              </label>
               <input
                 type="number"
                 name="bundle_validity_days"
@@ -1231,30 +1346,54 @@ class Packages extends Component {
                 className="form-control"
                 placeholder="e.g. 90"
               />
-              <small className="text-muted">After purchase, posts must be activated within this window</small>
+              <small className="text-muted">
+                After purchase, posts must be activated within this window
+              </small>
             </div>
           </Col>
         </Row>
         <div className="model-form-divider">
-          <i className="bi bi-gift me-2" />Inclusions
+          <i className="bi bi-gift me-2" />
+          Inclusions
         </div>
         <div className="form-check mb-2">
-          <input type="checkbox" name="include_views" id="include_views"
-            checked={FormData.include_views} onChange={this.handleInputChange}
-            className="form-check-input" />
-          <label htmlFor="include_views" className="form-check-label">Include free candidate views</label>
+          <input
+            type="checkbox"
+            name="include_views"
+            id="include_views"
+            checked={FormData.include_views}
+            onChange={this.handleInputChange}
+            className="form-check-input"
+          />
+          <label htmlFor="include_views" className="form-check-label">
+            Include free candidate views
+          </label>
         </div>
         <div className="form-check mb-2">
-          <input type="checkbox" name="include_featured_slot" id="include_featured_slot"
-            checked={FormData.include_featured_slot} onChange={this.handleInputChange}
-            className="form-check-input" />
-          <label htmlFor="include_featured_slot" className="form-check-label">1 featured slot included</label>
+          <input
+            type="checkbox"
+            name="include_featured_slot"
+            id="include_featured_slot"
+            checked={FormData.include_featured_slot}
+            onChange={this.handleInputChange}
+            className="form-check-input"
+          />
+          <label htmlFor="include_featured_slot" className="form-check-label">
+            1 featured slot included
+          </label>
         </div>
         <div className="form-check mb-3">
-          <input type="checkbox" name="include_analytics" id="include_analytics"
-            checked={FormData.include_analytics} onChange={this.handleInputChange}
-            className="form-check-input" />
-          <label htmlFor="include_analytics" className="form-check-label">Analytics dashboard access</label>
+          <input
+            type="checkbox"
+            name="include_analytics"
+            id="include_analytics"
+            checked={FormData.include_analytics}
+            onChange={this.handleInputChange}
+            className="form-check-input"
+          />
+          <label htmlFor="include_analytics" className="form-check-label">
+            Analytics dashboard access
+          </label>
         </div>
       </>
     );
@@ -1265,7 +1404,8 @@ class Packages extends Component {
     return (
       <>
         <div className="model-form-divider">
-          <i className="bi bi-person-vcard me-2" />Credit pack
+          <i className="bi bi-person-vcard me-2" />
+          Credit pack
         </div>
         <Row>
           <Col md={6}>
@@ -1282,14 +1422,20 @@ class Packages extends Component {
                 placeholder="e.g. 50"
               />
               {errors.credit_count && (
-                <div className="text-danger small mt-1">{errors.credit_count}</div>
+                <div className="text-danger small mt-1">
+                  {errors.credit_count}
+                </div>
               )}
-              <small className="text-muted">Each credit = 1 candidate profile unlock</small>
+              <small className="text-muted">
+                Each credit = 1 candidate profile unlock
+              </small>
             </div>
           </Col>
           <Col md={6}>
             <div className="mb-3">
-              <label className="form-label fw-semibold">Credit expiry (days)</label>
+              <label className="form-label fw-semibold">
+                Credit expiry (days)
+              </label>
               <input
                 type="number"
                 name="credit_expiry_days"
@@ -1311,41 +1457,66 @@ class Packages extends Component {
                   { value: "contact", label: "Contact details" },
                   { value: "full", label: "Full CV + contact" },
                 ],
-                "unlockScopeDropdownOpen"
+                "unlockScopeDropdownOpen",
               )}
             </div>
           </Col>
         </Row>
         <div className="model-form-divider">
-          <i className="bi bi-layers me-2" />Volume tiers (optional)
+          <i className="bi bi-layers me-2" />
+          Volume tiers (optional)
         </div>
         <Row>
           <Col md={6}>
             <div className="mb-3">
               <label className="form-label fw-semibold">Tier 2 — credits</label>
-              <input type="number" name="tier2_credits" value={FormData.tier2_credits}
-                onChange={this.handleInputChange} className="form-control" placeholder="e.g. 200" />
+              <input
+                type="number"
+                name="tier2_credits"
+                value={FormData.tier2_credits}
+                onChange={this.handleInputChange}
+                className="form-control"
+                placeholder="e.g. 200"
+              />
             </div>
           </Col>
           <Col md={6}>
             <div className="mb-3">
               <label className="form-label fw-semibold">Tier 2 — price</label>
-              <input type="number" name="tier2_price" value={FormData.tier2_price}
-                onChange={this.handleInputChange} className="form-control" placeholder="e.g. 17,000" />
+              <input
+                type="number"
+                name="tier2_price"
+                value={FormData.tier2_price}
+                onChange={this.handleInputChange}
+                className="form-control"
+                placeholder="e.g. 17,000"
+              />
             </div>
           </Col>
           <Col md={6}>
             <div className="mb-3">
               <label className="form-label fw-semibold">Tier 3 — credits</label>
-              <input type="number" name="tier3_credits" value={FormData.tier3_credits}
-                onChange={this.handleInputChange} className="form-control" placeholder="e.g. 500" />
+              <input
+                type="number"
+                name="tier3_credits"
+                value={FormData.tier3_credits}
+                onChange={this.handleInputChange}
+                className="form-control"
+                placeholder="e.g. 500"
+              />
             </div>
           </Col>
           <Col md={6}>
             <div className="mb-3">
               <label className="form-label fw-semibold">Tier 3 — price</label>
-              <input type="number" name="tier3_price" value={FormData.tier3_price}
-                onChange={this.handleInputChange} className="form-control" placeholder="e.g. 37,500" />
+              <input
+                type="number"
+                name="tier3_price"
+                value={FormData.tier3_price}
+                onChange={this.handleInputChange}
+                className="form-control"
+                placeholder="e.g. 37,500"
+              />
             </div>
           </Col>
         </Row>
@@ -1360,7 +1531,8 @@ class Packages extends Component {
     return (
       <>
         <div className="model-form-divider">
-          <i className="bi bi-lightning-charge me-2" />Boost configuration
+          <i className="bi bi-lightning-charge me-2" />
+          Boost configuration
         </div>
         <Row>
           <Col md={6}>
@@ -1371,17 +1543,23 @@ class Packages extends Component {
                 FormData.boost_type,
                 isCandidate
                   ? [
-                    { value: "profile_top", label: "Top of search results" },
-                    { value: "highlighted_profile", label: "Highlighted profile" },
-                    { value: "recruiter_spotlight", label: "Recruiter spotlight" },
-                  ]
+                      { value: "profile_top", label: "Top of search results" },
+                      {
+                        value: "highlighted_profile",
+                        label: "Highlighted profile",
+                      },
+                      {
+                        value: "recruiter_spotlight",
+                        label: "Recruiter spotlight",
+                      },
+                    ]
                   : [
-                    { value: "top", label: "Top of search results" },
-                    { value: "highlighted", label: "Highlighted listing" },
-                    { value: "homepage", label: "Homepage spotlight" },
-                    { value: "email", label: "Candidate email blast" },
-                  ],
-                "boostTypeDropdownOpen"
+                      { value: "top", label: "Top of search results" },
+                      { value: "highlighted", label: "Highlighted listing" },
+                      { value: "homepage", label: "Homepage spotlight" },
+                      { value: "email", label: "Candidate email blast" },
+                    ],
+                "boostTypeDropdownOpen",
               )}
             </div>
           </Col>
@@ -1398,16 +1576,17 @@ class Packages extends Component {
                   { value: "14", label: "14 days" },
                   { value: "30", label: "30 days" },
                 ],
-                "boostDurationDropdownOpen"
+                "boostDurationDropdownOpen",
               )}
             </div>
           </Col>
         </Row>
         <div className="alert alert-info" style={{ fontSize: "0.85rem" }}>
           <i className="bi bi-info-circle me-2" />
-          Featured Boost is an <strong>add-on</strong>. It gets linked to a base package
-          at checkout — store it in a separate <code>package_addons</code> table and
-          reference it via <code>base_package_id</code>.
+          Featured Boost is an <strong>add-on</strong>. It gets linked to a base
+          package at checkout — store it in a separate{" "}
+          <code>package_addons</code> table and reference it via{" "}
+          <code>base_package_id</code>.
         </div>
       </>
     );
@@ -1416,14 +1595,14 @@ class Packages extends Component {
   getFilteredModels = () => {
     const { FormData } = this.state;
     if (FormData.package_type === "Candidate") {
-      return PRICING_MODELS
-        .filter(m => m.value === "featured_boost")
-        .map(m => ({
+      return PRICING_MODELS.filter((m) => m.value === "featured_boost").map(
+        (m) => ({
           ...m,
           label: "Profile Spotlight",
           description: "Boost profile visibility",
           hint: "Get noticed by recruiters — appear at the top of search results",
-        }));
+        }),
+      );
     }
     return PRICING_MODELS;
   };
@@ -1431,22 +1610,39 @@ class Packages extends Component {
   renderModelFields = () => {
     const { FormData } = this.state;
     switch (FormData.pricing_model) {
-      case "daily_budget": return this.renderDailyBudgetFields();
-      case "per_apply": return this.renderPerApplyFields();
-      case "job_slot": return this.renderJobSlotFields();
-      case "duration_bundle": return this.renderDurationBundleFields();
-      case "cv_credits": return this.renderCvCreditsFields();
-      case "featured_boost": return this.renderFeaturedBoostFields();
-      default: return null;
+      case "daily_budget":
+        return this.renderDailyBudgetFields();
+      case "per_apply":
+        return this.renderPerApplyFields();
+      case "job_slot":
+        return this.renderJobSlotFields();
+      case "duration_bundle":
+        return this.renderDurationBundleFields();
+      case "cv_credits":
+        return this.renderCvCreditsFields();
+      case "featured_boost":
+        return this.renderFeaturedBoostFields();
+      default:
+        return null;
     }
   };
 
   // ─── Render ────────────────────────────────────────────────────────────────
   render() {
     const {
-      packages, showModal, showDeleteConfirm, currentPage, totalPackages,
-      deleteStatus, isActive, editId, successMessage, errorMessage,
-      errors, selectedCurrency, FormData,
+      packages,
+      showModal,
+      showDeleteConfirm,
+      currentPage,
+      totalPackages,
+      deleteStatus,
+      isActive,
+      editId,
+      successMessage,
+      errorMessage,
+      errors,
+      selectedCurrency,
+      FormData,
     } = this.state;
     const totalPages = Math.ceil(totalPackages / this.itemsPerPage);
     const selectedModelMeta = this.getPricingModelMeta(FormData.pricing_model);
@@ -1490,18 +1686,27 @@ class Packages extends Component {
           .selected-model-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 500; margin-bottom: 1rem; }
         `}</style>
 
-        <Helmet><title>Packages | List</title></Helmet>
+        <Helmet>
+          <title>Packages | List</title>
+        </Helmet>
         <h6 className="fw-bold mb-3">Packages List</h6>
 
         <div className="poppins-font">
           <Container fluid>
-
             {/* Top bar */}
             <div className="institute-header-section d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
               <div className="d-flex align-items-center gap-2">
-                <span className="filter-label text-dark">Filter by Status:</span>
+                <span className="filter-label text-dark">
+                  Filter by Status:
+                </span>
 
-                <div style={{ position: "relative", maxWidth: "200px", width: "100%" }}>
+                <div
+                  style={{
+                    position: "relative",
+                    maxWidth: "200px",
+                    width: "100%",
+                  }}
+                >
                   <button
                     type="button"
                     className="form-select rounded-square p-2 text-start"
@@ -1539,12 +1744,16 @@ class Packages extends Component {
                         <div
                           key={opt.value}
                           onClick={() =>
-                            this.setState({ isActive: opt.value, statusDropdownOpen: false })
+                            this.setState({
+                              isActive: opt.value,
+                              statusDropdownOpen: false,
+                            })
                           }
                           style={{
                             padding: "8px 12px",
                             cursor: "pointer",
-                            backgroundColor: isActive === opt.value ? "#36565F" : "#fff",
+                            backgroundColor:
+                              isActive === opt.value ? "#36565F" : "#fff",
                             color: isActive === opt.value ? "#fff" : "#000",
                           }}
                           onMouseEnter={(e) => {
@@ -1565,25 +1774,41 @@ class Packages extends Component {
               </div>
               <div className="d-flex align-items-end gap-2 flex-wrap">
                 <Button variant="dark" onClick={() => this.toggleForm()}>
-                  <i className="bi bi-plus-lg me-1" />Add Package
+                  <i className="bi bi-plus-lg me-1" />
+                  Add Package
                 </Button>
-                
               </div>
             </div>
 
             {/* Alerts */}
             {successMessage && (
-              <div className="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+              <div
+                className="alert alert-success alert-dismissible d-flex align-items-center gap-2"
+                role="alert"
+                style={{ borderRadius: "8px" }}
+              >
                 <i className="bi bi-check-circle-fill text-success" />
                 <span>{successMessage}</span>
-                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ successMessage: "" })} />
+                <button
+                  type="button"
+                  className="btn-close ms-auto"
+                  onClick={() => this.setState({ successMessage: "" })}
+                />
               </div>
             )}
             {errorMessage && (
-              <div className="alert alert-danger alert-dismissible d-flex align-items-center gap-2" role="alert" style={{ borderRadius: "8px" }}>
+              <div
+                className="alert alert-danger alert-dismissible d-flex align-items-center gap-2"
+                role="alert"
+                style={{ borderRadius: "8px" }}
+              >
                 <i className="bi bi-x-circle-fill" />
                 <span>{errorMessage}</span>
-                <button type="button" className="btn-close ms-auto" onClick={() => this.setState({ errorMessage: "" })} />
+                <button
+                  type="button"
+                  className="btn-close ms-auto"
+                  onClick={() => this.setState({ errorMessage: "" })}
+                />
               </div>
             )}
 
@@ -1598,40 +1823,97 @@ class Packages extends Component {
                           { label: "Name", id: "name", type: "text" },
                           { label: "Type", id: "package_type", type: "text" },
                         ].map(({ label, id, type }) => (
-                          <th key={id} className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
+                          <th
+                            key={id}
+                            className="text-center"
+                            style={{ borderBottom: "1px solid #ccc" }}
+                          >
                             <div className="d-flex flex-column align-items-center gap-1">
-                              <small className="text-dark fw-bold" style={{ fontSize: "1rem" }}>{label}</small>
+                              <small
+                                className="text-dark fw-bold"
+                                style={{ fontSize: "1rem" }}
+                              >
+                                {label}
+                              </small>
                               <input
-                                type={type} name={id} id={id}
+                                type={type}
+                                name={id}
+                                id={id}
                                 className="form-control rounded-4 text-center"
                                 placeholder="Search"
                                 onChange={this.handleSearch}
-                                style={{ maxWidth: "130px", borderColor: "#ccc" }}
+                                style={{
+                                  maxWidth: "130px",
+                                  borderColor: "#ccc",
+                                }}
                               />
                             </div>
                           </th>
                         ))}
-                        <th className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
-                          <small className="text-dark fw-bold" style={{ fontSize: "1rem" }}>Pricing Model</small>
+                        <th
+                          className="text-center"
+                          style={{ borderBottom: "1px solid #ccc" }}
+                        >
+                          <small
+                            className="text-dark fw-bold"
+                            style={{ fontSize: "1rem" }}
+                          >
+                            Pricing Model
+                          </small>
                         </th>
-                        <th className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
-                          <small className="text-dark fw-bold" style={{ fontSize: "1rem" }}>Price / Rate</small>
+                        <th
+                          className="text-center"
+                          style={{ borderBottom: "1px solid #ccc" }}
+                        >
+                          <small
+                            className="text-dark fw-bold"
+                            style={{ fontSize: "1rem" }}
+                          >
+                            Price / Rate
+                          </small>
                         </th>
-                        <th className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
-                          <small className="text-dark fw-bold" style={{ fontSize: "1rem" }}>Details</small>
+                        <th
+                          className="text-center"
+                          style={{ borderBottom: "1px solid #ccc" }}
+                        >
+                          <small
+                            className="text-dark fw-bold"
+                            style={{ fontSize: "1rem" }}
+                          >
+                            Details
+                          </small>
                         </th>
-                        <th className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
-                          <small className="text-dark fw-bold" style={{ fontSize: "1rem" }}>Featured</small>
+                        <th
+                          className="text-center"
+                          style={{ borderBottom: "1px solid #ccc" }}
+                        >
+                          <small
+                            className="text-dark fw-bold"
+                            style={{ fontSize: "1rem" }}
+                          >
+                            Featured
+                          </small>
                         </th>
                         {[
                           { label: "Created", id: "created_at" },
                           { label: "Updated", id: "updated_at" },
                         ].map(({ label, id }) => (
-                          <th key={id} className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
+                          <th
+                            key={id}
+                            className="text-center"
+                            style={{ borderBottom: "1px solid #ccc" }}
+                          >
                             <div className="d-flex flex-column align-items-center gap-1">
-                              <small className="text-dark fw-bold" style={{ fontSize: "1rem" }}>{label}</small>
+                              <small
+                                className="text-dark fw-bold"
+                                style={{ fontSize: "1rem" }}
+                              >
+                                {label}
+                              </small>
                               <input
-                                type="date" name={id} id={id}
+                                type="date"
+                                name={id}
+                                id={id}
                                 className="form-control rounded-4 text-center"
                                 onChange={this.handleSearch}
                                 style={{ borderColor: "#ccc" }}
@@ -1639,18 +1921,34 @@ class Packages extends Component {
                             </div>
                           </th>
                         ))}
-                        <th className="text-center" style={{ borderBottom: "1px solid #ccc" }}>
+                        <th
+                          className="text-center"
+                          style={{ borderBottom: "1px solid #ccc" }}
+                        >
                           <div className="d-flex flex-column align-items-center gap-1">
-                            <small className="text-dark fw-bold" style={{ fontSize: "1rem" }}>Status</small>
+                            <small
+                              className="text-dark fw-bold"
+                              style={{ fontSize: "1rem" }}
+                            >
+                              Status
+                            </small>
                             <input
-                              type="text" name="status" id="status"
+                              type="text"
+                              name="status"
+                              id="status"
                               className="form-control rounded-4 text-center"
                               onChange={this.handleSearch}
                               style={{ borderColor: "#ccc" }}
                             />
                           </div>
                         </th>
-                        <th className="text-center text-dark fw-bold" style={{ fontSize: "1rem", borderBottom: "1px solid #ccc" }}>
+                        <th
+                          className="text-center text-dark fw-bold"
+                          style={{
+                            fontSize: "1rem",
+                            borderBottom: "1px solid #ccc",
+                          }}
+                        >
                           Action
                         </th>
                       </tr>
@@ -1659,53 +1957,103 @@ class Packages extends Component {
                       {packages.map((item) => (
                         <tr
                           key={item.id}
-                          className={this.state.highlightId === item.id ? "highlight-row" : ""}
+                          className={
+                            this.state.highlightId === item.id
+                              ? "highlight-row"
+                              : ""
+                          }
                         >
                           <td className="text-center">{item.name}</td>
                           <td className="text-center">
                             <span
                               className={`badge text-white ${item.package_type !== "Company" ? "bg-success" : ""}`}
-                              style={item.package_type === "Company" ? { backgroundColor: "#4f7e8b" } : {}}
+                              style={
+                                item.package_type === "Company"
+                                  ? { backgroundColor: "#4f7e8b" }
+                                  : {}
+                              }
                             >
                               {item.package_type}
                             </span>
                           </td>
-                          <td className="text-center">{this.renderModelBadge(item.pricing_model)}</td>
+                          <td className="text-center">
+                            {this.renderModelBadge(item.pricing_model)}
+                          </td>
                           <td className="text-center">
                             <span className="badge bg-light text-dark border fw-semibold">
                               {this.renderPriceCell(item)}
                             </span>
                           </td>
                           <td className="text-center">
-                            <small className="text-muted">{this.renderModelSummaryCell(item)}</small>
+                            <small className="text-muted">
+                              {this.renderModelSummaryCell(item)}
+                            </small>
                           </td>
                           <td className="text-center">
                             {item.is_featured ? (
-                              <span className="badge" style={{ background: "#4f7e8b", color: "#fff" }}>Yes</span>
+                              <span
+                                className="badge"
+                                style={{ background: "#4f7e8b", color: "#fff" }}
+                              >
+                                Yes
+                              </span>
                             ) : (
-                              <span className="badge bg-light text-muted border">No</span>
+                              <span className="badge bg-light text-muted border">
+                                No
+                              </span>
                             )}
                           </td>
-                          <td className="text-center">{this.formatDate(item.created_at)}</td>
-                          <td className="text-center">{this.formatDate(item.updated_at)}</td>
                           <td className="text-center">
-                            <span className={`badge ${item.status === "Active" ? "badge-active-custom" : "badge-inactive-custom"}`}>
+                            {this.formatDate(item.created_at)}
+                          </td>
+                          <td className="text-center">
+                            {this.formatDate(item.updated_at)}
+                          </td>
+                          <td className="text-center">
+                            <span
+                              className={`badge ${item.status === "Active" ? "badge-active-custom" : "badge-inactive-custom"}`}
+                            >
                               {item.status}
                             </span>
                           </td>
                           <td className="status text-center">
                             <div className="d-flex justify-content-center align-items-center gap-3">
-                              <button onClick={() => this.toggleForm(item)} className="icon-btn" title="Update">
-                                <i className="bi bi-pencil-square" style={{ color: "#36565F" }} />
+                              <button
+                                onClick={() => this.toggleForm(item)}
+                                className="icon-btn"
+                                title="Update"
+                              >
+                                <i
+                                  className="bi bi-pencil-square"
+                                  style={{ color: "#36565F" }}
+                                />
                               </button>
-                              <button onClick={() => this.confirmDelete(item.id, item.status)} className="icon-btn"
-                                title={item.status === "Active" ? "Inactivate" : "Activate"}>
-                                {item.status === "Active"
-                                  ? <i className="bi bi-x-circle text-danger" />
-                                  : <i className="bi bi-check-circle text-success" />}
+                              <button
+                                onClick={() =>
+                                  this.confirmDelete(item.id, item.status)
+                                }
+                                className="icon-btn"
+                                title={
+                                  item.status === "Active"
+                                    ? "Inactivate"
+                                    : "Activate"
+                                }
+                              >
+                                {item.status === "Active" ? (
+                                  <i className="bi bi-x-circle text-danger" />
+                                ) : (
+                                  <i className="bi bi-check-circle text-success" />
+                                )}
                               </button>
-                              <button className="icon-btn" title="View History"
-                                onClick={() => this.props.router.push(`/history/package/${item.id}`)}>
+                              <button
+                                className="icon-btn"
+                                title="View History"
+                                onClick={() =>
+                                  this.props.router.push(
+                                    `/history/package/${item.id}`,
+                                  )
+                                }
+                              >
                                 <i className="bi bi-clock-history text-dark" />
                               </button>
                             </div>
@@ -1726,7 +2074,12 @@ class Packages extends Component {
           />
 
           {/* ── Add / Edit Modal ── */}
-          <Modal show={showModal} onHide={() => this.setState({ showModal: false })} centered size="lg">
+          <Modal
+            show={showModal}
+            onHide={() => this.setState({ showModal: false })}
+            centered
+            size="lg"
+          >
             <Modal.Header closeButton style={{ background: "#f8fafc" }}>
               <Modal.Title style={{ fontSize: "1.2rem", fontWeight: 600 }}>
                 {editId ? "Edit Package" : "Add New Package"}
@@ -1748,7 +2101,8 @@ class Packages extends Component {
                         style={{ cursor: "pointer" }}
                         onClick={() =>
                           this.setState((prev) => ({
-                            packageTypeDropdownOpen: !prev.packageTypeDropdownOpen,
+                            packageTypeDropdownOpen:
+                              !prev.packageTypeDropdownOpen,
                           }))
                         }
                       >
@@ -1776,14 +2130,24 @@ class Packages extends Component {
                           }}
                         >
                           {[
-                            { label: "Company — for posting jobs", value: "Company" },
-                            { label: "Candidate — for boosting profile", value: "Candidate" },
+                            {
+                              label: "Company — for posting jobs",
+                              value: "Company",
+                            },
+                            {
+                              label: "Candidate — for boosting profile",
+                              value: "Candidate",
+                            },
                           ].map((opt) => (
                             <div
                               key={opt.value}
                               onClick={() => {
                                 this.setState((prev) => ({
-                                  FormData: { ...prev.FormData, package_type: opt.value, pricing_model: "" },
+                                  FormData: {
+                                    ...prev.FormData,
+                                    package_type: opt.value,
+                                    pricing_model: "",
+                                  },
                                   errors: { ...prev.errors, package_type: "" },
                                   packageTypeDropdownOpen: false,
                                 }));
@@ -1792,16 +2156,23 @@ class Packages extends Component {
                                 padding: "8px 12px",
                                 cursor: "pointer",
                                 backgroundColor:
-                                  FormData.package_type === opt.value ? "#36565F" : "#fff",
-                                color: FormData.package_type === opt.value ? "#fff" : "#000",
+                                  FormData.package_type === opt.value
+                                    ? "#36565F"
+                                    : "#fff",
+                                color:
+                                  FormData.package_type === opt.value
+                                    ? "#fff"
+                                    : "#000",
                               }}
                               onMouseEnter={(e) => {
                                 if (FormData.package_type !== opt.value)
-                                  e.currentTarget.style.backgroundColor = "#e8eef0";
+                                  e.currentTarget.style.backgroundColor =
+                                    "#e8eef0";
                               }}
                               onMouseLeave={(e) => {
                                 if (FormData.package_type !== opt.value)
-                                  e.currentTarget.style.backgroundColor = "#fff";
+                                  e.currentTarget.style.backgroundColor =
+                                    "#fff";
                               }}
                             >
                               {opt.label}
@@ -1811,7 +2182,9 @@ class Packages extends Component {
                       )}
                     </div>
                     {errors.package_type && (
-                      <div className="text-danger small mt-1">{errors.package_type}</div>
+                      <div className="text-danger small mt-1">
+                        {errors.package_type}
+                      </div>
                     )}
                   </div>
                 </Col>
@@ -1824,7 +2197,9 @@ class Packages extends Component {
                         Pricing model <span className="text-danger">*</span>
                       </label>
                       {errors.pricing_model && (
-                        <div className="text-danger small mb-1">{errors.pricing_model}</div>
+                        <div className="text-danger small mb-1">
+                          {errors.pricing_model}
+                        </div>
                       )}
                       <div className="model-selector-grid">
                         {this.getFilteredModels().map((m) => (
@@ -1833,7 +2208,10 @@ class Packages extends Component {
                             className={`model-selector-card${FormData.pricing_model === m.value ? " selected" : ""}`}
                             onClick={() =>
                               this.setState((prev) => ({
-                                FormData: { ...prev.FormData, pricing_model: m.value },
+                                FormData: {
+                                  ...prev.FormData,
+                                  pricing_model: m.value,
+                                },
                                 errors: { ...prev.errors, pricing_model: "" },
                               }))
                             }
@@ -1845,7 +2223,10 @@ class Packages extends Component {
                             <div className="mc-desc">{m.description}</div>
                             <span
                               className="mc-badge"
-                              style={{ background: m.badgeBg, color: m.badgeColor }}
+                              style={{
+                                background: m.badgeBg,
+                                color: m.badgeColor,
+                              }}
                             >
                               {m.badge}
                             </span>
@@ -1902,20 +2283,30 @@ class Packages extends Component {
                           styles={tealSelectStyles}
                         />
                         {errors.currency && (
-                          <div className="text-danger small mt-1">{errors.currency}</div>
+                          <div className="text-danger small mt-1">
+                            {errors.currency}
+                          </div>
                         )}
                       </div>
                     </Col>
 
                     {/* Price (shown for models that need a flat price) */}
-                    {["duration_bundle", "cv_credits", "featured_boost", "per_apply"].includes(FormData.pricing_model) && (
+                    {[
+                      "duration_bundle",
+                      "cv_credits",
+                      "featured_boost",
+                      "per_apply",
+                    ].includes(FormData.pricing_model) && (
                       <Col md={6}>
                         <div className="mb-3">
                           <label className="form-label fw-semibold">
-                            {FormData.pricing_model === "duration_bundle" ? "Bundle price" :
-                              FormData.pricing_model === "cv_credits" ? "Pack price" :
-                                FormData.pricing_model === "featured_boost" ? "Boost price" :
-                                  "Price"}{" "}
+                            {FormData.pricing_model === "duration_bundle"
+                              ? "Bundle price"
+                              : FormData.pricing_model === "cv_credits"
+                                ? "Pack price"
+                                : FormData.pricing_model === "featured_boost"
+                                  ? "Boost price"
+                                  : "Price"}{" "}
                             <span className="text-danger">*</span>
                           </label>
                           <input
@@ -1927,7 +2318,9 @@ class Packages extends Component {
                             placeholder="e.g. 5,000"
                           />
                           {errors.price && (
-                            <div className="text-danger small mt-1">{errors.price}</div>
+                            <div className="text-danger small mt-1">
+                              {errors.price}
+                            </div>
                           )}
                         </div>
                       </Col>
@@ -1940,7 +2333,8 @@ class Packages extends Component {
                     <Col md={12}>
                       <div className="mb-3">
                         <label className="form-label fw-semibold">
-                          Description <span className="text-muted">(Optional)</span>
+                          Description{" "}
+                          <span className="text-muted">(Optional)</span>
                         </label>
                         <textarea
                           name="description"
@@ -1948,9 +2342,13 @@ class Packages extends Component {
                           onChange={this.handleInputChange}
                           className="form-control"
                           rows="3"
-                          placeholder={"Enter one feature per line:\nHighlighted in search results\nEmail alerts to candidates"}
+                          placeholder={
+                            "Enter one feature per line:\nHighlighted in search results\nEmail alerts to candidates"
+                          }
                         />
-                        <small className="text-muted">Each line becomes a bullet point on the pricing card</small>
+                        <small className="text-muted">
+                          Each line becomes a bullet point on the pricing card
+                        </small>
                       </div>
                     </Col>
 
@@ -1958,7 +2356,10 @@ class Packages extends Component {
                     <Col md={12}>
                       <div
                         className="mb-3 d-flex align-items-center gap-3 p-3 rounded"
-                        style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}
+                        style={{
+                          background: "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                        }}
                       >
                         <input
                           type="checkbox"
@@ -1970,11 +2371,16 @@ class Packages extends Component {
                           style={{ width: 20, height: 20 }}
                         />
                         <div>
-                          <label htmlFor="is_featured" className="form-label fw-semibold mb-0" style={{ cursor: "pointer" }}>
+                          <label
+                            htmlFor="is_featured"
+                            className="form-label fw-semibold mb-0"
+                            style={{ cursor: "pointer" }}
+                          >
                             Mark as "Most Popular"
                           </label>
                           <p className="text-muted small mb-0">
-                            This plan will be highlighted with a blue border and "Most popular" badge on the pricing page
+                            This plan will be highlighted with a blue border and
+                            "Most popular" badge on the pricing page
                           </p>
                         </div>
                       </div>
@@ -1984,7 +2390,10 @@ class Packages extends Component {
               </Row>
 
               <div className="d-flex justify-content-end gap-2 mt-2">
-                <Button variant="secondary" onClick={() => this.setState({ showModal: false })}>
+                <Button
+                  variant="secondary"
+                  onClick={() => this.setState({ showModal: false })}
+                >
                   Cancel
                 </Button>
                 <Button
@@ -2008,11 +2417,16 @@ class Packages extends Component {
             <Modal.Body className="text-center py-3">
               <p style={{ marginBottom: 0 }}>
                 Are you sure you want to{" "}
-                <strong>{deleteStatus === "Active" ? "inactivate" : "activate"}</strong> this package?
+                <strong>
+                  {deleteStatus === "Active" ? "inactivate" : "activate"}
+                </strong>{" "}
+                this package?
               </p>
             </Modal.Body>
             <Modal.Footer className="d-flex justify-content-end gap-2">
-              <Button variant="secondary" onClick={this.cancelDelete}>Cancel</Button>
+              <Button variant="secondary" onClick={this.cancelDelete}>
+                Cancel
+              </Button>
               <Button
                 variant={deleteStatus === "Active" ? "danger" : "success"}
                 onClick={this.handleDelete}
